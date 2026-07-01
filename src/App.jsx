@@ -3361,12 +3361,12 @@ const globalCss = `
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
-  @media (max-width: 560px) {
+  @media (max-width: 768px) {
     .draft-layout-grid { grid-template-columns: 1fr !important; }
     .draft-layout-grid > div:first-child { order: 2; }
-    .draft-layout-grid > div:last-child { order: 1; }
-    .draft-left { max-height: 52vh !important; }
-    .pitch-field { max-width: 260px !important; }
+    .draft-layout-grid > div:last-child { order: 1; max-height: none !important; position: static !important; }
+    .draft-left { max-height: 50vh !important; }
+    .pitch-field { max-width: 300px !important; margin: 0 auto; }
     .main-pad { padding: 16px 12px 60px !important; }
     .header-inner-pad { padding: 12px 14px !important; }
     .intro-title-h { font-size: 26px !important; line-height: 1.2 !important; }
@@ -3379,7 +3379,7 @@ const globalCss = `
     .live-teams-row { gap: 6px !important; }
     .live-team-n { font-size: 12px !important; }
     .squad-row-g { grid-template-columns: 36px 1fr auto 36px !important; gap: 8px !important; }
-    .pitch-spot { width: 38px !important; height: 38px !important; font-size: 8px !important; }
+    .pitch-spot { width: 40px !important; height: 40px !important; font-size: 8px !important; }
     .pitch-spot-name { font-size: 7px !important; }
     .h1-mob { font-size: 24px !important; }
     .h2-mob { font-size: 18px !important; }
