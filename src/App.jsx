@@ -1616,7 +1616,7 @@ export default function App() {
         </div>
       )}
       <header style={styles.header}>
-        <div style={styles.headerInner}>
+        <div style={styles.headerInner} className="header-inner-pad">
           <div style={styles.crest}>★</div>
           <div>
             <div style={styles.title}>BRASILEIRÃO LENDÁRIO</div>
@@ -1625,7 +1625,7 @@ export default function App() {
         </div>
       </header>
 
-      <main style={styles.main}>
+      <main style={styles.main} className="main-pad">
         {/* TELAS MULTIPLAYER */}
         {multiPhase === 'lobby' && (
           <MultiLobby
@@ -1887,15 +1887,15 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
         onCancel={() => onSetCropSrc(null)}
       />
     )}
-    <div style={styles.introCard}>
+    <div style={styles.introCard} className="intro-card-mob">
       <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1961–2006</div>
-      <h1 style={styles.introTitle}>Monte o time lendário dos seus sonhos.</h1>
+      <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
       <p style={styles.introLead}>
         Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
         e dispute uma liga completa com cronômetro ao vivo.
       </p>
 
-      <div style={styles.featGrid}>
+      <div style={styles.featGrid} className="feat-grid-3">
         <div style={styles.featCard}>
           <div style={styles.featIcon}>🎲</div>
           <div style={styles.featTitle}>Role o dado</div>
@@ -2166,7 +2166,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
 function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLogo, joinInput, onJoinInput, onCreateRoom, onJoinRoom, connecting, error, onBack }) {
   const mc = myTeamColor || '#d4a23c';
   return (
-    <div style={styles.card}>
+    <div style={styles.card} className="card-mob">
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12 }}>← Voltar</button>
       <div style={styles.eyebrow}>Multiplayer</div>
       <h2 style={styles.h2}>Jogar com Amigos</h2>
@@ -2255,7 +2255,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
   };
 
   return (
-    <div style={styles.card}>
+    <div style={styles.card} className="card-mob">
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12 }}>← Sair da sala</button>
 
       {/* Código da sala */}
@@ -2409,7 +2409,7 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
   const allReady = readyCount === players.length && players.length > 0;
 
   return (
-    <div style={styles.card}>
+    <div style={styles.card} className="card-mob">
       <div style={{ textAlign: 'center', padding: '16px 0 20px' }}>
         <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
         <div style={styles.eyebrow}>Time montado!</div>
@@ -2454,7 +2454,7 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
 // ============================================================
 function FormationPicker({ onChoose }) {
   return (
-    <div style={styles.card}>
+    <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>Passo 1 de 2</div>
       <h2 style={styles.h2}>Escolha o esquema tático</h2>
       <div style={styles.formationGrid}>
@@ -2484,7 +2484,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace 
   const highlightKeys = new Set(highlightSlots.map(s => s.key));
   return (
     <div style={styles.pitchWrap}>
-      <div style={styles.pitchField}>
+      <div style={styles.pitchField} className="pitch-field">
         <div style={styles.pitchCircle} />
         <div style={styles.pitchHalfLine} />
         {pitchSlots.map(slot => {
@@ -2511,10 +2511,11 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace 
                 transform: isHighlighted && !occupant ? 'translate(-50%,-50%) scale(1.12)' : 'translate(-50%,-50%)',
                 boxShadow: isHighlighted && !occupant ? '0 0 0 4px rgba(127,217,154,0.25)' : 'none',
               }}
+              className="pitch-spot"
               title={occupant ? `${occupant.name} (${occupant.teamLabel}) — clique para reposicionar` : slot.label}
             >
               {occupant
-                ? <span style={styles.pitchSpotName}>{occupant.name.split(' ')[0]}</span>
+                ? <span style={styles.pitchSpotName} className="pitch-spot-name">{occupant.name.split(' ')[0]}</span>
                 : <span style={styles.pitchSpotLabel}>{slot.label}</span>
               }
             </div>
@@ -2570,9 +2571,9 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
 
   if (isRolling) {
     return (
-      <div style={styles.card}>
+      <div style={styles.card} className="card-mob">
         <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} pitch={pitch} />
-        <div style={styles.draftLayout}>
+        <div style={styles.draftLayout} className="draft-layout-grid">
           <div className="draft-left" style={styles.draftLeft}>
             <div style={styles.rollingBox}>
               <span style={styles.diceIconSpin}>🎲</span>
@@ -2590,7 +2591,7 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
 
   if (!rolledTeam) {
     return (
-      <div style={styles.card}>
+      <div style={styles.card} className="card-mob">
         <div style={styles.emptyState}>
           Os times disponíveis se esgotaram. Siga com o que foi escalado até aqui.
         </div>
@@ -2599,7 +2600,7 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
   }
 
   return (
-    <div style={styles.card}>
+    <div style={styles.card} className="card-mob">
       <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} pitch={pitch} />
 
       {selectedPlayer && (
@@ -2787,7 +2788,7 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
   const effectiveOvr = Math.round((avgOvr + ovrBonus + (captainSlot ? 2 / xi.length : 0)) * 10) / 10;
 
   return (
-    <div style={styles.card}>
+    <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>{formationLabel}</div>
       <h2 style={styles.h2}>OVR base: {avgOvr} · Efetivo: {effectiveOvr}</h2>
       <ChemistryDisplay pitch={pitch} />
@@ -2815,6 +2816,7 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
             <button
               key={slot.key}
               onClick={() => onSetCaptain(isCap ? null : slot.key)}
+              className="squad-row-g"
               style={{
                 ...styles.squadRow,
                 cursor: 'pointer',
@@ -2860,9 +2862,9 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
   return (
-    <div style={styles.liveMatchBox}>
-      <div style={styles.liveTeamsRow}>
-        <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+    <div style={styles.liveMatchBox} className="card-mob">
+      <div style={styles.liveTeamsRow} className="live-teams-row">
+        <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} className="live-team-n">
           <span>{homeTeam.label}</span>
           {homeTeam.id === myTeamId
             ? (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>)
@@ -2870,11 +2872,11 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
           }
         </div>
         <div style={styles.liveScoreBlock}>
-          <span style={styles.liveScoreNum}>{liveScore.home}</span>
+          <span style={styles.liveScoreNum} className="live-score-n">{liveScore.home}</span>
           <span style={styles.liveScoreDash}>–</span>
-          <span style={styles.liveScoreNum}>{liveScore.away}</span>
+          <span style={styles.liveScoreNum} className="live-score-n">{liveScore.away}</span>
         </div>
-        <div style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6 }}>
+        <div style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6 }} className="live-team-n">
           {awayTeam.id === myTeamId
             ? (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>)
             : (awayTeam.clubLogo && <img src={awayTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />)
@@ -2973,7 +2975,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
     // Usuário eliminado
     if (!userInCup && roundDone) {
       return (
-        <div style={styles.card}>
+        <div style={styles.card} className="card-mob">
           <div style={{ textAlign: 'center', padding: '20px 0 10px' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>😔</div>
             <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Eliminado!</div>
@@ -3006,7 +3008,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
     }
 
     return (
-      <div style={styles.card}>
+      <div style={styles.card} className="card-mob">
         <div style={styles.draftTopRow}>
           <div>
             <div style={styles.eyebrow}>Copa do Brasil</div>
@@ -3081,7 +3083,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
   const isLastRound = currentRound + 1 >= totalRounds;
 
   return (
-    <div style={styles.card}>
+    <div style={styles.card} className="card-mob">
       <div style={styles.draftTopRow}>
         <div>
           <div style={styles.eyebrow}>Brasileirão · Série A</div>
@@ -3128,7 +3130,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         </div>
       )}
 
-      <div style={styles.tableSection}>
+      <div style={styles.tableSection} className="table-scroll">
         <div style={styles.sectionLabel}>Classificação Geral</div>
         <div style={styles.tableHeaderRow}>
           <span style={styles.tablePos}>#</span>
@@ -3223,7 +3225,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
     const userWon = cupWinnerId === myTeamId;
     const champClub = winner?.club || getMostCommonClub(winner?.players);
     return (
-      <div style={styles.card}>
+      <div style={styles.card} className="card-mob">
         <div style={{ textAlign: 'center', padding: '12px 0 28px' }}>
           <div style={{ fontSize: 56, marginBottom: 12 }}>{userWon ? '🏆' : '⚽'}</div>
           <div style={styles.eyebrow}>Copa do Brasil — Resultado Final</div>
@@ -3259,9 +3261,9 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
   const champClub = champTeam?.club || getMostCommonClub(champTeam?.players);
 
   return (
-    <div style={styles.card}>
+    <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>Fim do Brasileirão · Série A</div>
-      <h1 style={styles.h1}>
+      <h1 style={styles.h1} className="h1-mob">
         {isChampion ? '🏆 CAMPEÃO!' : podium ? `${pos}º lugar — pódio!` : `${pos}º lugar`}
       </h1>
 
@@ -3271,7 +3273,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         </div>
       )}
 
-      <div style={styles.finalStats}>
+      <div style={styles.finalStats} className="stats-grid-3">
         <Stat label="Pontos" value={myRow.pts ?? 0} />
         <Stat label="Vitórias" value={myRow.v ?? 0} />
         <Stat label="Empates" value={myRow.e ?? 0} />
@@ -3286,6 +3288,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
 
       <AnthemPlayer club={champClub} />
 
+      <div className="table-scroll">
       <div style={{ ...styles.sectionLabel, marginTop: 24 }}>Classificação Final</div>
       <div style={styles.tableHeaderRow}>
         <span style={styles.tablePos}>#</span>
@@ -3324,6 +3327,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           </div>
         );
       })}
+      </div>{/* /table-scroll */}
 
       <button style={{ ...styles.btnPrimary, marginTop: 28, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
         Jogar de novo →
@@ -3361,6 +3365,25 @@ const globalCss = `
     .draft-layout-grid { grid-template-columns: 1fr !important; }
     .draft-layout-grid > div:first-child { order: 2; }
     .draft-layout-grid > div:last-child { order: 1; }
+    .draft-left { max-height: 52vh !important; }
+    .pitch-field { max-width: 260px !important; }
+    .main-pad { padding: 16px 12px 60px !important; }
+    .header-inner-pad { padding: 12px 14px !important; }
+    .intro-title-h { font-size: 26px !important; line-height: 1.2 !important; }
+    .feat-grid-3 { grid-template-columns: 1fr 1fr !important; }
+    .stats-grid-3 { grid-template-columns: 1fr 1fr !important; }
+    .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-scroll > * { min-width: 420px; }
+    .card-mob { padding: 16px 12px !important; }
+    .live-score-n { font-size: 20px !important; min-width: 18px !important; }
+    .live-teams-row { gap: 6px !important; }
+    .live-team-n { font-size: 12px !important; }
+    .squad-row-g { grid-template-columns: 36px 1fr auto 36px !important; gap: 8px !important; }
+    .pitch-spot { width: 38px !important; height: 38px !important; font-size: 8px !important; }
+    .pitch-spot-name { font-size: 7px !important; }
+    .h1-mob { font-size: 24px !important; }
+    .h2-mob { font-size: 18px !important; }
+    .intro-card-mob { padding: 28px 16px 24px !important; }
   }
   input::placeholder { color: rgba(255,255,255,0.2); }
   input:focus { border-color: rgba(212,162,60,0.5) !important; outline: none; }
