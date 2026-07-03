@@ -2565,25 +2565,43 @@ function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, pitch }
   );
 }
 
+function useIsMobile(bp = 768) {
+  const [mob, setMob] = useState(() => typeof window !== 'undefined' && window.innerWidth <= bp);
+  useEffect(() => {
+    const fn = () => setMob(window.innerWidth <= bp);
+    window.addEventListener('resize', fn);
+    return () => window.removeEventListener('resize', fn);
+  }, [bp]);
+  return mob;
+}
+
 function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam }) {
+  const isMobile = useIsMobile();
   const filledCount = Object.keys(pitch).length;
   const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
 
+  const mobileLayoutStyle = { display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 };
+  const playersPanelStyle = isMobile
+    ? { ...styles.draftLeft, maxHeight: '50vh' }
+    : styles.draftLeft;
+  const pitchPanelStyle = isMobile ? {} : styles.draftRight;
+
   if (isRolling) {
+    const pitchEl = <div style={pitchPanelStyle}><Pitch pitch={pitch} pitchSlots={pitchSlots} /></div>;
+    const rollingEl = (
+      <div className="draft-left" style={playersPanelStyle}>
+        <div style={styles.rollingBox}>
+          <span style={styles.diceIconSpin}>🎲</span>
+          <div style={styles.rollingName}>{rollingPreview ? rollingPreview.label : '...'}</div>
+          <div style={styles.rollingHint}>sorteando time...</div>
+        </div>
+      </div>
+    );
     return (
       <div style={styles.card} className="card-mob">
         <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} pitch={pitch} />
-        <div style={styles.draftLayout} className="draft-layout-grid">
-          <div className="draft-left" style={styles.draftLeft}>
-            <div style={styles.rollingBox}>
-              <span style={styles.diceIconSpin}>🎲</span>
-              <div style={styles.rollingName}>{rollingPreview ? rollingPreview.label : '...'}</div>
-              <div style={styles.rollingHint}>sorteando time...</div>
-            </div>
-          </div>
-          <div style={styles.draftRight}>
-            <Pitch pitch={pitch} pitchSlots={pitchSlots} />
-          </div>
+        <div style={isMobile ? mobileLayoutStyle : styles.draftLayout} className="draft-layout-grid">
+          {isMobile ? <>{pitchEl}{rollingEl}</> : <>{rollingEl}{pitchEl}</>}
         </div>
       </div>
     );
@@ -2612,9 +2630,22 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
         </div>
       )}
 
-      <div style={styles.draftLayout}>
-        {/* ESQUERDA: jogadores */}
-        <div className="draft-left" style={styles.draftLeft}>
+      <div style={isMobile ? mobileLayoutStyle : styles.draftLayout} className="draft-layout-grid">
+        {/* No mobile: campo primeiro; no desktop: jogadores primeiro */}
+        {isMobile && (
+          <div style={pitchPanelStyle}>
+            <Pitch
+              pitch={pitch}
+              pitchSlots={pitchSlots}
+              highlightSlots={highlightSlots}
+              onClickSlot={onClickPitchSlot}
+              onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
+            />
+          </div>
+        )}
+
+        {/* Jogadores */}
+        <div className="draft-left" style={playersPanelStyle}>
           <div style={styles.teamHeaderCard}>
             {CLUB_LOGOS[rolledTeam.club]
               ? <img src={CLUB_LOGOS[rolledTeam.club]} style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }} alt={rolledTeam.club} />
@@ -2631,7 +2662,6 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
               const slots = eligibleSlotsForPlayer(p);
               const canPick = slots.length > 0;
               const isSelected = selectedPlayer?.name === p.name;
-              const posLabel = p.pos.join(' · ');
               return (
                 <button
                   key={i}
@@ -2659,38 +2689,26 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
                     marginBottom: 2,
                   }}
                 >
-                  {/* OVR badge */}
                   <div style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 8,
+                    width: 40, height: 40, borderRadius: 8,
                     background: isSelected ? 'rgba(127,217,154,0.2)' : 'rgba(255,255,255,0.06)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontFamily: "'Space Mono', monospace",
-                    fontWeight: 700,
-                    fontSize: 14,
-                    color: ovrColor(p.ovr),
-                    flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 14,
+                    color: ovrColor(p.ovr), flexShrink: 0,
                   }}>
                     {p.ovr}
                   </div>
-
-                  {/* Info */}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                       {p.name}
                     </div>
                     <div style={{ marginTop: 4, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                      {expandPlayerPositions(p.pos).map((pos, pi) => {
+                      {expandPlayerPositions(p.pos).map((pos) => {
                         const isNative = p.pos.includes(pos);
                         return (
                           <span key={pos} style={{
-                            fontFamily: "'Space Mono', monospace",
-                            fontSize: 9,
-                            padding: '2px 5px',
-                            borderRadius: 4,
+                            fontFamily: "'Space Mono', monospace", fontSize: 9,
+                            padding: '2px 5px', borderRadius: 4,
                             background: isSelected
                               ? (isNative ? 'rgba(127,217,154,0.2)' : 'rgba(127,217,154,0.07)')
                               : (isNative ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)'),
@@ -2704,27 +2722,25 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
                       })}
                     </div>
                   </div>
-
-                  {/* Status direita */}
-                  {isSelected && (
-                    <span style={{ flexShrink: 0, fontSize: 16, color: '#7fd99a' }}>→</span>
-                  )}
+                  {isSelected && <span style={{ flexShrink: 0, fontSize: 16, color: '#7fd99a' }}>→</span>}
                 </button>
               );
             })}
           </div>
         </div>
 
-        {/* DIREITA: campo */}
-        <div style={styles.draftRight}>
-          <Pitch
-            pitch={pitch}
-            pitchSlots={pitchSlots}
-            highlightSlots={highlightSlots}
-            onClickSlot={onClickPitchSlot}
-            onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
-          />
-        </div>
+        {/* Campo — só no desktop (mobile já renderizou acima) */}
+        {!isMobile && (
+          <div style={styles.draftRight}>
+            <Pitch
+              pitch={pitch}
+              pitchSlots={pitchSlots}
+              highlightSlots={highlightSlots}
+              onClickSlot={onClickPitchSlot}
+              onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
+            />
+          </div>
+        )}
       </div>
     </div>
   );
