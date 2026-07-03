@@ -2077,8 +2077,20 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
                 </button>
               </div>
               {musicId && (
-                <div style={{ borderRadius: 8, overflow: 'hidden' }}>
-                  <iframe key={musicId} width="100%" height="110" src={`https://www.youtube.com/embed/${musicId}?autoplay=1`} allow="autoplay; encrypted-media" style={{ display: 'block', border: 'none' }} title="Música de fundo" />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
+                  {/* iframe escondido — só áudio */}
+                  <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+                    <iframe key={musicId} width="1" height="1" src={`https://www.youtube.com/embed/${musicId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title="Música de fundo" />
+                  </div>
+                  <span style={{ fontSize: 18 }}>🎵</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, opacity: 0.6 }}>Tocando música de fundo</div>
+                    <div style={{ display: 'flex', gap: 2, marginTop: 4, alignItems: 'flex-end', height: 12 }}>
+                      {[6,10,7,12,5,9,7,11,6].map((h, i) => (
+                        <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: myTeamColor || '#d4a23c', animation: `pulse ${0.5 + i * 0.1}s ease-in-out infinite alternate`, opacity: 0.7 }} />
+                      ))}
+                    </div>
+                  </div>
                 </div>
               )}
               {!musicId && musicInput && (
@@ -3203,31 +3215,44 @@ function getMostCommonClub(players = []) {
 }
 
 function AnthemPlayer({ club }) {
-  const [visible, setVisible] = React.useState(true);
+  const [playing, setPlaying] = React.useState(true);
   const videoId = CLUB_ANTHEMS[club];
   if (!videoId) return null;
   return (
-    <div style={{ marginTop: 24, borderRadius: 12, overflow: 'hidden', border: '1px solid rgba(212,162,60,0.3)', background: '#0a1a0f' }}>
-      <div style={{ padding: '10px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: visible ? '1px solid rgba(255,255,255,0.07)' : 'none' }}>
-        <span style={{ fontSize: 14, fontWeight: 700, color: '#d4a23c' }}>🎵 Hino do Campeão — {club}</span>
-        <button
-          onClick={() => setVisible(v => !v)}
-          style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, color: '#aaa', cursor: 'pointer', padding: '3px 10px', fontSize: 12 }}
-        >
-          {visible ? 'Ocultar' : 'Tocar'}
-        </button>
+    <div style={{ marginTop: 24, borderRadius: 12, border: '1px solid rgba(212,162,60,0.3)', background: '#0a1a0f', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+      {/* iframe escondido — só áudio */}
+      <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+        {playing && (
+          <iframe
+            key={videoId}
+            width="1"
+            height="1"
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0`}
+            allow="autoplay; encrypted-media"
+            title={`Hino ${club}`}
+          />
+        )}
       </div>
-      {visible && (
-        <iframe
-          width="100%"
-          height="160"
-          src={`https://www.youtube.com/embed/${videoId}?autoplay=1`}
-          allow="autoplay; encrypted-media"
-          allowFullScreen
-          style={{ display: 'block', border: 'none' }}
-          title={`Hino do ${club}`}
-        />
-      )}
+
+      {/* Indicador visual */}
+      <div style={{ fontSize: 28 }}>🎵</div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#d4a23c' }}>Hino do Campeão</div>
+        <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>{club}</div>
+        {playing && (
+          <div style={{ display: 'flex', gap: 3, marginTop: 6, alignItems: 'flex-end', height: 16 }}>
+            {[8,14,10,16,6,12,10,14,8].map((h, i) => (
+              <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: '#d4a23c', animation: `pulse ${0.6 + i * 0.1}s ease-in-out infinite alternate`, opacity: 0.8 }} />
+            ))}
+          </div>
+        )}
+      </div>
+      <button
+        onClick={() => setPlaying(p => !p)}
+        style={{ background: playing ? 'rgba(212,162,60,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${playing ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 8, color: playing ? '#d4a23c' : '#aaa', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 600 }}
+      >
+        {playing ? '⏸ Pausar' : '▶ Tocar'}
+      </button>
     </div>
   );
 }
