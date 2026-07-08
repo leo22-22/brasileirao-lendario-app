@@ -1739,8 +1739,11 @@ export default function App() {
   const [currentRound, setCurrentRound] = useState(0);
 
   // Copa (eliminatória)
-  const [cupRounds, setCupRounds] = useState([]); // [{name, matches, results}]
+  const [cupRounds, setCupRounds] = useState([]); // [{name, matches, leg1Results, results}]
   const [cupRoundIdx, setCupRoundIdx] = useState(0);
+  const [cupLeg, setCupLeg] = useState(1); // 1=jogo de ida  2=jogo de volta
+  const cupLegRef = useRef(1);
+  useEffect(() => { cupLegRef.current = cupLeg; }, [cupLeg]);
   const [userInCup, setUserInCup] = useState(true);
   const [cupWinnerId, setCupWinnerId] = useState(null);
 
@@ -1938,14 +1941,16 @@ export default function App() {
       setCurrentRound(0);
       setCupRounds([]);
       setCupRoundIdx(0);
+      setCupLeg(1);
       setUserInCup(true);
       setCupWinnerId(null);
     } else {
       // Copa do Brasil
       const firstMatches = generateCupFirstRound(allTeams.map(t => t.id));
-      const firstRound = { name: CUP_ROUND_NAMES[0], matches: firstMatches, results: [] };
+      const firstRound = { name: CUP_ROUND_NAMES[0], matches: firstMatches, leg1Results: [], results: [] };
       setCupRounds([firstRound]);
       setCupRoundIdx(0);
+      setCupLeg(1);
       setUserInCup(true);
       setCupWinnerId(null);
       setFixtures([firstMatches]);
@@ -2035,16 +2040,30 @@ export default function App() {
           // Copa: registrar resultado da rodada
           setCupRounds(prev => {
             const updated = prev.map((r, i) => i === cupRoundIdx ? { ...r, results } : r);
+            // Leg 2: verificar eliminação por agregado imediatamente
+            if (cupLegRef.current === 2) {
+              const round = updated[cupRoundIdx];
+              const leg1Res = round?.leg1Results || [];
+              const userMatchIdx = round?.matches?.findIndex(m => m.homeId === MY_TEAM_ID || m.awayId === MY_TEAM_ID) ?? -1;
+              if (userMatchIdx >= 0) {
+                const match = round.matches[userMatchIdx];
+                const l1 = leg1Res[userMatchIdx] || { homeGoals: 0, awayGoals: 0 };
+                const l2 = results[userMatchIdx] || { homeGoals: 0, awayGoals: 0 };
+                const isHome = match.homeId === MY_TEAM_ID;
+                // leg2 inverte mando: se user era home no leg1, é away no leg2
+                const userAgg = isHome ? (l1.homeGoals + l2.awayGoals) : (l1.awayGoals + l2.homeGoals);
+                const oppAgg  = isHome ? (l1.awayGoals + l2.homeGoals) : (l1.homeGoals + l2.awayGoals);
+                if (userAgg < oppAgg) {
+                  setUserInCup(false);
+                } else if (userAgg === oppAgg) {
+                  const userAway = isHome ? l2.awayGoals : l1.awayGoals;
+                  const oppAway  = isHome ? l1.awayGoals : l2.awayGoals;
+                  if (userAway < oppAway || (userAway === oppAway && Math.random() >= 0.5)) setUserInCup(false);
+                }
+              }
+            }
             return updated;
           });
-          // Verificar se usuário foi eliminado
-          const userMatch = results.find(r => r.homeId === MY_TEAM_ID || r.awayId === MY_TEAM_ID);
-          if (userMatch) {
-            const userWon = userMatch.homeId === MY_TEAM_ID
-              ? userMatch.homeGoals >= userMatch.awayGoals
-              : userMatch.awayGoals >= userMatch.homeGoals;
-            if (!userWon) setUserInCup(false);
-          }
         }
       } else {
         clockRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
@@ -2071,37 +2090,72 @@ export default function App() {
       return;
     }
 
-    // Copa: avançar para próxima fase
+    // Copa — jogo de ida → jogo de volta → próxima fase
     setCupRounds(prev => {
       const currentCupRound = prev[cupRoundIdx];
-      if (!currentCupRound?.results?.length) return prev;
+      if (!currentCupRound) return prev;
 
-      const nextMatches = nextCupRound(currentCupRound.matches, currentCupRound.results);
+      const reset = () => {
+        setRoundResults(null);
+        setLiveEvents([]);
+        setLiveScore({ home: 0, away: 0 });
+        setClockMinute(0);
+        setActiveUserMatch(null);
+      };
+
+      if (cupLeg === 1) {
+        // Salvar resultados do jogo de ida e preparar jogo de volta
+        const leg1Res = roundResults || [];
+        const leg2Matches = currentCupRound.matches.map(m => ({ homeId: m.awayId, awayId: m.homeId }));
+        setFixtures(f => [...f, leg2Matches]);
+        setCupLeg(2);
+        setCurrentRound(next);
+        reset();
+        return prev.map((r, i) => i === cupRoundIdx ? { ...r, leg1Results: leg1Res } : r);
+      }
+
+      // Leg 2 — calcular vencedores por agregado
+      const leg1Res = currentCupRound.leg1Results || [];
+      const leg2Res = roundResults || [];
+
+      const aggregateWinners = currentCupRound.matches.map((match, i) => {
+        const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
+        const l2 = leg2Res[i] || { homeGoals: 0, awayGoals: 0 };
+        // leg1 home = match.homeId, leg2 home = match.awayId (invertido)
+        const aggA = l1.homeGoals + l2.awayGoals;
+        const aggB = l1.awayGoals + l2.homeGoals;
+        if (aggA !== aggB) return aggA > aggB ? match.homeId : match.awayId;
+        // Empate no agregado: gol fora
+        const awayA = l2.awayGoals; // match.homeId marcou fora no leg2
+        const awayB = l1.awayGoals; // match.awayId marcou fora no leg1
+        if (awayA !== awayB) return awayA > awayB ? match.homeId : match.awayId;
+        // Pênaltis
+        return Math.random() < 0.5 ? match.homeId : match.awayId;
+      });
+
+      const nextMatches = [];
+      for (let i = 0; i + 1 < aggregateWinners.length; i += 2)
+        nextMatches.push({ homeId: aggregateWinners[i], awayId: aggregateWinners[i + 1] });
+
       if (nextMatches.length === 0) {
-        // Fim da copa: campeão é o último winner
-        const lastResult = currentCupRound.results[0];
-        const winnerId = lastResult.homeGoals >= lastResult.awayGoals ? lastResult.homeId : lastResult.awayId;
-        setCupWinnerId(winnerId);
+        setCupWinnerId(aggregateWinners[0] || null);
         setPhase('results');
         return prev;
       }
 
       const nextRoundName = CUP_ROUND_NAMES[cupRoundIdx + 1] || 'Final';
-      const newRound = { name: nextRoundName, matches: nextMatches, results: [] };
+      const newRound = { name: nextRoundName, matches: nextMatches, leg1Results: [], results: [] };
       const updated = [...prev, newRound];
 
       setFixtures(f => [...f, nextMatches]);
-      setCupRoundIdx(cupRoundIdx + 1);
+      setCupRoundIdx(r => r + 1);
+      setCupLeg(1);
       setCurrentRound(next);
-      setRoundResults(null);
-      setLiveEvents([]);
-      setLiveScore({ home: 0, away: 0 });
-      setClockMinute(0);
-      setActiveUserMatch(null);
+      reset();
 
       return updated;
     });
-  }, [currentRound, fixtures, gameMode, cupRoundIdx]);
+  }, [currentRound, fixtures, gameMode, cupRoundIdx, cupLeg, roundResults]);
 
   // Mantém refs atualizadas para os efeitos de auto não ficarem com closures velhas
   useEffect(() => { startRoundRef.current = startRound; }, [startRound]);
@@ -2173,6 +2227,7 @@ export default function App() {
     setActiveUserMatch(null);
     setCupRounds([]);
     setCupRoundIdx(0);
+    setCupLeg(1);
     setUserInCup(true);
     setCupWinnerId(null);
   };
@@ -2425,7 +2480,24 @@ export default function App() {
       setLeagueTable(allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 })));
       setCurrentRound(0);
       setCupRounds([]);
+      setCupLeg(1);
       setUserInCup(true);
+    } else {
+      // Copa do Brasil multiplayer
+      const prng2 = makePrng(roomSnap.seed + 1);
+      const shuffledIds = [...allTeams.map(t => t.id)].sort(() => prng2() - 0.5);
+      const firstMatches = [];
+      for (let i = 0; i + 1 < shuffledIds.length; i += 2)
+        firstMatches.push({ homeId: shuffledIds[i], awayId: shuffledIds[i + 1] });
+      const firstRound = { name: CUP_ROUND_NAMES[0], matches: firstMatches, leg1Results: [], results: [] };
+      setCupRounds([firstRound]);
+      setCupRoundIdx(0);
+      setCupLeg(1);
+      setUserInCup(true);
+      setCupWinnerId(null);
+      setFixtures([firstMatches]);
+      setCurrentRound(0);
+      setLeagueTable([]);
     }
     setPhase('playing');
     setMultiPhase(null);
@@ -2552,6 +2624,7 @@ export default function App() {
             gameMode={gameMode}
             cupRounds={cupRounds}
             cupRoundIdx={cupRoundIdx}
+            cupLeg={cupLeg}
             userInCup={userInCup}
             simSpeed={simSpeed}
             onSetSpeed={setSimSpeed}
@@ -2952,7 +3025,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
               id: 'copa',
               trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/jv27c41776553182.png',
               title: 'Copa do Brasil',
-              sub: '32 times · Mata-mata · Jogo único',
+              sub: '32 times · Mata-mata · Ida e volta',
             },
           ].map(m => (
             <button key={m.id} onClick={() => onSetGameMode(m.id)} style={{
@@ -3814,7 +3887,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, userInCup, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound }) {
+function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -3828,6 +3901,13 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
     const cupRound = cupRounds[cupRoundIdx] || {};
     const roundName = cupRound.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa';
     const isLastCupRound = cupRoundIdx >= CUP_ROUND_NAMES.length - 1;
+    const legLabel = cupLeg === 1 ? 'Jogo de Ida' : 'Jogo de Volta';
+
+    // Contexto do jogo de ida para exibir no leg 2
+    const leg1Results = cupLeg === 2 ? (cupRound.leg1Results || []) : null;
+    const userOrigIdx = cupRound.matches ? cupRound.matches.findIndex(m => m.homeId === myTeamId || m.awayId === myTeamId) : -1;
+    const userLeg1 = leg1Results && userOrigIdx >= 0 ? leg1Results[userOrigIdx] : null;
+    const origMatch = userOrigIdx >= 0 ? cupRound.matches[userOrigIdx] : null;
 
     // Usuário eliminado
     if (!userInCup && roundDone) {
@@ -3868,12 +3948,12 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
       <div style={styles.card} className="card-mob">
         <div style={styles.draftTopRow}>
           <div>
-            <div style={styles.eyebrow}>Copa do Brasil</div>
+            <div style={styles.eyebrow}>Copa do Brasil · {legLabel}</div>
             <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginTop: 2 }}>{roundName}</div>
           </div>
           {roundDone && userInCup && simMode === 'manual' && (
             <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12' }} onClick={onNextRound}>
-              {isLastCupRound ? '🏆 Ver campeão →' : 'Próxima fase →'}
+              {isLastCupRound && cupLeg === 2 ? '🏆 Ver campeão →' : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →'}
             </button>
           )}
           {roundDone && userInCup && simMode === 'auto' && autoCountdown !== null && (
@@ -3883,6 +3963,19 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           )}
         </div>
 
+        {/* Contexto do jogo de ida quando estamos no jogo de volta */}
+        {cupLeg === 2 && userLeg1 && origMatch && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '8px 14px', background: 'rgba(0,0,0,0.25)', borderRadius: 10, marginBottom: 12, fontSize: 12 }}>
+            <span style={{ opacity: 0.55 }}>1º jogo:</span>
+            <span style={{ fontWeight: 700, fontFamily: 'monospace', color: mc }}>
+              {origMatch.homeId === myTeamId ? userLeg1.homeGoals : userLeg1.awayGoals}
+              {' × '}
+              {origMatch.homeId === myTeamId ? userLeg1.awayGoals : userLeg1.homeGoals}
+            </span>
+            <span style={{ opacity: 0.55 }}>· 2º jogo decide o agregado</span>
+          </div>
+        )}
+
         <LiveMatchBox
           um={um} homeTeam={homeTeam} awayTeam={awayTeam}
           myTeamId={myTeamId} myTeamBadge={myTeamBadge} mc={mc}
@@ -3891,12 +3984,31 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           liveEvents={liveEvents} simSpeed={simSpeed}
           onSetSpeed={onSetSpeed} simMode={simMode} onSetSimMode={onSetSimMode}
           autoCountdown={autoCountdown} onStartRound={onStartRound}
-          roundLabel={`Jogar — ${roundName}`}
+          roundLabel={`Jogar — ${roundName} (${legLabel})`}
         />
+
+        {/* Placar agregado após jogo de volta */}
+        {roundDone && cupLeg === 2 && userLeg1 && origMatch && roundResults && (() => {
+          const l2 = roundResults[userOrigIdx] || { homeGoals: 0, awayGoals: 0 };
+          const isUserHome = origMatch.homeId === myTeamId;
+          const userAgg = isUserHome ? (userLeg1.homeGoals + l2.awayGoals) : (userLeg1.awayGoals + l2.homeGoals);
+          const oppAgg  = isUserHome ? (userLeg1.awayGoals + l2.homeGoals) : (userLeg1.homeGoals + l2.awayGoals);
+          return (
+            <div style={{ textAlign: 'center', padding: '10px 0 4px', fontSize: 13 }}>
+              <span style={{ opacity: 0.55, marginRight: 8 }}>Placar agregado:</span>
+              <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 16, color: userAgg > oppAgg ? '#7fd99a' : userAgg < oppAgg ? '#e05050' : mc }}>
+                {userAgg} × {oppAgg}
+              </span>
+              {userAgg > oppAgg && <span style={{ marginLeft: 8, color: '#7fd99a', fontSize: 12 }}>✓ Classificado</span>}
+              {userAgg < oppAgg && <span style={{ marginLeft: 8, color: '#e05050', fontSize: 12 }}>✗ Eliminado</span>}
+              {userAgg === oppAgg && <span style={{ marginLeft: 8, opacity: 0.6, fontSize: 12 }}>Pênaltis</span>}
+            </div>
+          );
+        })()}
 
         {roundDone && (
           <div style={styles.otherMatchesBox}>
-            <div style={styles.sectionLabel}>Outros jogos — {roundName}</div>
+            <div style={styles.sectionLabel}>Outros jogos — {roundName} · {legLabel}</div>
             {roundResults.filter(r => r.homeId !== myTeamId && r.awayId !== myTeamId).map((r, i) => {
               const h = leagueTeams.find(t => t.id === r.homeId);
               const a = leagueTeams.find(t => t.id === r.awayId);
