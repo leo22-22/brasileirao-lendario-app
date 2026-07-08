@@ -4033,30 +4033,48 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
 
     // Usuário eliminado
     if (!userInCup && roundDone) {
+      // Compute user's aggregate for the message (elimination always happens on leg 2)
+      const elimL2 = roundResults && userOrigIdx >= 0 ? roundResults[userOrigIdx] || { homeGoals: 0, awayGoals: 0 } : null;
+      const elimIsHome = origMatch ? origMatch.homeId === myTeamId : false;
+      const elimUserAgg = elimL2 && userLeg1
+        ? (elimIsHome ? userLeg1.homeGoals + elimL2.awayGoals : userLeg1.awayGoals + elimL2.homeGoals) : null;
+      const elimOppAgg = elimL2 && userLeg1
+        ? (elimIsHome ? userLeg1.awayGoals + elimL2.homeGoals : userLeg1.homeGoals + elimL2.awayGoals) : null;
+
       return (
         <div style={styles.card} className="card-mob">
           <div style={{ textAlign: 'center', padding: '20px 0 10px' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>😔</div>
             <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Eliminado!</div>
-            <div style={{ fontSize: 14, opacity: 0.6, marginBottom: 24 }}>Seu time foi eliminado nas {roundName}.</div>
+            <div style={{ fontSize: 14, opacity: 0.6, marginBottom: 6 }}>Seu time foi eliminado nas {roundName}.</div>
+            {elimUserAgg !== null && elimOppAgg !== null && (
+              <div style={{ fontSize: 13, fontFamily: "'Space Mono', monospace", color: '#e05050', marginBottom: 20 }}>
+                Agregado: {elimUserAgg} × {elimOppAgg}
+              </div>
+            )}
             {simMode === 'manual' && <button style={styles.btnSmall} onClick={onNextRound}>Ver campeão →</button>}
             {simMode === 'auto' && autoCountdown !== null && (
               <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#d4a23c' }}>Avançando em {autoCountdown}s…</div>
             )}
           </div>
-          {roundResults && (
+          {roundResults && cupRound.matches && leg1Results && (
             <div style={styles.otherMatchesBox}>
-              <div style={styles.sectionLabel}>Resultados — {roundName}</div>
-              {roundResults.map((r, i) => {
-                const h = leagueTeams.find(t => t.id === r.homeId);
-                const a = leagueTeams.find(t => t.id === r.awayId);
-                const hw = r.homeGoals > r.awayGoals;
-                const aw = r.awayGoals > r.homeGoals;
+              <div style={styles.sectionLabel}>Agregado — {roundName}</div>
+              {cupRound.matches.map((origM, i) => {
+                const l1 = leg1Results[i] || { homeGoals: 0, awayGoals: 0 };
+                const l2 = roundResults[i] || { homeGoals: 0, awayGoals: 0 };
+                const aggHome = l1.homeGoals + l2.awayGoals;
+                const aggAway = l1.awayGoals + l2.homeGoals;
+                const h = leagueTeams.find(t => t.id === origM.homeId);
+                const a = leagueTeams.find(t => t.id === origM.awayId);
+                const hw = aggHome > aggAway;
+                const aw = aggAway > aggHome;
+                const isUserRow = origM.homeId === myTeamId || origM.awayId === myTeamId;
                 return (
-                  <div key={i} style={styles.otherMatchRow}>
-                    <span style={{ ...styles.otherTeam, fontWeight: hw ? 700 : 400 }}>{h?.label}</span>
-                    <span style={styles.otherScore}>{r.homeGoals} – {r.awayGoals}</span>
-                    <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: aw ? 700 : 400 }}>{a?.label}</span>
+                  <div key={i} style={{ ...styles.otherMatchRow, background: isUserRow ? 'rgba(224,80,80,0.07)' : undefined }}>
+                    <span style={{ ...styles.otherTeam, fontWeight: hw ? 700 : 400, color: hw ? '#7fd99a' : undefined }}>{h?.label}</span>
+                    <span style={styles.otherScore}>{aggHome} – {aggAway}</span>
+                    <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: aw ? 700 : 400, color: aw ? '#7fd99a' : undefined }}>{a?.label}</span>
                   </div>
                 );
               })}
@@ -4130,19 +4148,42 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
 
         {roundDone && (
           <div style={styles.otherMatchesBox}>
-            <div style={styles.sectionLabel}>Outros jogos — {roundName} · {legLabel}</div>
-            {roundResults.filter(r => r.homeId !== myTeamId && r.awayId !== myTeamId).map((r, i) => {
-              const h = leagueTeams.find(t => t.id === r.homeId);
-              const a = leagueTeams.find(t => t.id === r.awayId);
-              const winH = r.homeGoals > r.awayGoals, winA = r.awayGoals > r.homeGoals;
-              return (
-                <div key={i} style={styles.otherMatchRow}>
-                  <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined }}>{h?.label}</span>
-                  <span style={styles.otherScore}>{r.homeGoals} – {r.awayGoals}</span>
-                  <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined }}>{a?.label}</span>
-                </div>
-              );
-            })}
+            <div style={styles.sectionLabel}>
+              {cupLeg === 2 ? `Agregado — ${roundName}` : `Outros jogos — ${roundName} · Jogo de Ida`}
+            </div>
+            {cupLeg === 2 && cupRound.matches && leg1Results
+              ? cupRound.matches
+                  .map((origM, i) => ({ origM, i }))
+                  .filter(({ origM }) => origM.homeId !== myTeamId && origM.awayId !== myTeamId)
+                  .map(({ origM, i }) => {
+                    const l1 = leg1Results[i] || { homeGoals: 0, awayGoals: 0 };
+                    const l2 = roundResults[i] || { homeGoals: 0, awayGoals: 0 };
+                    const aggHome = l1.homeGoals + l2.awayGoals;
+                    const aggAway = l1.awayGoals + l2.homeGoals;
+                    const h = leagueTeams.find(t => t.id === origM.homeId);
+                    const a = leagueTeams.find(t => t.id === origM.awayId);
+                    const winH = aggHome > aggAway, winA = aggAway > aggHome;
+                    return (
+                      <div key={i} style={styles.otherMatchRow}>
+                        <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined }}>{h?.label}</span>
+                        <span style={styles.otherScore}>{aggHome} – {aggAway}</span>
+                        <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined }}>{a?.label}</span>
+                      </div>
+                    );
+                  })
+              : roundResults.filter(r => r.homeId !== myTeamId && r.awayId !== myTeamId).map((r, i) => {
+                  const h = leagueTeams.find(t => t.id === r.homeId);
+                  const a = leagueTeams.find(t => t.id === r.awayId);
+                  const winH = r.homeGoals > r.awayGoals, winA = r.awayGoals > r.homeGoals;
+                  return (
+                    <div key={i} style={styles.otherMatchRow}>
+                      <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined }}>{h?.label}</span>
+                      <span style={styles.otherScore}>{r.homeGoals} – {r.awayGoals}</span>
+                      <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined }}>{a?.label}</span>
+                    </div>
+                  );
+                })
+            }
           </div>
         )}
 
