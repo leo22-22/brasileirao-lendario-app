@@ -1642,6 +1642,7 @@ const CLUB_LOGOS = {
   'Athletico-PR': 'https://r2.thesportsdb.com/images/media/team/badge/irzu1u1554237406.png',
   'Cruzeiro':     'https://r2.thesportsdb.com/images/media/team/badge/upsvvu1473538059.png',
   'Flamengo':     'https://r2.thesportsdb.com/images/media/team/badge/syptwx1473538074.png',
+  'Atlético-MG':  'https://r2.thesportsdb.com/images/media/team/badge/vvtsqw1473538001.png',
 };
 
 // IDs YouTube dos hinos oficiais — tocam na tela de campeão
@@ -1661,6 +1662,7 @@ const CLUB_ANTHEMS = {
   'Sport':        'PVcqbeerC8k',
   'Athletico-PR': 'kNd1BbWicMc',
   'Coritiba':     'NZki289dBz4',
+  'Atlético-MG':  'dD4IPCN4o5I',
 };
 
 function expandPlayerPositions(playerPos) {
@@ -1676,6 +1678,25 @@ function hexToRgba(hex, alpha) {
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function needsDark(hex) {
+  if (!hex || !hex.startsWith('#') || hex.length < 7) return false;
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (r * 299 + g * 587 + b * 114) / 1000 > 155;
+}
+
+function shortName(name) {
+  if (!name) return '';
+  const parts = name.trim().split(' ');
+  if (parts.length === 1) return parts[0].slice(0, 9);
+  // Prefer last word unless it's a suffix like "Jr", "Filho" etc
+  const suffixes = new Set(['jr', 'filho', 'neto', 'junior', 'jr.']);
+  const last = parts[parts.length - 1];
+  const word = suffixes.has(last.toLowerCase()) ? parts[parts.length - 2] || last : last;
+  return word.length <= 9 ? word : word.slice(0, 8) + '.';
 }
 
 function ovrColor(ovr) {
@@ -2588,6 +2609,8 @@ export default function App() {
             onClickPitchSlot={clickPitchSlot}
             onUnplacePlayer={startReposition}
             onSkipTeam={skipTeam}
+            myTeamColor={myTeamColor}
+            captainSlot={captainSlot}
           />
         )}
         {phase === 'squad' && (
@@ -2597,6 +2620,7 @@ export default function App() {
             captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
             onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : startSeason}
             onRedo={() => { setPhase('formation'); setCaptainSlot(null); }}
+            myTeamColor={myTeamColor}
           />
         )}
         {phase === 'multi-waiting' && roomSnap && (
@@ -3394,44 +3418,138 @@ function MiniPitchPreview({ formationKey }) {
   );
 }
 
-function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace }) {
+function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace, myTeamColor, captainSlot }) {
+  const mc = myTeamColor || '#d4a23c';
+  const dark = needsDark(mc);
   const highlightKeys = new Set(highlightSlots.map(s => s.key));
+
+  const markLine = (style) => <div style={{ position: 'absolute', pointerEvents: 'none', ...style }} />;
+
   return (
     <div style={styles.pitchWrap}>
-      <div style={styles.pitchField} className="pitch-field">
-        <div style={styles.pitchCircle} />
-        <div style={styles.pitchHalfLine} />
+      <div style={{
+        ...styles.pitchField,
+        background: '#124d27',
+        backgroundImage: 'repeating-linear-gradient(to bottom, rgba(0,0,0,0.07) 0%, rgba(0,0,0,0.07) 14.3%, transparent 14.3%, transparent 28.6%)',
+      }} className="pitch-field">
+
+        {/* ── Marcações do campo ── */}
+        {/* Linha do meio */}
+        {markLine({ left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.3)' })}
+        {/* Círculo central */}
+        {markLine({ left: '50%', top: '50%', width: 74, height: 74, border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
+        {/* Ponto central */}
+        {markLine({ left: '50%', top: '50%', width: 5, height: 5, background: 'rgba(255,255,255,0.45)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
+
+        {/* Área penal superior */}
+        {markLine({ top: 0, left: '18%', width: '64%', height: '17%', border: '1.5px solid rgba(255,255,255,0.3)', borderTop: 'none', boxSizing: 'border-box' })}
+        {/* Pequena área superior */}
+        {markLine({ top: 0, left: '35%', width: '30%', height: '7%', border: '1.5px solid rgba(255,255,255,0.25)', borderTop: 'none', boxSizing: 'border-box' })}
+        {/* Gol superior */}
+        {markLine({ top: 0, left: '40.5%', width: '19%', height: '2.8%', background: 'rgba(255,255,255,0.08)', borderBottom: '1.5px solid rgba(255,255,255,0.35)', boxSizing: 'border-box' })}
+        {/* Ponto de pênalti superior */}
+        {markLine({ top: '10.5%', left: '50%', width: 5, height: 5, background: 'rgba(255,255,255,0.38)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
+
+        {/* Área penal inferior */}
+        {markLine({ bottom: 0, left: '18%', width: '64%', height: '17%', border: '1.5px solid rgba(255,255,255,0.3)', borderBottom: 'none', boxSizing: 'border-box' })}
+        {/* Pequena área inferior */}
+        {markLine({ bottom: 0, left: '35%', width: '30%', height: '7%', border: '1.5px solid rgba(255,255,255,0.25)', borderBottom: 'none', boxSizing: 'border-box' })}
+        {/* Gol inferior */}
+        {markLine({ bottom: 0, left: '40.5%', width: '19%', height: '2.8%', background: 'rgba(255,255,255,0.08)', borderTop: '1.5px solid rgba(255,255,255,0.35)', boxSizing: 'border-box' })}
+        {/* Ponto de pênalti inferior */}
+        {markLine({ top: '89.5%', left: '50%', width: 5, height: 5, background: 'rgba(255,255,255,0.38)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
+
+        {/* Cantos */}
+        {[{ top: -8, left: -8 }, { top: -8, right: -8 }, { bottom: -8, left: -8 }, { bottom: -8, right: -8 }].map((pos, i) =>
+          markLine({ ...pos, width: 16, height: 16, border: '1.5px solid rgba(255,255,255,0.28)', borderRadius: '50%', key: i })
+        )}
+
+        {/* ── Jogadores ── */}
         {pitchSlots.map(slot => {
           const occupant = pitch[slot.key];
           const isHighlighted = highlightKeys.has(slot.key);
           const canPlace = isHighlighted && !occupant && onClickSlot;
           const canUnplace = !!occupant && !!onUnplace;
           const clickable = canPlace || canUnplace;
+          const isCap = captainSlot && slot.key === captainSlot;
+
+          const circleColor = occupant ? mc : isHighlighted ? 'rgba(127,217,154,0.35)' : 'rgba(255,255,255,0.1)';
+          const borderColor = canUnplace
+            ? `2px dashed ${mc}`
+            : isHighlighted
+              ? '2px solid #7fd99a'
+              : occupant
+                ? '2.5px solid rgba(255,255,255,0.65)'
+                : '1.5px solid rgba(255,255,255,0.28)';
+          const shadow = occupant
+            ? `0 3px 10px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.25)`
+            : isHighlighted
+              ? '0 0 14px rgba(127,217,154,0.45)'
+              : 'none';
+
           return (
             <div
               key={slot.key}
               onClick={clickable ? () => canPlace ? onClickSlot(slot.key) : onUnplace(slot.key) : undefined}
+              title={occupant ? `${occupant.name}${occupant.teamLabel ? ` · ${occupant.teamLabel}` : ''} — clique para mover` : slot.label}
               style={{
-                ...styles.pitchSpot,
+                position: 'absolute',
                 left: `${slot.x}%`,
                 top: `${slot.y}%`,
-                background: occupant ? '#d4a23c' : isHighlighted ? 'rgba(127,217,154,0.5)' : 'rgba(255,255,255,0.08)',
-                border: canUnplace
-                  ? '2px dashed rgba(212,162,60,0.6)'
-                  : isHighlighted
-                    ? '2px solid #7fd99a'
-                    : '1px solid rgba(255,255,255,0.25)',
+                transform: 'translate(-50%,-50%)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 2,
+                zIndex: occupant ? 3 : 2,
                 cursor: clickable ? 'pointer' : 'default',
-                transform: isHighlighted && !occupant ? 'translate(-50%,-50%) scale(1.12)' : 'translate(-50%,-50%)',
-                boxShadow: isHighlighted && !occupant ? '0 0 0 4px rgba(127,217,154,0.25)' : 'none',
+                transition: 'transform 0.15s',
               }}
               className="pitch-spot"
-              title={occupant ? `${occupant.name} (${occupant.teamLabel}) — clique para reposicionar` : slot.label}
             >
-              {occupant
-                ? <span style={styles.pitchSpotName} className="pitch-spot-name">{occupant.name.split(' ')[0]}</span>
-                : <span style={styles.pitchSpotLabel}>{slot.label}</span>
-              }
+              {/* Círculo principal */}
+              <div style={{
+                width: 44, height: 44, borderRadius: '50%',
+                background: circleColor,
+                border: borderColor,
+                boxShadow: shadow,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                flexDirection: 'column',
+                position: 'relative',
+                transform: isHighlighted && !occupant ? 'scale(1.12)' : 'scale(1)',
+                transition: 'all 0.15s',
+              }}>
+                {isCap && (
+                  <span style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>⭐</span>
+                )}
+                {occupant ? (
+                  <span style={{ fontSize: 8, fontWeight: 800, color: dark ? '#0a1a0f' : '#fff', textAlign: 'center', lineHeight: 1.15, padding: '0 3px', maxWidth: 40, wordBreak: 'break-word' }} className="pitch-spot-name">
+                    {shortName(occupant.name)}
+                  </span>
+                ) : (
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 8, color: isHighlighted ? '#7fd99a' : 'rgba(255,255,255,0.55)', lineHeight: 1 }}>
+                    {slot.label}
+                  </span>
+                )}
+              </div>
+
+              {/* Badge OVR */}
+              {occupant && (
+                <div style={{
+                  background: 'rgba(6,14,10,0.82)',
+                  borderRadius: 3,
+                  padding: '1px 4px',
+                  fontSize: 8,
+                  fontWeight: 700,
+                  fontFamily: "'Space Mono', monospace",
+                  color: ovrColor(occupant.ovr),
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  lineHeight: 1.5,
+                  marginTop: 1,
+                }}>
+                  {occupant.ovr}
+                </div>
+              )}
             </div>
           );
         })}
@@ -3489,7 +3607,7 @@ function useIsMobile(bp = 768) {
   return mob;
 }
 
-function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam }) {
+function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, myTeamColor, captainSlot }) {
   const isMobile = useIsMobile();
   const filledCount = Object.keys(pitch).length;
   const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
@@ -3501,7 +3619,7 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
   const pitchPanelStyle = isMobile ? {} : styles.draftRight;
 
   if (isRolling) {
-    const pitchEl = <div style={pitchPanelStyle}><Pitch pitch={pitch} pitchSlots={pitchSlots} /></div>;
+    const pitchEl = <div style={pitchPanelStyle}><Pitch pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot} /></div>;
     const rollingEl = (
       <div className="draft-left" style={playersPanelStyle}>
         <div style={styles.rollingBox}>
@@ -3554,6 +3672,8 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
               highlightSlots={highlightSlots}
               onClickSlot={onClickPitchSlot}
               onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
+              myTeamColor={myTeamColor}
+              captainSlot={captainSlot}
             />
           </div>
         )}
@@ -3652,6 +3772,8 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
               highlightSlots={highlightSlots}
               onClickSlot={onClickPitchSlot}
               onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
+              myTeamColor={myTeamColor}
+              captainSlot={captainSlot}
             />
           </div>
         )}
@@ -3711,7 +3833,7 @@ function ChemistryDisplay({ pitch, compact = false }) {
   );
 }
 
-function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo }) {
+function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor }) {
   const xi = Object.values(pitch);
   const avgOvr = xi.length ? Math.round(xi.reduce((s, p) => s + p.ovr, 0) / xi.length) : 0;
   const { ovrBonus } = calcChemistry(xi.filter(p => p.club));
@@ -3735,7 +3857,7 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
           : 'Toque em um jogador para definir o capitão (braçadeira +2 OVR)'}
       </div>
 
-      <Pitch pitch={pitch} pitchSlots={pitchSlots} />
+      <Pitch pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot} />
 
       <div style={styles.squadList}>
         {pitchSlots.map(slot => {
