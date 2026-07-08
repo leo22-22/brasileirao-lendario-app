@@ -1517,14 +1517,6 @@ function poissonSample(lambda, rand = Math.random) {
 // ============================================================
 const MY_TEAM_ID = '__myteam__';
 
-function teamBorderColor(hex) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  const brightness = (r * 299 + g * 587 + b * 114) / 1000;
-  return brightness < 70 ? 'rgba(255,255,255,0.35)' : hex;
-}
-
 // Gera calendário round-robin (todos contra todos, turno único)
 function generateRoundRobin(teamIds) {
   const teams = [...teamIds];
@@ -1560,19 +1552,6 @@ function generateCupFirstRound(teamIds) {
   const matches = [];
   for (let i = 0; i + 1 < shuffled.length; i += 2)
     matches.push({ homeId: shuffled[i], awayId: shuffled[i + 1] });
-  return matches;
-}
-
-function nextCupRound(prevMatches, results) {
-  const winners = results.map((r, i) => {
-    if (r.homeGoals > r.awayGoals) return prevMatches[i].homeId;
-    if (r.awayGoals > r.homeGoals) return prevMatches[i].awayId;
-    // Pênaltis: vantagem leve para OVR mais alto
-    return Math.random() < 0.5 ? prevMatches[i].homeId : prevMatches[i].awayId;
-  });
-  const matches = [];
-  for (let i = 0; i + 1 < winners.length; i += 2)
-    matches.push({ homeId: winners[i], awayId: winners[i + 1] });
   return matches;
 }
 
@@ -4570,11 +4549,6 @@ const styles = {
 
   pitchWrap: { margin: '20px 0', display: 'flex', justifyContent: 'center' },
   pitchField: { position: 'relative', width: '100%', maxWidth: 380, aspectRatio: '0.68', background: 'linear-gradient(180deg,#0f3d22 0%,#145c30 50%,#0f3d22 100%)', border: '2px solid rgba(255,255,255,0.3)', borderRadius: 8, overflow: 'hidden' },
-  pitchCircle: { position: 'absolute', left: '50%', top: '50%', width: 70, height: 70, border: '1px solid rgba(255,255,255,0.25)', borderRadius: '50%', transform: 'translate(-50%,-50%)' },
-  pitchHalfLine: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.25)' },
-  pitchSpot: { position: 'absolute', width: 46, height: 46, borderRadius: '50%', transform: 'translate(-50%,-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', fontSize: 9, textAlign: 'center', lineHeight: 1.1, transition: 'background 0.2s' },
-  pitchSpotName: { fontWeight: 700, fontSize: 9, color: '#0B1A12', padding: '0 2px' },
-  pitchSpotLabel: { fontFamily: "'Space Mono', monospace", fontSize: 9, opacity: 0.7, color: '#fff' },
 
   rolledTeamBox: { marginTop: 24 },
   rolledTeamHeader: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '2px solid', borderRadius: 12, marginBottom: 16 },
