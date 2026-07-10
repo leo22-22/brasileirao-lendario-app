@@ -6,12 +6,13 @@ export default defineConfig({
   plugins: [
     react(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       includeAssets: ['icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png', 'icons/apple-touch-icon.png'],
       manifest: {
         name: 'Brasileirão Lendário',
         short_name: 'Br. Lendário',
         description: 'Monte um time dos sonhos com craques de 66 elencos históricos do futebol brasileiro (1959–2024) e dispute o título.',
+        lang: 'pt-BR',
         theme_color: '#0B1A12',
         background_color: '#0B1A12',
         display: 'standalone',

@@ -1981,6 +1981,17 @@ export default function App() {
     setIosHintDismissed(true);
   };
 
+  // PWA — atualização disponível (registerType: 'prompt', evita recarregar no meio de um draft/partida)
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  useEffect(() => {
+    const handler = () => setUpdateAvailable(true);
+    window.addEventListener('pwa-update-available', handler);
+    return () => window.removeEventListener('pwa-update-available', handler);
+  }, []);
+  const handleUpdateClick = () => {
+    window.__pwaUpdateSW?.(true);
+  };
+
   // Liga
   const [leagueTeams, setLeagueTeams] = useState([]);
   const [leagueTable, setLeagueTable] = useState([]);
@@ -2763,6 +2774,14 @@ export default function App() {
           <span style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: multiTimerLeft < 30 ? '#fff' : '#d4a23c' }}>
             {String(Math.floor(multiTimerLeft / 60)).padStart(2, '0')}:{String(multiTimerLeft % 60).padStart(2, '0')}
           </span>
+        </div>
+      )}
+      {updateAvailable && (
+        <div style={{ position: 'fixed', bottom: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 999, background: 'rgba(11,26,18,0.95)', border: '1px solid #d4a23c', borderRadius: 12, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ fontSize: 12, color: '#F4F1EA' }}>🔄 Nova versão disponível</span>
+          <button onClick={handleUpdateClick} style={{ ...styles.btnSmall, background: '#d4a23c', color: '#0B1A12' }}>
+            Atualizar
+          </button>
         </div>
       )}
       <header style={styles.header}>

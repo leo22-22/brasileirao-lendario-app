@@ -8,7 +8,12 @@ import '@fontsource/source-sans-3/400.css'
 import '@fontsource/source-sans-3/600.css'
 import '@fontsource/space-mono/400.css'
 
-registerSW({ immediate: true })
+const updateSW = registerSW({
+  onNeedRefresh() {
+    window.__pwaUpdateSW = updateSW
+    window.dispatchEvent(new CustomEvent('pwa-update-available'))
+  },
+})
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
