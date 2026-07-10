@@ -3630,12 +3630,30 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
           </button>
           {musicOn && (
             <div style={{ marginTop: 8, background: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 12, border: '1px solid rgba(255,255,255,0.07)' }}>
+              {/* Áudio padrão — toca sempre que não há YouTube definido */}
+              {!musicId && (
+                <audio key="default-bg" src="/audio.mp3" autoPlay loop style={{ display: 'none' }} />
+              )}
+              {/* Indicador: tocando áudio padrão */}
+              {!musicId && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
+                  <span style={{ fontSize: 18 }}>🎵</span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 11, opacity: 0.6 }}>Tocando áudio padrão</div>
+                    <div style={{ display: 'flex', gap: 2, marginTop: 4, alignItems: 'flex-end', height: 12 }}>
+                      {[6,10,7,12,5,9,7,11,6].map((h, i) => (
+                        <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: myTeamColor || '#d4a23c', animation: `pulse ${0.5 + i * 0.1}s ease-in-out infinite alternate`, opacity: 0.7 }} />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
               <div style={{ display: 'flex', gap: 8, marginBottom: musicId ? 10 : 0 }}>
                 <input
                   value={musicInput}
                   onChange={e => setMusicInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && applyMusic()}
-                  placeholder="Cole o link ou ID do YouTube…"
+                  placeholder="Substituir por link do YouTube…"
                   style={{ ...styles.teamInput, flex: 1, margin: 0 }}
                 />
                 <button onClick={applyMusic} style={{ background: myTeamColor, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
@@ -3650,13 +3668,14 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
                   </div>
                   <span style={{ fontSize: 18 }}>🎵</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 11, opacity: 0.6 }}>Tocando música de fundo</div>
+                    <div style={{ fontSize: 11, opacity: 0.6 }}>Tocando YouTube</div>
                     <div style={{ display: 'flex', gap: 2, marginTop: 4, alignItems: 'flex-end', height: 12 }}>
                       {[6,10,7,12,5,9,7,11,6].map((h, i) => (
                         <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: myTeamColor || '#d4a23c', animation: `pulse ${0.5 + i * 0.1}s ease-in-out infinite alternate`, opacity: 0.7 }} />
                       ))}
                     </div>
                   </div>
+                  <button onClick={() => { setMusicId(null); setMusicInput(''); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 16, padding: 0 }}>✕</button>
                 </div>
               )}
               {!musicId && musicInput && (
