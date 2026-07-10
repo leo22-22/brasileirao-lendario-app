@@ -1767,6 +1767,25 @@ function poissonSample(lambda, rand = Math.random) {
 // ============================================================
 const MY_TEAM_ID = '__myteam__';
 
+function narrateGoal(scorer, isMyGoal) {
+  if (!('speechSynthesis' in window)) return;
+  window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance();
+  u.lang = 'pt-BR';
+  if (isMyGoal) {
+    u.text = `Goooooool! ${scorer}!`;
+    u.pitch = 1.55;
+    u.rate = 0.65;
+    u.volume = 1;
+  } else {
+    u.text = `Gol! ${scorer}.`;
+    u.pitch = 0.85;
+    u.rate = 0.85;
+    u.volume = 0.75;
+  }
+  window.speechSynthesis.speak(u);
+}
+
 // Gera calendário round-robin (todos contra todos, turno único)
 function generateRoundRobin(teamIds) {
   const teams = [...teamIds];
@@ -2301,6 +2320,7 @@ export default function App() {
           ...prev,
           [ev.scorer]: { goals: (prev[ev.scorer]?.goals || 0) + 1, teamLabel: ev.teamLabel }
         }));
+        narrateGoal(ev.scorer, ev.teamId === MY_TEAM_ID);
       }
 
       setClockMinute(minute);
@@ -2309,6 +2329,7 @@ export default function App() {
 
       if (minute >= 90) {
         setIsSimulating(false);
+        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
 
         const finalHs = hs;
         const finalAs = as_;
