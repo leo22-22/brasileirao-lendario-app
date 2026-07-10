@@ -2008,8 +2008,8 @@ const POS_COMPAT = {
   MC: ['MC', 'MEI', 'VOL', 'MD', 'ME'],
   MD: ['MD', 'PD', 'MEI', 'MC'],
   ME: ['ME', 'PE', 'MEI', 'MC'],
-  PD: ['PD', 'ATA', 'MD', 'MEI'],
-  PE: ['PE', 'ATA', 'ME', 'MEI'],
+  PD: ['PD', 'MD', 'ATA', 'MEI'],
+  PE: ['PE', 'ME', 'ATA', 'MEI'],
   ATA: ['ATA', 'PD', 'PE'],
 };
 
