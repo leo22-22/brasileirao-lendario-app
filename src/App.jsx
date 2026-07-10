@@ -3156,7 +3156,7 @@ export default function App() {
       )}
       <header style={styles.header}>
         <div style={styles.headerInner} className="header-inner-pad">
-          <div style={styles.crest}>★</div>
+          <div style={styles.crest}>🏆</div>
           <div>
             <div style={styles.title}>BRASILEIRÃO LENDÁRIO</div>
             <div style={styles.subtitle}>monte · escale · seja campeão</div>
@@ -5992,7 +5992,7 @@ const styles = {
   bgTexture: { position: 'fixed', inset: 0, opacity: 0.05, background: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 1px,transparent 40px)', pointerEvents: 'none' },
   header: { borderBottom: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 1 },
   headerInner: { maxWidth: 760, margin: '0 auto', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 },
-  crest: { fontSize: 22, color: '#d4a23c' },
+  crest: { fontSize: 28 },
   title: { fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, letterSpacing: 0.5 },
   subtitle: { fontFamily: "'Space Mono', monospace", fontSize: 11, opacity: 0.6, letterSpacing: 1, textTransform: 'uppercase' },
   main: { maxWidth: 760, margin: '0 auto', padding: '32px 24px 80px', position: 'relative', zIndex: 1 },
