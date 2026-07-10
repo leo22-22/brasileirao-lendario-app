@@ -22,7 +22,7 @@ function makePrng(seed) {
 }
 
 // ============================================================
-// DADOS: 27 times campeões brasileiros lendários (1961-2006)
+// DADOS: 66 times históricos do Brasileirão (1959-2026)
 // ============================================================
 const TEAMS = [
   { id: 'bahia1959', club: 'Bahia', year: 1959, label: 'Bahia 1959 (1o Campeonato Nacional)', coach: 'Otacilio Goncalves',
@@ -1964,6 +1964,9 @@ export default function App() {
   const cupLegRef = useRef(1);
   useEffect(() => { cupLegRef.current = cupLeg; }, [cupLeg]);
   const [userInCup, setUserInCup] = useState(true);
+  const userInCupRef = useRef(true);
+  useEffect(() => { userInCupRef.current = userInCup; }, [userInCup]);
+  const [eliminationRoundName, setEliminationRoundName] = useState(null);
   const [cupWinnerId, setCupWinnerId] = useState(null);
 
   // Partida ao vivo
@@ -2183,7 +2186,19 @@ export default function App() {
     if (isSimulating) return;
     const round = fixtures[currentRound];
     const um = round.find(m => m.homeId === MY_TEAM_ID || m.awayId === MY_TEAM_ID);
-    if (!um) return;
+    if (!um) {
+      // Copa: user already eliminated — fast-simulate this AI-only round
+      if (gameMode !== 'copa' || userInCupRef.current) return;
+      const allResults = round.map(m => {
+        const h = leagueTeams.find(t => t.id === m.homeId);
+        const a = leagueTeams.find(t => t.id === m.awayId);
+        if (!h || !a) return { homeId: m.homeId, awayId: m.awayId, homeGoals: 0, awayGoals: 0 };
+        return { homeId: m.homeId, awayId: m.awayId, ...simAiMatch(h, a) };
+      });
+      setRoundResults(allResults);
+      setCupRounds(prev => prev.map((r, i) => i === cupRoundIdx ? { ...r, results: allResults } : r));
+      return;
+    }
 
     const homeTeam = leagueTeams.find(t => t.id === um.homeId);
     const awayTeam = leagueTeams.find(t => t.id === um.awayId);
@@ -2274,10 +2289,14 @@ export default function App() {
                 const oppAgg  = isHome ? (l1.awayGoals + l2.homeGoals) : (l1.homeGoals + l2.awayGoals);
                 if (userAgg < oppAgg) {
                   setUserInCup(false);
+                  setEliminationRoundName(round?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
                 } else if (userAgg === oppAgg) {
                   const userAway = isHome ? l2.awayGoals : l1.awayGoals;
                   const oppAway  = isHome ? l1.awayGoals : l2.awayGoals;
-                  if (userAway < oppAway || (userAway === oppAway && Math.random() >= 0.5)) setUserInCup(false);
+                  if (userAway < oppAway || (userAway === oppAway && Math.random() >= 0.5)) {
+                    setUserInCup(false);
+                    setEliminationRoundName(round?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
+                  }
                 }
               }
             }
@@ -2448,6 +2467,7 @@ export default function App() {
     setCupRoundIdx(0);
     setCupLeg(1);
     setUserInCup(true);
+    setEliminationRoundName(null);
     setCupWinnerId(null);
   };
 
@@ -2848,6 +2868,7 @@ export default function App() {
             cupRoundIdx={cupRoundIdx}
             cupLeg={cupLeg}
             userInCup={userInCup}
+            eliminationRoundName={eliminationRoundName}
             simSpeed={simSpeed}
             onSetSpeed={setSimSpeed}
             simMode={simMode}
@@ -4207,7 +4228,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound }) {
+function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -4230,8 +4251,39 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
     const origMatch = userOrigIdx >= 0 ? cupRound.matches[userOrigIdx] : null;
 
     // Usuário eliminado
-    if (!userInCup && roundDone) {
-      // Compute user's aggregate for the message (elimination always happens on leg 2)
+    if (!userInCup) {
+      const elimRoundName = eliminationRoundName || roundName;
+
+      // Quando !roundDone (fase AI sem user), mostrar botão de avançar em modo manual
+      if (!roundDone) {
+        return (
+          <div style={styles.card} className="card-mob">
+            <div style={{ textAlign: 'center', padding: '24px 0 16px' }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>😔</div>
+              <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Eliminado nas {elimRoundName}</div>
+              <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 20 }}>O torneio continua sem você.</div>
+              {simMode === 'manual' && <button style={styles.btnSmall} onClick={onStartRound}>Simular próxima fase →</button>}
+              {simMode === 'auto' && autoCountdown !== null && (
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#d4a23c' }}>Simulando em {autoCountdown}s…</div>
+              )}
+            </div>
+            {cupRounds.length > 0 && (
+              <div style={{ marginTop: 12 }}>
+                <div style={styles.sectionLabel}>Chaveamento</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {CUP_ROUND_NAMES.map((name, idx) => (
+                    <div key={idx} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, background: idx < cupRoundIdx ? hexToRgba(mc, 0.2) : idx === cupRoundIdx ? hexToRgba(mc, 0.35) : 'rgba(255,255,255,0.05)', color: idx <= cupRoundIdx ? mc : 'rgba(255,255,255,0.3)', border: `1px solid ${idx === cupRoundIdx ? mc : 'transparent'}`, fontFamily: "'Space Mono', monospace" }}>
+                      {idx < cupRoundIdx ? '✓ ' : ''}{name}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      }
+
+      // roundDone: mostrar resultados desta fase e avançar
       const elimL2 = roundResults && userOrigIdx >= 0 ? roundResults[userOrigIdx] || { homeGoals: 0, awayGoals: 0 } : null;
       const elimIsHome = origMatch ? origMatch.homeId === myTeamId : false;
       const elimUserAgg = elimL2 && userLeg1
@@ -4244,7 +4296,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           <div style={{ textAlign: 'center', padding: '20px 0 10px' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>😔</div>
             <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Eliminado!</div>
-            <div style={{ fontSize: 14, opacity: 0.6, marginBottom: 6 }}>Seu time foi eliminado nas {roundName}.</div>
+            <div style={{ fontSize: 14, opacity: 0.6, marginBottom: 6 }}>Seu time foi eliminado nas {elimRoundName}.</div>
             {elimUserAgg !== null && elimOppAgg !== null && (
               <div style={{ fontSize: 13, fontFamily: "'Space Mono', monospace", color: '#e05050', marginBottom: 20 }}>
                 Agregado: {elimUserAgg} × {elimOppAgg}
