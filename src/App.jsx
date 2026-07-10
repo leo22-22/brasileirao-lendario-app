@@ -1716,11 +1716,44 @@ function calcChemistry(players) {
 // MOTOR DE SIMULAÇÃO
 // ============================================================
 function teamStrength(xi) {
-  const vals = Object.values(xi);
+  const vals = Object.values(xi).filter(p => !p.isBench);
   if (vals.length === 0) return 50;
   const baseOvr = vals.reduce((s, p) => s + p.ovr, 0) / vals.length;
   const { ovrBonus } = calcChemistry(vals);
   return Math.round((baseOvr + ovrBonus) * 10) / 10;
+}
+
+// Simulação de disputa de pênaltis (5 cobranças + morte súbita)
+function simulatePenalties(teamAId, teamBId, leagueTeams) {
+  const teamA = leagueTeams.find(t => t.id === teamAId);
+  const teamB = leagueTeams.find(t => t.id === teamBId);
+  const ovA = teamA ? teamA.ovr : 70;
+  const ovB = teamB ? teamB.ovr : 70;
+  // OVR-based penalty hit rate: 50-85%
+  const rateA = Math.min(0.85, Math.max(0.5, 0.65 + (ovA - 70) * 0.005));
+  const rateB = Math.min(0.85, Math.max(0.5, 0.65 + (ovB - 70) * 0.005));
+  let goalsA = 0, goalsB = 0;
+  const kicks = [];
+  for (let i = 0; i < 5; i++) {
+    const a = Math.random() < rateA;
+    const b = Math.random() < rateB;
+    if (a) goalsA++;
+    if (b) goalsB++;
+    kicks.push({ a, b, goalsA, goalsB });
+    // Early termination: one team can't catch up
+    const remaining = 4 - i;
+    if (goalsA - goalsB > remaining + 1 || goalsB - goalsA > remaining + 1) break;
+  }
+  // Sudden death if still tied
+  while (goalsA === goalsB) {
+    const a = Math.random() < rateA;
+    const b = Math.random() < rateB;
+    if (a) goalsA++;
+    if (b) goalsB++;
+    kicks.push({ a, b, goalsA, goalsB, suddenDeath: true });
+    if (goalsA !== goalsB) break;
+  }
+  return { winner: goalsA > goalsB ? teamAId : teamBId, goalsA, goalsB, kicks };
 }
 
 function poissonSample(lambda, rand = Math.random) {
@@ -1772,33 +1805,33 @@ function generateCupFirstRound(teamIds) {
   return matches;
 }
 
-function pickGoalScorer(players) {
+function pickGoalScorer(players, rand = Math.random) {
   const field = players.filter(p => !p.pos.includes('GOL'));
   const pool = field.length > 0 ? field : players;
-  return pool[Math.floor(Math.random() * pool.length)].name;
+  return pool[Math.floor(rand() * pool.length)].name;
 }
 
 // Gera lista de eventos de gol para uma partida com minutos únicos
-function generateMatchGoals(homeTeam, awayTeam) {
+function generateMatchGoals(homeTeam, awayTeam, rand = Math.random) {
   const diff = homeTeam.ovr - awayTeam.ovr;
   const homeExp = Math.max(0.2, 1.3 + diff * 0.042);
   const awayExp = Math.max(0.2, 1.3 - diff * 0.042);
-  const homeGoals = poissonSample(homeExp);
-  const awayGoals = poissonSample(awayExp);
+  const homeGoals = poissonSample(homeExp, rand);
+  const awayGoals = poissonSample(awayExp, rand);
 
   const usedMin = new Set();
   const randMin = () => {
     let m;
-    do { m = Math.floor(Math.random() * 90) + 1; } while (usedMin.has(m));
+    do { m = Math.floor(rand() * 90) + 1; } while (usedMin.has(m));
     usedMin.add(m);
     return m;
   };
 
   const events = [];
   for (let i = 0; i < homeGoals; i++)
-    events.push({ minute: randMin(), teamId: homeTeam.id, teamLabel: homeTeam.label, scorer: pickGoalScorer(homeTeam.players) });
+    events.push({ minute: randMin(), teamId: homeTeam.id, teamLabel: homeTeam.label, scorer: pickGoalScorer(homeTeam.players, rand) });
   for (let i = 0; i < awayGoals; i++)
-    events.push({ minute: randMin(), teamId: awayTeam.id, teamLabel: awayTeam.label, scorer: pickGoalScorer(awayTeam.players) });
+    events.push({ minute: randMin(), teamId: awayTeam.id, teamLabel: awayTeam.label, scorer: pickGoalScorer(awayTeam.players, rand) });
 
   return events.sort((a, b) => a.minute - b.minute);
 }
@@ -1969,6 +2002,11 @@ export default function App() {
   const [eliminationRoundName, setEliminationRoundName] = useState(null);
   const [cupWinnerId, setCupWinnerId] = useState(null);
 
+  // Histórico e artilheiros
+  const [matchHistory, setMatchHistory] = useState([]);
+  const [scorers, setScorers] = useState({});
+  const [viewingTeam, setViewingTeam] = useState(null);
+
   // Partida ao vivo
   const [clockMinute, setClockMinute] = useState(0);
   const [isSimulating, setIsSimulating] = useState(false);
@@ -2022,8 +2060,11 @@ export default function App() {
 
   const chooseFormation = (key) => {
     setFormationKey(key);
-    const slots = buildPitchSlots(key);
-    setPitchSlots(slots);
+    const formSlots = buildPitchSlots(key);
+    const benchSlots = ['bench1','bench2','bench3','bench4','bench5'].map((k, i) => ({
+      key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0
+    }));
+    setPitchSlots([...formSlots, ...benchSlots]);
     setUsedTeamIds([]);
     setPitch({});
     setSkipsLeft(MAX_SKIPS);
@@ -2047,6 +2088,7 @@ export default function App() {
   const eligibleSlotsForPlayer = (player) => {
     if (pickedPlayerNames.has(player.name)) return [];
     return remainingSlots.filter(slot => {
+      if (slot.isBench) return true; // any player can go to bench
       const compat = POS_COMPAT[slot.realPos] || [slot.realPos];
       return player.pos.some(p => compat.includes(p));
     });
@@ -2093,7 +2135,8 @@ export default function App() {
   };
 
   const pickPlayerForSlot = (player, slotKey) => {
-    setPitch(prev => ({ ...prev, [slotKey]: { ...player, teamLabel: rolledTeam.label, teamId: rolledTeam.id, club: rolledTeam.club, year: rolledTeam.year, nat: player.nat || 'BRA', slotKey } }));
+    const isBench = pitchSlots.find(s => s.key === slotKey)?.isBench || false;
+    setPitch(prev => ({ ...prev, [slotKey]: { ...player, teamLabel: rolledTeam.label, teamId: rolledTeam.id, club: rolledTeam.club, year: rolledTeam.year, nat: player.nat || 'BRA', isBench, slotKey } }));
     setUsedTeamIds(prev => [...prev, rolledTeam.id]);
     setLog(prev => [...prev, { teamLabel: rolledTeam.label, playerName: player.name, slot: slotKey }]);
     setSelectedPlayer(null);
@@ -2154,6 +2197,8 @@ export default function App() {
     setLiveScore({ home: 0, away: 0 });
     setRoundResults(null);
     setActiveUserMatch(null);
+    setMatchHistory([]);
+    setScorers({});
 
     if (gameMode === 'brasileirao') {
       const rounds = generateDoubleRoundRobin(allTeams.map(t => t.id));
@@ -2228,6 +2273,11 @@ export default function App() {
         else as_++;
         shown.push({ ...ev, homeScore: hs, awayScore: as_ });
         evIdx++;
+        // Record scorer
+        setScorers(prev => ({
+          ...prev,
+          [ev.scorer]: { goals: (prev[ev.scorer]?.goals || 0) + 1, teamLabel: ev.teamLabel }
+        }));
       }
 
       setClockMinute(minute);
@@ -2239,6 +2289,18 @@ export default function App() {
 
         const finalHs = hs;
         const finalAs = as_;
+
+        // Record match in history
+        setMatchHistory(prev => [...prev, {
+          round: currentRound + 1,
+          homeLabel: homeTeam.label,
+          awayLabel: awayTeam.label,
+          hg: finalHs,
+          ag: finalAs,
+          isUser: true,
+          gameMode,
+          legLabel: gameMode === 'copa' ? (cupLegRef.current === 1 ? 'Ida' : 'Volta') : undefined,
+        }]);
 
         // Simular todos os jogos da rodada
         const results = round.map(m => {
@@ -2273,34 +2335,64 @@ export default function App() {
         } else {
           // Copa: registrar resultado da rodada
           setCupRounds(prev => {
-            const updated = prev.map((r, i) => i === cupRoundIdx ? { ...r, results } : r);
-            // Leg 2: verificar eliminação por agregado imediatamente
+            const baseUpdated = prev.map((r, i) => i === cupRoundIdx ? { ...r, results } : r);
+            // Leg 2: calcular pênaltis e verificar eliminação por agregado
             if (cupLegRef.current === 2) {
-              const round = updated[cupRoundIdx];
-              const leg1Res = round?.leg1Results || [];
-              const userMatchIdx = round?.matches?.findIndex(m => m.homeId === MY_TEAM_ID || m.awayId === MY_TEAM_ID) ?? -1;
+              const cupRoundData = baseUpdated[cupRoundIdx];
+              const leg1Res = cupRoundData?.leg1Results || [];
+              const penaltyResults = [];
+
+              // Compute penalties for all tied matches
+              cupRoundData?.matches?.forEach((match, i) => {
+                const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
+                const l2 = results[i] || { homeGoals: 0, awayGoals: 0 };
+                const aggA = l1.homeGoals + l2.awayGoals;
+                const aggB = l1.awayGoals + l2.homeGoals;
+                if (aggA === aggB) {
+                  const awayA = l2.awayGoals;
+                  const awayB = l1.awayGoals;
+                  if (awayA === awayB) {
+                    const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams);
+                    penaltyResults.push({ matchIdx: i, ...pen });
+                  }
+                }
+              });
+
+              // User elimination check
+              const userMatchIdx = cupRoundData?.matches?.findIndex(m => m.homeId === MY_TEAM_ID || m.awayId === MY_TEAM_ID) ?? -1;
               if (userMatchIdx >= 0) {
-                const match = round.matches[userMatchIdx];
+                const match = cupRoundData.matches[userMatchIdx];
                 const l1 = leg1Res[userMatchIdx] || { homeGoals: 0, awayGoals: 0 };
                 const l2 = results[userMatchIdx] || { homeGoals: 0, awayGoals: 0 };
                 const isHome = match.homeId === MY_TEAM_ID;
-                // leg2 inverte mando: se user era home no leg1, é away no leg2
                 const userAgg = isHome ? (l1.homeGoals + l2.awayGoals) : (l1.awayGoals + l2.homeGoals);
                 const oppAgg  = isHome ? (l1.awayGoals + l2.homeGoals) : (l1.homeGoals + l2.awayGoals);
                 if (userAgg < oppAgg) {
                   setUserInCup(false);
-                  setEliminationRoundName(round?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
+                  setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
                 } else if (userAgg === oppAgg) {
                   const userAway = isHome ? l2.awayGoals : l1.awayGoals;
                   const oppAway  = isHome ? l1.awayGoals : l2.awayGoals;
-                  if (userAway < oppAway || (userAway === oppAway && Math.random() >= 0.5)) {
+                  if (userAway < oppAway) {
                     setUserInCup(false);
-                    setEliminationRoundName(round?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
+                    setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
+                  } else if (userAway === oppAway) {
+                    // Use penalty result
+                    const userPen = penaltyResults.find(pr => pr.matchIdx === userMatchIdx);
+                    if (userPen && userPen.winner !== MY_TEAM_ID) {
+                      setUserInCup(false);
+                      setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
+                    }
                   }
                 }
               }
+
+              // Store penalty results on the cup round
+              if (penaltyResults.length > 0) {
+                return baseUpdated.map((r, i) => i === cupRoundIdx ? { ...r, penaltyResults } : r);
+              }
             }
-            return updated;
+            return baseUpdated;
           });
         }
       } else {
@@ -2355,6 +2447,8 @@ export default function App() {
       // Leg 2 — calcular vencedores por agregado
       const leg1Res = currentCupRound.leg1Results || [];
       const leg2Res = roundResults || [];
+      // Use pre-computed penalty results from tick if available
+      const preComputedPenalties = currentCupRound.penaltyResults || [];
 
       const aggregateWinners = currentCupRound.matches.map((match, i) => {
         const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
@@ -2367,8 +2461,11 @@ export default function App() {
         const awayA = l2.awayGoals; // match.homeId marcou fora no leg2
         const awayB = l1.awayGoals; // match.awayId marcou fora no leg1
         if (awayA !== awayB) return awayA > awayB ? match.homeId : match.awayId;
-        // Pênaltis
-        return Math.random() < 0.5 ? match.homeId : match.awayId;
+        // Pênaltis — usar resultado pré-computado ou simular
+        const precomputed = preComputedPenalties.find(pr => pr.matchIdx === i);
+        if (precomputed) return precomputed.winner;
+        const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams);
+        return pen.winner;
       });
 
       const nextMatches = [];
@@ -2393,7 +2490,7 @@ export default function App() {
 
       return updated;
     });
-  }, [currentRound, fixtures, gameMode, cupRoundIdx, cupLeg, roundResults]);
+  }, [currentRound, fixtures, gameMode, cupRoundIdx, cupLeg, roundResults, leagueTeams]);
 
   // Mantém refs atualizadas para os efeitos de auto não ficarem com closures velhas
   useEffect(() => { startRoundRef.current = startRound; }, [startRound]);
@@ -2469,7 +2566,138 @@ export default function App() {
     setUserInCup(true);
     setEliminationRoundName(null);
     setCupWinnerId(null);
+    setMatchHistory([]);
+    setScorers({});
+    setViewingTeam(null);
   };
+
+  // Nova temporada com o mesmo elenco
+  const newSeason = useCallback(() => {
+    const pitchWithCaptain = captainSlot && pitch[captainSlot]
+      ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
+      : pitch;
+    const userOvr = teamStrength(pitchWithCaptain);
+    const userPlayers = Object.values(pitchWithCaptain).filter(p => !p.isBench);
+
+    setClockMinute(0);
+    setIsSimulating(false);
+    setLiveEvents([]);
+    setLiveScore({ home: 0, away: 0 });
+    setRoundResults(null);
+    setActiveUserMatch(null);
+    setCupRounds([]);
+    setCupRoundIdx(0);
+    setCupLeg(1);
+    setUserInCup(true);
+    setEliminationRoundName(null);
+    setCupWinnerId(null);
+    setMatchHistory([]);
+    setScorers({});
+
+    const neededAI = gameMode === 'brasileirao' ? 19 : 31;
+    let pool = [];
+    while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
+    const opps = pool.slice(0, neededAI).map((t, idx) => {
+      const playersWithMeta = t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' }));
+      return {
+        id: `${t.id}_${idx}`,
+        label: t.label,
+        club: t.club,
+        clubLogo: CLUB_LOGOS[t.club] || null,
+        ovr: teamStrength(Object.fromEntries(playersWithMeta.map((p, i) => [i, p]))),
+        players: playersWithMeta,
+      };
+    });
+
+    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
+    const allTeams = [myTeamObj, ...opps];
+    setLeagueTeams(allTeams);
+
+    if (gameMode === 'brasileirao') {
+      const rounds = generateDoubleRoundRobin(allTeams.map(t => t.id));
+      const table = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
+      setFixtures(rounds);
+      setLeagueTable(table);
+      setCurrentRound(0);
+    } else {
+      const firstMatches = generateCupFirstRound(allTeams.map(t => t.id));
+      const firstRound = { name: CUP_ROUND_NAMES[0], matches: firstMatches, leg1Results: [], results: [] };
+      setCupRounds([firstRound]);
+      setCupRoundIdx(0);
+      setCupLeg(1);
+      setFixtures([firstMatches]);
+      setCurrentRound(0);
+      setLeagueTable([]);
+    }
+    setPhase('playing');
+  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo]);
+
+  // Simula todas as fases restantes da Copa até o campeão (usuário eliminado)
+  const simulateAllCupa = useCallback(() => {
+    let currCupRounds = cupRounds.map(r => ({ ...r }));
+    let currCupRoundIdx = cupRoundIdx;
+    let currCupLeg = cupLeg;
+    let currFixtures = [...fixtures];
+    let currRound = currentRound;
+    let winnerId = null;
+
+    let iters = 0;
+    while (iters++ < 20) {
+      const round = currFixtures[currRound];
+      if (!round) break;
+      const results = round.map(m => {
+        const h = leagueTeams.find(t => t.id === m.homeId);
+        const a = leagueTeams.find(t => t.id === m.awayId);
+        if (!h || !a) return { homeId: m.homeId, awayId: m.awayId, homeGoals: 0, awayGoals: 0 };
+        return { homeId: m.homeId, awayId: m.awayId, ...simAiMatch(h, a) };
+      });
+
+      const cupRoundData = currCupRounds[currCupRoundIdx];
+      if (!cupRoundData) break;
+
+      if (currCupLeg === 1) {
+        currCupRounds = currCupRounds.map((r, i) => i === currCupRoundIdx ? { ...r, leg1Results: results } : r);
+        const leg2Matches = cupRoundData.matches.map(m => ({ homeId: m.awayId, awayId: m.homeId }));
+        currFixtures = [...currFixtures, leg2Matches];
+        currRound++;
+        currCupLeg = 2;
+      } else {
+        const leg1Res = currCupRounds[currCupRoundIdx].leg1Results || [];
+        const aggregateWinners = cupRoundData.matches.map((match, i) => {
+          const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
+          const l2 = results[i] || { homeGoals: 0, awayGoals: 0 };
+          const aggA = l1.homeGoals + l2.awayGoals;
+          const aggB = l1.awayGoals + l2.homeGoals;
+          if (aggA !== aggB) return aggA > aggB ? match.homeId : match.awayId;
+          const awayA = l2.awayGoals, awayB = l1.awayGoals;
+          if (awayA !== awayB) return awayA > awayB ? match.homeId : match.awayId;
+          return Math.random() < 0.5 ? match.homeId : match.awayId;
+        });
+
+        const nextMatches = [];
+        for (let i = 0; i + 1 < aggregateWinners.length; i += 2)
+          nextMatches.push({ homeId: aggregateWinners[i], awayId: aggregateWinners[i + 1] });
+
+        if (nextMatches.length === 0) {
+          winnerId = aggregateWinners[0] || null;
+          break;
+        }
+
+        const nextRoundName = CUP_ROUND_NAMES[currCupRoundIdx + 1] || 'Final';
+        const newRound = { name: nextRoundName, matches: nextMatches, leg1Results: [], results: [] };
+        currCupRounds = [...currCupRounds, newRound];
+        currFixtures = [...currFixtures, nextMatches];
+        currRound++;
+        currCupRoundIdx++;
+        currCupLeg = 1;
+      }
+    }
+
+    setCupRounds(currCupRounds);
+    setCupRoundIdx(currCupRoundIdx);
+    setCupWinnerId(winnerId);
+    setPhase('results');
+  }, [cupRounds, cupRoundIdx, cupLeg, fixtures, currentRound, leagueTeams]);
 
   // ── MULTIPLAYER (PeerJS) ──────────────────────────────────────────────────
   // Helpers para broadcast / envio de mensagem
@@ -2674,7 +2902,7 @@ export default function App() {
     const ovr = teamStrength(pitchWithCaptain);
     const safe = {};
     Object.entries(pitchWithCaptain).forEach(([k, p]) => {
-      safe[k] = { name: p.name, pos: p.pos, ovr: p.ovr, club: p.club || '', year: p.year || 0, nat: p.nat || 'BRA', slotKey: k };
+      safe[k] = { name: p.name, pos: p.pos, ovr: p.ovr, club: p.club || '', year: p.year || 0, nat: p.nat || 'BRA', isBench: p.isBench || false, slotKey: k };
     });
     const fields = { pitch: safe, ovr, ready: true };
     if (isLeader) {
@@ -2876,11 +3104,17 @@ export default function App() {
             autoCountdown={autoCountdown}
             onStartRound={startRound}
             onNextRound={goNextRound}
+            matchHistory={matchHistory}
+            scorers={scorers}
+            viewingTeam={viewingTeam}
+            onViewTeam={setViewingTeam}
+            onSimulateAll={simulateAllCupa}
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={MY_TEAM_ID} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} />
+          <Results leagueTable={leagueTable} myTeamId={MY_TEAM_ID} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} onNewSeason={newSeason} />
         )}
+        {viewingTeam && <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} />}
       </main>
     </div>
   );
@@ -3684,7 +3918,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
         )}
 
         {/* ── Jogadores ── */}
-        {pitchSlots.map(slot => {
+        {pitchSlots.filter(slot => !slot.isBench).map(slot => {
           const occupant = pitch[slot.key];
           const isHighlighted = highlightKeys.has(slot.key);
           const canPlace = isHighlighted && !occupant && onClickSlot;
@@ -3775,6 +4009,112 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
       </div>
     </div>
   );
+}
+
+// Exibe os jogadores do banco de reservas
+function BenchDisplay({ pitch, pitchSlots, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
+  const benchSlots = pitchSlots.filter(s => s.isBench);
+  const filled = benchSlots.filter(s => pitch[s.key]);
+  if (benchSlots.length === 0) return null;
+  return (
+    <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.07)' }}>
+      <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, fontFamily: "'Space Mono', monospace", textTransform: 'uppercase', letterSpacing: 1 }}>
+        Banco ({filled.length}/{benchSlots.length})
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {benchSlots.map(slot => {
+          const p = pitch[slot.key];
+          return (
+            <div key={slot.key} style={{ padding: '5px 10px', borderRadius: 8, background: p ? `${mc}22` : 'rgba(255,255,255,0.04)', border: `1px solid ${p ? mc + '55' : 'rgba(255,255,255,0.1)'}`, fontSize: 12, minWidth: 80, textAlign: 'center' }}>
+              {p ? (
+                <>
+                  <div style={{ fontWeight: 600, color: mc }}>{p.name.split(' ').slice(-1)[0]}</div>
+                  <div style={{ fontSize: 10, opacity: 0.5 }}>{p.pos[0]} · {p.ovr}</div>
+                </>
+              ) : (
+                <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: 11 }}>{slot.label}</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Chaveamento visual da Copa
+function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
+  return (
+    <div style={{ overflowX: 'auto', marginTop: 12 }}>
+      <div style={{ display: 'flex', gap: 12, minWidth: 'max-content', paddingBottom: 8 }}>
+        {cupRounds.map((round, rIdx) => (
+          <div key={rIdx} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 120 }}>
+            <div style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace", marginBottom: 6, textAlign: 'center', textTransform: 'uppercase' }}>{round.name}</div>
+            {round.matches.map((m, mIdx) => {
+              const h = leagueTeams.find(t => t.id === m.homeId);
+              const a = leagueTeams.find(t => t.id === m.awayId);
+              const leg1 = round.leg1Results?.[mIdx];
+              const leg2 = round.results?.[mIdx];
+              const aggH = leg1 && leg2 ? leg1.homeGoals + leg2.awayGoals : null;
+              const aggA = leg1 && leg2 ? leg1.awayGoals + leg2.homeGoals : null;
+              const hWon = aggH !== null && aggH > aggA;
+              const aWon = aggA !== null && aggA > aggH;
+              return (
+                <div key={mIdx} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden', fontSize: 11 }}>
+                  {[{ team: h, id: m.homeId, won: hWon }, { team: a, id: m.awayId, won: aWon }].map(({ team, id, won }, ti) => (
+                    <div key={ti} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: won ? 'rgba(127,217,154,0.1)' : id === myTeamId ? `${mc}15` : 'transparent', borderBottom: ti === 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                      {team?.clubLogo && <img src={team.clubLogo} style={{ width: 12, height: 12, objectFit: 'contain' }} alt="" />}
+                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: id === myTeamId ? mc : won ? '#7fd99a' : '#F4F1EA', fontWeight: won ? 700 : 400 }}>{team?.label || '?'}</span>
+                      {aggH !== null && <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700 }}>{ti === 0 ? aggH : aggA}</span>}
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Modal para ver elenco de um time adversário
+function TeamViewModal({ team, onClose, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
+  if (!team) return null;
+  const starters = team.players?.filter(p => !p.isBench) || team.players || [];
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 400, maxHeight: '80vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+          <div>
+            {team.clubLogo && <img src={team.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain', marginRight: 8, verticalAlign: 'middle' }} alt="" />}
+            <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>{team.label}</span>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20 }}>x</button>
+        </div>
+        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc, marginBottom: 12 }}>OVR {team.ovr}</div>
+        {starters.map((p, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
+            <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.join('/') || '-'}</span>
+            <span style={{ flex: 1 }}>{p.name}</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// Zonas da tabela do Brasileirão
+function getZoneInfo(pos, total) {
+  if (pos <= 4)  return { color: '#22c55e', label: 'G4', title: 'Libertadores - Fase de Grupos' };
+  if (pos <= 6)  return { color: '#86efac', label: 'G6', title: 'Libertadores - Pre' };
+  if (pos <= 12) return { color: '#60a5fa', label: 'SA', title: 'Sul-Americana' };
+  if (pos >= total - 3) return { color: '#ef4444', label: 'Z4', title: 'Rebaixamento' };
+  return null;
 }
 
 function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, pitch }) {
@@ -3997,6 +4337,7 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
           </div>
         )}
       </div>
+      <BenchDisplay pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} />
     </div>
   );
 }
@@ -4053,15 +4394,17 @@ function ChemistryDisplay({ pitch, compact = false }) {
 }
 
 function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor }) {
-  const xi = Object.values(pitch);
-  const avgOvr = xi.length ? Math.round(xi.reduce((s, p) => s + p.ovr, 0) / xi.length) : 0;
-  const { ovrBonus } = calcChemistry(xi.filter(p => p.club));
-  const effectiveOvr = Math.round((avgOvr + ovrBonus + (captainSlot ? 2 / xi.length : 0)) * 10) / 10;
+  const starters = Object.values(pitch).filter(p => !p.isBench);
+  const avgOvr = starters.length ? Math.round(starters.reduce((s, p) => s + p.ovr, 0) / starters.length) : 0;
+  const { ovrBonus } = calcChemistry(starters.filter(p => p.club));
+  const effectiveOvr = Math.round((avgOvr + ovrBonus + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
+  const starterSlots = pitchSlots.filter(s => !s.isBench);
+  const benchSlots = pitchSlots.filter(s => s.isBench);
 
   return (
     <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>{formationLabel}</div>
-      <h2 style={styles.h2}>OVR base: {avgOvr} · Efetivo: {effectiveOvr}</h2>
+      <h2 style={styles.h2}>OVR base: {avgOvr} · Efetivo: {effectiveOvr} (11 titulares)</h2>
       <ChemistryDisplay pitch={pitch} />
 
       {/* Instrução capitão */}
@@ -4072,14 +4415,16 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
         borderRadius: 8, marginBottom: 10, color: captainSlot ? '#d4a23c' : 'rgba(255,255,255,0.5)',
       }}>
         {captainSlot
-          ? `© Capitão: ${pitch[captainSlot]?.name} — +2 OVR`
-          : 'Toque em um jogador para definir o capitão (braçadeira +2 OVR)'}
+          ? `Capitao: ${pitch[captainSlot]?.name} — +2 OVR`
+          : 'Toque em um titular para definir o capitao (bracadeira +2 OVR)'}
       </div>
 
       <Pitch pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot} />
+      <BenchDisplay pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} />
 
       <div style={styles.squadList}>
-        {pitchSlots.map(slot => {
+        {/* Titulares */}
+        {starterSlots.map(slot => {
           const p = pitch[slot.key];
           if (!p) return null;
           const isCap = captainSlot === slot.key;
@@ -4100,7 +4445,7 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
               }}
             >
               <span style={{ ...styles.squadPos, color: isCap ? '#d4a23c' : undefined }}>
-                {isCap ? '©' : slot.label}
+                {isCap ? 'C' : slot.label}
               </span>
               <span style={{ ...styles.squadName, fontWeight: isCap ? 700 : 400 }}>{p.name}</span>
               <span style={styles.squadTeam}>{p.teamLabel}</span>
@@ -4110,16 +4455,34 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
             </button>
           );
         })}
+        {/* Banco */}
+        {benchSlots.some(s => pitch[s.key]) && (
+          <>
+            <div style={{ fontSize: 11, opacity: 0.4, padding: '8px 0 4px', fontFamily: "'Space Mono', monospace" }}>BANCO</div>
+            {benchSlots.map(slot => {
+              const p = pitch[slot.key];
+              if (!p) return null;
+              return (
+                <div key={slot.key} style={{ ...styles.squadRow, opacity: 0.7 }}>
+                  <span style={styles.squadPos}>{p.pos[0]}</span>
+                  <span style={styles.squadName}>{p.name}</span>
+                  <span style={styles.squadTeam}>{p.teamLabel}</span>
+                  <span style={styles.squadOvr}>{p.ovr}</span>
+                </div>
+              );
+            })}
+          </>
+        )}
       </div>
 
       <div style={styles.btnRow}>
-        <button style={styles.btnGhost} onClick={onRedo}>Trocar formação</button>
+        <button style={styles.btnGhost} onClick={onRedo}>Trocar formacao</button>
         <button
           style={{ ...styles.btnPrimary, opacity: captainSlot ? 1 : 0.6 }}
           onClick={onConfirm}
-          title={captainSlot ? '' : 'Escolha um capitão primeiro'}
+          title={captainSlot ? '' : 'Escolha um capitao primeiro'}
         >
-          {captainSlot ? 'Disputar →' : 'Escolha um capitão'}
+          {captainSlot ? 'Disputar ->' : 'Escolha um capitao'}
         </button>
       </div>
     </div>
@@ -4228,7 +4591,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound }) {
+function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -4236,6 +4599,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
   const awayTeam = um ? leagueTeams.find(t => t.id === um.awayId) : null;
   const roundDone = roundResults !== null;
   const clockDisplay = `${clockMinute}'`;
+  const [showHistory, setShowHistory] = useState(false);
 
   // ── COPA DO BRASIL ──────────────────────────────────────────
   if (gameMode === 'copa') {
@@ -4261,22 +4625,21 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
             <div style={{ textAlign: 'center', padding: '24px 0 16px' }}>
               <div style={{ fontSize: 40, marginBottom: 10 }}>😔</div>
               <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Eliminado nas {elimRoundName}</div>
-              <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 20 }}>O torneio continua sem você.</div>
-              {simMode === 'manual' && <button style={styles.btnSmall} onClick={onStartRound}>Simular próxima fase →</button>}
+              <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 20 }}>O torneio continua sem voce.</div>
+              {simMode === 'manual' && <button style={styles.btnSmall} onClick={onStartRound}>Simular proxima fase</button>}
+              {simMode === 'manual' && onSimulateAll && (
+                <button style={{ ...styles.btnPrimary, background: '#d4a23c', color: '#0B1A12', margin: '8px auto', display: 'block' }} onClick={onSimulateAll}>
+                  Simular ate o campeao
+                </button>
+              )}
               {simMode === 'auto' && autoCountdown !== null && (
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#d4a23c' }}>Simulando em {autoCountdown}s…</div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#d4a23c' }}>Simulando em {autoCountdown}s...</div>
               )}
             </div>
             {cupRounds.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <div style={styles.sectionLabel}>Chaveamento</div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {CUP_ROUND_NAMES.map((name, idx) => (
-                    <div key={idx} style={{ fontSize: 11, padding: '3px 10px', borderRadius: 999, background: idx < cupRoundIdx ? hexToRgba(mc, 0.2) : idx === cupRoundIdx ? hexToRgba(mc, 0.35) : 'rgba(255,255,255,0.05)', color: idx <= cupRoundIdx ? mc : 'rgba(255,255,255,0.3)', border: `1px solid ${idx === cupRoundIdx ? mc : 'transparent'}`, fontFamily: "'Space Mono', monospace" }}>
-                      {idx < cupRoundIdx ? '✓ ' : ''}{name}
-                    </div>
-                  ))}
-                </div>
+                <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} />
               </div>
             )}
           </div>
@@ -4299,12 +4662,17 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
             <div style={{ fontSize: 14, opacity: 0.6, marginBottom: 6 }}>Seu time foi eliminado nas {elimRoundName}.</div>
             {elimUserAgg !== null && elimOppAgg !== null && (
               <div style={{ fontSize: 13, fontFamily: "'Space Mono', monospace", color: '#e05050', marginBottom: 20 }}>
-                Agregado: {elimUserAgg} × {elimOppAgg}
+                Agregado: {elimUserAgg} x {elimOppAgg}
               </div>
             )}
-            {simMode === 'manual' && <button style={styles.btnSmall} onClick={onNextRound}>Ver campeão →</button>}
+            {simMode === 'manual' && <button style={styles.btnSmall} onClick={onNextRound}>Ver campeao</button>}
+            {simMode === 'manual' && onSimulateAll && (
+              <button style={{ ...styles.btnPrimary, background: '#d4a23c', color: '#0B1A12', margin: '8px auto', display: 'block' }} onClick={onSimulateAll}>
+                Simular ate o campeao
+              </button>
+            )}
             {simMode === 'auto' && autoCountdown !== null && (
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#d4a23c' }}>Avançando em {autoCountdown}s…</div>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#d4a23c' }}>Avancando em {autoCountdown}s...</div>
             )}
           </div>
           {roundResults && cupRound.matches && leg1Results && (
@@ -4323,11 +4691,17 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
                 return (
                   <div key={i} style={{ ...styles.otherMatchRow, background: isUserRow ? 'rgba(224,80,80,0.07)' : undefined }}>
                     <span style={{ ...styles.otherTeam, fontWeight: hw ? 700 : 400, color: hw ? '#7fd99a' : undefined }}>{h?.label}</span>
-                    <span style={styles.otherScore}>{aggHome} – {aggAway}</span>
+                    <span style={styles.otherScore}>{aggHome} - {aggAway}</span>
                     <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: aw ? 700 : 400, color: aw ? '#7fd99a' : undefined }}>{a?.label}</span>
                   </div>
                 );
               })}
+            </div>
+          )}
+          {cupRounds.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div style={styles.sectionLabel}>Chaveamento</div>
+              <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} />
             </div>
           )}
         </div>
@@ -4437,23 +4811,33 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           </div>
         )}
 
+        {/* Pênaltis */}
+        {roundDone && cupLeg === 2 && (() => {
+          const penRes = cupRound.penaltyResults || [];
+          if (!penRes.length) return null;
+          return (
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 10 }}>
+              <div style={styles.sectionLabel}>Penaltis</div>
+              {penRes.map((pr, pi) => {
+                const hTeam = leagueTeams.find(t => t.id === cupRound.matches[pr.matchIdx]?.homeId);
+                const aTeam = leagueTeams.find(t => t.id === cupRound.matches[pr.matchIdx]?.awayId);
+                return (
+                  <div key={pi} style={{ marginBottom: 8 }}>
+                    <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 4 }}>{hTeam?.label} {pr.goalsA} x {pr.goalsB} {aTeam?.label}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: 12 }}>{hTeam?.label}: {pr.kicks.map(k => k.a ? 'O' : 'X').join(' ')}</div>
+                    <div style={{ fontFamily: 'monospace', fontSize: 12 }}>{aTeam?.label}: {pr.kicks.map(k => k.b ? 'O' : 'X').join(' ')}</div>
+                  </div>
+                );
+              })}
+            </div>
+          );
+        })()}
+
         {/* Chaveamento das fases */}
         {cupRounds.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <div style={styles.sectionLabel}>Chaveamento</div>
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {CUP_ROUND_NAMES.map((name, idx) => (
-                <div key={idx} style={{
-                  fontSize: 11, padding: '3px 10px', borderRadius: 999,
-                  background: idx < cupRoundIdx ? hexToRgba(mc, 0.2) : idx === cupRoundIdx ? hexToRgba(mc, 0.35) : 'rgba(255,255,255,0.05)',
-                  color: idx <= cupRoundIdx ? mc : 'rgba(255,255,255,0.3)',
-                  border: `1px solid ${idx === cupRoundIdx ? mc : 'transparent'}`,
-                  fontFamily: "'Space Mono', monospace",
-                }}>
-                  {idx < cupRoundIdx ? '✓ ' : ''}{name}
-                </div>
-              ))}
-            </div>
+            <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} />
           </div>
         )}
       </div>
@@ -4513,7 +4897,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
       )}
 
       <div style={styles.tableSection} className="table-scroll">
-        <div style={styles.sectionLabel}>Classificação Geral</div>
+        <div style={styles.sectionLabel}>Classificacao Geral</div>
         <div style={styles.tableHeaderRow}>
           <span style={styles.tablePos}>#</span>
           <span style={{ flex: 1 }}>Time</span>
@@ -4525,18 +4909,23 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           <span style={styles.tableCell}>GC</span>
           <span style={styles.tableCell}>SG</span>
           <span style={{ ...styles.tableCell, color: '#d4a23c', fontWeight: 700 }}>PTS</span>
+          <span style={{ width: 28 }}></span>
         </div>
         {leagueTable.map((row, i) => {
           const isMe = row.id === myTeamId;
           const sg = row.gp - row.gc;
+          const zone = isMe ? null : getZoneInfo(i + 1, leagueTable.length);
           return (
             <div key={row.id} style={{
               ...styles.tableRow,
               background: isMe ? hexToRgba(mc, 0.1) : i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
-              borderLeft: isMe ? `3px solid ${mc}` : '3px solid transparent',
+              borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
             }}>
               <span style={styles.tablePos}>{i + 1}</span>
-              <span style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <span
+                onClick={() => !isMe && onViewTeam && onViewTeam(leagueTeams.find(t => t.id === row.id))}
+                style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, cursor: isMe ? 'default' : 'pointer' }}
+              >
                 {isMe
                   ? (myTeamBadge && <span>{myTeamBadge}</span>)
                   : (row.clubLogo && <img src={row.clubLogo} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} alt="" />)
@@ -4551,10 +4940,61 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
               <span style={styles.tableCell}>{row.gc}</span>
               <span style={{ ...styles.tableCell, color: sg > 0 ? '#7fd99a' : sg < 0 ? '#e0593f' : undefined }}>{sg >= 0 ? `+${sg}` : sg}</span>
               <span style={{ ...styles.tableCell, fontWeight: 700, color: '#d4a23c' }}>{row.pts}</span>
+              <span style={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {zone && !isMe && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{zone.label}</span>}
+              </span>
             </div>
           );
         })}
+        {/* Legenda de zonas */}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontSize: 11, opacity: 0.6 }}>
+          {[['#22c55e','G4 Libertadores (grupos)'],['#86efac','G6 Libertadores (pre)'],['#60a5fa','SA Sul-Americana'],['#ef4444','Z4 Rebaixamento']].map(([c,l]) => (
+            <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: 'inline-block' }} />{l}
+            </span>
+          ))}
+        </div>
       </div>
+
+      {/* Artilheiros */}
+      {scorers && Object.keys(scorers).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={styles.sectionLabel}>Artilheiros</div>
+          {Object.entries(scorers)
+            .sort((a, b) => b[1].goals - a[1].goals)
+            .slice(0, 5)
+            .map(([name, d], i) => (
+              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
+                <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i+1}.</span>
+                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ fontSize: 11, opacity: 0.5 }}>{d.teamLabel}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
+              </div>
+            ))
+          }
+        </div>
+      )}
+
+      {/* Historico de partidas */}
+      {matchHistory && matchHistory.length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <button onClick={() => setShowHistory(h => !h)} style={{ background: 'none', border: 'none', color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+            {showHistory ? 'v' : '>'} Historico ({matchHistory.length} partida{matchHistory.length !== 1 ? 's' : ''})
+          </button>
+          {showHistory && (
+            <div style={{ marginTop: 8 }}>
+              {[...matchHistory].reverse().map((m, i) => (
+                <div key={i} style={{ ...styles.otherMatchRow, fontSize: 12 }}>
+                  <span style={{ fontSize: 10, opacity: 0.4, minWidth: 32 }}>{m.gameMode === 'copa' ? m.legLabel : `R${m.round}`}</span>
+                  <span style={{ ...styles.otherTeam, fontWeight: m.hg > m.ag ? 700 : 400 }}>{m.homeLabel}</span>
+                  <span style={styles.otherScore}>{m.hg} - {m.ag}</span>
+                  <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: m.ag > m.hg ? 700 : 400 }}>{m.awayLabel}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -4611,8 +5051,9 @@ function AnthemPlayer({ club }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, onNewSeason }) {
   const mc = myTeamColor || '#d4a23c';
+  const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
 
   // ── COPA ────────────────────────────────────────────────────
   if (gameMode === 'copa') {
@@ -4625,28 +5066,41 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           <div style={{ fontSize: 56, marginBottom: 12 }}>{userWon ? '🏆' : '⚽'}</div>
           <div style={styles.eyebrow}>Copa do Brasil — Resultado Final</div>
           <h1 style={{ ...styles.h1, color: userWon ? mc : '#F4F1EA', marginTop: 8 }}>
-            {userWon ? 'CAMPEÃO!' : 'Copa encerrada'}
+            {userWon ? 'CAMPEAO!' : 'Copa encerrada'}
           </h1>
           <div style={{ fontSize: 15, opacity: 0.7, marginBottom: 20 }}>
             {userWon
               ? `${myTeamBadge || ''} ${myTeamBadge ? ' ' : ''}Seu time conquistou a Copa do Brasil!`
-              : <>Campeão: <b style={{ color: '#d4a23c' }}>{winner?.label ?? '—'}</b></>
+              : <>Campeao: <b style={{ color: '#d4a23c' }}>{winner?.label ?? '-'}</b></>
             }
           </div>
           {!userWon && myTeamBadge && (
             <div style={styles.badgeMuted}>Seu time foi eliminado antes da final. Tente de novo!</div>
           )}
-          {userWon && <div style={styles.badge}>🏆 Copa do Brasil conquistada! Time lendário!</div>}
+          {userWon && <div style={styles.badge}>Copa do Brasil conquistada! Time lendario!</div>}
         </div>
+        {topScorers.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={styles.sectionLabel}>Artilheiro da Copa</div>
+            {topScorers.map(([name, d], i) => (
+              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+                <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i+1}.</span>
+                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <AnthemPlayer club={champClub} />
-        <button style={{ ...styles.btnPrimary, marginTop: 20, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
-          Jogar de novo →
+        {onNewSeason && <button style={{ ...styles.btnGhost, marginTop: 10, width: '100%' }} onClick={onNewSeason}>Nova temporada com mesmo elenco</button>}
+        <button style={{ ...styles.btnPrimary, marginTop: 10, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
+          Jogar de novo
         </button>
       </div>
     );
   }
 
-  // ── BRASILEIRÃO ─────────────────────────────────────────────
+  // ── BRASILEIRAO ─────────────────────────────────────────────
   const pos = leagueTable.findIndex(t => t.id === myTeamId) + 1;
   const myRow = leagueTable.find(t => t.id === myTeamId) || {};
   const champion = leagueTable[0];
@@ -4657,34 +5111,47 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
 
   return (
     <div style={styles.card} className="card-mob">
-      <div style={styles.eyebrow}>Fim do Brasileirão · Série A</div>
+      <div style={styles.eyebrow}>Fim do Brasileirao · Serie A</div>
       <h1 style={styles.h1} className="h1-mob">
-        {isChampion ? '🏆 CAMPEÃO!' : podium ? `${pos}º lugar — pódio!` : `${pos}º lugar`}
+        {isChampion ? 'CAMPEAO!' : podium ? `${pos}o lugar — podio!` : `${pos}o lugar`}
       </h1>
 
       {!isChampion && (
         <div style={styles.championBox}>
-          Campeão: <b>{champion?.label}</b> — {champion?.pts} pts
+          Campeao: <b>{champion?.label}</b> — {champion?.pts} pts
         </div>
       )}
 
       <div style={styles.finalStats} className="stats-grid-3">
         <Stat label="Pontos" value={myRow.pts ?? 0} />
-        <Stat label="Vitórias" value={myRow.v ?? 0} />
+        <Stat label="Vitorias" value={myRow.v ?? 0} />
         <Stat label="Empates" value={myRow.e ?? 0} />
         <Stat label="Derrotas" value={myRow.d ?? 0} />
-        <Stat label="Gols pró" value={myRow.gp ?? 0} />
+        <Stat label="Gols pro" value={myRow.gp ?? 0} />
         <Stat label="Gols contra" value={myRow.gc ?? 0} />
       </div>
 
-      {isChampion && <div style={styles.badge}>🏆 Brasileirão conquistado! Você montou um time lendário.</div>}
-      {!isChampion && podium && <div style={styles.badgeInfo}>Campanha sólida — faltou pouco pra vencer!</div>}
-      {!podium && <div style={styles.badgeMuted}>Campanha difícil. Tente montar um time mais equilibrado.</div>}
+      {isChampion && <div style={styles.badge}>Brasileirao conquistado! Voce montou um time lendario.</div>}
+      {!isChampion && podium && <div style={styles.badgeInfo}>Campanha solida — faltou pouco pra vencer!</div>}
+      {!podium && <div style={styles.badgeMuted}>Campanha dificil. Tente montar um time mais equilibrado.</div>}
+
+      {topScorers.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={styles.sectionLabel}>Artilheiros</div>
+          {topScorers.map(([name, d], i) => (
+            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+              <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i+1}.</span>
+              <span style={{ flex: 1 }}>{name}</span>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
+            </div>
+          ))}
+        </div>
+      )}
 
       <AnthemPlayer club={champClub} />
 
       <div className="table-scroll">
-      <div style={{ ...styles.sectionLabel, marginTop: 24 }}>Classificação Final</div>
+      <div style={{ ...styles.sectionLabel, marginTop: 24 }}>Classificacao Final</div>
       <div style={styles.tableHeaderRow}>
         <span style={styles.tablePos}>#</span>
         <span style={{ flex: 1 }}>Time</span>
@@ -4700,11 +5167,12 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       {leagueTable.map((row, i) => {
         const isMe = row.id === myTeamId;
         const sg = row.gp - row.gc;
+        const zone = isMe ? null : getZoneInfo(i + 1, leagueTable.length);
         return (
           <div key={row.id} style={{
             ...styles.tableRow,
             background: isMe ? hexToRgba(mc, 0.1) : i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
-            borderLeft: isMe ? `3px solid ${mc}` : '3px solid transparent',
+            borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
           }}>
             <span style={styles.tablePos}>{i + 1}</span>
             <span style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13 }}>
@@ -4724,8 +5192,9 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       })}
       </div>{/* /table-scroll */}
 
-      <button style={{ ...styles.btnPrimary, marginTop: 28, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
-        Jogar de novo →
+      {onNewSeason && <button style={{ ...styles.btnGhost, marginTop: 20, width: '100%' }} onClick={onNewSeason}>Nova temporada com mesmo elenco</button>}
+      <button style={{ ...styles.btnPrimary, marginTop: 10, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
+        Jogar de novo
       </button>
     </div>
   );
