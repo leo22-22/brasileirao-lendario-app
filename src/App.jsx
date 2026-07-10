@@ -4561,6 +4561,197 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
 }
 
 // ============================================================
+// CAMPINHO ANIMADO
+// ============================================================
+const _PPOS = {
+  GOL: { x: 5.5, y: 30 },
+  LD:  { x: 20,  y: 45 },
+  LE:  { x: 20,  y: 15 },
+  ZAG: { x: 23,  y: 30 },
+  VOL: { x: 35,  y: 30 },
+  MC:  { x: 37,  y: 22 },
+  MEI: { x: 41,  y: 30 },
+  MD:  { x: 37,  y: 41 },
+  ME:  { x: 37,  y: 19 },
+  PD:  { x: 44,  y: 45 },
+  PE:  { x: 44,  y: 15 },
+  ATA: { x: 46.5,y: 30 },
+};
+
+function _buildLineup(team, isHome) {
+  const starters = (team?.players || []).slice(0, 11);
+  const cnt = {};
+  return starters.map((p, i) => {
+    const pos = p.pos?.[0] || 'MEI';
+    cnt[pos] = (cnt[pos] || 0);
+    const nth = cnt[pos]++;
+    const base = _PPOS[pos] || { x: 30, y: 30 };
+    // spread same-pos players vertically: 0→0, 1→+12, 2→-12, 3→+24…
+    const yOff = nth === 0 ? 0 : nth % 2 === 1 ? Math.ceil(nth / 2) * 13 : -Math.ceil(nth / 2) * 13;
+    const bx = isHome ? base.x : 100 - base.x;
+    const by = Math.max(4, Math.min(56, base.y + yOff));
+    const shortN = (p.name || '').split(' ').slice(-1)[0].slice(0, 8);
+    return { key: `${isHome ? 'h' : 'a'}-${i}`, name: p.name, shortN, pos, bx, by, idx: i };
+  });
+}
+
+function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulating }) {
+  const [jitter, setJitter] = useState({});
+  const [ball, setBall] = useState({ x: 50, y: 30 });
+  const [flash, setFlash] = useState({ side: null, on: false });
+  const evLenRef = useRef(0);
+  const tRef = useRef(0);
+
+  // Player jitter
+  useEffect(() => {
+    if (!isSimulating) { setJitter({}); return; }
+    const id = setInterval(() => {
+      const j = {};
+      for (let i = 0; i < 22; i++) j[i] = { dx: (Math.random() - 0.5) * 3.2, dy: (Math.random() - 0.5) * 3.2 };
+      setJitter(j);
+    }, 800);
+    return () => clearInterval(id);
+  }, [isSimulating]);
+
+  // Ball wander
+  useEffect(() => {
+    if (!isSimulating) return;
+    const id = setInterval(() => {
+      tRef.current += 0.22;
+      const t = tRef.current;
+      setBall({
+        x: Math.max(6, Math.min(94, 50 + Math.sin(t) * 30)),
+        y: Math.max(5, Math.min(55, 30 + Math.sin(t * 0.71 + 1.3) * 20)),
+      });
+    }, 480);
+    return () => clearInterval(id);
+  }, [isSimulating]);
+
+  // Goal flash + ball snap
+  useEffect(() => {
+    if (liveEvents.length > evLenRef.current) {
+      const ev = liveEvents[liveEvents.length - 1];
+      const scoredByHome = ev.teamId === homeTeam?.id;
+      setFlash({ side: scoredByHome ? 'right' : 'left', on: true });
+      setBall({ x: scoredByHome ? 97 : 3, y: 30 });
+      setTimeout(() => setFlash(f => ({ ...f, on: false })), 1300);
+    }
+    evLenRef.current = liveEvents.length;
+  }, [liveEvents, homeTeam]);
+
+  const homePlayers = useMemo(() => _buildLineup(homeTeam, true), [homeTeam]);
+  const awayPlayers = useMemo(() => _buildLineup(awayTeam, false), [awayTeam]);
+
+  const hColor = homeTeam?.id === myTeamId ? mc : (homeTeam?.colors?.p || homeTeam?.color || '#3a85d9');
+  const aColor = awayTeam?.id === myTeamId ? mc : (awayTeam?.colors?.p || awayTeam?.color || '#c94040');
+
+  const dot = (p, i, color, isHome) => {
+    const off = jitter[isHome ? i : 11 + i] || { dx: 0, dy: 0 };
+    const left = `${Math.max(2, Math.min(96, p.bx + off.dx))}%`;
+    const top  = `${Math.max(2, Math.min(94, p.by / 60 * 100 + off.dy / 60 * 100))}%`;
+    return (
+      <div key={p.key} title={p.name} style={{
+        position: 'absolute', left, top,
+        transform: 'translate(-50%,-50%)',
+        transition: 'left 0.65s ease, top 0.65s ease',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        zIndex: 2, pointerEvents: 'none', userSelect: 'none',
+      }}>
+        <div style={{
+          width: 20, height: 20, borderRadius: '50%',
+          background: color, border: '2px solid rgba(255,255,255,0.85)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 8, fontWeight: 800, color: '#fff',
+          boxShadow: '0 1px 5px rgba(0,0,0,0.55)',
+          lineHeight: 1,
+        }}>{i + 1}</div>
+        <div style={{
+          fontSize: 7, color: '#fff', fontWeight: 700, marginTop: 1,
+          textShadow: '0 1px 2px rgba(0,0,0,0.9)',
+          background: 'rgba(0,0,0,0.42)', borderRadius: 2,
+          padding: '1px 2px', whiteSpace: 'nowrap', lineHeight: 1,
+        }}>{p.shortN}</div>
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ position: 'relative', width: '100%', paddingBottom: '60%', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
+      {/* Pitch SVG */}
+      <svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid slice"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}>
+        {/* Grass stripes */}
+        {[...Array(10)].map((_, i) => (
+          <rect key={i} x={i * 10} y={0} width={10} height={60} fill={i % 2 === 0 ? '#2a5416' : '#2e5e1a'} />
+        ))}
+        {/* Outer border */}
+        <rect x={2} y={2} width={96} height={56} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5}/>
+        {/* Center line */}
+        <line x1={50} y1={2} x2={50} y2={58} stroke="rgba(255,255,255,0.65)" strokeWidth={0.5}/>
+        {/* Center circle */}
+        <circle cx={50} cy={30} r={9} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5}/>
+        <circle cx={50} cy={30} r={0.7} fill="rgba(255,255,255,0.75)"/>
+        {/* Left penalty area */}
+        <rect x={2} y={13} width={17} height={34} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5}/>
+        {/* Left 6-yard */}
+        <rect x={2} y={20} width={5.5} height={20} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5}/>
+        {/* Left goal */}
+        <rect x={0} y={23} width={2} height={14} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5}/>
+        {/* Left penalty spot */}
+        <circle cx={13} cy={30} r={0.7} fill="rgba(255,255,255,0.75)"/>
+        {/* Right penalty area */}
+        <rect x={81} y={13} width={17} height={34} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5}/>
+        {/* Right 6-yard */}
+        <rect x={92.5} y={20} width={5.5} height={20} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5}/>
+        {/* Right goal */}
+        <rect x={98} y={23} width={2} height={14} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5}/>
+        {/* Right penalty spot */}
+        <circle cx={87} cy={30} r={0.7} fill="rgba(255,255,255,0.75)"/>
+        {/* Goal flash overlay */}
+        {flash.on && flash.side === 'right' && (
+          <rect x={75} y={0} width={25} height={60} fill="rgba(255,210,0,0.28)" style={{ transition: 'opacity 0.3s' }}/>
+        )}
+        {flash.on && flash.side === 'left' && (
+          <rect x={0} y={0} width={25} height={60} fill="rgba(255,210,0,0.28)" style={{ transition: 'opacity 0.3s' }}/>
+        )}
+        {/* Team color band at top */}
+        <rect x={2} y={2} width={48} height={3} fill={hColor} opacity={0.55}/>
+        <rect x={50} y={2} width={48} height={3} fill={aColor} opacity={0.55}/>
+      </svg>
+
+      {/* Team name chips */}
+      <div style={{ position: 'absolute', top: 6, left: 6, fontSize: 8, fontWeight: 700, color: '#fff',
+        background: hColor + 'cc', borderRadius: 3, padding: '1px 4px', zIndex: 4, maxWidth: '40%',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+        {homeTeam?.label}
+      </div>
+      <div style={{ position: 'absolute', top: 6, right: 6, fontSize: 8, fontWeight: 700, color: '#fff',
+        background: aColor + 'cc', borderRadius: 3, padding: '1px 4px', zIndex: 4, maxWidth: '40%',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+        textAlign: 'right' }}>
+        {awayTeam?.label}
+      </div>
+
+      {/* Players */}
+      {homePlayers.map((p, i) => dot(p, i, hColor, true))}
+      {awayPlayers.map((p, i) => dot(p, i, aColor, false))}
+
+      {/* Ball */}
+      <div style={{
+        position: 'absolute',
+        left: `${ball.x}%`,
+        top: `${ball.y / 60 * 100}%`,
+        transform: 'translate(-50%,-50%)',
+        transition: 'left 0.42s ease, top 0.42s ease',
+        fontSize: 11, zIndex: 3, lineHeight: 1,
+        filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.8))',
+        pointerEvents: 'none',
+      }}>⚽</div>
+    </div>
+  );
+}
+
+// ============================================================
 // TELA DE JOGO: liga com cronômetro e tabela
 // ============================================================
 function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel }) {
@@ -4568,6 +4759,11 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
   const isAuto = simMode === 'auto';
   return (
     <div style={styles.liveMatchBox} className="card-mob">
+      <AnimatedPitch
+        homeTeam={homeTeam} awayTeam={awayTeam}
+        myTeamId={myTeamId} mc={mc}
+        liveEvents={liveEvents} isSimulating={isSimulating}
+      />
       <div style={styles.liveTeamsRow} className="live-teams-row">
         <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} className="live-team-n">
           <span>{homeTeam.label}</span>
