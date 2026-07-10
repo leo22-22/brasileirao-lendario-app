@@ -10,6 +10,9 @@
     "icons": "node scripts/generate-pwa-icons.mjs"
   },
   "dependencies": {
+    "@fontsource/fraunces": "^5.1.0",
+    "@fontsource/source-sans-3": "^5.1.0",
+    "@fontsource/space-mono": "^5.1.0",
     "peerjs": "^1.5.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
