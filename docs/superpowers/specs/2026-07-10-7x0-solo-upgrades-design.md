@@ -112,13 +112,17 @@ passando os fixtures/estado gerados pelo novo módulo).
   {
     "unlocked": { "primeiro_titulo": "2026-07-10T14:32:00Z", ... },
     "stats": {
-      "gamesPlayed": 0,
-      "titlesByMode": { "brasileirao": 0, "copa": 0, "lendaria": 0 },
-      "bestWinStreak": 0,
-      "leastGoalsConcededInTitle": null
+      "tournamentsPlayed": 0,
+      "titlesByMode": { "brasileirao": 0, "copa": 0, "lendaria": 0 }
     }
   }
   ```
+  (`tournamentsPlayed` conta torneios concluídos, não partidas individuais —
+  é o que dá pra derivar sem instrumentar o motor de simulação existente,
+  respeitando a estratégia híbrida de não alterar código que já funciona.
+  "Melhor sequência de vitórias" e "menos gols sofridos num título" foram
+  cortados do v1 por exigirem tracking partida-a-partida que nenhum modo
+  expõe hoje — podem voltar depois se o motor passar a emitir esses eventos.)
 
 ### Conquistas iniciais
 
@@ -138,8 +142,7 @@ definições sem mudar a lógica de avaliação.
 
 Nova tela "Carteirinha", acessível a partir da Home/Perfil: grade de selos
 (bloqueado = silhueta cinza, desbloqueado = colorido + data de conquista) e um
-painel de estatísticas vitalícias (jogos disputados, títulos por modo, melhor
-sequência de vitórias).
+painel de estatísticas vitalícias (torneios disputados, títulos por modo).
 
 ## 3. PWA
 
