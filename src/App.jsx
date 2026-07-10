@@ -2645,6 +2645,7 @@ export default function App() {
   // Auto-save to localStorage
   useEffect(() => {
     if (phase === 'intro') { try { localStorage.removeItem('brl_save'); } catch {} return; }
+    if (multiPhase) return; // don't persist multiplayer sessions
     try {
       const save = {
         phase, formationKey, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
