@@ -57,9 +57,9 @@ grupo + mata-mata até a final = 7 partidas).
   uma vez) = 3 partidas para o time do jogador. Critério de classificação:
   pontos, saldo de gols, gols marcados (mesmo critério já usado no modo
   Brasileirão).
-- **Mata-mata**: só o 1º colocado de cada grupo avança (8 times) →
-  Quartas de Final → Semifinal → Final, jogo único (sem ida e volta) = 4
-  partidas para quem chega até a final.
+- **Mata-mata**: os 2 primeiros colocados de cada grupo avançam (16 times) →
+  Oitavas de Final → Quartas de Final → Semifinal → Final, jogo único (sem
+  ida e volta) = 4 partidas para quem chega até a final.
 - Total para o jogador, se avançar até o fim: 3 + 4 = 7 partidas.
 - Empate no mata-mata: prorrogação + pênaltis, reaproveitando a lógica já
   existente (usada hoje no modo Copa do Brasil) para desempate.
@@ -87,7 +87,8 @@ grupo + mata-mata até a final = 7 partidas).
 - `buildGroupFixtures(groupTeamIds) → partidas` (reaproveita
   `generateRoundRobin` já existente em `App.jsx`, ou uma cópia local se a
   extração direta for arriscada — decidir no plano de implementação)
-- `buildKnockoutBracket(groupWinners) → chaveamento de 8 times`
+- `buildKnockoutBracket(groupQualifiers) → chaveamento de 16 times` (2
+  primeiros colocados de cada um dos 8 grupos)
 - `advanceKnockout(bracketState, roundResults) → próximo estado`
 - `evaluateSevenZero(runState) → { qualifies: bool, matchesWon, goalsConceded }`
 
