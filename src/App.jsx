@@ -1984,28 +1984,33 @@ function ovrColor(ovr) {
 const MAX_SKIPS = 3;
 
 export default function App() {
-  const [phase, setPhase] = useState('intro');
-  const [formationKey, setFormationKey] = useState(null);
-  const [pitchSlots, setPitchSlots] = useState([]);
-  const [usedTeamIds, setUsedTeamIds] = useState([]);
+  // ── LocalStorage restore ──────────────────────────────────
+  const _sv = (() => {
+    try { const s = localStorage.getItem('brl_save'); return s ? JSON.parse(s) : null; } catch { return null; }
+  })();
+
+  const [phase, setPhase] = useState(_sv?.phase && _sv.phase !== 'intro' ? _sv.phase : 'intro');
+  const [formationKey, setFormationKey] = useState(_sv?.formationKey ?? null);
+  const [pitchSlots, setPitchSlots] = useState(_sv?.pitchSlots ?? []);
+  const [usedTeamIds, setUsedTeamIds] = useState(_sv?.usedTeamIds ?? []);
   const [rolledTeam, setRolledTeam] = useState(null);
   const [isRolling, setIsRolling] = useState(false);
   const [rollingPreview, setRollingPreview] = useState(null);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
-  const [pitch, setPitch] = useState({});
-  const [captainSlot, setCaptainSlot] = useState(null);
-  const [skipsLeft, setSkipsLeft] = useState(MAX_SKIPS);
-  const [log, setLog] = useState([]);
+  const [pitch, setPitch] = useState(_sv?.pitch ?? {});
+  const [captainSlot, setCaptainSlot] = useState(_sv?.captainSlot ?? null);
+  const [skipsLeft, setSkipsLeft] = useState(_sv?.skipsLeft ?? MAX_SKIPS);
+  const [log, setLog] = useState(_sv?.log ?? []);
 
   // Time personalizado
-  const [myTeamName, setMyTeamName] = useState('Meu Time');
-  const [myTeamBadge, setMyTeamBadge] = useState('⭐');
-  const [myTeamColor, setMyTeamColor] = useState('#d4a23c');
-  const [myTeamCoach, setMyTeamCoach] = useState('');
-  const [myTeamCity, setMyTeamCity] = useState('');
+  const [myTeamName, setMyTeamName] = useState(_sv?.myTeamName ?? 'Meu Time');
+  const [myTeamBadge, setMyTeamBadge] = useState(_sv?.myTeamBadge ?? '⭐');
+  const [myTeamColor, setMyTeamColor] = useState(_sv?.myTeamColor ?? '#d4a23c');
+  const [myTeamCoach, setMyTeamCoach] = useState(_sv?.myTeamCoach ?? '');
+  const [myTeamCity, setMyTeamCity] = useState(_sv?.myTeamCity ?? '');
 
   // Modo de jogo
-  const [gameMode, setGameMode] = useState('brasileirao'); // 'brasileirao' | 'copa' | 'multi'
+  const [gameMode, setGameMode] = useState(_sv?.gameMode ?? 'brasileirao'); // 'brasileirao' | 'copa' | 'multi'
 
   // Multiplayer (PeerJS)
   const [multiPhase, setMultiPhase] = useState(null); // null|'lobby'|'room'
@@ -2026,26 +2031,26 @@ export default function App() {
   const [cropSrc, setCropSrc] = useState(null);
 
   // Liga
-  const [leagueTeams, setLeagueTeams] = useState([]);
-  const [leagueTable, setLeagueTable] = useState([]);
-  const [fixtures, setFixtures] = useState([]);
-  const [currentRound, setCurrentRound] = useState(0);
+  const [leagueTeams, setLeagueTeams] = useState(_sv?.leagueTeams ?? []);
+  const [leagueTable, setLeagueTable] = useState(_sv?.leagueTable ?? []);
+  const [fixtures, setFixtures] = useState(_sv?.fixtures ?? []);
+  const [currentRound, setCurrentRound] = useState(_sv?.currentRound ?? 0);
 
   // Copa (eliminatória)
-  const [cupRounds, setCupRounds] = useState([]); // [{name, matches, leg1Results, results}]
-  const [cupRoundIdx, setCupRoundIdx] = useState(0);
-  const [cupLeg, setCupLeg] = useState(1); // 1=jogo de ida  2=jogo de volta
+  const [cupRounds, setCupRounds] = useState(_sv?.cupRounds ?? []); // [{name, matches, leg1Results, results}]
+  const [cupRoundIdx, setCupRoundIdx] = useState(_sv?.cupRoundIdx ?? 0);
+  const [cupLeg, setCupLeg] = useState(_sv?.cupLeg ?? 1); // 1=jogo de ida  2=jogo de volta
   const cupLegRef = useRef(1);
   useEffect(() => { cupLegRef.current = cupLeg; }, [cupLeg]);
-  const [userInCup, setUserInCup] = useState(true);
-  const userInCupRef = useRef(true);
+  const [userInCup, setUserInCup] = useState(_sv?.userInCup ?? true);
+  const userInCupRef = useRef(_sv?.userInCup ?? true);
   useEffect(() => { userInCupRef.current = userInCup; }, [userInCup]);
-  const [eliminationRoundName, setEliminationRoundName] = useState(null);
-  const [cupWinnerId, setCupWinnerId] = useState(null);
+  const [eliminationRoundName, setEliminationRoundName] = useState(_sv?.eliminationRoundName ?? null);
+  const [cupWinnerId, setCupWinnerId] = useState(_sv?.cupWinnerId ?? null);
 
   // Histórico e artilheiros
-  const [matchHistory, setMatchHistory] = useState([]);
-  const [scorers, setScorers] = useState({});
+  const [matchHistory, setMatchHistory] = useState(_sv?.matchHistory ?? []);
+  const [scorers, setScorers] = useState(_sv?.scorers ?? {});
   const [viewingTeam, setViewingTeam] = useState(null);
 
   // Partida ao vivo
@@ -2059,6 +2064,11 @@ export default function App() {
   const [simSpeed, setSimSpeed] = useState(1);
   const [simMode, setSimMode] = useState('manual'); // 'manual' | 'auto'
   const [autoCountdown, setAutoCountdown] = useState(null); // null | 1-5
+  const [isPaused, setIsPaused] = useState(false);
+  const [showSubPanel, setShowSubPanel] = useState(false);
+  const [subSelectStarter, setSubSelectStarter] = useState(null);
+  const [liveLineup, setLiveLineup] = useState(null);
+  const [penaltyPhase, setPenaltyPhase] = useState(null);
 
   const timerRef = useRef(null);
   const clockRef = useRef(null);
@@ -2066,6 +2076,9 @@ export default function App() {
   const autoActionRef = useRef(null); // 'startRound' | 'nextRound'
   const startRoundRef = useRef(null);
   const goNextRoundRef = useRef(null);
+  const isPausedRef = useRef(false);
+  const tickFnRef = useRef(null);
+  const liveLineupRef = useRef(null);
 
   useEffect(() => { speedRef.current = simSpeed; }, [simSpeed]);
 
@@ -2129,7 +2142,7 @@ export default function App() {
   const eligibleSlotsForPlayer = (player) => {
     if (pickedPlayerNames.has(player.name)) return [];
     // Expande as posições do próprio jogador (Pelé ['ATA','MEI'] → cobre PE, PD, VOL, MC…)
-    const canPlayAt = new Set(expandPlayerPositions(player.pos));
+    const canPlayAt = new Set(player.pos);
     return remainingSlots.filter(slot => {
       if (slot.isBench) return true;
       return canPlayAt.has(slot.realPos);
@@ -2153,10 +2166,35 @@ export default function App() {
 
   const clickPitchSlot = (slotKey) => {
     if (repositioningSlot !== null) {
-      // Modo reposição: eligibleSlotsForPlayer já usa remainingSlots (slot original liberado)
-      if (!eligibleSlotsForPlayer(selectedPlayer).some(s => s.key === slotKey)) return;
+      const targetMeta = pitchSlots.find(s => s.key === slotKey);
+      if (!targetMeta) return;
       const player = selectedPlayer;
-      setPitch(prev => ({ ...prev, [slotKey]: { ...player, slotKey } }));
+      const playerCanGoToTarget = targetMeta.isBench || player.pos.includes(targetMeta.realPos);
+      if (!playerCanGoToTarget) return;
+      const occupant = pitch[slotKey];
+      if (!occupant) {
+        // Empty target – just place
+        setPitch(prev => ({ ...prev, [slotKey]: { ...player, slotKey } }));
+      } else {
+        // Occupied target – try swap
+        const srcMeta = pitchSlots.find(s => s.key === repositioningSlot);
+        const occupantCanGoToSrc = !srcMeta || srcMeta.isBench || occupant.pos.includes(srcMeta.realPos);
+        if (occupantCanGoToSrc) {
+          setPitch(prev => ({
+            ...prev,
+            [slotKey]: { ...player, slotKey },
+            [repositioningSlot]: { ...occupant, slotKey: repositioningSlot },
+          }));
+        } else {
+          // Occupant can't go to source slot – displace (remove) occupant
+          setPitch(prev => {
+            const next = { ...prev };
+            delete next[repositioningSlot];
+            next[slotKey] = { ...player, slotKey };
+            return next;
+          });
+        }
+      }
       setSelectedPlayer(null);
       setRepositioningSlot(null);
       return;
@@ -2174,6 +2212,41 @@ export default function App() {
     setPitch(prev => { const next = { ...prev }; delete next[slotKey]; return next; });
     setSelectedPlayer(player);
     setRepositioningSlot(slotKey);
+  };
+
+  const pauseSim = () => {
+    if (clockRef.current) clearTimeout(clockRef.current);
+    clockRef.current = null;
+    isPausedRef.current = true;
+    setIsPaused(true);
+    setShowSubPanel(true);
+  };
+
+  const resumeSim = () => {
+    isPausedRef.current = false;
+    setIsPaused(false);
+    setShowSubPanel(false);
+    setSubSelectStarter(null);
+    if (tickFnRef.current) {
+      const MS = { 1: 250, 1.5: 125, 2: 55 };
+      clockRef.current = setTimeout(tickFnRef.current, MS[speedRef.current] ?? 250);
+    }
+  };
+
+  const applyLiveSub = (starterKey, benchPlayer) => {
+    const starter = liveLineupRef.current?.[starterKey];
+    if (!starter || !benchPlayer) return;
+    const starterMeta = pitchSlots.find(s => s.key === starterKey);
+    if (starterMeta && !benchPlayer.pos.includes(starterMeta.realPos) && !starterMeta.isBench) return;
+    setLiveLineup(prev => {
+      const next = { ...prev };
+      const benchKey = Object.keys(next).find(k => next[k].name === benchPlayer.name);
+      next[starterKey] = { ...benchPlayer, slotKey: starterKey, isBench: false };
+      if (benchKey) next[benchKey] = { ...starter, slotKey: benchKey, isBench: true };
+      liveLineupRef.current = next;
+      return next;
+    });
+    setSubSelectStarter(null);
   };
 
   const pickPlayerForSlot = (player, slotKey) => {
@@ -2297,6 +2370,15 @@ export default function App() {
     setClockMinute(0);
     setRoundResults(null);
     setIsSimulating(true);
+    setIsPaused(false);
+    isPausedRef.current = false;
+    setShowSubPanel(false);
+    setSubSelectStarter(null);
+    setPenaltyPhase(null);
+    // Init live lineup from current pitch
+    const initLL = { ...pitch };
+    setLiveLineup(initLL);
+    liveLineupRef.current = initLL;
 
     const SPEED_MS = { 1: 250, 1.5: 125, 2: 55 };
 
@@ -2421,11 +2503,30 @@ export default function App() {
                     setUserInCup(false);
                     setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
                   } else if (userAway === oppAway) {
-                    // Use penalty result
+                    // Use penalty result - trigger animated modal
                     const userPen = penaltyResults.find(pr => pr.matchIdx === userMatchIdx);
-                    if (userPen && userPen.winner !== MY_TEAM_ID) {
-                      setUserInCup(false);
-                      setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
+                    if (userPen) {
+                      if (userPen.winner !== MY_TEAM_ID) {
+                        setUserInCup(false);
+                        setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
+                      }
+                      const myT = isHome ? homeTeam : awayTeam;
+                      const opT = isHome ? awayTeam : homeTeam;
+                      const myPlayers = liveLineupRef.current
+                        ? Object.values(liveLineupRef.current)
+                        : (myT?.players || []).slice(0, 16);
+                      const oppGk = (opT?.players || [])[0]?.name || 'Goleiro';
+                      setPenaltyPhase({
+                        kicks: userPen.kicks,
+                        winner: userPen.winner,
+                        homeId: match.homeId,
+                        awayId: match.awayId,
+                        myIsHome: isHome,
+                        myTeamLabel: myT?.label || 'Meu Time',
+                        oppTeamLabel: opT?.label || 'Adversario',
+                        oppGkName: oppGk,
+                        myPlayers,
+                      });
                     }
                   }
                 }
@@ -2444,6 +2545,7 @@ export default function App() {
       }
     };
 
+    tickFnRef.current = tick;
     clockRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
   }, [fixtures, currentRound, leagueTeams, isSimulating, gameMode, cupRoundIdx]);
 
@@ -2540,6 +2642,21 @@ export default function App() {
   useEffect(() => { startRoundRef.current = startRound; }, [startRound]);
   useEffect(() => { goNextRoundRef.current = goNextRound; }, [goNextRound]);
 
+  // Auto-save to localStorage
+  useEffect(() => {
+    if (phase === 'intro') { try { localStorage.removeItem('brl_save'); } catch {} return; }
+    try {
+      const save = {
+        phase, formationKey, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
+        gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity,
+        leagueTeams, leagueTable, fixtures, currentRound,
+        cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
+        matchHistory, scorers,
+      };
+      localStorage.setItem('brl_save', JSON.stringify(save));
+    } catch(e) {}
+  }, [phase, fixtures, currentRound, leagueTable, cupRounds, matchHistory, pitch, roundResults]);
+
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
     setAutoCountdown(null);
@@ -2570,6 +2687,7 @@ export default function App() {
   }, [autoCountdown]);
 
   const restart = () => {
+    try { localStorage.removeItem('brl_save'); } catch {}
     if (timerRef.current) clearTimeout(timerRef.current);
     if (clockRef.current) clearTimeout(clockRef.current);
     // destrói peer se estava no multiplayer
@@ -2594,6 +2712,14 @@ export default function App() {
     setSelectedPlayer(null);
     setRepositioningSlot(null);
     setCaptainSlot(null);
+    setIsPaused(false);
+    setShowSubPanel(false);
+    setSubSelectStarter(null);
+    setLiveLineup(null);
+    setPenaltyPhase(null);
+    isPausedRef.current = false;
+    tickFnRef.current = null;
+    liveLineupRef.current = null;
     setLeagueTeams([]);
     setLeagueTable([]);
     setFixtures([]);
@@ -3082,9 +3208,10 @@ export default function App() {
             onMultiPlayer={() => setMultiPhase('lobby')}
           />
         )}
-        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} />}
+        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={() => setPhase('intro')} />}
         {phase === 'draft' && (
           <Draft
+            onBack={() => { setPhase('formation'); setPitch({}); setUsedTeamIds([]); setLog([]); setRolledTeam(null); setSkipsLeft(MAX_SKIPS); }}
             rolledTeam={rolledTeam}
             isRolling={isRolling}
             rollingPreview={rollingPreview}
@@ -3153,12 +3280,27 @@ export default function App() {
             viewingTeam={viewingTeam}
             onViewTeam={setViewingTeam}
             onSimulateAll={simulateAllCupa}
+            isPaused={isPaused}
+            onPause={pauseSim}
+            onResume={resumeSim}
+            showSubPanel={showSubPanel}
+            liveLineup={liveLineup}
+            subSelectStarter={subSelectStarter}
+            onSelectSubStarter={setSubSelectStarter}
+            onApplySub={applyLiveSub}
           />
         )}
         {phase === 'results' && (
           <Results leagueTable={leagueTable} myTeamId={MY_TEAM_ID} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} onNewSeason={newSeason} />
         )}
         {viewingTeam && <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} />}
+        {penaltyPhase && (
+          <PenaltyModal
+            penaltyPhase={penaltyPhase}
+            myTeamColor={myTeamColor}
+            onDismiss={() => setPenaltyPhase(null)}
+          />
+        )}
       </main>
     </div>
   );
@@ -3887,9 +4029,10 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
 // ============================================================
 // FIM DAS TELAS MULTIPLAYER
 // ============================================================
-function FormationPicker({ onChoose }) {
+function FormationPicker({ onChoose, onBack }) {
   return (
     <div style={styles.card} className="card-mob">
+      {onBack && <button onClick={onBack} style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 10px 0' }}>&#8592; Voltar</button>}
       <div style={styles.eyebrow}>Passo 1 de 2</div>
       <h2 style={styles.h2}>Escolha o esquema tático</h2>
       <div style={styles.formationGrid}>
@@ -4188,6 +4331,7 @@ function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, pitch }
     <div style={{ marginBottom: 16 }}>
       <div style={styles.draftTopRow}>
         <div>
+          {onBack && <button onClick={onBack} style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 6px 0', display: 'block' }}>&#8592; Voltar</button>}
           <div style={styles.eyebrow}>{formationLabel}</div>
           <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>{filled} de {total} posições preenchidas</div>
         </div>
@@ -4230,7 +4374,7 @@ function useIsMobile(bp = 768) {
   return mob;
 }
 
-function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, myTeamColor, captainSlot }) {
+function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, myTeamColor, captainSlot }) {
   const isMobile = useIsMobile();
   const filledCount = Object.keys(pitch).length;
   const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
@@ -4360,23 +4504,15 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
                       {p.name}
                     </div>
                     <div style={{ marginTop: 4, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                      {expandPlayerPositions(p.pos).map((pos) => {
-                        const isNative = p.pos.includes(pos);
-                        return (
+                      {p.pos.map((pos) => (
                           <span key={pos} style={{
                             fontFamily: "'Space Mono', monospace", fontSize: 9,
                             padding: '2px 5px', borderRadius: 4,
-                            background: isSelected
-                              ? (isNative ? 'rgba(127,217,154,0.2)' : 'rgba(127,217,154,0.07)')
-                              : (isNative ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.04)'),
-                            color: isSelected
-                              ? (isNative ? '#7fd99a' : 'rgba(127,217,154,0.5)')
-                              : (isNative ? 'rgba(255,255,255,0.65)' : 'rgba(255,255,255,0.3)'),
+                            background: isSelected ? 'rgba(127,217,154,0.2)' : 'rgba(255,255,255,0.1)',
+                            color: isSelected ? '#7fd99a' : 'rgba(255,255,255,0.65)',
                             letterSpacing: 0.3,
-                            border: isNative ? 'none' : '1px solid rgba(255,255,255,0.08)',
                           }}>{pos}</span>
-                        );
-                      })}
+                      ))}
                     </div>
                   </div>
                   {isSelected && <span style={{ flexShrink: 0, fontSize: 16, color: '#7fd99a' }}>→</span>}
@@ -4595,7 +4731,7 @@ function _buildLineup(team, isHome) {
   });
 }
 
-function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulating }) {
+function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulating, liveLineup }) {
   const [jitter, setJitter] = useState({});
   const [ball, setBall] = useState({ x: 50, y: 30 });
   const [flash, setFlash] = useState({ side: null, on: false });
@@ -4639,8 +4775,22 @@ function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulat
     evLenRef.current = liveEvents.length;
   }, [liveEvents, homeTeam]);
 
-  const homePlayers = useMemo(() => _buildLineup(homeTeam, true), [homeTeam]);
-  const awayPlayers = useMemo(() => _buildLineup(awayTeam, false), [awayTeam]);
+  const effectiveHome = useMemo(() => {
+    if (homeTeam?.id === myTeamId && liveLineup) {
+      const lp = Object.values(liveLineup).filter(p => !p.isBench);
+      return { ...homeTeam, players: lp };
+    }
+    return homeTeam;
+  }, [homeTeam, myTeamId, liveLineup]);
+  const effectiveAway = useMemo(() => {
+    if (awayTeam?.id === myTeamId && liveLineup) {
+      const lp = Object.values(liveLineup).filter(p => !p.isBench);
+      return { ...awayTeam, players: lp };
+    }
+    return awayTeam;
+  }, [awayTeam, myTeamId, liveLineup]);
+  const homePlayers = useMemo(() => _buildLineup(effectiveHome, true), [effectiveHome]);
+  const awayPlayers = useMemo(() => _buildLineup(effectiveAway, false), [effectiveAway]);
 
   const hColor = homeTeam?.id === myTeamId ? mc : (homeTeam?.colors?.p || homeTeam?.color || '#3a85d9');
   const aColor = awayTeam?.id === myTeamId ? mc : (awayTeam?.colors?.p || awayTeam?.color || '#c94040');
@@ -4751,10 +4901,250 @@ function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulat
   );
 }
 
+
+// ============================================================
+// COMPONENTE: Modal de Pênaltis Interativo
+// ============================================================
+function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
+  const [inner, setInner] = React.useState({
+    kickNum: 0,     // 0,1,...: even=home, odd=away
+    phase: 'pick',  // 'pick' | 'countdown' | 'result' | 'done'
+    countdown: null,
+    takerName: null,
+    lastResult: null,
+    myGoals: 0,
+    opGoals: 0,
+    myKickResults: [],
+    opKickResults: [],
+  });
+  const tiRef = React.useRef(null);
+
+  if (!penaltyPhase) return null;
+  const { kicks, winner, myIsHome, myTeamLabel, oppTeamLabel, oppGkName, myPlayers } = penaltyPhase;
+
+  const { kickNum, phase, countdown, takerName, lastResult, myGoals, opGoals, myKickResults, opKickResults } = inner;
+
+  // Is this kick (by kickNum) my team's kick?
+  const pairIdx = Math.floor(kickNum / 2);
+  const isHomeKick = kickNum % 2 === 0;
+  const isMyKick = myIsHome ? isHomeKick : !isHomeKick;
+
+  const currentKickPair = kicks[pairIdx];
+  const isLastKick = pairIdx >= kicks.length - 1 && (myIsHome ? !isHomeKick : isHomeKick);
+
+  const totalKicks = kicks.length * 2;
+  const done = inner.phase === 'done';
+
+  const clearT = () => { if (tiRef.current) clearTimeout(tiRef.current); };
+
+  const getResultText = (scored, isMine) => {
+    if (scored) return isMine ? 'GOOOOOL! ⚽' : 'GOL ⚽';
+    const r = Math.random();
+    if (r < 0.35 && !isMine) return `DEFENDE O ${oppGkName}! 🧤`;
+    if (r < 0.65) return isMine ? 'ISOLOOOOU! 😩' : 'ISOLOU';
+    return isMine ? 'ERROOOOU! 😱' : 'ERROU';
+  };
+
+  const resolveKick = (taker) => {
+    if (!currentKickPair) { advanceKick(null); return; }
+    const scored = isMyKick
+      ? (isHomeKick ? currentKickPair.a : currentKickPair.b)
+      : (isHomeKick ? currentKickPair.a : currentKickPair.b);
+    const resultText = getResultText(scored, isMyKick);
+    const newMy = isMyKick ? myGoals + (scored ? 1 : 0) : myGoals;
+    const newOp = !isMyKick ? opGoals + (scored ? 1 : 0) : opGoals;
+    const newMyK = isMyKick ? [...myKickResults, { scored, name: taker }] : myKickResults;
+    const newOpK = !isMyKick ? [...opKickResults, { scored }] : opKickResults;
+    setInner(p => ({ ...p, phase: 'result', takerName: taker, lastResult: { scored, scorer: taker, isMyKick, resultText }, myGoals: newMy, opGoals: newOp, myKickResults: newMyK, opKickResults: newOpK }));
+    clearT();
+    tiRef.current = setTimeout(() => advanceKick({ myGoals: newMy, opGoals: newOp, myK: newMyK, opK: newOpK }), 2200);
+  };
+
+  const advanceKick = (scores) => {
+    clearT();
+    const nextKickNum = kickNum + 1;
+    const nextPairIdx = Math.floor(nextKickNum / 2);
+    if (nextPairIdx >= kicks.length) {
+      setInner(p => ({ ...p, phase: 'done' }));
+      return;
+    }
+    const nextIsHome = nextKickNum % 2 === 0;
+    const nextIsMyKick = myIsHome ? nextIsHome : !nextIsHome;
+    setInner(p => ({ ...p,
+      kickNum: nextKickNum,
+      phase: nextIsMyKick ? 'pick' : 'auto_kick',
+      countdown: null, takerName: null, lastResult: null,
+      myGoals: scores?.myGoals ?? p.myGoals,
+      opGoals: scores?.opGoals ?? p.opGoals,
+      myKickResults: scores?.myK ?? p.myKickResults,
+      opKickResults: scores?.opK ?? p.opKickResults,
+    }));
+  };
+
+  // Auto-kick for opponent
+  React.useEffect(() => {
+    if (inner.phase !== 'auto_kick') return;
+    clearT();
+    tiRef.current = setTimeout(() => startCountdown('auto'), 500);
+    return clearT;
+  }, [inner.phase, kickNum]);
+
+  React.useEffect(() => () => clearT(), []);
+
+  const startCountdown = (taker) => {
+    setInner(p => ({ ...p, phase: 'countdown', countdown: 3, takerName: taker }));
+  };
+
+  React.useEffect(() => {
+    if (inner.phase !== 'countdown' || inner.countdown === null) return;
+    if (inner.countdown === 0) {
+      resolveKick(inner.takerName);
+      return;
+    }
+    clearT();
+    tiRef.current = setTimeout(() => setInner(p => ({ ...p, countdown: (p.countdown || 1) - 1 })), 1000);
+    return clearT;
+  }, [inner.phase, inner.countdown]);
+
+  const startKickersName = () => {
+    if (inner.phase !== 'pick') return null;
+    return (
+      <div style={{ maxHeight: 220, overflowY: 'auto' }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: mc, marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>Escolha o cobrador</div>
+        {(myPlayers || []).map((p, i) => (
+          <button key={i} onClick={() => startCountdown(p.name)} style={{
+            display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px',
+            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
+            borderRadius: 7, color: '#F4F1EA', fontFamily: "'Space Mono',monospace",
+            fontSize: 12, cursor: 'pointer', marginBottom: 4,
+          }}>
+            {p.name} <span style={{ opacity: 0.5, fontSize: 10 }}>{(p.pos || []).join('/')}</span>
+          </button>
+        ))}
+      </div>
+    );
+  };
+
+  const renderKickDots = (results, isMe) => (
+    <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+      {results.map((r, i) => (
+        <span key={i} style={{ fontSize: 16, lineHeight: 1 }}>{r.scored ? '🟢' : '🔴'}</span>
+      ))}
+    </div>
+  );
+
+  const isSuddenDeath = kicks[pairIdx]?.suddenDeath;
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 9999,
+      background: 'rgba(5,15,8,0.92)',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: '20px 16px',
+    }}>
+      {/* Header */}
+      <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: 22, fontWeight: 700, color: '#F4F1EA', marginBottom: 4, textAlign: 'center' }}>
+        ⚽ Disputa de Pênaltis
+        {isSuddenDeath && <span style={{ fontSize: 12, color: '#e05050', marginLeft: 8 }}>MORTE SÚBITA</span>}
+      </div>
+
+      {/* Score */}
+      <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 28, fontWeight: 700, color: mc, marginBottom: 16, letterSpacing: 2 }}>
+        {myGoals} – {opGoals}
+      </div>
+
+      {/* Team labels with kick dots */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', maxWidth: 400, marginBottom: 16 }}>
+        <div style={{ textAlign: 'left' }}>
+          <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>{myTeamLabel}</div>
+          {renderKickDots(myKickResults, true)}
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 4 }}>{oppTeamLabel}</div>
+          {renderKickDots(opKickResults, false)}
+        </div>
+      </div>
+
+      {/* Main interaction area */}
+      <div style={{
+        width: '100%', maxWidth: 400,
+        background: 'rgba(255,255,255,0.04)', borderRadius: 14,
+        padding: '18px 16px', minHeight: 140,
+        display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {phase === 'pick' && startKickersName()}
+
+        {(phase === 'auto_kick') && (
+          <div style={{ textAlign: 'center', fontSize: 14, opacity: 0.7 }}>
+            <div style={{ fontSize: 11, color: mc, marginBottom: 6 }}>{oppTeamLabel}</div>
+            <div>Preparando cobrança...</div>
+          </div>
+        )}
+
+        {phase === 'countdown' && (
+          <div style={{ textAlign: 'center' }}>
+            {takerName && takerName !== 'auto' && (
+              <div style={{ fontSize: 13, color: mc, marginBottom: 12, fontWeight: 700 }}>{takerName}</div>
+            )}
+            {takerName === 'auto' && (
+              <div style={{ fontSize: 13, opacity: 0.6, marginBottom: 12 }}>{oppTeamLabel}</div>
+            )}
+            <div style={{
+              fontSize: countdown === 1 ? 72 : countdown === 2 ? 64 : 56,
+              fontFamily: "'Fraunces',Georgia,serif", fontWeight: 700,
+              color: countdown === 1 ? '#e05050' : countdown === 2 ? '#d4a23c' : '#F4F1EA',
+              lineHeight: 1, transition: 'font-size 0.15s',
+            }}>{countdown}</div>
+          </div>
+        )}
+
+        {phase === 'result' && lastResult && (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{
+              fontSize: lastResult.scored ? 28 : 22, fontWeight: 700,
+              color: lastResult.scored && lastResult.isMyKick ? '#7fd99a'
+                : !lastResult.scored && !lastResult.isMyKick ? '#7fd99a' : '#e05050',
+              fontFamily: "'Fraunces',Georgia,serif",
+              marginBottom: 6,
+            }}>{lastResult.resultText}</div>
+            {lastResult.scorer && lastResult.scorer !== 'auto' && (
+              <div style={{ fontSize: 12, opacity: 0.6 }}>{lastResult.scorer}</div>
+            )}
+          </div>
+        )}
+
+        {phase === 'done' && (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: mc, fontFamily: "'Fraunces',Georgia,serif", marginBottom: 8 }}>
+              {winner === '__myteam__' ? '🏆 Classificado nos pênaltis!' : '💔 Eliminado nos pênaltis'}
+            </div>
+            <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 16 }}>
+              {myTeamLabel} {myGoals} × {opGoals} {oppTeamLabel}
+            </div>
+            <button onClick={onDismiss} style={{
+              fontFamily: "'Space Mono',monospace", fontSize: 13, fontWeight: 700,
+              padding: '10px 28px', borderRadius: 10, border: 'none',
+              background: mc, color: '#0B1A12', cursor: 'pointer',
+            }}>Continuar →</button>
+          </div>
+        )}
+      </div>
+
+      {/* Round indicator */}
+      {phase !== 'done' && (
+        <div style={{ marginTop: 12, fontSize: 11, opacity: 0.45, fontFamily: "'Space Mono',monospace" }}>
+          {isSuddenDeath ? 'MORTE SÚBITA' : `Cobrança ${pairIdx + 1} de ${kicks.length}`} · {isMyKick ? myTeamLabel : oppTeamLabel}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ============================================================
 // TELA DE JOGO: liga com cronômetro e tabela
 // ============================================================
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
   return (
@@ -4763,6 +5153,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
         homeTeam={homeTeam} awayTeam={awayTeam}
         myTeamId={myTeamId} mc={mc}
         liveEvents={liveEvents} isSimulating={isSimulating}
+        liveLineup={liveLineup}
       />
       <div style={styles.liveTeamsRow} className="live-teams-row">
         <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} className="live-team-n">
@@ -4804,6 +5195,20 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
             </div>
           )}
           {roundDone && !isSimulating && <div style={styles.clockFull}>Tempo encerrado</div>}
+          {isSimulating && !isPaused && (
+            <button onClick={onPause} style={{
+              fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+              padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,140,0,0.5)',
+              background: 'rgba(255,140,0,0.1)', color: '#ffaa00', cursor: 'pointer', marginLeft: 6,
+            }}>⏸ Pausar</button>
+          )}
+          {isPaused && (
+            <button onClick={onResume} style={{
+              fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+              padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(127,217,154,0.5)',
+              background: 'rgba(127,217,154,0.1)', color: '#7fd99a', cursor: 'pointer', marginLeft: 6,
+            }}>▶ Retomar</button>
+          )}
         </div>
       )}
 
@@ -4826,6 +5231,52 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
         </div>
       )}
       {liveEvents.length === 0 && roundDone && <div style={styles.noGoalsMsg}>Sem gols — 0 × 0</div>}
+
+      {/* Sub panel */}
+      {showSubPanel && liveLineup && (
+        <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 12px' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || '#d4a23c', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>
+            ↕ Substituição
+            {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o reserva</span>}
+            {!subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o titular</span>}
+          </div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Titulares</div>
+              {Object.entries(liveLineup).filter(([k, p]) => !p.isBench).map(([k, p]) => (
+                <button key={k} onClick={() => !subSelectStarter ? onSelectSubStarter(k) : null}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                    background: subSelectStarter === k ? 'rgba(127,217,154,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: subSelectStarter === k ? '1px solid rgba(127,217,154,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 6, color: '#F4F1EA',
+                    fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
+                  }}
+                >
+                  {p.name} <span style={{ opacity: 0.45 }}>{(p.pos||[]).join('/')}</span>
+                </button>
+              ))}
+            </div>
+            {subSelectStarter && (
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Reservas</div>
+                {Object.entries(liveLineup).filter(([k, p]) => p.isBench).map(([k, p]) => (
+                  <button key={k} onClick={() => onApplySub(subSelectStarter, p)}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 6, color: '#F4F1EA',
+                      fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
+                    }}
+                  >
+                    {p.name} <span style={{ opacity: 0.45 }}>{(p.pos||[]).join('/')}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Toggle manual / automático */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, gap: 8 }}>
@@ -4858,7 +5309,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll }) {
+function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -5016,6 +5467,11 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           onSetSpeed={onSetSpeed} simMode={simMode} onSetSimMode={onSetSimMode}
           autoCountdown={autoCountdown} onStartRound={onStartRound}
           roundLabel={`Jogar — ${roundName} (${legLabel})`}
+          isPaused={isPaused} onPause={onPause} onResume={onResume}
+          showSubPanel={showSubPanel} liveLineup={liveLineup}
+          subSelectStarter={subSelectStarter}
+          onSelectSubStarter={onSelectSubStarter}
+          onApplySub={onApplySub} myTeamColor={myTeamColor}
         />
 
         {/* Placar agregado após jogo de volta */}
@@ -5143,6 +5599,11 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         onSetSpeed={onSetSpeed} simMode={simMode} onSetSimMode={onSetSimMode}
         autoCountdown={autoCountdown} onStartRound={onStartRound}
         roundLabel={`Jogar Rodada ${currentRound + 1}`}
+        isPaused={isPaused} onPause={onPause} onResume={onResume}
+        showSubPanel={showSubPanel} liveLineup={liveLineup}
+        subSelectStarter={subSelectStarter}
+        onSelectSubStarter={onSelectSubStarter}
+        onApplySub={onApplySub} myTeamColor={myTeamColor}
       />
 
       {roundDone && (
