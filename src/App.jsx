@@ -2645,7 +2645,7 @@ export default function App() {
   // Auto-save to localStorage
   useEffect(() => {
     if (phase === 'intro') { try { localStorage.removeItem('brl_save'); } catch {} return; }
-    if (multiPhase) return; // don't persist multiplayer sessions
+    if (multiPhase || roomSnap) return; // don't persist multiplayer sessions
     try {
       const save = {
         phase, formationKey, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
@@ -3209,10 +3209,10 @@ export default function App() {
             onMultiPlayer={() => setMultiPhase('lobby')}
           />
         )}
-        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={() => setPhase('intro')} />}
+        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} />}
         {phase === 'draft' && (
           <Draft
-            onBack={() => { setPhase('formation'); setPitch({}); setUsedTeamIds([]); setLog([]); setRolledTeam(null); setSkipsLeft(MAX_SKIPS); }}
+            onBack={!multiPhase ? () => { setPhase('formation'); setPitch({}); setUsedTeamIds([]); setLog([]); setRolledTeam(null); setSkipsLeft(MAX_SKIPS); } : undefined}
             rolledTeam={rolledTeam}
             isRolling={isRolling}
             rollingPreview={rollingPreview}
