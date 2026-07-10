@@ -1852,10 +1852,11 @@ const POS_COMPAT = {
   LD:  ['LD', 'ZAG'],
   LE:  ['LE', 'ZAG'],
   ZAG: ['ZAG', 'LD', 'LE'],
-  VOL: ['VOL', 'MEI'],
-  MEI: ['MEI', 'VOL', 'MD', 'ME'],
-  MD:  ['MD', 'PD', 'MEI'],
-  ME:  ['ME', 'PE', 'MEI'],
+  VOL: ['VOL', 'MEI', 'MC'],
+  MEI: ['MEI', 'VOL', 'MC', 'MD', 'ME'],
+  MC:  ['MC', 'MEI', 'VOL', 'MD', 'ME'],
+  MD:  ['MD', 'PD', 'MEI', 'MC'],
+  ME:  ['ME', 'PE', 'MEI', 'MC'],
   PD:  ['PD', 'ATA', 'MD', 'MEI'],
   PE:  ['PE', 'ATA', 'ME', 'MEI'],
   ATA: ['ATA', 'PD', 'PE'],
@@ -2108,10 +2109,11 @@ export default function App() {
 
   const eligibleSlotsForPlayer = (player) => {
     if (pickedPlayerNames.has(player.name)) return [];
+    // Expande as posições do próprio jogador (Pelé ['ATA','MEI'] → cobre PE, PD, VOL, MC…)
+    const canPlayAt = new Set(expandPlayerPositions(player.pos));
     return remainingSlots.filter(slot => {
-      if (slot.isBench) return true; // any player can go to bench
-      const compat = POS_COMPAT[slot.realPos] || [slot.realPos];
-      return player.pos.some(p => compat.includes(p));
+      if (slot.isBench) return true;
+      return canPlayAt.has(slot.realPos);
     });
   };
 

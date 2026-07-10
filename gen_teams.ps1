@@ -1,6 +1,6 @@
 cd "c:\Users\ueer\Downloads\brasileirao-lendario-app"
 
-$VALID_POS = @('GOL','LD','ZAG','LE','VOL','MEI','PD','PE','ATA','MD','ME')
+$VALID_POS = @('GOL','LD','ZAG','LE','VOL','MEI','MC','PD','PE','ATA','MD','ME')
 
 $teamLines   = Select-String -Path "brasileirao_lendario_completo.sql" -Pattern "^INSERT INTO teams VALUES"   | Select-Object -ExpandProperty Line
 $playerLines = Select-String -Path "brasileirao_lendario_completo.sql" -Pattern "^INSERT INTO players" | Select-Object -ExpandProperty Line
