@@ -1950,6 +1950,37 @@ export default function App() {
   const [myTeamLogo, setMyTeamLogo] = useState(null);
   const [cropSrc, setCropSrc] = useState(null);
 
+  // PWA — prompt de instalação (Android/desktop) e hint pro iOS
+  const [installPromptEvent, setInstallPromptEvent] = useState(null);
+  const [iosHintDismissed, setIosHintDismissed] = useState(
+    () => localStorage.getItem('bl_ios_install_hint_dismissed') === '1'
+  );
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setInstallPromptEvent(e);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const isIosDevice = () => /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+  const isStandalone = () =>
+    window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+  const handleInstallClick = async () => {
+    if (!installPromptEvent) return;
+    installPromptEvent.prompt();
+    await installPromptEvent.userChoice;
+    setInstallPromptEvent(null);
+  };
+
+  const dismissIosHint = () => {
+    localStorage.setItem('bl_ios_install_hint_dismissed', '1');
+    setIosHintDismissed(true);
+  };
+
   // Liga
   const [leagueTeams, setLeagueTeams] = useState([]);
   const [leagueTable, setLeagueTable] = useState([]);
@@ -2787,6 +2818,10 @@ export default function App() {
             onSetCoach={setMyTeamCoach} onSetCity={setMyTeamCity}
             onSetLogo={setMyTeamLogo} cropSrc={cropSrc} onSetCropSrc={setCropSrc}
             onMultiPlayer={() => setMultiPhase('lobby')}
+            canInstall={!!installPromptEvent}
+            onInstallClick={handleInstallClick}
+            showIosInstallHint={isIosDevice() && !isStandalone() && !iosHintDismissed}
+            onDismissIosHint={dismissIosHint}
           />
         )}
         {phase === 'formation' && <FormationPicker onChoose={chooseFormation} />}
@@ -2981,7 +3016,7 @@ function parseYouTubeId(input) {
   return null;
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo, onSetName, onSetBadge, onSetColor, onSetCoach, onSetCity, onSetLogo, cropSrc, onSetCropSrc, onMultiPlayer }) {
+function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo, onSetName, onSetBadge, onSetColor, onSetCoach, onSetCity, onSetLogo, cropSrc, onSetCropSrc, onMultiPlayer, canInstall, onInstallClick, showIosInstallHint, onDismissIosHint }) {
   const displayName = myTeamName || 'Meu Time';
   const fileInputRef = useRef(null);
   const [musicOn, setMusicOn] = React.useState(false);
@@ -3012,6 +3047,33 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
     )}
     <div style={styles.introCard} className="intro-card-mob">
       <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2024</div>
+      {canInstall && (
+        <button
+          onClick={onInstallClick}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 8, marginTop: 10,
+            padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(212,162,60,0.4)',
+            background: 'rgba(212,162,60,0.1)', color: '#d4a23c', fontSize: 12, fontWeight: 700,
+          }}
+        >
+          ⬇️ Instalar app
+        </button>
+      )}
+      {showIosInstallHint && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, marginTop: 10,
+          padding: '8px 14px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.15)',
+          background: 'rgba(255,255,255,0.05)', color: 'rgba(244,241,234,0.75)', fontSize: 12,
+        }}>
+          <span>📲 Toque em Compartilhar → "Adicionar à Tela de Início" para instalar.</span>
+          <button
+            onClick={onDismissIosHint}
+            style={{ background: 'none', border: 'none', color: 'inherit', opacity: 0.6, fontSize: 14, padding: 0, marginLeft: 'auto' }}
+          >
+            ✕
+          </button>
+        </div>
+      )}
       <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
       <p style={styles.introLead}>
         Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
