@@ -3290,7 +3290,11 @@ export default function App() {
         <div style={styles.headerInner} className="header-inner-pad">
           <div style={styles.crest}>🏆</div>
           <div>
-            <div style={styles.title}>BRASILEIRÃO LENDÁRIO</div>
+            <div
+              style={{ ...styles.title, cursor: 'pointer' }}
+              title="Voltar ao menu inicial"
+              onClick={restart}
+            >BRASILEIRÃO LENDÁRIO</div>
             <div style={styles.subtitle}>monte · escale · seja campeão</div>
           </div>
         </div>
