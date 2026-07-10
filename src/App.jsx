@@ -1848,14 +1848,22 @@ function simAiMatch(homeTeam, awayTeam) {
 // MD aceita jogadores com PD, MEI ou MD. ME aceita PE, MEI ou ME.
 // VOL aceita VOL ou MEI. Sem mapeamento = exige a posição exata.
 const POS_COMPAT = {
-  MD:  ['MD', 'PD', 'MEI'],
-  ME:  ['ME', 'PE', 'MEI'],
+  GOL: ['GOL'],
+  LD:  ['LD', 'ZAG'],
+  LE:  ['LE', 'ZAG'],
+  ZAG: ['ZAG', 'LD', 'LE'],
   VOL: ['VOL', 'MEI'],
   MEI: ['MEI', 'VOL', 'MD', 'ME'],
+  MD:  ['MD', 'PD', 'MEI'],
+  ME:  ['ME', 'PE', 'MEI'],
+  PD:  ['PD', 'ATA', 'MD', 'MEI'],
+  PE:  ['PE', 'ATA', 'ME', 'MEI'],
+  ATA: ['ATA', 'PD', 'PE'],
 };
 
 // Logos via TheSportsDB (r2.thesportsdb.com — free, sem autenticação)
 const CLUB_LOGOS = {
+  // Times no jogo (66 equipes históricas)
   'Santos':       'https://r2.thesportsdb.com/images/media/team/badge/j8xk9g1679447486.png',
   'Botafogo':     'https://r2.thesportsdb.com/images/media/team/badge/bs5mbw1733004596.png',
   'Palmeiras':    'https://r2.thesportsdb.com/images/media/team/badge/vsqwqp1473538105.png',
@@ -1871,8 +1879,21 @@ const CLUB_LOGOS = {
   'Athletico-PR': 'https://r2.thesportsdb.com/images/media/team/badge/irzu1u1554237406.png',
   'Cruzeiro':     'https://r2.thesportsdb.com/images/media/team/badge/upsvvu1473538059.png',
   'Flamengo':     'https://r2.thesportsdb.com/images/media/team/badge/syptwx1473538074.png',
-  'Atletico-MG':  'https://r2.thesportsdb.com/images/media/team/badge/vvtsqw1473538001.png',
+  'Atletico-MG':  'https://r2.thesportsdb.com/images/media/team/badge/x5lixs1743742872.png',
   'Guarani':      'https://r2.thesportsdb.com/images/media/team/badge/tpipb21766508536.png',
+  // Times extras (não no jogo mas disponíveis como emblema pessoal)
+  'Fortaleza':    'https://r2.thesportsdb.com/images/media/team/badge/tosmdr1532853458.png',
+  'Ceara':        'https://r2.thesportsdb.com/images/media/team/badge/rxxvyp1464886685.png',
+  'America-MG':   'https://r2.thesportsdb.com/images/media/team/badge/rtpp171752177342.png',
+  'Goias':        'https://r2.thesportsdb.com/images/media/team/badge/qhfhdp1635869930.png',
+  'Vitoria':      'https://r2.thesportsdb.com/images/media/team/badge/tysrrx1473538156.png',
+  'Bragantino':   'https://r2.thesportsdb.com/images/media/team/badge/2p7tl41701423595.png',
+  'Criciuma':     'https://r2.thesportsdb.com/images/media/team/badge/r11mld1766506200.png',
+  'Chapecoense':  'https://r2.thesportsdb.com/images/media/team/badge/wy0e1i1765900601.png',
+  'Ponte Preta':  'https://r2.thesportsdb.com/images/media/team/badge/wbss4d1644929547.png',
+  'Juventude':    'https://r2.thesportsdb.com/images/media/team/badge/1ntter1766506778.png',
+  'Avai':         'https://r2.thesportsdb.com/images/media/team/badge/bblkat1766506007.png',
+  'Atletico-GO':  'https://r2.thesportsdb.com/images/media/team/badge/l7382k1766505911.png',
 };
 
 // IDs YouTube dos hinos oficiais — tocam na tela de campeão
@@ -3267,7 +3288,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
       />
     )}
     <div style={styles.introCard} className="intro-card-mob">
-      <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1961–2006</div>
+      <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2026</div>
       <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
       <p style={styles.introLead}>
         Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
@@ -3282,13 +3303,13 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
         </div>
         <div style={styles.featCard}>
           <div style={styles.featIcon}>🏟️</div>
-          <div style={styles.featTitle}>Escale o XI</div>
-          <div style={styles.featDesc}>Escolha o craque certo pra cada posição do seu esquema tático.</div>
+          <div style={styles.featTitle}>Monte o Plantel</div>
+          <div style={styles.featDesc}>Escolha 11 titulares e 5 reservas entre os maiores craques de cada era.</div>
         </div>
         <div style={styles.featCard}>
           <div style={styles.featIcon}>🏆</div>
           <div style={styles.featTitle}>Dispute o título</div>
-          <div style={styles.featDesc}>Liga com 10 times, 9 rodadas e gols aparecendo minuto a minuto.</div>
+          <div style={styles.featDesc}>Liga com 20 times, 38 rodadas e gols aparecendo minuto a minuto.</div>
         </div>
       </div>
 
@@ -4011,11 +4032,12 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
   );
 }
 
-// Exibe os jogadores do banco de reservas
-function BenchDisplay({ pitch, pitchSlots, myTeamColor }) {
+// Exibe os jogadores do banco de reservas (interativo durante o draft)
+function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], onClickSlot, onUnplace }) {
   const mc = myTeamColor || '#d4a23c';
   const benchSlots = pitchSlots.filter(s => s.isBench);
   const filled = benchSlots.filter(s => pitch[s.key]);
+  const highlightKeys = new Set(highlightSlots.map(s => s.key));
   if (benchSlots.length === 0) return null;
   return (
     <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.07)' }}>
@@ -4025,15 +4047,34 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor }) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {benchSlots.map(slot => {
           const p = pitch[slot.key];
+          const isHighlighted = highlightKeys.has(slot.key);
+          const canPlace = isHighlighted && !p && !!onClickSlot;
+          const canUnplace = !!p && !!onUnplace;
+          const clickable = canPlace || canUnplace;
           return (
-            <div key={slot.key} style={{ padding: '5px 10px', borderRadius: 8, background: p ? `${mc}22` : 'rgba(255,255,255,0.04)', border: `1px solid ${p ? mc + '55' : 'rgba(255,255,255,0.1)'}`, fontSize: 12, minWidth: 80, textAlign: 'center' }}>
+            <div
+              key={slot.key}
+              onClick={clickable ? () => canPlace ? onClickSlot(slot.key) : onUnplace(slot.key) : undefined}
+              title={p ? `${p.name} — clique para remover` : canPlace ? 'Colocar no banco' : slot.label}
+              style={{
+                padding: '6px 10px', borderRadius: 8, fontSize: 12, minWidth: 80, textAlign: 'center',
+                background: canPlace ? 'rgba(127,217,154,0.12)' : p ? `${mc}22` : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${canPlace ? '#7fd99a88' : p ? mc + '55' : 'rgba(255,255,255,0.1)'}`,
+                cursor: clickable ? 'pointer' : 'default',
+                transform: canPlace ? 'scale(1.06)' : 'scale(1)',
+                transition: 'all 0.15s',
+                boxShadow: canPlace ? '0 0 10px rgba(127,217,154,0.25)' : 'none',
+              }}
+            >
               {p ? (
                 <>
-                  <div style={{ fontWeight: 600, color: mc }}>{p.name.split(' ').slice(-1)[0]}</div>
+                  <div style={{ fontWeight: 600, color: mc }}>{shortName(p.name)}</div>
                   <div style={{ fontSize: 10, opacity: 0.5 }}>{p.pos[0]} · {p.ovr}</div>
                 </>
               ) : (
-                <div style={{ color: 'rgba(255,255,255,0.25)', fontSize: 11 }}>{slot.label}</div>
+                <div style={{ color: canPlace ? '#7fd99a' : 'rgba(255,255,255,0.25)', fontSize: 11, fontWeight: canPlace ? 600 : 400 }}>
+                  {canPlace ? '+ ' : ''}{slot.label}
+                </div>
               )}
             </div>
           );
@@ -4337,7 +4378,14 @@ function Draft({ rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, forma
           </div>
         )}
       </div>
-      <BenchDisplay pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} />
+      <BenchDisplay
+        pitch={pitch}
+        pitchSlots={pitchSlots}
+        myTeamColor={myTeamColor}
+        highlightSlots={highlightSlots}
+        onClickSlot={onClickPitchSlot}
+        onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
+      />
     </div>
   );
 }
