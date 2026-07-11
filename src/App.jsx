@@ -21,6 +21,60 @@ function makePrng(seed) {
   };
 }
 
+// Deriva uma seed numérica estável a partir de uma string (djb2-like)
+function hashSeed(str) {
+  let h = 0;
+  for (let i = 0; i < str.length; i++) h = (Math.imul(h, 31) + str.charCodeAt(i)) | 0;
+  return h >>> 0;
+}
+
+// PRNG independente por partida: dado a mesma seed de sala + rodada + confronto,
+// todo peer chega ao mesmo placar, mesmo que cada um simule localmente.
+function matchPrng(roomSeed, roundKey, homeId, awayId) {
+  if (roomSeed == null) return Math.random;
+  return makePrng(hashSeed(`${roomSeed}|${roundKey}|${homeId}|${awayId}`));
+}
+
+// Fisher-Yates com PRNG injetado — determinístico entre navegadores/engines,
+// ao contrário de `.sort(() => rand() - 0.5)`, cuja ordem de comparações não é
+// garantida pela spec (dois clientes com a mesma seed podem embaralhar diferente).
+function seededShuffle(arr, rand) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+// ============================================================
+// ÍCONES — SVG monocromáticos (sem emoji) usados em toda a UI
+// ============================================================
+const ICON_PATHS = {
+  trophy: <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4ZM7 5H4a3 3 0 0 0 3 4M17 5h3a3 3 0 0 1-3 4" />,
+  ball: <><circle cx="12" cy="12" r="9" /><path d="M12 7l4 3-1.5 4.5h-5L8 10l4-3ZM12 3v4M4.5 8l2.5 1M4.5 16l2.5-1M19.5 8l-2.5 1M19.5 16l-2.5-1M9 20l1.5-4.5M15 20l-1.5-4.5" /></>,
+  dice: <><rect x="4" y="4" width="16" height="16" rx="3" /><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none" /><circle cx="15.5" cy="8.5" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="8.5" cy="15.5" r="1" fill="currentColor" stroke="none" /><circle cx="15.5" cy="15.5" r="1" fill="currentColor" stroke="none" /></>,
+  stadium: <><ellipse cx="12" cy="12" rx="9" ry="6" /><ellipse cx="12" cy="12" rx="4" ry="2.6" /><path d="M3 12v4a9 3.6 0 0 0 18 0v-4" /></>,
+  camera: <><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" /><circle cx="12" cy="13" r="3.5" /></>,
+  music: <><circle cx="6.5" cy="18" r="2.5" /><circle cx="17" cy="16" r="2.5" /><path d="M9 18V5.5L19.5 4v11.5" /></>,
+  users: <><circle cx="9" cy="8" r="3.2" /><path d="M2.8 19a6.2 6.2 0 0 1 12.4 0" /><path d="M15.5 5.2a3.2 3.2 0 0 1 0 6.2M18.2 13.4a6.2 6.2 0 0 1 3.6 5.6" /></>,
+  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.2 2" /></>,
+  check: <><circle cx="12" cy="12" r="9" /><path d="M8 12.3l2.6 2.6L16.2 9" /></>,
+  shield: <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" />,
+  clipboard: <><rect x="6" y="4" width="12" height="17" rx="2" /><rect x="9" y="2.3" width="6" height="3.2" rx="1" /><path d="M9 11h6M9 15h6" /></>,
+  x: <path d="M6 6l12 12M18 6L6 18" />,
+};
+function Icon({ name, size = 16, color = 'currentColor', style, strokeWidth = 1.8 }) {
+  const body = ICON_PATHS[name];
+  if (!body) return null;
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth}
+      strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
+      {body}
+    </svg>
+  );
+}
+
 // ============================================================
 // DADOS: 66 times históricos do Brasileirão (1959-2026)
 // ============================================================
@@ -1748,22 +1802,126 @@ const TEAMS = [
 // FORMAÇÕES TÁTICAS
 // ============================================================
 const FORMATIONS = {
-  '4-3-3': { label: '4-3-3 Clássico', counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MEI: 2, PD: 1, PE: 1, ATA: 1 } },
-  '4-4-2-linha': { label: '4-4-2 (Linha)', counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, MD: 1, VOL: 2, ME: 1, ATA: 2 } },
-  '4-4-2-losango': { label: '4-4-2 (Losango)', counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MEI: 3, ATA: 2 } },
-  '4-2-3-1': { label: '4-2-3-1', counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MD: 1, MEI: 1, ME: 1, ATA: 1 } },
-  '3-5-2': { label: '3-5-2', counts: { GOL: 1, ZAG: 3, LD: 1, LE: 1, MD: 1, VOL: 2, ME: 1, ATA: 2 } },
-  '3-4-3': { label: '3-4-3', counts: { GOL: 1, ZAG: 3, LD: 1, LE: 1, VOL: 2, PD: 1, PE: 1, ATA: 1 } },
-  '4-1-4-1': { label: '4-1-4-1', counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 2, ME: 1, ATA: 1 } },
-  '5-3-2': { label: '5-3-2', counts: { GOL: 1, ZAG: 3, LD: 1, LE: 1, VOL: 3, ATA: 2 } },
-  '4-5-1': { label: '4-5-1', counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, MD: 1, VOL: 2, MEI: 1, ME: 1, ATA: 1 } },
-  '4-3-1-2': { label: '4-3-1-2', counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 3, MEI: 1, ATA: 2 } },
-  '4-1-3-2': { label: '4-1-3-2', counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 1, ME: 1, ATA: 2 } },
-  '3-4-2-1': { label: '3-4-2-1', counts: { GOL: 1, ZAG: 3, LD: 1, LE: 1, VOL: 2, MEI: 2, ATA: 1 } },
-  '3-2-4-1': { label: '3-2-4-1', counts: { GOL: 1, ZAG: 3, LD: 1, LE: 1, VOL: 2, MD: 1, ME: 1, ATA: 1 } },
-  '4-2-2-2': { label: '4-2-2-2', counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MD: 1, ME: 1, ATA: 2 } },
-  '5-4-1': { label: '5-4-1', counts: { GOL: 1, ZAG: 3, LD: 1, LE: 1, MD: 1, VOL: 1, MEI: 1, ME: 1, ATA: 1 } },
+  // ==========================================
+  // LINHA DE 4 ZAGUEIROS
+  // ==========================================
+
+  // --- Variações do 4-3-3 ---
+  '4-3-3-ofensivo': {
+    label: '4-3-3 Ofensivo (1 VOL, 2 MEI)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MEI: 2, PD: 1, PE: 1, ATA: 1 }
+  },
+  '4-3-3-misto': {
+    label: '4-3-3 Misto (1 VOL, 1 MC, 1 MEI)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 1, MEI: 1, PD: 1, PE: 1, ATA: 1 }
+  },
+  '4-3-3-defensivo': {
+    label: '4-3-3 Contenção (2 VOL, 1 MC)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 1, PD: 1, PE: 1, ATA: 1 }
+  },
+
+  // --- Variações do 4-4-2 ---
+  '4-4-2-linha': {
+    label: '4-4-2 Tradicional em Linha',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MD: 1, ME: 1, ATA: 2 }
+  },
+  '4-4-2-losango-misto': {
+    label: '4-4-2 Losango (1 VOL, 2 MC, 1 MEI)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MEI: 1, ATA: 2 }
+  },
+  '4-4-2-quadrado': {
+    label: '4-4-2 Quadrado (2 VOL, 2 MEI)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MEI: 2, ATA: 2 }
+  },
+
+  // --- Variações do 4-2-3-1 ---
+  '4-2-3-1-classico': {
+    label: '4-2-3-1 Clássico (2 VOL, 1 MD, 1 MEI, 1 ME)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MD: 1, MEI: 1, ME: 1, ATA: 1 }
+  },
+  '4-2-3-1-ofensivo': {
+    label: '4-2-3-1 Criativo (1 VOL, 1 MC, 1 MEI, 2 PONTA)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 1, MEI: 1, PD: 1, PE: 1, ATA: 1 }
+  },
+
+  // --- Variações do 4-1-4-1 e 4-5-1 ---
+  '4-1-4-1-ofensivo': {
+    label: '4-1-4-1 Ofensivo (1 VOL, 2 MC, 2 PONTA)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, PD: 1, PE: 1, ATA: 1 }
+  },
+  '4-1-4-1-linha': {
+    label: '4-1-4-1 Técnico (1 VOL, 2 MEI, 1 MD, 1 ME)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 2, ME: 1, ATA: 1 }
+  },
+  '4-5-1-retranca': {
+    label: '4-5-1 Bloqueio (2 VOL, 2 MC, 1 MEI)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 2, MEI: 1, ATA: 1 }
+  },
+
+  // --- Variações do 4-3-1-2 e 4-1-3-2 ---
+  '4-3-1-2-misto': {
+    label: '4-3-1-2 Italiano (1 VOL, 2 MC, 1 MEI)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MEI: 1, ATA: 2 }
+  },
+  '4-1-3-2-ofensivo': {
+    label: '4-1-3-2 Pressão (1 VOL, 1 MD, 1 MEI, 1 ME)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 1, ME: 1, ATA: 2 }
+  },
+
+
+  // ==========================================
+  // LINHA DE 3 ZAGUEIROS
+  // ==========================================
+
+  // --- Variações do 3-5-2 ---
+  '3-5-2-equilibrio': {
+    label: '3-5-2',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 2, ATA: 2 }
+  },
+  '3-5-2-pesado': {
+    label: '3-5-2',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MEI: 1, ATA: 2 }
+  },
+
+  // --- Variações do 3-4-3 ---
+  '3-4-3-misto': {
+    label: '3-4-3',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 1, PD: 1, PE: 1, ATA: 1 }
+  },
+  '3-4-3-linha': {
+    label: '3-4-3',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, PD: 1, PE: 1, ATA: 1 }
+  },
+
+  // --- Outros esquemas com 3 Zagueiros ---
+  '3-4-2-1-moderno': {
+    label: '3-4-2-1',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MEI: 2, ATA: 1 }
+  },
+  '3-2-4-1-ofensivo': {
+    label: '3-2-4-1',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MC: 2, ATA: 1 }
+  },
+
+
+  // ==========================================
+  // LINHA DE 5 ZAGUEIROS (RETRANCA)
+  // ==========================================
+
+  '5-3-2-muralha': {
+    label: '5-3-2 Retranca Total',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MC: 1, ATA: 2 }
+  },
+  '5-4-1-misto': {
+    label: '5-4-1 Equilibrado',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MD: 1, ME: 1, ATA: 1 }
+  },
+  '5-2-3-contra-ataque': {
+    label: '5-2-3 Contra-Ataque',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, PD: 1, PE: 1, ATA: 1 }
+  }
 };
+
 
 const BASE_COORDS = {
   GOL: { x: 50, y: 92 },
@@ -1771,6 +1929,7 @@ const BASE_COORDS = {
   ZAG: { x: 50, y: 80 },
   LE: { x: 14, y: 76 },
   VOL: { x: 50, y: 62 },
+  MC: { x: 50, y: 54 },  // Meio-Campo (central midfielder, between VOL and MEI)
   MEI: { x: 50, y: 46 },
   MD: { x: 80, y: 48 },  // Meia Direita (wide midfielder right)
   ME: { x: 20, y: 48 },  // Meia Esquerda (wide midfielder left)
@@ -1856,7 +2015,7 @@ function teamStrength(xi) {
 }
 
 // Simulação de disputa de pênaltis (5 cobranças + morte súbita)
-function simulatePenalties(teamAId, teamBId, leagueTeams) {
+function simulatePenalties(teamAId, teamBId, leagueTeams, rand = Math.random) {
   const teamA = leagueTeams.find(t => t.id === teamAId);
   const teamB = leagueTeams.find(t => t.id === teamBId);
   const ovA = teamA ? teamA.ovr : 70;
@@ -1867,8 +2026,8 @@ function simulatePenalties(teamAId, teamBId, leagueTeams) {
   let goalsA = 0, goalsB = 0;
   const kicks = [];
   for (let i = 0; i < 5; i++) {
-    const a = Math.random() < rateA;
-    const b = Math.random() < rateB;
+    const a = rand() < rateA;
+    const b = rand() < rateB;
     if (a) goalsA++;
     if (b) goalsB++;
     kicks.push({ a, b, goalsA, goalsB });
@@ -1877,9 +2036,10 @@ function simulatePenalties(teamAId, teamBId, leagueTeams) {
     if (goalsA - goalsB > remaining + 1 || goalsB - goalsA > remaining + 1) break;
   }
   // Sudden death if still tied
-  while (goalsA === goalsB) {
-    const a = Math.random() < rateA;
-    const b = Math.random() < rateB;
+  let sdGuard = 0;
+  while (goalsA === goalsB && sdGuard++ < 50) {
+    const a = rand() < rateA;
+    const b = rand() < rateB;
     if (a) goalsA++;
     if (b) goalsB++;
     kicks.push({ a, b, goalsA, goalsB, suddenDeath: true });
@@ -1899,23 +2059,75 @@ function poissonSample(lambda, rand = Math.random) {
 // ============================================================
 const MY_TEAM_ID = '__myteam__';
 
-function narrateGoal(scorer, isMyGoal) {
+// Narração real (Luiz Felipe Freitas) por clube — arquivos em public/gol/.
+// Times sem clipe gravado (ex.: Flamengo, ou o time montado pelo próprio
+// jogador, que não tem um clube único) caem na narração sintética abaixo.
+const GOAL_AUDIO = {
+  'Athletico-PR': ['/gol/Athletico-PR.mp3'],
+  'Atletico-MG': ['/gol/Atletico-MG.mp3'],
+  'Bahia': ['/gol/Bahia.mp3'],
+  'Botafogo': ['/gol/Botafogo-1.mp3', '/gol/Botafogo-2.mp3'],
+  'Corinthians': ['/gol/Corinthians.mp3'],
+  'Coritiba': ['/gol/Coritiba.mp3'],
+  'Cruzeiro': ['/gol/Cruzeiro.mp3'],
+  'Fluminense': ['/gol/Fluminense.mp3'],
+  'Gremio': ['/gol/Gremio.mp3'],
+  'Guarani': ['/gol/Guarani.mp3'],
+  'Internacional': ['/gol/Internacional.mp3'],
+  'Palmeiras': ['/gol/Palmeiras.mp3'],
+  'Santos': ['/gol/Santos.mp3'],
+  'Sao Paulo': ['/gol/Sao-Paulo.mp3'],
+  'Sport': ['/gol/Sport.mp3'],
+  'Vasco': ['/gol/Vasco.mp3'],
+};
+let goalAudioEl = null;
+function playGoalAudio(club) {
+  const clips = GOAL_AUDIO[club];
+  if (!clips || clips.length === 0) return false;
+  if (goalAudioEl) { goalAudioEl.pause(); goalAudioEl.currentTime = 0; }
+  const src = clips[Math.floor(Math.random() * clips.length)];
+  goalAudioEl = new Audio(src);
+  goalAudioEl.volume = 1;
+  goalAudioEl.play().catch(() => { });
+  return true;
+}
+
+// Narração sintética (fallback) estilo transmissão de TV: grito de gol longo
+// seguido do nome do autor do gol com energia — dois utterances encadeados
+// para simular o ritmo "GOOOOOL... [nome]!" de um narrador.
+const GOAL_CALLS = [
+  'Que golaço, minha gente!',
+  'Ele não perdoa!',
+  'Vai pro alto, é festa total!',
+  'Inacreditável esse gol!',
+  'Explode o estádio!',
+];
+function narrateGoal(scorer, isMyGoal, club) {
+  if (playGoalAudio(club)) return;
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance();
-  u.lang = 'pt-BR';
   if (isMyGoal) {
-    u.text = `Goooooool! ${scorer}!`;
-    u.pitch = 1.55;
-    u.rate = 0.65;
-    u.volume = 1;
+    const shout = new SpeechSynthesisUtterance('Goooooooooooool!');
+    shout.lang = 'pt-BR';
+    shout.pitch = 1.6;
+    shout.rate = 0.5;
+    shout.volume = 1;
+    const call = GOAL_CALLS[Math.floor(Math.random() * GOAL_CALLS.length)];
+    const name = new SpeechSynthesisUtterance(`${scorer}! ${call}`);
+    name.lang = 'pt-BR';
+    name.pitch = 1.4;
+    name.rate = 1.08;
+    name.volume = 1;
+    shout.onend = () => window.speechSynthesis.speak(name);
+    window.speechSynthesis.speak(shout);
   } else {
-    u.text = `Gol! ${scorer}.`;
+    const u = new SpeechSynthesisUtterance(`Gol. ${scorer} marca para o adversário.`);
+    u.lang = 'pt-BR';
     u.pitch = 0.85;
-    u.rate = 0.85;
-    u.volume = 0.75;
+    u.rate = 0.92;
+    u.volume = 0.7;
+    window.speechSynthesis.speak(u);
   }
-  window.speechSynthesis.speak(u);
 }
 
 // Gera calendário round-robin (todos contra todos, turno único)
@@ -1959,6 +2171,7 @@ function generateCupFirstRound(teamIds) {
 function pickGoalScorer(players, rand = Math.random) {
   const field = players.filter(p => !p.pos.includes('GOL'));
   const pool = field.length > 0 ? field : players;
+  if (pool.length === 0) return 'Jogador'; // time sem elenco (ex.: draft multiplayer não concluído)
   return pool[Math.floor(rand() * pool.length)].name;
 }
 
@@ -1987,11 +2200,11 @@ function generateMatchGoals(homeTeam, awayTeam, rand = Math.random) {
   return events.sort((a, b) => a.minute - b.minute);
 }
 
-function simAiMatch(homeTeam, awayTeam) {
+function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   const diff = homeTeam.ovr - awayTeam.ovr;
   return {
-    homeGoals: poissonSample(Math.max(0.2, 1.3 + diff * 0.042)),
-    awayGoals: poissonSample(Math.max(0.2, 1.3 - diff * 0.042)),
+    homeGoals: poissonSample(Math.max(0.2, 1.3 + diff * 0.042), rand),
+    awayGoals: poissonSample(Math.max(0.2, 1.3 - diff * 0.042), rand),
   };
 }
 
@@ -2136,7 +2349,6 @@ export default function App() {
 
   // Time personalizado
   const [myTeamName, setMyTeamName] = useState(_sv?.myTeamName ?? 'Meu Time');
-  const [myTeamBadge, setMyTeamBadge] = useState(_sv?.myTeamBadge ?? '⭐');
   const [myTeamColor, setMyTeamColor] = useState(_sv?.myTeamColor ?? '#d4a23c');
   const [myTeamCoach, setMyTeamCoach] = useState(_sv?.myTeamCoach ?? '');
   const [myTeamCity, setMyTeamCity] = useState(_sv?.myTeamCity ?? '');
@@ -2195,7 +2407,7 @@ export default function App() {
 
   const [simSpeed, setSimSpeed] = useState(1);
   const [simMode, setSimMode] = useState('manual'); // 'manual' | 'auto'
-  const [autoCountdown, setAutoCountdown] = useState(null); // null | 1-5
+  const [autoCountdown, setAutoCountdown] = useState(null); // null | 1-3
   const [isPaused, setIsPaused] = useState(false);
   const [showSubPanel, setShowSubPanel] = useState(false);
   const [subSelectStarter, setSubSelectStarter] = useState(null);
@@ -2211,6 +2423,13 @@ export default function App() {
   const isPausedRef = useRef(false);
   const tickFnRef = useRef(null);
   const liveLineupRef = useRef(null);
+
+  // No multiplayer, cada jogador é identificado pelo seu peerId (MY_PID) — não
+  // pelo id fixo '__myteam__' usado no solo. Sem isso, o cliente nunca encontra
+  // a própria partida na rodada e a simulação trava.
+  const myTeamId = roomSnap ? MY_PID : MY_TEAM_ID;
+  const myTeamIdRef = useRef(myTeamId);
+  useEffect(() => { myTeamIdRef.current = myTeamId; }, [myTeamId]);
 
   useEffect(() => { speedRef.current = simSpeed; }, [simSpeed]);
 
@@ -2434,7 +2653,7 @@ export default function App() {
       };
     });
 
-    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
+    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
     const allTeams = [myTeamObj, ...opps];
 
     setLeagueTeams(allTeams);
@@ -2477,7 +2696,7 @@ export default function App() {
   const startRound = useCallback(() => {
     if (isSimulating) return;
     const round = fixtures[currentRound];
-    const um = round.find(m => m.homeId === MY_TEAM_ID || m.awayId === MY_TEAM_ID);
+    const um = round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
     if (!um) {
       // Copa: user already eliminated — fast-simulate this AI-only round
       if (gameMode !== 'copa' || userInCupRef.current) return;
@@ -2485,7 +2704,7 @@ export default function App() {
         const h = leagueTeams.find(t => t.id === m.homeId);
         const a = leagueTeams.find(t => t.id === m.awayId);
         if (!h || !a) return { homeId: m.homeId, awayId: m.awayId, homeGoals: 0, awayGoals: 0 };
-        return { homeId: m.homeId, awayId: m.awayId, ...simAiMatch(h, a) };
+        return { homeId: m.homeId, awayId: m.awayId, ...simAiMatch(h, a, matchPrng(roomSnap?.seed, currentRound, m.homeId, m.awayId)) };
       });
       setRoundResults(allResults);
       setCupRounds(prev => prev.map((r, i) => i === cupRoundIdx ? { ...r, results: allResults } : r));
@@ -2494,7 +2713,7 @@ export default function App() {
 
     const homeTeam = leagueTeams.find(t => t.id === um.homeId);
     const awayTeam = leagueTeams.find(t => t.id === um.awayId);
-    const events = generateMatchGoals(homeTeam, awayTeam);
+    const events = generateMatchGoals(homeTeam, awayTeam, matchPrng(roomSnap?.seed, currentRound, um.homeId, um.awayId));
 
     setActiveUserMatch(um);
     setLiveEvents([]);
@@ -2534,7 +2753,7 @@ export default function App() {
           ...prev,
           [ev.scorer]: { goals: (prev[ev.scorer]?.goals || 0) + 1, teamLabel: ev.teamLabel }
         }));
-        narrateGoal(ev.scorer, ev.teamId === MY_TEAM_ID);
+        narrateGoal(ev.scorer, ev.teamId === myTeamId, ev.teamId === homeTeam.id ? homeTeam.club : awayTeam.club);
       }
 
       setClockMinute(minute);
@@ -2566,7 +2785,7 @@ export default function App() {
             return { homeId: m.homeId, awayId: m.awayId, homeGoals: finalHs, awayGoals: finalAs };
           const h = leagueTeams.find(t => t.id === m.homeId);
           const a = leagueTeams.find(t => t.id === m.awayId);
-          const sim = simAiMatch(h, a);
+          const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, currentRound, m.homeId, m.awayId));
           return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
         });
 
@@ -2600,66 +2819,59 @@ export default function App() {
               const leg1Res = cupRoundData?.leg1Results || [];
               const penaltyResults = [];
 
-              // Compute penalties for all tied matches
+              // Compute penalties for all tied matches (regra do gol fora foi extinta — empate no agregado já vai para os pênaltis)
               cupRoundData?.matches?.forEach((match, i) => {
                 const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
                 const l2 = results[i] || { homeGoals: 0, awayGoals: 0 };
                 const aggA = l1.homeGoals + l2.awayGoals;
                 const aggB = l1.awayGoals + l2.homeGoals;
                 if (aggA === aggB) {
-                  const awayA = l2.awayGoals;
-                  const awayB = l1.awayGoals;
-                  if (awayA === awayB) {
-                    const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams);
-                    penaltyResults.push({ matchIdx: i, ...pen });
-                  }
+                  const penRand = matchPrng(roomSnap?.seed, `${cupRoundIdx}-${cupLegRef.current}-pen`, match.homeId, match.awayId);
+                  const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams, penRand);
+                  penaltyResults.push({ matchIdx: i, ...pen });
                 }
               });
 
               // User elimination check
-              const userMatchIdx = cupRoundData?.matches?.findIndex(m => m.homeId === MY_TEAM_ID || m.awayId === MY_TEAM_ID) ?? -1;
+              const userMatchIdx = cupRoundData?.matches?.findIndex(m => m.homeId === myTeamId || m.awayId === myTeamId) ?? -1;
               if (userMatchIdx >= 0) {
                 const match = cupRoundData.matches[userMatchIdx];
                 const l1 = leg1Res[userMatchIdx] || { homeGoals: 0, awayGoals: 0 };
                 const l2 = results[userMatchIdx] || { homeGoals: 0, awayGoals: 0 };
-                const isHome = match.homeId === MY_TEAM_ID;
+                const isHome = match.homeId === myTeamId;
                 const userAgg = isHome ? (l1.homeGoals + l2.awayGoals) : (l1.awayGoals + l2.homeGoals);
                 const oppAgg = isHome ? (l1.awayGoals + l2.homeGoals) : (l1.homeGoals + l2.awayGoals);
                 if (userAgg < oppAgg) {
                   setUserInCup(false);
                   setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
                 } else if (userAgg === oppAgg) {
-                  const userAway = isHome ? l2.awayGoals : l1.awayGoals;
-                  const oppAway = isHome ? l1.awayGoals : l2.awayGoals;
-                  if (userAway < oppAway) {
-                    setUserInCup(false);
-                    setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
-                  } else if (userAway === oppAway) {
-                    // Use penalty result - trigger animated modal
-                    const userPen = penaltyResults.find(pr => pr.matchIdx === userMatchIdx);
-                    if (userPen) {
-                      if (userPen.winner !== MY_TEAM_ID) {
-                        setUserInCup(false);
-                        setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
-                      }
-                      const myT = isHome ? homeTeam : awayTeam;
-                      const opT = isHome ? awayTeam : homeTeam;
-                      const myPlayers = liveLineupRef.current
-                        ? Object.values(liveLineupRef.current)
-                        : (myT?.players || []).slice(0, 16);
-                      const oppGk = (opT?.players || [])[0]?.name || 'Goleiro';
-                      setPenaltyPhase({
-                        kicks: userPen.kicks,
-                        winner: userPen.winner,
-                        homeId: match.homeId,
-                        awayId: match.awayId,
-                        myIsHome: isHome,
-                        myTeamLabel: myT?.label || 'Meu Time',
-                        oppTeamLabel: opT?.label || 'Adversario',
-                        oppGkName: oppGk,
-                        myPlayers,
-                      });
+                  // Empate no agregado (regra do gol fora foi extinta) — decide nos pênaltis
+                  const userPen = penaltyResults.find(pr => pr.matchIdx === userMatchIdx);
+                  if (userPen) {
+                    if (userPen.winner !== myTeamId) {
+                      setUserInCup(false);
+                      setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
                     }
+                    // homeTeam/awayTeam (topo do startRound) refletem a orientação do jogo de volta,
+                    // enquanto isHome/match refletem a orientação do jogo de ida — não são a mesma coisa.
+                    // Buscar direto pelo id evita trocar "meu time" pelo adversário quando o mando de campo inverte.
+                    const myT = leagueTeams.find(t => t.id === myTeamId);
+                    const opT = leagueTeams.find(t => t.id === (isHome ? match.awayId : match.homeId));
+                    const myPlayers = liveLineupRef.current
+                      ? Object.values(liveLineupRef.current)
+                      : (myT?.players || []).slice(0, 16);
+                    const oppGk = (opT?.players || [])[0]?.name || 'Goleiro';
+                    setPenaltyPhase({
+                      kicks: userPen.kicks,
+                      winner: userPen.winner,
+                      homeId: match.homeId,
+                      awayId: match.awayId,
+                      myIsHome: isHome,
+                      myTeamLabel: myT?.label || 'Meu Time',
+                      oppTeamLabel: opT?.label || 'Adversario',
+                      oppGkName: oppGk,
+                      myPlayers,
+                    });
                   }
                 }
               }
@@ -2679,7 +2891,7 @@ export default function App() {
 
     tickFnRef.current = tick;
     clockRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
-  }, [fixtures, currentRound, leagueTeams, isSimulating, gameMode, cupRoundIdx]);
+  }, [fixtures, currentRound, leagueTeams, isSimulating, gameMode, cupRoundIdx, myTeamId, roomSnap?.seed]);
 
   const goNextRound = useCallback(() => {
     const next = currentRound + 1;
@@ -2735,14 +2947,12 @@ export default function App() {
         const aggA = l1.homeGoals + l2.awayGoals;
         const aggB = l1.awayGoals + l2.homeGoals;
         if (aggA !== aggB) return aggA > aggB ? match.homeId : match.awayId;
-        // Empate no agregado: gol fora
-        const awayA = l2.awayGoals; // match.homeId marcou fora no leg2
-        const awayB = l1.awayGoals; // match.awayId marcou fora no leg1
-        if (awayA !== awayB) return awayA > awayB ? match.homeId : match.awayId;
-        // Pênaltis — usar resultado pré-computado ou simular
+        // Empate no agregado (regra do gol fora foi extinta) — pênaltis
+        // usar resultado pré-computado (já calculado no tick com a mesma seed) ou simular como fallback
         const precomputed = preComputedPenalties.find(pr => pr.matchIdx === i);
         if (precomputed) return precomputed.winner;
-        const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams);
+        const penRand = matchPrng(roomSnap?.seed, `${cupRoundIdx}-${cupLeg}-pen`, match.homeId, match.awayId);
+        const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams, penRand);
         return pen.winner;
       });
 
@@ -2768,7 +2978,7 @@ export default function App() {
 
       return updated;
     });
-  }, [currentRound, fixtures, gameMode, cupRoundIdx, cupLeg, roundResults, leagueTeams]);
+  }, [currentRound, fixtures, gameMode, cupRoundIdx, cupLeg, roundResults, leagueTeams, myTeamId, roomSnap?.seed]);
 
   // Mantém refs atualizadas para os efeitos de auto não ficarem com closures velhas
   useEffect(() => { startRoundRef.current = startRound; }, [startRound]);
@@ -2781,7 +2991,7 @@ export default function App() {
     try {
       const save = {
         phase, formationKey, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
-        gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity,
+        gameMode, myTeamName, myTeamColor, myTeamCoach, myTeamCity,
         leagueTeams, leagueTable, fixtures, currentRound,
         cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
         matchHistory, scorers,
@@ -2797,10 +3007,10 @@ export default function App() {
     if (simMode !== 'auto' || phase !== 'playing') return;
     if (roundResults !== null && !isSimulating) {
       autoActionRef.current = 'nextRound';
-      setAutoCountdown(5);
+      setAutoCountdown(3);
     } else if (roundResults === null && !isSimulating) {
       autoActionRef.current = 'startRound';
-      setAutoCountdown(5);
+      setAutoCountdown(3);
     }
   }, [simMode, phase, roundResults, isSimulating]);
 
@@ -2912,7 +3122,7 @@ export default function App() {
       };
     });
 
-    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
+    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
     const allTeams = [myTeamObj, ...opps];
     setLeagueTeams(allTeams);
 
@@ -2933,7 +3143,7 @@ export default function App() {
       setLeagueTable([]);
     }
     setPhase('playing');
-  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo]);
+  }, [pitch, captainSlot, gameMode, myTeamName, myTeamColor, myTeamLogo]);
 
   // Simula todas as fases restantes da Copa até o campeão (usuário eliminado)
   const simulateAllCupa = useCallback(() => {
@@ -2952,7 +3162,7 @@ export default function App() {
         const h = leagueTeams.find(t => t.id === m.homeId);
         const a = leagueTeams.find(t => t.id === m.awayId);
         if (!h || !a) return { homeId: m.homeId, awayId: m.awayId, homeGoals: 0, awayGoals: 0 };
-        return { homeId: m.homeId, awayId: m.awayId, ...simAiMatch(h, a) };
+        return { homeId: m.homeId, awayId: m.awayId, ...simAiMatch(h, a, matchPrng(roomSnap?.seed, currRound, m.homeId, m.awayId)) };
       });
 
       const cupRoundData = currCupRounds[currCupRoundIdx];
@@ -2972,9 +3182,10 @@ export default function App() {
           const aggA = l1.homeGoals + l2.awayGoals;
           const aggB = l1.awayGoals + l2.homeGoals;
           if (aggA !== aggB) return aggA > aggB ? match.homeId : match.awayId;
-          const awayA = l2.awayGoals, awayB = l1.awayGoals;
-          if (awayA !== awayB) return awayA > awayB ? match.homeId : match.awayId;
-          return Math.random() < 0.5 ? match.homeId : match.awayId;
+          // Empate no agregado (regra do gol fora foi extinta) — decide nos pênaltis
+          const penRand = matchPrng(roomSnap?.seed, `${currCupRoundIdx}-pen`, match.homeId, match.awayId);
+          const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams, penRand);
+          return pen.winner;
         });
 
         const nextMatches = [];
@@ -3000,7 +3211,7 @@ export default function App() {
     setCupRoundIdx(currCupRoundIdx);
     setCupWinnerId(winnerId);
     setPhase('results');
-  }, [cupRounds, cupRoundIdx, cupLeg, fixtures, currentRound, leagueTeams]);
+  }, [cupRounds, cupRoundIdx, cupLeg, fixtures, currentRound, leagueTeams, roomSnap?.seed]);
 
   // ── MULTIPLAYER (PeerJS) ──────────────────────────────────────────────────
   // Helpers para broadcast / envio de mensagem
@@ -3103,6 +3314,7 @@ export default function App() {
       });
       conn.on('data', (msg) => {
         if (msg.type === 'join') {
+          conn._pid = msg.pid; // lembra qual jogador da sala esta conexão representa (p/ limpeza ao desconectar)
           setRoomSnap(prev => {
             if (!prev) return prev;
             const maxP = prev.gameMode === 'copa' ? 32 : 20;
@@ -3121,7 +3333,22 @@ export default function App() {
           });
         }
       });
-      conn.on('close', () => { delete connsRef.current[conn.peer]; });
+      conn.on('close', () => {
+        delete connsRef.current[conn.peer];
+        // Remove o jogador que caiu enquanto ainda estava no lobby/draft, pra não travar o "todos prontos"
+        // pra sempre. Depois que a simulação já começou, mantemos o time dele (já entrou nos confrontos).
+        if (conn._pid) {
+          setRoomSnap(prev => {
+            if (!prev || (prev.phase !== 'lobby' && prev.phase !== 'team-setup')) return prev;
+            if (!prev.players[conn._pid]) return prev;
+            const players = { ...prev.players };
+            delete players[conn._pid];
+            const next = { ...prev, players };
+            leaderBroadcast({ type: 'snap', snap: next });
+            return next;
+          });
+        }
+      });
     });
 
     peer.on('error', (e) => {
@@ -3236,7 +3463,7 @@ export default function App() {
     }));
     const needed = maxSlots - humanTeams.length;
     const prng = makePrng(roomSnap.seed);
-    const shuffled = [...TEAMS].sort(() => prng() - 0.5).slice(0, needed);
+    const shuffled = seededShuffle(TEAMS, prng).slice(0, needed);
     const aiTeams = shuffled.map((t, i) => {
       const pp = t.players.map(pl => ({ ...pl, club: t.club, year: t.year, nat: pl.nat || 'BRA' }));
       return { id: `ai_${i}`, label: t.label, badge: '', color: '#888', logo: null, clubLogo: CLUB_LOGOS[t.club] || null, club: t.club, ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))), players: pp, isHuman: false };
@@ -3255,7 +3482,7 @@ export default function App() {
     } else {
       // Copa do Brasil multiplayer
       const prng2 = makePrng(roomSnap.seed + 1);
-      const shuffledIds = [...allTeams.map(t => t.id)].sort(() => prng2() - 0.5);
+      const shuffledIds = seededShuffle(allTeams.map(t => t.id), prng2);
       const firstMatches = [];
       for (let i = 0; i + 1 < shuffledIds.length; i += 2)
         firstMatches.push({ homeId: shuffledIds[i], awayId: shuffledIds[i + 1] });
@@ -3280,7 +3507,8 @@ export default function App() {
       {/* Timer flutuante durante o draft multiplayer */}
       {multiPhase === 'in-draft' && multiTimerLeft !== null && (
         <div style={{ position: 'fixed', top: 12, right: 12, zIndex: 999, background: multiTimerLeft < 30 ? 'rgba(224,80,80,0.9)' : 'rgba(11,26,18,0.92)', border: `1px solid ${multiTimerLeft < 30 ? '#e05050' : 'rgba(212,162,60,0.4)'}`, borderRadius: 12, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, opacity: 0.7, color: '#F4F1EA' }}>⏱ Tempo restante</span>
+          <Icon name="clock" size={13} color="#F4F1EA" style={{ opacity: 0.7 }} />
+          <span style={{ fontSize: 11, opacity: 0.7, color: '#F4F1EA' }}>Tempo restante</span>
           <span style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: multiTimerLeft < 30 ? '#fff' : '#d4a23c' }}>
             {String(Math.floor(multiTimerLeft / 60)).padStart(2, '0')}:{String(multiTimerLeft % 60).padStart(2, '0')}
           </span>
@@ -3288,7 +3516,7 @@ export default function App() {
       )}
       <header style={styles.header}>
         <div style={styles.headerInner} className="header-inner-pad">
-          <div style={styles.crest}>🏆</div>
+          <div style={styles.crest}><Icon name="trophy" size={22} color="#d4a23c" /></div>
           <div>
             <div
               style={{ ...styles.title, cursor: 'pointer' }}
@@ -3337,9 +3565,9 @@ export default function App() {
           <Intro
             onStart={goToFormationPicker}
             gameMode={gameMode} onSetGameMode={setGameMode}
-            myTeamName={myTeamName} myTeamBadge={myTeamBadge} myTeamColor={myTeamColor}
+            myTeamName={myTeamName} myTeamColor={myTeamColor}
             myTeamCoach={myTeamCoach} myTeamCity={myTeamCity} myTeamLogo={myTeamLogo}
-            onSetName={setMyTeamName} onSetBadge={setMyTeamBadge} onSetColor={setMyTeamColor}
+            onSetName={setMyTeamName} onSetColor={setMyTeamColor}
             onSetCoach={setMyTeamCoach} onSetCity={setMyTeamCity}
             onSetLogo={setMyTeamLogo} cropSrc={cropSrc} onSetCropSrc={setCropSrc}
             onMultiPlayer={() => setMultiPhase('lobby')}
@@ -3385,7 +3613,7 @@ export default function App() {
         )}
         {phase === 'playing' && (
           <Playing
-            myTeamId={MY_TEAM_ID}
+            myTeamId={myTeamId}
             fixtures={fixtures}
             currentRound={currentRound}
             leagueTeams={leagueTeams}
@@ -3397,7 +3625,6 @@ export default function App() {
             roundResults={roundResults}
             activeUserMatch={activeUserMatch}
             myTeamColor={myTeamColor}
-            myTeamBadge={myTeamBadge}
             myTeamLogo={myTeamLogo}
             gameMode={gameMode}
             cupRounds={cupRounds}
@@ -3428,7 +3655,7 @@ export default function App() {
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={MY_TEAM_ID} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} onNewSeason={newSeason} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} onNewSeason={roomSnap ? undefined : newSeason} />
         )}
         {viewingTeam && <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} />}
         {penaltyPhase && (
@@ -3540,8 +3767,7 @@ function ImageCropModal({ src, onConfirm, onCancel }) {
   );
 }
 
-const TEAM_BADGES = ['⭐', '🔥', '🦅', '🐯', '🦁', '💎', '⚡', '🏆', '🌊', '🎯', '🛡️', '🌟'];
-const TEAM_COLORS = ['#d4a23c', '#e05050', '#4a90d9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#e91e8c'];
+const TEAM_COLORS =['#d4a23c', '#e05050', '#4a90d9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#e91e8c'];
 
 function parseYouTubeId(input) {
   if (!input) return null;
@@ -3560,7 +3786,7 @@ function parseYouTubeId(input) {
   return null;
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo, onSetName, onSetBadge, onSetColor, onSetCoach, onSetCity, onSetLogo, cropSrc, onSetCropSrc, onMultiPlayer }) {
+function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo, onSetName, onSetColor, onSetCoach, onSetCity, onSetLogo, cropSrc, onSetCropSrc, onMultiPlayer }) {
   const displayName = myTeamName || 'Meu Time';
   const fileInputRef = useRef(null);
   const [musicOn, setMusicOn] = React.useState(false);
@@ -3590,7 +3816,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
         />
       )}
       <div style={styles.introCard} className="intro-card-mob">
-        <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2026</div>
+        <div style={{ ...styles.introBadge, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="ball" size={13} /> Futebol Brasileiro · 1959–2026</div>
         <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
         <p style={styles.introLead}>
           Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
@@ -3599,17 +3825,17 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
 
         <div style={styles.featGrid} className="feat-grid-3">
           <div style={styles.featCard}>
-            <div style={styles.featIcon}>🎲</div>
+            <div style={styles.featIcon}><Icon name="dice" size={26} color="#d4a23c" /></div>
             <div style={styles.featTitle}>Role o dado</div>
             <div style={styles.featDesc}>Sorteie times campeões lendários. Recuse até 3 que não te interessar.</div>
           </div>
           <div style={styles.featCard}>
-            <div style={styles.featIcon}>🏟️</div>
+            <div style={styles.featIcon}><Icon name="stadium" size={26} color="#d4a23c" /></div>
             <div style={styles.featTitle}>Monte o Plantel</div>
             <div style={styles.featDesc}>Escolha 11 titulares e 5 reservas entre os maiores craques de cada era.</div>
           </div>
           <div style={styles.featCard}>
-            <div style={styles.featIcon}>🏆</div>
+            <div style={styles.featIcon}><Icon name="trophy" size={26} color="#d4a23c" /></div>
             <div style={styles.featTitle}>Dispute o título</div>
             <div style={styles.featDesc}>Liga com 20 times, 38 rodadas e gols aparecendo minuto a minuto.</div>
           </div>
@@ -3632,22 +3858,22 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
               >
                 {myTeamLogo
                   ? <img src={myTeamLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ fontSize: 32, opacity: 0.4 }}>📷</span>
+                  : <Icon name="camera" size={30} color="rgba(255,255,255,0.4)" />
                 }
                 {myTeamLogo && (
                   <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.15s' }}
                     onMouseEnter={e => e.currentTarget.style.opacity = 1}
                     onMouseLeave={e => e.currentTarget.style.opacity = 0}
                   >
-                    <span style={{ fontSize: 20 }}>📷</span>
+                    <Icon name="camera" size={18} color="#fff" />
                   </div>
                 )}
               </div>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                style={{ fontSize: 11, fontWeight: 600, color: myTeamColor, background: hexToRgba(myTeamColor, 0.12), border: `1px solid ${hexToRgba(myTeamColor, 0.3)}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: myTeamColor, background: hexToRgba(myTeamColor, 0.12), border: `1px solid ${hexToRgba(myTeamColor, 0.3)}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}
               >
-                📷 Upload logo
+                <Icon name="camera" size={12} /> Upload logo
               </button>
             </div>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
@@ -3760,7 +3986,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
                 fontSize: 13, fontWeight: 600, transition: 'all 0.15s',
               }}
             >
-              <span>🎵</span>
+              <Icon name="music" size={15} />
               Música de fundo
               <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.6 }}>{musicOn ? 'ativada' : 'opcional'}</span>
             </button>
@@ -3773,7 +3999,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
                 {/* Indicador: tocando áudio padrão */}
                 {!musicId && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <span style={{ fontSize: 18 }}>🎵</span>
+                    <Icon name="music" size={16} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 11, opacity: 0.6 }}>Tocando áudio padrão</div>
                       <div style={{ display: 'flex', gap: 2, marginTop: 4, alignItems: 'flex-end', height: 12 }}>
@@ -3802,7 +4028,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
                     <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
                       <iframe key={musicId} width="1" height="1" src={`https://www.youtube.com/embed/${musicId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title="Música de fundo" />
                     </div>
-                    <span style={{ fontSize: 18 }}>🎵</span>
+                    <Icon name="music" size={16} />
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 11, opacity: 0.6 }}>Tocando YouTube</div>
                       <div style={{ display: 'flex', gap: 2, marginTop: 4, alignItems: 'flex-end', height: 12 }}>
@@ -3877,7 +4103,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
             display: 'flex', alignItems: 'center', gap: 14,
           }}
         >
-          <span style={{ fontSize: 28 }}>👥</span>
+          <Icon name="users" size={26} color="#7fd99a" />
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>Jogar com Amigos</div>
             <div style={{ fontSize: 11, opacity: 0.6 }}>Brasileirão (até 20) · Copa do Brasil (até 32) · Sala por código</div>
@@ -3930,7 +4156,7 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
         onClick={onCreateRoom}
         disabled={connecting}
       >
-        {connecting ? '⏳ Conectando…' : '✦ Criar sala'}
+        {connecting ? 'Conectando…' : 'Criar sala'}
       </button>
       {error && (
         <div style={{ fontSize: 12, color: '#e05050', background: 'rgba(224,80,80,0.08)', border: '1px solid rgba(224,80,80,0.25)', borderRadius: 8, padding: '8px 12px', marginBottom: 10 }}>
@@ -3999,8 +4225,8 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: mc, margin: '10px 0 6px', wordBreak: 'break-all', background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 14px', letterSpacing: 1 }}>
               {roomData.leaderPeerId}
             </div>
-            <button onClick={copyCode} style={{ fontSize: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '5px 14px', color: copied ? '#7fd99a' : '#aaa', cursor: 'pointer' }}>
-              {copied ? '✓ Copiado!' : '📋 Copiar código'}
+            <button onClick={copyCode} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '5px 14px', color: copied ? '#7fd99a' : '#aaa', cursor: 'pointer' }}>
+              {copied ? '✓ Copiado!' : <><Icon name="clipboard" size={13} /> Copiar código</>}
             </button>
             <div style={{ fontSize: 11, opacity: 0.4, marginTop: 6 }}>Envie este código para seus amigos entrarem na sala</div>
           </>
@@ -4073,8 +4299,8 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => fileRef.current?.click()} style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1px dashed rgba(255,255,255,0.2)', background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: 12 }}>
-              📷 Upload logo
+            <button onClick={() => fileRef.current?.click()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, flex: 1, padding: '8px', borderRadius: 8, border: '1px dashed rgba(255,255,255,0.2)', background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: 12 }}>
+              <Icon name="camera" size={13} /> Upload logo
             </button>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
             {!myData.ready && (
@@ -4098,7 +4324,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
           <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             {p.logo
               ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)' }} />
-              : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚽</div>
+              : <div style={{ width: 32, height: 32, borderRadius: 8, background: hexToRgba(p.color || '#555', 0.18), border: `1px solid ${hexToRgba(p.color || '#555', 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={16} color={p.color || '#aaa'} /></div>
             }
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: p.color || '#F4F1EA' }}>{p.name || 'Jogador'}</div>
@@ -4106,7 +4332,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             </div>
             {pid === roomData.leaderId && <span style={{ fontSize: 10, color: '#d4a23c', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 4, padding: '1px 6px' }}>LÍDER</span>}
             {pid === myId && <span style={{ fontSize: 10, color: '#aaa', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, padding: '1px 6px' }}>VOCÊ</span>}
-            <span style={{ fontSize: 14 }}>{p.ready ? '✅' : '⏳'}</span>
+            <Icon name={p.ready ? 'check' : 'clock'} size={15} color={p.ready ? '#7fd99a' : 'rgba(255,255,255,0.35)'} />
           </div>
         ))}
       </div>
@@ -4144,7 +4370,7 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
   return (
     <div style={styles.card} className="card-mob">
       <div style={{ textAlign: 'center', padding: '16px 0 20px' }}>
-        <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
+        <div style={{ marginBottom: 10 }}><Icon name="check" size={36} color="#7fd99a" /></div>
         <div style={styles.eyebrow}>Time montado!</div>
         <h2 style={styles.h2}>Aguardando os outros jogadores…</h2>
         <div style={{ fontSize: 13, opacity: 0.5, marginTop: 4 }}>{readyCount} de {players.length} prontos</div>
@@ -4155,14 +4381,14 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
           <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             {p.logo
               ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)' }} />
-              : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚽</div>
+              : <div style={{ width: 32, height: 32, borderRadius: 8, background: hexToRgba(p.color || '#555', 0.18), border: `1px solid ${hexToRgba(p.color || '#555', 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={16} color={p.color || '#aaa'} /></div>
             }
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: p.color || '#F4F1EA' }}>{p.name || 'Jogador'}</div>
               {p.ovr > 0 && <div style={{ fontSize: 11, opacity: 0.5 }}>OVR {p.ovr}</div>}
             </div>
             {pid === myId && <span style={{ fontSize: 10, color: '#aaa', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, padding: '1px 6px' }}>VOCÊ</span>}
-            <span style={{ fontSize: 16 }}>{p.ready ? '✅' : '⏳'}</span>
+            <Icon name={p.ready ? 'check' : 'clock'} size={16} color={p.ready ? '#7fd99a' : 'rgba(255,255,255,0.35)'} />
           </div>
         ))}
       </div>
@@ -4316,7 +4542,12 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
                 transition: 'all 0.15s',
               }}>
                 {isCap && (
-                  <span style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>⭐</span>
+                  <span style={{
+                    position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
+                    width: 14, height: 14, borderRadius: '50%', background: '#d4a23c',
+                    color: '#0B1A12', fontSize: 9, fontWeight: 800, lineHeight: '14px', textAlign: 'center',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
+                  }}>C</span>
                 )}
                 {occupant ? (
                   <span style={{ fontSize: 8, fontWeight: 800, color: dark ? '#0a1a0f' : '#fff', textAlign: 'center', lineHeight: 1.15, padding: '0 3px', maxWidth: 40, wordBreak: 'break-word' }} className="pitch-spot-name">
@@ -4407,7 +4638,7 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], onC
 }
 
 // Chaveamento visual da Copa
-function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor }) {
+function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor, onViewTeam }) {
   const mc = myTeamColor || '#d4a23c';
   return (
     <div style={{ overflowX: 'auto', marginTop: 12 }}>
@@ -4429,7 +4660,10 @@ function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor }) {
                   {[{ team: h, id: m.homeId, won: hWon }, { team: a, id: m.awayId, won: aWon }].map(({ team, id, won }, ti) => (
                     <div key={ti} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: won ? 'rgba(127,217,154,0.1)' : id === myTeamId ? `${mc}15` : 'transparent', borderBottom: ti === 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
                       {team?.clubLogo && <img src={team.clubLogo} style={{ width: 12, height: 12, objectFit: 'contain' }} alt="" />}
-                      <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: id === myTeamId ? mc : won ? '#7fd99a' : '#F4F1EA', fontWeight: won ? 700 : 400 }}>{team?.label || '?'}</span>
+                      <span
+                        onClick={() => id !== myTeamId && onViewTeam && team && onViewTeam(team)}
+                        style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: id === myTeamId ? mc : won ? '#7fd99a' : '#F4F1EA', fontWeight: won ? 700 : 400, cursor: id === myTeamId ? 'default' : 'pointer' }}
+                      >{team?.label || '?'}</span>
                       {aggH !== null && <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700 }}>{ti === 0 ? aggH : aggA}</span>}
                     </div>
                   ))}
@@ -4447,7 +4681,19 @@ function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor }) {
 function TeamViewModal({ team, onClose, myTeamColor }) {
   const mc = myTeamColor || '#d4a23c';
   if (!team) return null;
-  const starters = team.players?.filter(p => !p.isBench) || team.players || [];
+  const players = team.players || [];
+  // Times humanos (draft) marcam isBench explicitamente. Times históricos/IA não têm essa
+  // marcação — nesse caso os 11 primeiros do elenco (ordem de origem) são os titulares.
+  const hasBenchFlag = players.some(p => p.isBench !== undefined);
+  const starters = hasBenchFlag ? players.filter(p => !p.isBench) : players.slice(0, 11);
+  const bench = hasBenchFlag ? players.filter(p => p.isBench) : players.slice(11);
+  const row = (p, i) => (
+    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
+      <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.join('/') || '-'}</span>
+      <span style={{ flex: 1 }}>{p.name}</span>
+      <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
+    </div>
+  );
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 400, maxHeight: '80vh', overflowY: 'auto' }}>
@@ -4459,13 +4705,18 @@ function TeamViewModal({ team, onClose, myTeamColor }) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20 }}>x</button>
         </div>
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc, marginBottom: 12 }}>OVR {team.ovr}</div>
-        {starters.map((p, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
-            <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.join('/') || '-'}</span>
-            <span style={{ flex: 1 }}>{p.name}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
-          </div>
-        ))}
+        <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4, fontFamily: "'Space Mono', monospace", textTransform: 'uppercase', letterSpacing: 1 }}>
+          Titulares
+        </div>
+        {starters.map(row)}
+        {bench.length > 0 && (
+          <>
+            <div style={{ fontSize: 10, opacity: 0.5, margin: '14px 0 4px', fontFamily: "'Space Mono', monospace", textTransform: 'uppercase', letterSpacing: 1 }}>
+              Reservas
+            </div>
+            {bench.map(row)}
+          </>
+        )}
       </div>
     </div>
   );
@@ -4546,7 +4797,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
     const rollingEl = (
       <div className="draft-left" style={playersPanelStyle}>
         <div style={styles.rollingBox}>
-          <span style={styles.diceIconSpin}>🎲</span>
+          <span style={styles.diceIconSpin}><Icon name="dice" size={36} color="#d4a23c" /></span>
           <div style={styles.rollingName}>{rollingPreview ? rollingPreview.label : '...'}</div>
           <div style={styles.rollingHint}>sorteando time...</div>
         </div>
@@ -4606,7 +4857,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
           <div style={styles.teamHeaderCard}>
             {CLUB_LOGOS[rolledTeam.club]
               ? <img src={CLUB_LOGOS[rolledTeam.club]} style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }} alt={rolledTeam.club} />
-              : <span style={{ fontSize: 20 }}>🎲</span>
+              : <Icon name="dice" size={20} color="#d4a23c" />
             }
             <div>
               <div style={styles.rolledTeamLabel}>{rolledTeam.label}</div>
@@ -4735,17 +4986,17 @@ function ChemistryDisplay({ pitch, compact = false }) {
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
         {breakdown.epoca > 0 && (
           <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(127,217,154,0.15)', color: '#7fd99a', fontFamily: "'Space Mono', monospace" }}>
-            ⚡ {breakdown.epoca} par{breakdown.epoca > 1 ? 'es' : ''} mesma época (+5)
+            {breakdown.epoca} par{breakdown.epoca > 1 ? 'es' : ''} mesma época (+5)
           </span>
         )}
         {breakdown.clube > 0 && (
           <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(212,162,60,0.15)', color: '#d4a23c', fontFamily: "'Space Mono', monospace" }}>
-            🤝 {breakdown.clube} par{breakdown.clube > 1 ? 'es' : ''} mesmo clube (+2)
+            {breakdown.clube} par{breakdown.clube > 1 ? 'es' : ''} mesmo clube (+2)
           </span>
         )}
         {breakdown.pais > 0 && (
           <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)', fontFamily: "'Space Mono', monospace" }}>
-            🌎 {breakdown.pais} par{breakdown.pais > 1 ? 'es' : ''} mesmo país (+1)
+            {breakdown.pais} par{breakdown.pais > 1 ? 'es' : ''} mesmo país (+1)
           </span>
         )}
       </div>
@@ -4901,7 +5152,7 @@ function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulat
       const j = {};
       for (let i = 0; i < 22; i++) j[i] = { dx: (Math.random() - 0.5) * 3.2, dy: (Math.random() - 0.5) * 3.2 };
       setJitter(j);
-    }, 800);
+    }, 550);
     return () => clearInterval(id);
   }, [isSimulating]);
 
@@ -4909,13 +5160,13 @@ function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulat
   useEffect(() => {
     if (!isSimulating) return;
     const id = setInterval(() => {
-      tRef.current += 0.22;
+      tRef.current += 0.3;
       const t = tRef.current;
       setBall({
         x: Math.max(6, Math.min(94, 50 + Math.sin(t) * 30)),
         y: Math.max(5, Math.min(55, 30 + Math.sin(t * 0.71 + 1.3) * 20)),
       });
-    }, 480);
+    }, 350);
     return () => clearInterval(id);
   }, [isSimulating]);
 
@@ -4959,7 +5210,7 @@ function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulat
       <div key={p.key} title={p.name} style={{
         position: 'absolute', left, top,
         transform: 'translate(-50%,-50%)',
-        transition: 'left 0.65s ease, top 0.65s ease',
+        transition: 'left 0.42s ease, top 0.42s ease',
         display: 'flex', flexDirection: 'column', alignItems: 'center',
         zIndex: 2, pointerEvents: 'none', userSelect: 'none',
       }}>
@@ -5052,11 +5303,11 @@ function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulat
         left: `${ball.x}%`,
         top: `${ball.y / 60 * 100}%`,
         transform: 'translate(-50%,-50%)',
-        transition: 'left 0.42s ease, top 0.42s ease',
-        fontSize: 11, zIndex: 3, lineHeight: 1,
+        transition: 'left 0.3s ease, top 0.3s ease',
+        zIndex: 3, lineHeight: 1,
         filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.8))',
         pointerEvents: 'none',
-      }}>⚽</div>
+      }}><Icon name="ball" size={11} color="#fff" strokeWidth={1.4} /></div>
     </div>
   );
 }
@@ -5099,11 +5350,11 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
   const clearT = () => { if (tiRef.current) clearTimeout(tiRef.current); };
 
   const getResultText = (scored, isMine) => {
-    if (scored) return isMine ? 'GOOOOOL! ⚽' : 'GOL ⚽';
+    if (scored) return isMine ? 'GOOOOOL!' : 'GOL';
     const r = Math.random();
-    if (r < 0.35 && !isMine) return `DEFENDE O ${oppGkName}! 🧤`;
-    if (r < 0.65) return isMine ? 'ISOLOOOOU! 😩' : 'ISOLOU';
-    return isMine ? 'ERROOOOU! 😱' : 'ERROU';
+    if (r < 0.35 && !isMine) return `DEFENDE O ${oppGkName}!`;
+    if (r < 0.65) return isMine ? 'ISOLOOOOU!' : 'ISOLOU';
+    return isMine ? 'ERROOOOU!' : 'ERROU';
   };
 
   const resolveKick = (taker) => {
@@ -5190,7 +5441,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
   const renderKickDots = (results, isMe) => (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
       {results.map((r, i) => (
-        <span key={i} style={{ fontSize: 16, lineHeight: 1 }}>{r.scored ? '🟢' : '🔴'}</span>
+        <span key={i} style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: r.scored ? '#3fbf6f' : '#e0503f' }} />
       ))}
     </div>
   );
@@ -5205,8 +5456,8 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
       padding: '20px 16px',
     }}>
       {/* Header */}
-      <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: 22, fontWeight: 700, color: '#F4F1EA', marginBottom: 4, textAlign: 'center' }}>
-        ⚽ Disputa de Pênaltis
+      <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: 22, fontWeight: 700, color: '#F4F1EA', marginBottom: 4, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+        <Icon name="ball" size={20} /> Disputa de Pênaltis
         {isSuddenDeath && <span style={{ fontSize: 12, color: '#e05050', marginLeft: 8 }}>MORTE SÚBITA</span>}
       </div>
 
@@ -5277,8 +5528,9 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
 
         {phase === 'done' && (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: mc, fontFamily: "'Fraunces',Georgia,serif", marginBottom: 8 }}>
-              {winner === '__myteam__' ? '🏆 Classificado nos pênaltis!' : '💔 Eliminado nos pênaltis'}
+            <div style={{ fontSize: 22, fontWeight: 700, color: mc, fontFamily: "'Fraunces',Georgia,serif", marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              {winner === '__myteam__' && <Icon name="trophy" size={20} color={mc} />}
+              {winner === '__myteam__' ? 'Classificado nos pênaltis!' : 'Eliminado nos pênaltis'}
             </div>
             <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 16 }}>
               {myTeamLabel} {myGoals} × {opGoals} {oppTeamLabel}
@@ -5305,9 +5557,12 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
 // ============================================================
 // TELA DE JOGO: liga com cronômetro e tabela
 // ============================================================
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
+  const teamCrest = (team) => team.id === myTeamId
+    ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="" /> : <Icon name="shield" size={20} color={mc} />)
+    : (team.clubLogo && <img src={team.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />);
   return (
     <div style={styles.liveMatchBox} className="card-mob">
       <AnimatedPitch
@@ -5319,10 +5574,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
       <div style={styles.liveTeamsRow} className="live-teams-row">
         <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} className="live-team-n">
           <span>{homeTeam.label}</span>
-          {homeTeam.id === myTeamId
-            ? (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>)
-            : (homeTeam.clubLogo && <img src={homeTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />)
-          }
+          {teamCrest(homeTeam)}
         </div>
         <div style={styles.liveScoreBlock}>
           <span style={styles.liveScoreNum} className="live-score-n">{liveScore.home}</span>
@@ -5330,10 +5582,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
           <span style={styles.liveScoreNum} className="live-score-n">{liveScore.away}</span>
         </div>
         <div style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6 }} className="live-team-n">
-          {awayTeam.id === myTeamId
-            ? (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>)
-            : (awayTeam.clubLogo && <img src={awayTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />)
-          }
+          {teamCrest(awayTeam)}
           <span>{awayTeam.label}</span>
         </div>
       </div>
@@ -5380,7 +5629,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
             return (
               <div key={i} style={{ ...styles.goalEvent, background: isMyGoal ? 'rgba(127,217,154,0.1)' : 'rgba(224,89,63,0.08)', borderLeft: isMyGoal ? '3px solid #7fd99a' : '3px solid rgba(224,89,63,0.5)' }}>
                 <span style={styles.goalMinute}>{ev.minute}'</span>
-                <span style={styles.goalBall}>⚽</span>
+                <span style={styles.goalBall}><Icon name="ball" size={13} color="#F4F1EA" /></span>
                 <div style={styles.goalInfo}>
                   <span style={styles.goalScorer}>{ev.scorer}</span>
                   <span style={styles.goalTeam}>{ev.teamLabel}</span>
@@ -5470,7 +5719,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub }) {
+function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -5502,7 +5751,6 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         return (
           <div style={styles.card} className="card-mob">
             <div style={{ textAlign: 'center', padding: '24px 0 16px' }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>😔</div>
               <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Eliminado nas {elimRoundName}</div>
               <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 20 }}>O torneio continua sem voce.</div>
               {simMode === 'manual' && <button style={styles.btnSmall} onClick={onStartRound}>Simular proxima fase</button>}
@@ -5518,7 +5766,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
             {cupRounds.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <div style={styles.sectionLabel}>Chaveamento</div>
-                <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} />
+                <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} onViewTeam={onViewTeam} />
               </div>
             )}
           </div>
@@ -5536,7 +5784,6 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
       return (
         <div style={styles.card} className="card-mob">
           <div style={{ textAlign: 'center', padding: '20px 0 10px' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>😔</div>
             <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Eliminado!</div>
             <div style={{ fontSize: 14, opacity: 0.6, marginBottom: 6 }}>Seu time foi eliminado nas {elimRoundName}.</div>
             {elimUserAgg !== null && elimOppAgg !== null && (
@@ -5580,7 +5827,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           {cupRounds.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <div style={styles.sectionLabel}>Chaveamento</div>
-              <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} />
+              <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} onViewTeam={onViewTeam} />
             </div>
           )}
         </div>
@@ -5595,8 +5842,8 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
             <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginTop: 2 }}>{roundName}</div>
           </div>
           {roundDone && userInCup && simMode === 'manual' && (
-            <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12' }} onClick={onNextRound}>
-              {isLastCupRound && cupLeg === 2 ? '🏆 Ver campeão →' : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →'}
+            <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={onNextRound}>
+              {isLastCupRound && cupLeg === 2 ? <><Icon name="trophy" size={13} /> Ver campeão →</> : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →'}
             </button>
           )}
           {roundDone && userInCup && simMode === 'auto' && autoCountdown !== null && (
@@ -5621,7 +5868,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
 
         <LiveMatchBox
           um={um} homeTeam={homeTeam} awayTeam={awayTeam}
-          myTeamId={myTeamId} myTeamBadge={myTeamBadge} mc={mc}
+          myTeamId={myTeamId} myTeamLogo={myTeamLogo} mc={mc}
           liveScore={liveScore} clockDisplay={clockDisplay}
           isSimulating={isSimulating} roundDone={roundDone}
           liveEvents={liveEvents} simSpeed={simSpeed}
@@ -5673,9 +5920,9 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
                   const winH = aggHome > aggAway, winA = aggAway > aggHome;
                   return (
                     <div key={i} style={styles.otherMatchRow}>
-                      <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined }}>{h?.label}</span>
+                      <span onClick={() => onViewTeam && h && onViewTeam(h)} style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined, cursor: 'pointer' }}>{h?.label}</span>
                       <span style={styles.otherScore}>{aggHome} – {aggAway}</span>
-                      <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined }}>{a?.label}</span>
+                      <span onClick={() => onViewTeam && a && onViewTeam(a)} style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined, cursor: 'pointer' }}>{a?.label}</span>
                     </div>
                   );
                 })
@@ -5685,9 +5932,9 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
                 const winH = r.homeGoals > r.awayGoals, winA = r.awayGoals > r.homeGoals;
                 return (
                   <div key={i} style={styles.otherMatchRow}>
-                    <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined }}>{h?.label}</span>
+                    <span onClick={() => onViewTeam && h && onViewTeam(h)} style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined, cursor: 'pointer' }}>{h?.label}</span>
                     <span style={styles.otherScore}>{r.homeGoals} – {r.awayGoals}</span>
-                    <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined }}>{a?.label}</span>
+                    <span onClick={() => onViewTeam && a && onViewTeam(a)} style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined, cursor: 'pointer' }}>{a?.label}</span>
                   </div>
                 );
               })
@@ -5721,7 +5968,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         {cupRounds.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <div style={styles.sectionLabel}>Chaveamento</div>
-            <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} />
+            <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} onViewTeam={onViewTeam} />
           </div>
         )}
       </div>
@@ -5753,7 +6000,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
 
       <LiveMatchBox
         um={um} homeTeam={homeTeam} awayTeam={awayTeam}
-        myTeamId={myTeamId} myTeamBadge={myTeamBadge} mc={mc}
+        myTeamId={myTeamId} myTeamLogo={myTeamLogo} mc={mc}
         liveScore={liveScore} clockDisplay={clockDisplay}
         isSimulating={isSimulating} roundDone={roundDone}
         liveEvents={liveEvents} simSpeed={simSpeed}
@@ -5776,9 +6023,9 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
             const hw = r.homeGoals > r.awayGoals, aw = r.awayGoals > r.homeGoals;
             return (
               <div key={i} style={styles.otherMatchRow}>
-                <span style={{ ...styles.otherTeam, fontWeight: hw ? 700 : 400 }}>{h?.label}</span>
+                <span onClick={() => onViewTeam && h && onViewTeam(h)} style={{ ...styles.otherTeam, fontWeight: hw ? 700 : 400, cursor: 'pointer' }}>{h?.label}</span>
                 <span style={styles.otherScore}>{r.homeGoals} – {r.awayGoals}</span>
-                <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: aw ? 700 : 400 }}>{a?.label}</span>
+                <span onClick={() => onViewTeam && a && onViewTeam(a)} style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: aw ? 700 : 400, cursor: 'pointer' }}>{a?.label}</span>
               </div>
             );
           })}
@@ -5816,7 +6063,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
                 style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, cursor: isMe ? 'default' : 'pointer' }}
               >
                 {isMe
-                  ? (myTeamBadge && <span>{myTeamBadge}</span>)
+                  ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0, borderRadius: 3 }} alt="" /> : <Icon name="shield" size={13} color={mc} />)
                   : (row.clubLogo && <img src={row.clubLogo} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} alt="" />)
                 }
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</span>
@@ -5900,25 +6147,29 @@ function getMostCommonClub(players = []) {
 function AnthemPlayer({ club }) {
   const [playing, setPlaying] = React.useState(true);
   const videoId = CLUB_ANTHEMS[club];
-  if (!videoId) return null;
   return (
     <div style={{ marginTop: 24, borderRadius: 12, border: '1px solid rgba(212,162,60,0.3)', background: '#0a1a0f', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-      {/* iframe escondido — só áudio */}
-      <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
-        {playing && (
-          <iframe
-            key={videoId}
-            width="1"
-            height="1"
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0`}
-            allow="autoplay; encrypted-media"
-            title={`Hino ${club}`}
-          />
-        )}
-      </div>
+      {/* iframe escondido — só áudio (hino específico do clube, quando existe) */}
+      {videoId ? (
+        <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+          {playing && (
+            <iframe
+              key={videoId}
+              width="1"
+              height="1"
+              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0`}
+              allow="autoplay; encrypted-media"
+              title={`Hino ${club}`}
+            />
+          )}
+        </div>
+      ) : (
+        // Sem hino mapeado pro clube — toca o áudio-base padrão
+        playing && <audio key="acabou-bg" src="/acabou.mp3" autoPlay loop style={{ display: 'none' }} />
+      )}
 
       {/* Indicador visual */}
-      <div style={{ fontSize: 28 }}>🎵</div>
+      <Icon name="music" size={24} color="#d4a23c" />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#d4a23c' }}>Hino do Campeão</div>
         <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>{club}</div>
@@ -5934,13 +6185,13 @@ function AnthemPlayer({ club }) {
         onClick={() => setPlaying(p => !p)}
         style={{ background: playing ? 'rgba(212,162,60,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${playing ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 8, color: playing ? '#d4a23c' : '#aaa', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 600 }}
       >
-        {playing ? '⏸ Pausar' : '▶ Tocar'}
+        {playing ? 'Pausar' : 'Tocar'}
       </button>
     </div>
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, onNewSeason }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, onNewSeason }) {
   const mc = myTeamColor || '#d4a23c';
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
 
@@ -5952,18 +6203,18 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
     return (
       <div style={styles.card} className="card-mob">
         <div style={{ textAlign: 'center', padding: '12px 0 28px' }}>
-          <div style={{ fontSize: 56, marginBottom: 12 }}>{userWon ? '🏆' : '⚽'}</div>
+          <div style={{ marginBottom: 12 }}><Icon name={userWon ? 'trophy' : 'ball'} size={48} color={userWon ? mc : 'rgba(255,255,255,0.5)'} /></div>
           <div style={styles.eyebrow}>Copa do Brasil — Resultado Final</div>
           <h1 style={{ ...styles.h1, color: userWon ? mc : '#F4F1EA', marginTop: 8 }}>
             {userWon ? 'CAMPEAO!' : 'Copa encerrada'}
           </h1>
           <div style={{ fontSize: 15, opacity: 0.7, marginBottom: 20 }}>
             {userWon
-              ? `${myTeamBadge || ''} ${myTeamBadge ? ' ' : ''}Seu time conquistou a Copa do Brasil!`
+              ? 'Seu time conquistou a Copa do Brasil!'
               : <>Campeao: <b style={{ color: '#d4a23c' }}>{winner?.label ?? '-'}</b></>
             }
           </div>
-          {!userWon && myTeamBadge && (
+          {!userWon && (
             <div style={styles.badgeMuted}>Seu time foi eliminado antes da final. Tente de novo!</div>
           )}
           {userWon && <div style={styles.badge}>Copa do Brasil conquistada! Time lendario!</div>}
@@ -6001,6 +6252,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
   return (
     <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>Fim do Brasileirao · Serie A</div>
+      {isChampion && <div style={{ marginTop: 8 }}><Icon name="trophy" size={40} color={mc} /></div>}
       <h1 style={styles.h1} className="h1-mob">
         {isChampion ? 'CAMPEAO!' : podium ? `${pos}o lugar — podio!` : `${pos}o lugar`}
       </h1>
@@ -6064,8 +6316,8 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
             }}>
               <span style={styles.tablePos}>{i + 1}</span>
-              <span style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13 }}>
-                {isMe && myTeamBadge && <span style={{ marginRight: 4 }}>{myTeamBadge}</span>}
+              <span style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
+                {isMe && (myTeamLogo ? <img src={myTeamLogo} style={{ width: 15, height: 15, objectFit: 'contain', borderRadius: 3 }} alt="" /> : <Icon name="shield" size={13} color={mc} />)}
                 {row.label}
               </span>
               <span style={styles.tableCell}>{row.pj}</span>
