@@ -1938,6 +1938,15 @@ const BASE_COORDS = {
   ATA: { x: 50, y: 11 },
 };
 
+// Ordem goleiro → defesa → meio → ataque, pra listar titulares de forma
+// legível (ex.: painel de substituição) em vez da ordem de escalação no draft.
+const POS_ORDER = ['GOL', 'LD', 'ZAG', 'LE', 'VOL', 'MC', 'MEI', 'MD', 'ME', 'PD', 'PE', 'ATA'];
+function posOrderIndex(slotKey) {
+  const base = slotKey.replace(/\d+$/, '');
+  const idx = POS_ORDER.indexOf(base);
+  return idx === -1 ? POS_ORDER.length : idx;
+}
+
 function buildPitchSlots(formationKey) {
   const { counts } = FORMATIONS[formationKey];
   const slots = [];
@@ -1967,51 +1976,13 @@ function shuffle2(arr) {
 }
 
 // ============================================================
-// ENTROSAMENTO
-// ============================================================
-// Por par de jogadores:
-//   mesmo clube + mesmo ano  → +5  (= +2 clube + +3 extra)
-//   mesmo clube (anos dif.)  → +2
-//   mesmo país               → +1
-// Baseline: 11 jogadores, todos de países distintos → 0 pares com bônus
-const CHEM_MAX_OVR = 5; // bônus máximo de OVR concedido pelo entrosamento
-
-function calcChemistry(players) {
-  let score = 0;
-  const breakdown = { epoca: 0, clube: 0, pais: 0 };
-
-  for (let i = 0; i < players.length; i++) {
-    for (let j = i + 1; j < players.length; j++) {
-      const a = players[i], b = players[j];
-      const sameClub = a.club && b.club && a.club === b.club;
-      const sameYear = sameClub && a.year != null && a.year === b.year;
-      const sameNat = (a.nat || 'BRA') === (b.nat || 'BRA');
-
-      if (sameYear) { score += 5; breakdown.epoca++; }
-      else if (sameClub) { score += 2; breakdown.clube++; }
-      else if (sameNat) { score += 1; breakdown.pais++; }
-    }
-  }
-
-  const n = players.length;
-  const totalPairs = n * (n - 1) / 2;
-  // teórico: se todos sem nada em comum → 0; se todos mesmo clube ≠ ano → 2*totalPairs
-  const maxScore = totalPairs * 5; // todos mesmo ano+clube
-  const pct = maxScore > 0 ? Math.round(score / maxScore * 100) : 0;
-  const ovrBonus = maxScore > 0 ? (score / maxScore) * CHEM_MAX_OVR : 0;
-
-  return { score, breakdown, pct, ovrBonus: Math.round(ovrBonus * 10) / 10 };
-}
-
-// ============================================================
 // MOTOR DE SIMULAÇÃO
 // ============================================================
 function teamStrength(xi) {
   const vals = Object.values(xi).filter(p => !p.isBench);
   if (vals.length === 0) return 50;
   const baseOvr = vals.reduce((s, p) => s + p.ovr, 0) / vals.length;
-  const { ovrBonus } = calcChemistry(vals);
-  return Math.round((baseOvr + ovrBonus) * 10) / 10;
+  return Math.round(baseOvr * 10) / 10;
 }
 
 // Simulação de disputa de pênaltis (5 cobranças + morte súbita)
@@ -2081,15 +2052,18 @@ const GOAL_AUDIO = {
   'Vasco': ['/gol/Vasco.mp3'],
 };
 let goalAudioEl = null;
-function playGoalAudio(club) {
-  const clips = GOAL_AUDIO[club];
-  if (!clips || clips.length === 0) return false;
+function playAudioClip(src) {
+  if (!src) return false;
   if (goalAudioEl) { goalAudioEl.pause(); goalAudioEl.currentTime = 0; }
-  const src = clips[Math.floor(Math.random() * clips.length)];
   goalAudioEl = new Audio(src);
   goalAudioEl.volume = 1;
   goalAudioEl.play().catch(() => { });
   return true;
+}
+function playGoalAudio(club) {
+  const clips = GOAL_AUDIO[club];
+  if (!clips || clips.length === 0) return false;
+  return playAudioClip(clips[Math.floor(Math.random() * clips.length)]);
 }
 
 // Narração sintética (fallback) estilo transmissão de TV: grito de gol longo
@@ -2102,7 +2076,8 @@ const GOAL_CALLS = [
   'Inacreditável esse gol!',
   'Explode o estádio!',
 ];
-function narrateGoal(scorer, isMyGoal, club) {
+function narrateGoal(scorer, isMyGoal, club, myGoalAudio) {
+  if (isMyGoal && playAudioClip(myGoalAudio)) return;
   if (playGoalAudio(club)) return;
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
@@ -2352,6 +2327,10 @@ export default function App() {
   const [myTeamColor, setMyTeamColor] = useState(_sv?.myTeamColor ?? '#d4a23c');
   const [myTeamCoach, setMyTeamCoach] = useState(_sv?.myTeamCoach ?? '');
   const [myTeamCity, setMyTeamCity] = useState(_sv?.myTeamCity ?? '');
+  // Áudio customizado de gol (link direto, gravação ou arquivo — data URL ou link).
+  // Não é persistido no autosave: arquivos gravados/enviados viram data URLs grandes
+  // e estourariam a cota do localStorage (mesmo tratamento do myTeamLogo).
+  const [myGoalAudio, setMyGoalAudio] = useState(null);
 
   // Modo de jogo
   const [gameMode, setGameMode] = useState(_sv?.gameMode ?? 'brasileirao'); // 'brasileirao' | 'copa' | 'multi'
@@ -2413,6 +2392,11 @@ export default function App() {
   const [subSelectStarter, setSubSelectStarter] = useState(null);
   const [liveLineup, setLiveLineup] = useState(null);
   const [penaltyPhase, setPenaltyPhase] = useState(null);
+  const MAX_SUB_WINDOWS = 3;
+  const MAX_SUBS = 5;
+  const [subWindowsUsed, setSubWindowsUsed] = useState(0);
+  const [subsUsed, setSubsUsed] = useState(0);
+  const [subbedOutPlayers, setSubbedOutPlayers] = useState([]); // nomes dos jogadores que já saíram — não podem voltar
 
   const timerRef = useRef(null);
   const clockRef = useRef(null);
@@ -2566,11 +2550,13 @@ export default function App() {
   };
 
   const pauseSim = () => {
+    if (subWindowsUsed >= MAX_SUB_WINDOWS) return; // sem mais paradas pra substituir
     if (clockRef.current) clearTimeout(clockRef.current);
     clockRef.current = null;
     isPausedRef.current = true;
     setIsPaused(true);
     setShowSubPanel(true);
+    setSubWindowsUsed(w => w + 1);
   };
 
   const resumeSim = () => {
@@ -2585,6 +2571,8 @@ export default function App() {
   };
 
   const applyLiveSub = (starterKey, benchPlayer) => {
+    if (subsUsed >= MAX_SUBS) return; // já usou as 5 substituições
+    if (subbedOutPlayers.includes(benchPlayer.name)) return; // esse jogador já saiu e não pode voltar
     const starter = liveLineupRef.current?.[starterKey];
     if (!starter || !benchPlayer) return;
     const starterMeta = pitchSlots.find(s => s.key === starterKey);
@@ -2597,6 +2585,8 @@ export default function App() {
       liveLineupRef.current = next;
       return next;
     });
+    setSubbedOutPlayers(prev => [...prev, starter.name]);
+    setSubsUsed(n => n + 1);
     setSubSelectStarter(null);
   };
 
@@ -2641,7 +2631,7 @@ export default function App() {
     let pool = [];
     while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
     const opps = pool.slice(0, neededAI).map((t, idx) => {
-      // Adiciona club/year/nat para que o entrosamento seja calculado corretamente
+      // Adiciona club/year/nat — usados no hino do clube, no áudio de gol e na visualização de elenco
       const playersWithMeta = t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' }));
       return {
         id: `${t.id}_${idx}`,
@@ -2726,6 +2716,9 @@ export default function App() {
     setShowSubPanel(false);
     setSubSelectStarter(null);
     setPenaltyPhase(null);
+    setSubWindowsUsed(0);
+    setSubsUsed(0);
+    setSubbedOutPlayers([]);
     // Init live lineup from current pitch
     const initLL = { ...pitch };
     setLiveLineup(initLL);
@@ -2753,7 +2746,7 @@ export default function App() {
           ...prev,
           [ev.scorer]: { goals: (prev[ev.scorer]?.goals || 0) + 1, teamLabel: ev.teamLabel }
         }));
-        narrateGoal(ev.scorer, ev.teamId === myTeamId, ev.teamId === homeTeam.id ? homeTeam.club : awayTeam.club);
+        narrateGoal(ev.scorer, ev.teamId === myTeamId, ev.teamId === homeTeam.id ? homeTeam.club : awayTeam.club, myGoalAudio);
       }
 
       setClockMinute(minute);
@@ -2891,7 +2884,7 @@ export default function App() {
 
     tickFnRef.current = tick;
     clockRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
-  }, [fixtures, currentRound, leagueTeams, isSimulating, gameMode, cupRoundIdx, myTeamId, roomSnap?.seed]);
+  }, [fixtures, currentRound, leagueTeams, isSimulating, gameMode, cupRoundIdx, myTeamId, roomSnap?.seed, myGoalAudio]);
 
   const goNextRound = useCallback(() => {
     const next = currentRound + 1;
@@ -3060,6 +3053,9 @@ export default function App() {
     setSubSelectStarter(null);
     setLiveLineup(null);
     setPenaltyPhase(null);
+    setSubWindowsUsed(0);
+    setSubsUsed(0);
+    setSubbedOutPlayers([]);
     isPausedRef.current = false;
     tickFnRef.current = null;
     liveLineupRef.current = null;
@@ -3571,6 +3567,7 @@ export default function App() {
             onSetCoach={setMyTeamCoach} onSetCity={setMyTeamCity}
             onSetLogo={setMyTeamLogo} cropSrc={cropSrc} onSetCropSrc={setCropSrc}
             onMultiPlayer={() => setMultiPhase('lobby')}
+            myGoalAudio={myGoalAudio} onSetGoalAudio={setMyGoalAudio}
           />
         )}
         {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} />}
@@ -3652,6 +3649,12 @@ export default function App() {
             subSelectStarter={subSelectStarter}
             onSelectSubStarter={setSubSelectStarter}
             onApplySub={applyLiveSub}
+            subWindowsUsed={subWindowsUsed}
+            maxSubWindows={MAX_SUB_WINDOWS}
+            subsUsed={subsUsed}
+            maxSubs={MAX_SUBS}
+            subbedOutPlayers={subbedOutPlayers}
+            pitchSlots={pitchSlots}
           />
         )}
         {phase === 'results' && (
@@ -3786,7 +3789,7 @@ function parseYouTubeId(input) {
   return null;
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo, onSetName, onSetColor, onSetCoach, onSetCity, onSetLogo, cropSrc, onSetCropSrc, onMultiPlayer }) {
+function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo, onSetName, onSetColor, onSetCoach, onSetCity, onSetLogo, cropSrc, onSetCropSrc, onMultiPlayer, myGoalAudio, onSetGoalAudio }) {
   const displayName = myTeamName || 'Meu Time';
   const fileInputRef = useRef(null);
   const [musicOn, setMusicOn] = React.useState(false);
@@ -3804,6 +3807,70 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
     const url = URL.createObjectURL(file);
     onSetCropSrc(url);
     e.target.value = '';
+  };
+
+  // Áudio de gol personalizado — link, gravação ou arquivo
+  const [goalAudioOn, setGoalAudioOn] = React.useState(false);
+  const [goalAudioMode, setGoalAudioMode] = React.useState('link'); // 'link' | 'record' | 'file'
+  const [goalAudioLinkInput, setGoalAudioLinkInput] = React.useState('');
+  const [goalAudioLinkError, setGoalAudioLinkError] = React.useState(false);
+  const [isRecordingGoalAudio, setIsRecordingGoalAudio] = React.useState(false);
+  const [recordError, setRecordError] = React.useState('');
+  const goalAudioFileRef = useRef(null);
+  const mediaRecorderRef = useRef(null);
+  const recordedChunksRef = useRef([]);
+  const recordStreamRef = useRef(null);
+  const recordTimeoutRef = useRef(null);
+
+  const applyGoalAudioLink = () => {
+    const url = goalAudioLinkInput.trim();
+    if (!/^https?:\/\/.+/i.test(url)) { setGoalAudioLinkError(true); return; }
+    setGoalAudioLinkError(false);
+    onSetGoalAudio(url);
+  };
+
+  const handleGoalAudioFile = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => onSetGoalAudio(ev.target.result);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  const stopRecordingStream = () => {
+    if (recordTimeoutRef.current) { clearTimeout(recordTimeoutRef.current); recordTimeoutRef.current = null; }
+    recordStreamRef.current?.getTracks().forEach(t => t.stop());
+    recordStreamRef.current = null;
+  };
+
+  const startRecordingGoalAudio = async () => {
+    setRecordError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      recordStreamRef.current = stream;
+      recordedChunksRef.current = [];
+      const rec = new MediaRecorder(stream);
+      mediaRecorderRef.current = rec;
+      rec.ondataavailable = e => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
+      rec.onstop = () => {
+        const blob = new Blob(recordedChunksRef.current, { type: rec.mimeType || 'audio/webm' });
+        const reader = new FileReader();
+        reader.onload = ev => onSetGoalAudio(ev.target.result);
+        reader.readAsDataURL(blob);
+        stopRecordingStream();
+        setIsRecordingGoalAudio(false);
+      };
+      rec.start();
+      setIsRecordingGoalAudio(true);
+      recordTimeoutRef.current = setTimeout(() => rec.state === 'recording' && rec.stop(), 6000);
+    } catch {
+      setRecordError('Não foi possível acessar o microfone. Verifique a permissão do navegador.');
+    }
+  };
+
+  const stopRecordingGoalAudio = () => {
+    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
   };
 
   return (
@@ -4042,6 +4109,96 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
                 )}
                 {!musicId && musicInput && (
                   <div style={{ fontSize: 11, color: '#e05050', marginTop: 6 }}>Link inválido — cole um link do YouTube ou ID de 11 caracteres.</div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div style={styles.teamEditSep} />
+
+          {/* Áudio do seu gol */}
+          <div>
+            <button
+              onClick={() => setGoalAudioOn(v => !v)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
+                background: goalAudioOn ? hexToRgba(myTeamColor, 0.1) : 'rgba(255,255,255,0.04)',
+                border: `1px solid ${goalAudioOn ? hexToRgba(myTeamColor, 0.35) : 'rgba(255,255,255,0.1)'}`,
+                borderRadius: 10, padding: '9px 14px', cursor: 'pointer',
+                color: goalAudioOn ? myTeamColor : 'rgba(255,255,255,0.5)',
+                fontSize: 13, fontWeight: 600, transition: 'all 0.15s',
+              }}
+            >
+              <Icon name="ball" size={15} />
+              Áudio do seu gol
+              <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.6 }}>{myGoalAudio ? 'definido' : 'opcional'}</span>
+            </button>
+            {goalAudioOn && (
+              <div style={{ marginTop: 8, background: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 12, border: '1px solid rgba(255,255,255,0.07)' }}>
+                {myGoalAudio ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
+                    <Icon name="ball" size={16} color={myTeamColor} />
+                    <div style={{ flex: 1, minWidth: 0, fontSize: 11, opacity: 0.7 }}>Áudio de gol definido</div>
+                    <button onClick={() => { new Audio(myGoalAudio).play().catch(() => { }); }} style={{ background: hexToRgba(myTeamColor, 0.15), border: `1px solid ${hexToRgba(myTeamColor, 0.4)}`, borderRadius: 6, color: myTeamColor, cursor: 'pointer', padding: '4px 10px', fontSize: 11, fontWeight: 600 }}>Tocar</button>
+                    <button onClick={() => onSetGoalAudio(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 16, padding: 0 }}>✕</button>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                      {[['link', 'Link'], ['record', 'Gravar'], ['file', 'Arquivo']].map(([m, label]) => (
+                        <button key={m} onClick={() => setGoalAudioMode(m)} style={{
+                          flex: 1, fontSize: 11, fontWeight: 600, padding: '6px 8px', borderRadius: 6, cursor: 'pointer',
+                          border: `1px solid ${goalAudioMode === m ? hexToRgba(myTeamColor, 0.5) : 'rgba(255,255,255,0.12)'}`,
+                          background: goalAudioMode === m ? hexToRgba(myTeamColor, 0.15) : 'transparent',
+                          color: goalAudioMode === m ? myTeamColor : 'rgba(255,255,255,0.5)',
+                        }}>{label}</button>
+                      ))}
+                    </div>
+                    {goalAudioMode === 'link' && (
+                      <div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <input
+                            value={goalAudioLinkInput}
+                            onChange={e => setGoalAudioLinkInput(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && applyGoalAudioLink()}
+                            placeholder="Link direto do áudio (mp3, wav…)"
+                            style={{ ...styles.teamInput, flex: 1, margin: 0 }}
+                          />
+                          <button onClick={applyGoalAudioLink} style={{ background: myTeamColor, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                            Usar
+                          </button>
+                        </div>
+                        {goalAudioLinkError && (
+                          <div style={{ fontSize: 11, color: '#e05050', marginTop: 6 }}>Link inválido — cole a URL direta de um arquivo de áudio.</div>
+                        )}
+                      </div>
+                    )}
+                    {goalAudioMode === 'record' && (
+                      <div>
+                        <button
+                          onClick={isRecordingGoalAudio ? stopRecordingGoalAudio : startRecordingGoalAudio}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 8, width: '100%', justifyContent: 'center',
+                            background: isRecordingGoalAudio ? 'rgba(224,80,80,0.15)' : hexToRgba(myTeamColor, 0.15),
+                            border: `1px solid ${isRecordingGoalAudio ? 'rgba(224,80,80,0.5)' : hexToRgba(myTeamColor, 0.4)}`,
+                            borderRadius: 8, color: isRecordingGoalAudio ? '#e05050' : myTeamColor,
+                            cursor: 'pointer', padding: '8px 14px', fontSize: 13, fontWeight: 700,
+                          }}
+                        >
+                          {isRecordingGoalAudio ? 'Gravando… toque para parar' : 'Gravar (máx. 6s)'}
+                        </button>
+                        {recordError && <div style={{ fontSize: 11, color: '#e05050', marginTop: 6 }}>{recordError}</div>}
+                      </div>
+                    )}
+                    {goalAudioMode === 'file' && (
+                      <>
+                        <input ref={goalAudioFileRef} type="file" accept="audio/*" onChange={handleGoalAudioFile} style={{ display: 'none' }} />
+                        <button onClick={() => goalAudioFileRef.current?.click()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', padding: '8px', borderRadius: 8, border: '1px dashed rgba(255,255,255,0.2)', background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: 12 }}>
+                          Escolher arquivo de áudio
+                        </button>
+                      </>
+                    )}
+                  </>
                 )}
               </div>
             )}
@@ -4731,7 +4888,7 @@ function getZoneInfo(pos, total) {
   return null;
 }
 
-function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, pitch, onBack }) {
+function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack }) {
   const pct = total > 0 ? (filled / total) * 100 : 0;
   const canSkip = skipsLeft > 0;
   return (
@@ -4762,11 +4919,6 @@ function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, pitch, 
       <div style={styles.progressBar}>
         <div style={{ ...styles.progressFill, width: `${pct}%` }} />
       </div>
-      {filled > 1 && (
-        <div style={{ marginTop: 8 }}>
-          <ChemistryDisplay pitch={pitch} compact />
-        </div>
-      )}
     </div>
   );
 }
@@ -4805,7 +4957,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
     );
     return (
       <div style={styles.card} className="card-mob">
-        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} pitch={pitch} />
+        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} />
         <div style={isMobile ? mobileLayoutStyle : styles.draftLayout} className="draft-layout-grid">
           {isMobile ? <>{pitchEl}{rollingEl}</> : <>{rollingEl}{pitchEl}</>}
         </div>
@@ -4825,7 +4977,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
 
   return (
     <div style={styles.card} className="card-mob">
-      <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} pitch={pitch} />
+      <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} />
 
       {selectedPlayer && (
         <div style={styles.selectedPlayerBanner}>
@@ -4956,62 +5108,10 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   );
 }
 
-function ChemistryDisplay({ pitch, compact = false }) {
-  const xi = Object.values(pitch).filter(p => p && p.club);
-  const { score, breakdown, pct, ovrBonus } = calcChemistry(xi);
-  const chemColor = pct >= 66 ? '#7fd99a' : pct >= 33 ? '#d4a23c' : '#e05939';
-
-  if (compact) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>ENTR.</span>
-        <div style={{ flex: 1, height: 5, background: 'rgba(255,255,255,0.1)', borderRadius: 999 }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: chemColor, borderRadius: 999, transition: 'width 0.4s' }} />
-        </div>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: chemColor, minWidth: 30, textAlign: 'right' }}>{pct}%</span>
-        {ovrBonus > 0 && <span style={{ fontSize: 11, color: chemColor }}>+{ovrBonus} OVR</span>}
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', margin: '14px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 15 }}>Entrosamento</span>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 18, color: chemColor }}>{pct}%</span>
-      </div>
-      <div style={{ height: 7, background: 'rgba(255,255,255,0.1)', borderRadius: 999, marginBottom: 12 }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: chemColor, borderRadius: 999, transition: 'width 0.4s' }} />
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-        {breakdown.epoca > 0 && (
-          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(127,217,154,0.15)', color: '#7fd99a', fontFamily: "'Space Mono', monospace" }}>
-            {breakdown.epoca} par{breakdown.epoca > 1 ? 'es' : ''} mesma época (+5)
-          </span>
-        )}
-        {breakdown.clube > 0 && (
-          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(212,162,60,0.15)', color: '#d4a23c', fontFamily: "'Space Mono', monospace" }}>
-            {breakdown.clube} par{breakdown.clube > 1 ? 'es' : ''} mesmo clube (+2)
-          </span>
-        )}
-        {breakdown.pais > 0 && (
-          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)', fontFamily: "'Space Mono', monospace" }}>
-            {breakdown.pais} par{breakdown.pais > 1 ? 'es' : ''} mesmo país (+1)
-          </span>
-        )}
-      </div>
-      <div style={{ fontSize: 12, opacity: 0.5 }}>
-        Bônus de OVR: <span style={{ color: chemColor, fontWeight: 700 }}>+{ovrBonus}</span> aplicado na simulação
-      </div>
-    </div>
-  );
-}
-
 function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor }) {
   const starters = Object.values(pitch).filter(p => !p.isBench);
   const avgOvr = starters.length ? Math.round(starters.reduce((s, p) => s + p.ovr, 0) / starters.length) : 0;
-  const { ovrBonus } = calcChemistry(starters.filter(p => p.club));
-  const effectiveOvr = Math.round((avgOvr + ovrBonus + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
+  const effectiveOvr = Math.round((avgOvr + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
   const starterSlots = pitchSlots.filter(s => !s.isBench);
   const benchSlots = pitchSlots.filter(s => s.isBench);
 
@@ -5019,7 +5119,6 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
     <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>{formationLabel}</div>
       <h2 style={styles.h2}>OVR base: {avgOvr} · Efetivo: {effectiveOvr} (11 titulares)</h2>
-      <ChemistryDisplay pitch={pitch} />
 
       {/* Instrução capitão */}
       <div style={{
@@ -5121,24 +5220,38 @@ const _PPOS = {
   ATA: { x: 46.5, y: 30 },
 };
 
-function _buildLineup(team, isHome) {
+function _buildLineup(team, isHome, pitchSlots) {
   const starters = (team?.players || []).slice(0, 11);
+  const slotByKey = {};
+  if (pitchSlots) pitchSlots.forEach(s => { if (!s.isBench) slotByKey[s.key] = s; });
   const cnt = {};
   return starters.map((p, i) => {
     const pos = p.pos?.[0] || 'MEI';
-    cnt[pos] = (cnt[pos] || 0);
-    const nth = cnt[pos]++;
-    const base = _PPOS[pos] || { x: 30, y: 30 };
-    // spread same-pos players vertically: 0→0, 1→+12, 2→-12, 3→+24…
-    const yOff = nth === 0 ? 0 : nth % 2 === 1 ? Math.ceil(nth / 2) * 13 : -Math.ceil(nth / 2) * 13;
-    const bx = isHome ? base.x : 100 - base.x;
-    const by = Math.max(4, Math.min(56, base.y + yOff));
+    const slot = p.slotKey && slotByKey[p.slotKey];
+    let bx, by;
+    if (slot) {
+      // Usa a posição real da escalação (campo retrato) convertida pro campo
+      // paisagem do AnimatedPitch — evita dois jogadores caindo no mesmo lugar,
+      // já que buildPitchSlots já garante posições únicas por formação.
+      const landX = (100 - slot.y) * 0.5;
+      const landY = slot.x * 0.6;
+      bx = isHome ? landX : 100 - landX;
+      by = landY;
+    } else {
+      cnt[pos] = (cnt[pos] || 0);
+      const nth = cnt[pos]++;
+      const base = _PPOS[pos] || { x: 30, y: 30 };
+      // spread same-pos players vertically: 0→0, 1→+12, 2→-12, 3→+24…
+      const yOff = nth === 0 ? 0 : nth % 2 === 1 ? Math.ceil(nth / 2) * 13 : -Math.ceil(nth / 2) * 13;
+      bx = isHome ? base.x : 100 - base.x;
+      by = Math.max(4, Math.min(56, base.y + yOff));
+    }
     const shortN = (p.name || '').split(' ').slice(-1)[0].slice(0, 8);
     return { key: `${isHome ? 'h' : 'a'}-${i}`, name: p.name, shortN, pos, bx, by, idx: i };
   });
 }
 
-function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulating, liveLineup }) {
+function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulating, liveLineup, pitchSlots }) {
   const [jitter, setJitter] = useState({});
   const [ball, setBall] = useState({ x: 50, y: 30 });
   const [flash, setFlash] = useState({ side: null, on: false });
@@ -5196,8 +5309,8 @@ function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulat
     }
     return awayTeam;
   }, [awayTeam, myTeamId, liveLineup]);
-  const homePlayers = useMemo(() => _buildLineup(effectiveHome, true), [effectiveHome]);
-  const awayPlayers = useMemo(() => _buildLineup(effectiveAway, false), [effectiveAway]);
+  const homePlayers = useMemo(() => _buildLineup(effectiveHome, true, pitchSlots), [effectiveHome, pitchSlots]);
+  const awayPlayers = useMemo(() => _buildLineup(effectiveAway, false, pitchSlots), [effectiveAway, pitchSlots]);
 
   const hColor = homeTeam?.id === myTeamId ? mc : (homeTeam?.colors?.p || homeTeam?.color || '#3a85d9');
   const aColor = awayTeam?.id === myTeamId ? mc : (awayTeam?.colors?.p || awayTeam?.color || '#c94040');
@@ -5557,7 +5670,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
 // ============================================================
 // TELA DE JOGO: liga com cronômetro e tabela
 // ============================================================
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor, subWindowsUsed = 0, maxSubWindows = 3, subsUsed = 0, maxSubs = 5, subbedOutPlayers = [], pitchSlots }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
   const teamCrest = (team) => team.id === myTeamId
@@ -5569,7 +5682,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
         homeTeam={homeTeam} awayTeam={awayTeam}
         myTeamId={myTeamId} mc={mc}
         liveEvents={liveEvents} isSimulating={isSimulating}
-        liveLineup={liveLineup}
+        liveLineup={liveLineup} pitchSlots={pitchSlots}
       />
       <div style={styles.liveTeamsRow} className="live-teams-row">
         <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} className="live-team-n">
@@ -5606,11 +5719,12 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
           )}
           {roundDone && !isSimulating && <div style={styles.clockFull}>Tempo encerrado</div>}
           {isSimulating && !isPaused && (
-            <button onClick={onPause} style={{
+            <button onClick={onPause} disabled={subWindowsUsed >= maxSubWindows} title={subWindowsUsed >= maxSubWindows ? 'Sem mais paradas para substituição' : `Parar para substituir (${maxSubWindows - subWindowsUsed} restante${maxSubWindows - subWindowsUsed === 1 ? '' : 's'})`} style={{
               fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
               padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,140,0,0.5)',
-              background: 'rgba(255,140,0,0.1)', color: '#ffaa00', cursor: 'pointer', marginLeft: 6,
-            }}>⏸ Pausar</button>
+              background: 'rgba(255,140,0,0.1)', color: '#ffaa00', cursor: subWindowsUsed >= maxSubWindows ? 'not-allowed' : 'pointer', marginLeft: 6,
+              opacity: subWindowsUsed >= maxSubWindows ? 0.4 : 1,
+            }}>⏸ Pausar ({maxSubWindows - subWindowsUsed})</button>
           )}
           {isPaused && (
             <button onClick={onResume} style={{
@@ -5645,46 +5759,61 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
       {/* Sub panel */}
       {showSubPanel && liveLineup && (
         <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 12px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || '#d4a23c', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>
-            ↕ Substituição
-            {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o reserva</span>}
-            {!subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o titular</span>}
+          <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || '#d4a23c', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>↕ Substituição</span>
+            <span style={{ opacity: 0.6, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
+              {subsUsed}/{maxSubs} usadas
+            </span>
+            {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: 'auto' }}>Escolha o reserva</span>}
+            {!subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: 'auto' }}>Escolha o titular</span>}
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Titulares</div>
-              {Object.entries(liveLineup).filter(([k, p]) => !p.isBench).map(([k, p]) => (
-                <button key={k} onClick={() => !subSelectStarter ? onSelectSubStarter(k) : null}
-                  style={{
-                    display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                    background: subSelectStarter === k ? 'rgba(127,217,154,0.15)' : 'rgba(255,255,255,0.04)',
-                    border: subSelectStarter === k ? '1px solid rgba(127,217,154,0.5)' : '1px solid rgba(255,255,255,0.08)',
-                    borderRadius: 6, color: '#F4F1EA',
-                    fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
-                  }}
-                >
-                  {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
-                </button>
-              ))}
-            </div>
-            {subSelectStarter && (
+          {subsUsed >= maxSubs ? (
+            <div style={{ fontSize: 11, opacity: 0.6, padding: '4px 0' }}>Você já usou as {maxSubs} substituições permitidas.</div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8 }}>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Reservas</div>
-                {Object.entries(liveLineup).filter(([k, p]) => p.isBench).map(([k, p]) => (
-                  <button key={k} onClick={() => onApplySub(subSelectStarter, p)}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 6, color: '#F4F1EA',
-                      fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
-                    }}
-                  >
-                    {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
-                  </button>
-                ))}
+                <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Titulares</div>
+                {Object.entries(liveLineup)
+                  .filter(([k, p]) => !p.isBench)
+                  .sort(([ka], [kb]) => posOrderIndex(ka) - posOrderIndex(kb))
+                  .map(([k, p]) => (
+                    <button key={k} onClick={() => !subSelectStarter ? onSelectSubStarter(k) : null}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                        background: subSelectStarter === k ? 'rgba(127,217,154,0.15)' : 'rgba(255,255,255,0.04)',
+                        border: subSelectStarter === k ? '1px solid rgba(127,217,154,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                        borderRadius: 6, color: '#F4F1EA',
+                        fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
+                      }}
+                    >
+                      {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
+                    </button>
+                  ))}
               </div>
-            )}
-          </div>
+              {subSelectStarter && (
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Reservas</div>
+                  {Object.entries(liveLineup)
+                    .filter(([k, p]) => p.isBench && !subbedOutPlayers.includes(p.name))
+                    .map(([k, p]) => (
+                      <button key={k} onClick={() => onApplySub(subSelectStarter, p)}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: 6, color: '#F4F1EA',
+                          fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
+                        }}
+                      >
+                        {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
+                      </button>
+                    ))}
+                  {Object.entries(liveLineup).filter(([k, p]) => p.isBench && !subbedOutPlayers.includes(p.name)).length === 0 && (
+                    <div style={{ fontSize: 10, opacity: 0.4, padding: '4px 0' }}>Sem reservas disponíveis.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
 
@@ -5719,7 +5848,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub }) {
+function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subWindowsUsed, maxSubWindows, subsUsed, maxSubs, subbedOutPlayers, pitchSlots }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -5880,6 +6009,9 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           subSelectStarter={subSelectStarter}
           onSelectSubStarter={onSelectSubStarter}
           onApplySub={onApplySub} myTeamColor={myTeamColor}
+          subWindowsUsed={subWindowsUsed} maxSubWindows={maxSubWindows}
+          subsUsed={subsUsed} maxSubs={maxSubs} subbedOutPlayers={subbedOutPlayers}
+          pitchSlots={pitchSlots}
         />
 
         {/* Placar agregado após jogo de volta */}
@@ -6012,6 +6144,9 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         subSelectStarter={subSelectStarter}
         onSelectSubStarter={onSelectSubStarter}
         onApplySub={onApplySub} myTeamColor={myTeamColor}
+        subWindowsUsed={subWindowsUsed} maxSubWindows={maxSubWindows}
+        subsUsed={subsUsed} maxSubs={maxSubs} subbedOutPlayers={subbedOutPlayers}
+        pitchSlots={pitchSlots}
       />
 
       {roundDone && (
