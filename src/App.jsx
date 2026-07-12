@@ -1768,15 +1768,15 @@ const FORMATIONS = {
 
   // --- Variações do 4-3-3 ---
   '4-3-3-ofensivo': {
-    label: '4-3-3 Ofensivo',
+    label: '4-3-3 Ofensivo (1 VOL, 2 MEI)',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MEI: 2, PD: 1, PE: 1, ATA: 1 }
   },
   '4-3-3-misto': {
-    label: '4-3-3 Misto',
+    label: '4-3-3 Misto (1 VOL, 1 MC, 1 MEI)',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 1, MEI: 1, PD: 1, PE: 1, ATA: 1 }
   },
   '4-3-3-defensivo': {
-    label: '4-3-3 Contenção',
+    label: '4-3-3 Contenção (2 VOL, 1 MC)',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 1, PD: 1, PE: 1, ATA: 1 }
   },
 
@@ -1786,45 +1786,45 @@ const FORMATIONS = {
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MD: 1, ME: 1, ATA: 2 }
   },
   '4-4-2-losango-misto': {
-    label: '4-4-2 Losango Misto',
+    label: '4-4-2 Losango (1 VOL, 2 MC, 1 MEI)',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MEI: 1, ATA: 2 }
   },
   '4-4-2-quadrado': {
-    label: '4-4-2 Quadrado',
+    label: '4-2-2-2 (2 VOL, 2 MEI)',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MEI: 2, ATA: 2 }
   },
 
   // --- Variações do 4-2-3-1 ---
   '4-2-3-1-classico': {
-    label: '4-2-3-1',
-    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MD: 1, MEI: 1, ME: 1, ATA: 1 }
+    label: '4-2-3-1 Defensivo (2 VOL, 1 MC, 1 MD, 1 ME)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 1, MD: 1, ME: 1, ATA: 1 }
   },
   '4-2-3-1-ofensivo': {
-    label: '4-2-3-1',
+    label: '4-2-3-1 Ofensivo (1 VOL, 1 MC, 1 MEI, 2 PONTA)',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 1, MEI: 1, PD: 1, PE: 1, ATA: 1 }
   },
 
   // --- Variações do 4-1-4-1 e 4-5-1 ---
   '4-1-4-1-ofensivo': {
-    label: '4-1-4-1',
-    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, PD: 1, PE: 1, ATA: 1 }
+    label: '4-1-4-1 Ofensivo (1 VOL, 2 MC, 1 MD, 1 ME)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MD: 1, ME: 1, ATA: 1 }
   },
   '4-1-4-1-linha': {
-    label: '4-1-4-1',
+    label: '4-1-4-1 Técnico (1 VOL, 2 MEI, 1 MD, 1 ME)',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 2, ME: 1, ATA: 1 }
   },
   '4-5-1-retranca': {
-    label: '4-5-1',
-    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 2, MEI: 1, ATA: 1 }
+    label: '4-5-1 Bloqueio (1 VOL, 2 MC, 1 MD, 1 ME)',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MD: 1, ME: 1, ATA: 1 }
   },
 
   // --- Variações do 4-3-1-2 e 4-1-3-2 ---
   '4-3-1-2-misto': {
-    label: '4-3-1-2',
+    label: '4-3-1-2 Italiano (1 VOL, 2 MC, 1 MEI)',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MEI: 1, ATA: 2 }
   },
   '4-1-3-2-ofensivo': {
-    label: '4-1-3-2',
+    label: '4-1-3-2 Pressão (1 VOL, 1 MD, 1 MEI, 1 ME)',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 1, ME: 1, ATA: 2 }
   },
 
@@ -1835,32 +1835,28 @@ const FORMATIONS = {
 
   // --- Variações do 3-5-2 ---
   '3-5-2-equilibrio': {
-    label: '3-5-2',
-    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 2, ATA: 2 }
+    label: '3-5-2 (1 VOL, 1 MC, 1 MEI)',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 1, MEI: 1, ATA: 2 }
   },
   '3-5-2-pesado': {
-    label: '3-5-2',
+    label: '3-5-2 Pesado (2 VOL, 1 MEI)',
     counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MEI: 1, ATA: 2 }
   },
 
-  // --- Variações do 3-4-3 ---
+  // --- Variação do 3-4-3 (sem alas — 3 zagueiros puros, 4 no meio, 3 na frente) ---
   '3-4-3-misto': {
-    label: '3-4-3',
-    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 1, PD: 1, PE: 1, ATA: 1 }
-  },
-  '3-4-3-linha': {
-    label: '3-4-3',
-    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, PD: 1, PE: 1, ATA: 1 }
+    label: '3-4-3 (1 VOL, 1 MC, 1 MD, 1 ME)',
+    counts: { GOL: 1, ZAG: 3, VOL: 1, MC: 1, MD: 1, ME: 1, PD: 1, PE: 1, ATA: 1 }
   },
 
-  // --- Outros esquemas com 3 Zagueiros ---
+  // --- Outros esquemas com 3 Zagueiros (sem alas) ---
   '3-4-2-1-moderno': {
-    label: '3-4-2-1',
-    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MEI: 2, ATA: 1 }
+    label: '3-4-2-1 (1 VOL, 1 MC, 1 MD, 1 ME, 2 MEI)',
+    counts: { GOL: 1, ZAG: 3, VOL: 1, MC: 1, MD: 1, ME: 1, MEI: 2, ATA: 1 }
   },
   '3-2-4-1-ofensivo': {
-    label: '3-2-4-1',
-    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MC: 2, ATA: 1 }
+    label: '3-2-4-1 (1 VOL, 1 MC, 2 MEI)',
+    counts: { GOL: 1, ZAG: 3, VOL: 1, MC: 1, MEI: 2, PD: 1, PE: 1, ATA: 1 }
   },
 
 
@@ -1869,16 +1865,16 @@ const FORMATIONS = {
   // ==========================================
 
   '5-3-2-muralha': {
-    label: '5-3-2 Retranca Total',
-    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MC: 1, ATA: 2 }
+    label: '5-3-2 Retranca Total (1 VOL, 2 MC)',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 2, ATA: 2 }
   },
   '5-4-1-misto': {
-    label: '5-4-1 Equilibrado',
-    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MD: 1, ME: 1, ATA: 1 }
+    label: '5-4-1 Equilibrado (1 VOL, 1 MC, 1 MD, 1 ME)',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 1, MD: 1, ME: 1, ATA: 1 }
   },
   '5-2-3-contra-ataque': {
-    label: '5-2-3 Contra-Ataque',
-    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, PD: 1, PE: 1, ATA: 1 }
+    label: '5-2-3 Contra-Ataque (1 VOL, 1 MC)',
+    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 1, PD: 1, PE: 1, ATA: 1 }
   }
 };
 
@@ -1889,6 +1885,7 @@ const BASE_COORDS = {
   ZAG: { x: 50, y: 80 },
   LE: { x: 14, y: 76 },
   VOL: { x: 50, y: 62 },
+  MC: { x: 50, y: 54 },  // Meio-Campo (central midfielder, between VOL and MEI)
   MEI: { x: 50, y: 46 },
   MD: { x: 80, y: 48 },  // Meia Direita (wide midfielder right)
   ME: { x: 20, y: 48 },  // Meia Esquerda (wide midfielder left)
@@ -1913,6 +1910,28 @@ function buildPitchSlots(formationKey) {
       slots.push({ key, label: pos, realPos: pos, x, y: base.y });
     }
   });
+
+  // VOL/MC/MEI usam x=50 por padrão quando aparecem sozinhos (qty 1). Se uma
+  // formação combina 2+ desses ao mesmo tempo, isso empilhava tudo numa coluna
+  // reta no centro do campo. Aqui espalha em zigue-zague pra ficar em linha,
+  // como as posições com qty>1 já ficam.
+  const CENTRAL_CODES = ['VOL', 'MC', 'MEI'];
+  const centralSolo = slots.filter(s => CENTRAL_CODES.includes(s.realPos) && counts[s.realPos] === 1);
+  if (centralSolo.length >= 2) {
+    centralSolo.sort((a, b) => b.y - a.y); // mais perto do próprio gol primeiro
+    const ZIGZAG = [0, -10, 10, -6, 6];
+    centralSolo.forEach((s, i) => { s.x = 50 + (ZIGZAG[i] ?? 0); });
+  }
+
+  // 4-2-2-2: os MEIs ficam mais avançados e abertos, os volantes mais fechados
+  // e recuados — se não sobrepõem, mas também não ficam achatados numa linha só.
+  if (formationKey === '4-4-2-quadrado') {
+    slots.forEach(s => {
+      if (s.realPos === 'MEI') { s.y = 38; s.x = s.x < 50 ? 28 : 72; }
+      if (s.realPos === 'VOL') { s.x = s.x < 50 ? 42 : 58; }
+    });
+  }
+
   return slots;
 }
 

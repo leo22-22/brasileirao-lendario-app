@@ -36,7 +36,9 @@
       "PowerShell(cd \"c:\\\\Users\\\\ueer\\\\Downloads\\\\brasileirao-lendario-app\"; powershell -ExecutionPolicy Bypass -File .\\\\gen_teams.ps1)",
       "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\integrity_check2.js\")",
       "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\md_me_draft_test.js\")",
-      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\debug_labels.js\")"
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\debug_labels.js\")",
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\debug_labels2.js\")",
+      "Bash(pkill -f \"vite --port 519\")"
     ]
   }
 }
