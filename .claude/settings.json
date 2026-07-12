@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node copa_test.js)",
+      "Bash(node copa_test3.js)",
+      "Bash(node multiplayer_test.js)",
+      "Bash(node penalty_interactive_test.js)",
+      "Bash(node multiplayer_full_test.js)",
+      "Bash(node multiplayer_play_test.js)",
+      "Bash(tasklist //FI \"IMAGENAME eq node.exe\")",
+      "Bash(node penalty_single_test.js)",
+      "Bash(echo \"exit code: $?\")",
+      "Bash(pkill -f \"vite --port 5192\")",
+      "Bash(pkill -f \"vite --port 5193\")",
+      "Bash(pkill -f \"vite --port 5194\")",
+      "Bash(awk 'NR>=5256 && NR<=5676 && /^function /{print NR\": \"$0}' src/App.jsx)",
+      "Bash(awk 'NR==5510,NR==5850' src/App.jsx)",
+      "Bash(awk '/^function Playing\\\\\\(/,0' src/App.jsx)",
+      "Bash(cp draft_walkthrough.js timestrip_test.js)",
+      "Bash(sed -i 's/5188/5195/' timestrip_test.js)",
+      "Bash(node timestrip_test.js)",
+      "Bash(pkill -f \"vite --port 5195\")"
+    ]
+  }
+}

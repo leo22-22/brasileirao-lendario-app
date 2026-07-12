@@ -2850,9 +2850,11 @@ export default function App() {
                     // Buscar direto pelo id evita trocar "meu time" pelo adversário quando o mando de campo inverte.
                     const myT = leagueTeams.find(t => t.id === myTeamId);
                     const opT = leagueTeams.find(t => t.id === (isHome ? match.awayId : match.homeId));
+                    // Só quem estava em campo (titulares + quem entrou por substituição) pode
+                    // cobrar — jogadores que ficaram no banco o jogo inteiro não entram na lista.
                     const myPlayers = liveLineupRef.current
-                      ? Object.values(liveLineupRef.current)
-                      : (myT?.players || []).slice(0, 16);
+                      ? Object.values(liveLineupRef.current).filter(p => !p.isBench)
+                      : (myT?.players || []).slice(0, 11);
                     const oppGk = (opT?.players || [])[0]?.name || 'Goleiro';
                     setPenaltyPhase({
                       kicks: userPen.kicks,
@@ -3654,7 +3656,6 @@ export default function App() {
             subsUsed={subsUsed}
             maxSubs={MAX_SUBS}
             subbedOutPlayers={subbedOutPlayers}
-            pitchSlots={pitchSlots}
           />
         )}
         {phase === 'results' && (
@@ -5203,224 +5204,58 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
 }
 
 // ============================================================
-// CAMPINHO ANIMADO
+// SIMULAÇÃO DE TEMPO — barra de progresso do jogo (0'-90') com
+// flash verde quando sai gol, sem tentar simular movimentação real.
 // ============================================================
-const _PPOS = {
-  GOL: { x: 5.5, y: 30 },
-  LD: { x: 20, y: 45 },
-  LE: { x: 20, y: 15 },
-  ZAG: { x: 23, y: 30 },
-  VOL: { x: 35, y: 30 },
-  MC: { x: 37, y: 22 },
-  MEI: { x: 41, y: 30 },
-  MD: { x: 37, y: 41 },
-  ME: { x: 37, y: 19 },
-  PD: { x: 44, y: 45 },
-  PE: { x: 44, y: 15 },
-  ATA: { x: 46.5, y: 30 },
-};
-
-function _buildLineup(team, isHome, pitchSlots) {
-  const starters = (team?.players || []).slice(0, 11);
-  const slotByKey = {};
-  if (pitchSlots) pitchSlots.forEach(s => { if (!s.isBench) slotByKey[s.key] = s; });
-  const cnt = {};
-  return starters.map((p, i) => {
-    const pos = p.pos?.[0] || 'MEI';
-    const slot = p.slotKey && slotByKey[p.slotKey];
-    let bx, by;
-    if (slot) {
-      // Usa a posição real da escalação (campo retrato) convertida pro campo
-      // paisagem do AnimatedPitch — evita dois jogadores caindo no mesmo lugar,
-      // já que buildPitchSlots já garante posições únicas por formação.
-      const landX = (100 - slot.y) * 0.5;
-      const landY = slot.x * 0.6;
-      bx = isHome ? landX : 100 - landX;
-      by = landY;
-    } else {
-      cnt[pos] = (cnt[pos] || 0);
-      const nth = cnt[pos]++;
-      const base = _PPOS[pos] || { x: 30, y: 30 };
-      // spread same-pos players vertically: 0→0, 1→+12, 2→-12, 3→+24…
-      const yOff = nth === 0 ? 0 : nth % 2 === 1 ? Math.ceil(nth / 2) * 13 : -Math.ceil(nth / 2) * 13;
-      bx = isHome ? base.x : 100 - base.x;
-      by = Math.max(4, Math.min(56, base.y + yOff));
-    }
-    const shortN = (p.name || '').split(' ').slice(-1)[0].slice(0, 8);
-    return { key: `${isHome ? 'h' : 'a'}-${i}`, name: p.name, shortN, pos, bx, by, idx: i };
-  });
-}
-
-function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulating, liveLineup, pitchSlots }) {
-  const [jitter, setJitter] = useState({});
-  const [ball, setBall] = useState({ x: 50, y: 30 });
-  const [flash, setFlash] = useState({ side: null, on: false });
+function MatchTimeStrip({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulating, clockMinute }) {
+  const [flash, setFlash] = useState({ side: null, on: false, scorer: '' });
   const evLenRef = useRef(0);
-  const tRef = useRef(0);
 
-  // Player jitter
-  useEffect(() => {
-    if (!isSimulating) { setJitter({}); return; }
-    const id = setInterval(() => {
-      const j = {};
-      for (let i = 0; i < 22; i++) j[i] = { dx: (Math.random() - 0.5) * 3.2, dy: (Math.random() - 0.5) * 3.2 };
-      setJitter(j);
-    }, 550);
-    return () => clearInterval(id);
-  }, [isSimulating]);
-
-  // Ball wander
-  useEffect(() => {
-    if (!isSimulating) return;
-    const id = setInterval(() => {
-      tRef.current += 0.3;
-      const t = tRef.current;
-      setBall({
-        x: Math.max(6, Math.min(94, 50 + Math.sin(t) * 30)),
-        y: Math.max(5, Math.min(55, 30 + Math.sin(t * 0.71 + 1.3) * 20)),
-      });
-    }, 350);
-    return () => clearInterval(id);
-  }, [isSimulating]);
-
-  // Goal flash + ball snap
   useEffect(() => {
     if (liveEvents.length > evLenRef.current) {
       const ev = liveEvents[liveEvents.length - 1];
       const scoredByHome = ev.teamId === homeTeam?.id;
-      setFlash({ side: scoredByHome ? 'right' : 'left', on: true });
-      setBall({ x: scoredByHome ? 97 : 3, y: 30 });
-      setTimeout(() => setFlash(f => ({ ...f, on: false })), 1300);
+      setFlash({ side: scoredByHome ? 'home' : 'away', on: true, scorer: ev.scorer });
+      const t = setTimeout(() => setFlash(f => ({ ...f, on: false })), 1800);
+      return () => clearTimeout(t);
     }
     evLenRef.current = liveEvents.length;
   }, [liveEvents, homeTeam]);
 
-  const effectiveHome = useMemo(() => {
-    if (homeTeam?.id === myTeamId && liveLineup) {
-      const lp = Object.values(liveLineup).filter(p => !p.isBench);
-      return { ...homeTeam, players: lp };
-    }
-    return homeTeam;
-  }, [homeTeam, myTeamId, liveLineup]);
-  const effectiveAway = useMemo(() => {
-    if (awayTeam?.id === myTeamId && liveLineup) {
-      const lp = Object.values(liveLineup).filter(p => !p.isBench);
-      return { ...awayTeam, players: lp };
-    }
-    return awayTeam;
-  }, [awayTeam, myTeamId, liveLineup]);
-  const homePlayers = useMemo(() => _buildLineup(effectiveHome, true, pitchSlots), [effectiveHome, pitchSlots]);
-  const awayPlayers = useMemo(() => _buildLineup(effectiveAway, false, pitchSlots), [effectiveAway, pitchSlots]);
-
   const hColor = homeTeam?.id === myTeamId ? mc : (homeTeam?.colors?.p || homeTeam?.color || '#3a85d9');
   const aColor = awayTeam?.id === myTeamId ? mc : (awayTeam?.colors?.p || awayTeam?.color || '#c94040');
-
-  const dot = (p, i, color, isHome) => {
-    const off = jitter[isHome ? i : 11 + i] || { dx: 0, dy: 0 };
-    const left = `${Math.max(2, Math.min(96, p.bx + off.dx))}%`;
-    const top = `${Math.max(2, Math.min(94, p.by / 60 * 100 + off.dy / 60 * 100))}%`;
-    return (
-      <div key={p.key} title={p.name} style={{
-        position: 'absolute', left, top,
-        transform: 'translate(-50%,-50%)',
-        transition: 'left 0.42s ease, top 0.42s ease',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        zIndex: 2, pointerEvents: 'none', userSelect: 'none',
-      }}>
-        <div style={{
-          width: 20, height: 20, borderRadius: '50%',
-          background: color, border: '2px solid rgba(255,255,255,0.85)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 8, fontWeight: 800, color: '#fff',
-          boxShadow: '0 1px 5px rgba(0,0,0,0.55)',
-          lineHeight: 1,
-        }}>{i + 1}</div>
-        <div style={{
-          fontSize: 7, color: '#fff', fontWeight: 700, marginTop: 1,
-          textShadow: '0 1px 2px rgba(0,0,0,0.9)',
-          background: 'rgba(0,0,0,0.42)', borderRadius: 2,
-          padding: '1px 2px', whiteSpace: 'nowrap', lineHeight: 1,
-        }}>{p.shortN}</div>
-      </div>
-    );
-  };
+  const pct = Math.max(0, Math.min(100, (clockMinute / 90) * 100));
 
   return (
-    <div style={{ position: 'relative', width: '100%', paddingBottom: '60%', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
-      {/* Pitch SVG */}
-      <svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid slice"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}>
-        {/* Grass stripes */}
-        {[...Array(10)].map((_, i) => (
-          <rect key={i} x={i * 10} y={0} width={10} height={60} fill={i % 2 === 0 ? '#2a5416' : '#2e5e1a'} />
-        ))}
-        {/* Outer border */}
-        <rect x={2} y={2} width={96} height={56} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Center line */}
-        <line x1={50} y1={2} x2={50} y2={58} stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Center circle */}
-        <circle cx={50} cy={30} r={9} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        <circle cx={50} cy={30} r={0.7} fill="rgba(255,255,255,0.75)" />
-        {/* Left penalty area */}
-        <rect x={2} y={13} width={17} height={34} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Left 6-yard */}
-        <rect x={2} y={20} width={5.5} height={20} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Left goal */}
-        <rect x={0} y={23} width={2} height={14} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Left penalty spot */}
-        <circle cx={13} cy={30} r={0.7} fill="rgba(255,255,255,0.75)" />
-        {/* Right penalty area */}
-        <rect x={81} y={13} width={17} height={34} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Right 6-yard */}
-        <rect x={92.5} y={20} width={5.5} height={20} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Right goal */}
-        <rect x={98} y={23} width={2} height={14} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Right penalty spot */}
-        <circle cx={87} cy={30} r={0.7} fill="rgba(255,255,255,0.75)" />
-        {/* Goal flash overlay */}
-        {flash.on && flash.side === 'right' && (
-          <rect x={75} y={0} width={25} height={60} fill="rgba(255,210,0,0.28)" style={{ transition: 'opacity 0.3s' }} />
-        )}
-        {flash.on && flash.side === 'left' && (
-          <rect x={0} y={0} width={25} height={60} fill="rgba(255,210,0,0.28)" style={{ transition: 'opacity 0.3s' }} />
-        )}
-        {/* Team color band at top */}
-        <rect x={2} y={2} width={48} height={3} fill={hColor} opacity={0.55} />
-        <rect x={50} y={2} width={48} height={3} fill={aColor} opacity={0.55} />
-      </svg>
-
-      {/* Team name chips */}
-      <div style={{
-        position: 'absolute', top: 6, left: 6, fontSize: 8, fontWeight: 700, color: '#fff',
-        background: hColor + 'cc', borderRadius: 3, padding: '1px 4px', zIndex: 4, maxWidth: '40%',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.6)'
-      }}>
-        {homeTeam?.label}
+    <div style={{ padding: '14px 6px 30px', marginBottom: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, opacity: 0.5, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>
+        <span style={{ color: hColor }}>{homeTeam?.label}</span>
+        <span>45'</span>
+        <span style={{ color: aColor }}>{awayTeam?.label}</span>
       </div>
-      <div style={{
-        position: 'absolute', top: 6, right: 6, fontSize: 8, fontWeight: 700, color: '#fff',
-        background: aColor + 'cc', borderRadius: 3, padding: '1px 4px', zIndex: 4, maxWidth: '40%',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.6)',
-        textAlign: 'right'
-      }}>
-        {awayTeam?.label}
+      <div style={{ position: 'relative', height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)' }}>
+        <div style={{ position: 'absolute', inset: 0, borderRadius: 999, overflow: 'hidden' }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${hColor}, ${aColor})`, transition: 'width 0.4s linear' }} />
+        </div>
+        <div style={{
+          position: 'absolute', top: '50%', left: `${pct}%`, transform: 'translate(-50%,-50%)',
+          width: 14, height: 14, borderRadius: '50%',
+          background: isSimulating ? '#7fd99a' : '#F4F1EA',
+          border: '2px solid #0B1A12',
+          boxShadow: isSimulating ? '0 0 10px rgba(127,217,154,0.7)' : 'none',
+          transition: 'left 0.4s linear',
+        }} />
+        {flash.on && (
+          <div style={{
+            position: 'absolute', top: -34, [flash.side === 'home' ? 'left' : 'right']: 0,
+            display: 'flex', alignItems: 'center', gap: 5,
+            animation: 'goalPop 1.8s ease-out',
+          }}>
+            <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#3fbf6f', boxShadow: '0 0 12px rgba(63,191,111,0.9)', flexShrink: 0 }} />
+            <span style={{ fontSize: 11, fontWeight: 800, color: '#3fbf6f', fontFamily: "'Space Mono', monospace", whiteSpace: 'nowrap' }}>GOL! {flash.scorer}</span>
+          </div>
+        )}
       </div>
-
-      {/* Players */}
-      {homePlayers.map((p, i) => dot(p, i, hColor, true))}
-      {awayPlayers.map((p, i) => dot(p, i, aColor, false))}
-
-      {/* Ball */}
-      <div style={{
-        position: 'absolute',
-        left: `${ball.x}%`,
-        top: `${ball.y / 60 * 100}%`,
-        transform: 'translate(-50%,-50%)',
-        transition: 'left 0.3s ease, top 0.3s ease',
-        zIndex: 3, lineHeight: 1,
-        filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.8))',
-        pointerEvents: 'none',
-      }}><Icon name="ball" size={11} color="#fff" strokeWidth={1.4} /></div>
     </div>
   );
 }
@@ -5431,9 +5266,12 @@ function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulat
 // ============================================================
 function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
   const mc = myTeamColor || '#d4a23c';
-  const [inner, setInner] = React.useState({
+  // Cobrança 0 é sempre do time de casa (kickNum par). Se eu não for o time de
+  // casa na disputa, a primeira cobrança é do adversário — tem que começar em
+  // 'auto_kick', senão o modal me pede pra escolher cobrador num pênalti que não é meu.
+  const [inner, setInner] = React.useState(() => ({
     kickNum: 0,     // 0,1,...: even=home, odd=away
-    phase: 'pick',  // 'pick' | 'countdown' | 'result' | 'done'
+    phase: penaltyPhase?.myIsHome ? 'pick' : 'auto_kick',
     countdown: null,
     takerName: null,
     lastResult: null,
@@ -5441,7 +5279,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
     opGoals: 0,
     myKickResults: [],
     opKickResults: [],
-  });
+  }));
   const tiRef = React.useRef(null);
 
   if (!penaltyPhase) return null;
@@ -5472,9 +5310,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
 
   const resolveKick = (taker) => {
     if (!currentKickPair) { advanceKick(null); return; }
-    const scored = isMyKick
-      ? (isHomeKick ? currentKickPair.a : currentKickPair.b)
-      : (isHomeKick ? currentKickPair.a : currentKickPair.b);
+    const scored = isHomeKick ? currentKickPair.a : currentKickPair.b;
     const resultText = getResultText(scored, isMyKick);
     const newMy = isMyKick ? myGoals + (scored ? 1 : 0) : myGoals;
     const newOp = !isMyKick ? opGoals + (scored ? 1 : 0) : opGoals;
@@ -5670,7 +5506,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
 // ============================================================
 // TELA DE JOGO: liga com cronômetro e tabela
 // ============================================================
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor, subWindowsUsed = 0, maxSubWindows = 3, subsUsed = 0, maxSubs = 5, subbedOutPlayers = [], pitchSlots }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveScore, clockDisplay, clockMinute, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor, subWindowsUsed = 0, maxSubWindows = 3, subsUsed = 0, maxSubs = 5, subbedOutPlayers = [] }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
   const teamCrest = (team) => team.id === myTeamId
@@ -5678,11 +5514,11 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
     : (team.clubLogo && <img src={team.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />);
   return (
     <div style={styles.liveMatchBox} className="card-mob">
-      <AnimatedPitch
+      <MatchTimeStrip
         homeTeam={homeTeam} awayTeam={awayTeam}
         myTeamId={myTeamId} mc={mc}
         liveEvents={liveEvents} isSimulating={isSimulating}
-        liveLineup={liveLineup} pitchSlots={pitchSlots}
+        clockMinute={clockMinute}
       />
       <div style={styles.liveTeamsRow} className="live-teams-row">
         <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} className="live-team-n">
@@ -5848,7 +5684,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subWindowsUsed, maxSubWindows, subsUsed, maxSubs, subbedOutPlayers, pitchSlots }) {
+function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subWindowsUsed, maxSubWindows, subsUsed, maxSubs, subbedOutPlayers }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -5998,7 +5834,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         <LiveMatchBox
           um={um} homeTeam={homeTeam} awayTeam={awayTeam}
           myTeamId={myTeamId} myTeamLogo={myTeamLogo} mc={mc}
-          liveScore={liveScore} clockDisplay={clockDisplay}
+          liveScore={liveScore} clockDisplay={clockDisplay} clockMinute={clockMinute}
           isSimulating={isSimulating} roundDone={roundDone}
           liveEvents={liveEvents} simSpeed={simSpeed}
           onSetSpeed={onSetSpeed} simMode={simMode} onSetSimMode={onSetSimMode}
@@ -6011,7 +5847,6 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           onApplySub={onApplySub} myTeamColor={myTeamColor}
           subWindowsUsed={subWindowsUsed} maxSubWindows={maxSubWindows}
           subsUsed={subsUsed} maxSubs={maxSubs} subbedOutPlayers={subbedOutPlayers}
-          pitchSlots={pitchSlots}
         />
 
         {/* Placar agregado após jogo de volta */}
@@ -6133,7 +5968,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
       <LiveMatchBox
         um={um} homeTeam={homeTeam} awayTeam={awayTeam}
         myTeamId={myTeamId} myTeamLogo={myTeamLogo} mc={mc}
-        liveScore={liveScore} clockDisplay={clockDisplay}
+        liveScore={liveScore} clockDisplay={clockDisplay} clockMinute={clockMinute}
         isSimulating={isSimulating} roundDone={roundDone}
         liveEvents={liveEvents} simSpeed={simSpeed}
         onSetSpeed={onSetSpeed} simMode={simMode} onSetSimMode={onSetSimMode}
@@ -6146,7 +5981,6 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         onApplySub={onApplySub} myTeamColor={myTeamColor}
         subWindowsUsed={subWindowsUsed} maxSubWindows={maxSubWindows}
         subsUsed={subsUsed} maxSubs={maxSubs} subbedOutPlayers={subbedOutPlayers}
-        pitchSlots={pitchSlots}
       />
 
       {roundDone && (
@@ -6498,6 +6332,7 @@ const globalCss = `
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   @keyframes fadeSlideIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+  @keyframes goalPop { 0%{opacity:0; transform:scale(0.6);} 15%{opacity:1; transform:scale(1.15);} 25%{transform:scale(1);} 78%{opacity:1;} 100%{opacity:0;} }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
