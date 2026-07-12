@@ -49,13 +49,13 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,8,'Mário','MEI','MC',80,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,9,'Léo Briglia','ATA',NULL,88,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,10,'Alencar','ATA',NULL,85,1,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,11,'Marito','PD',NULL,86,1,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,11,'Marito','PD','MD',86,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,12,'Florisvaldo','LD','ZAG',76,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,13,'Bacamarte','ZAG',NULL,75,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,14,'Beto','MC','VOL',81,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,15,'Bombeiro','MC',NULL,78,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,16,'Ari','MEI',NULL,77,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,17,'Biriba','PE',NULL,84,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,15,'Bombeiro','MC','MD',78,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,16,'Ari','MEI','MD',77,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,17,'Biriba','PE','ME',84,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,18,'Carioca','ATA','PD',76,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,19,'Careca','ATA',NULL,75,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (1,20,'Jair','GOL',NULL,74,0,'Elenco lendario.');
@@ -98,7 +98,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (3,13,'Ismael','LD','ZAG',76,0,'Lateral direito reserva muito acionado quando Lima subia ao meio.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (3,14,'Formiga','ZAG','VOL',77,0,'Veterano polivalente de confianca do técnico Lula.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (3,15,'Decio Brito','LE',NULL,74,0,'Irmao de Wilson Piazza, reserva da lateral esquerda.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (3,16,'Tite','PE',NULL,76,0,'Ponta esquerda reserva experiente.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (3,16,'Tite','PE','ME',76,0,'Ponta esquerda reserva experiente.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (3,17,'Pagao','ST',NULL,80,0,'Centroavante genial, reserva de luxo de Coutinho.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (3,18,'Toninho Guerreiro','ST',NULL,77,0,'Contratado junto ao XV de Jau em 62, comecava sua trajetória vitoriosa.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (3,19,'Oswaldo','PD','ATA',74,0,'Atacante reserva de velocidade para os lados do campo.');
@@ -112,7 +112,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,5,'Waltencir','LE',NULL,81,1,'Lateral esquerdo moderno, atacava e defendia com vigor.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,6,'Carlos Roberto','VOL',NULL,83,1,'Volante marcador implacável, dava liberdade para Gerson.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,7,'Gerson','MEI','VOL',93,1,'O Canhotinha de Ouro. Cerebro e mestre dos lancamentos.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,8,'Rogerio','PD',NULL,82,1,'Ponta direita veloz, especialista em assistencias.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,8,'Rogerio','PD','MD',82,1,'Ponta direita veloz, especialista em assistencias.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,9,'Roberto','ST','CF',84,1,'Centroavante inteligente que abria espacos na defesa.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,10,'Jairzinho','ATA','PD',93,1,'O Furacao da Copa. Forca fisica e explosao impar.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,11,'Paulo Cezar Caju','PE','MEI',88,1,'Genio técnico, drible desconcertante e muita marra.');
@@ -123,7 +123,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,16,'Zequinha','PD',NULL,77,0,'Ponta direita reserva muito acionado.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,17,'Ferretti','ST',NULL,80,0,'Artilheiro reserva decisivo na campanha da Taca Brasil.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,18,'Humberto','ST',NULL,74,0,'Atacante de oficio suplente.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,19,'Afonsinho','MEI',NULL,78,0,'Meio-campista clássico e engajado.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,19,'Afonsinho','MEI','ME',78,0,'Meio-campista clássico e engajado.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (4,20,'Torino','PE','ATA',75,0,'Ponta esquerda reserva.');
 
 INSERT INTO teams VALUES (5,'Fluminense',1970,'Fluminense 1970 (Taça de Prata)','Paulo Amaral','#7A1921','#006633','Primeiro titulo nacional do Tricolor conquistado no Quadrangular Final.');
@@ -135,13 +135,13 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,6,'Denilson','VOL','ZAG',83,1,'O Rei do Carrinho. Volante protetor da zaga.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,7,'Didi','VOL','MEI',77,1,'Meio-campista tatico de muita entrega.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,8,'Samarone','MEI',NULL,82,1,'O Diabo Loiro. Maestro e articulador do time.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,9,'Cafuringa','PD',NULL,81,1,'Extrema velocidade na ponta direita e cruzamentos precisos.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,9,'Cafuringa','PD','MD',81,1,'Extrema velocidade na ponta direita e cruzamentos precisos.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,10,'Flavio Minuano','ST',NULL,83,1,'Centroavante faz-gol, artilheiro nato.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,11,'Lula','PE','ME',81,1,'Ponta esquerda habilidoso e muito agudo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,12,'Jorge Vitorio','GOL',NULL,73,0,'Goleiro reserva do elenco.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,13,'Toninho','LD',NULL,74,0,'Lateral direito suplente.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,14,'Silveira','ZAG','VOL',77,0,'Curinga defensivo muito importante no elenco.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,15,'Lulinha','MEI',NULL,72,0,'Jovem meia reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,15,'Lulinha','MEI','MD',72,0,'Jovem meia reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,16,'Claudio Garcia','PD','MEI',76,0,'Ponta/Meia que participava bastante das rotacoes.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,17,'Wilton','PD',NULL,73,0,'Ponta de velocidade reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (5,18,'Mickey','ST',NULL,81,0,'O Iluminado. Marcou os gols decisivos do quadrangular final.');
@@ -159,13 +159,13 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,8,'Humberto Ramos','MEI',NULL,81,1,'Meia cerebral, deu a assistencia para o gol do titulo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,9,'Lola','ATA','PD',81,1,'Ponta-de-lanca habilidoso que ajudava no meio.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,10,'Dario','ST',NULL,86,1,'Dada Maravilha. O Rei do Maracana, autor do gol do titulo.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,11,'Tião','PE',NULL,79,1,'Ponta esquerda tatico e veloz.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,11,'Tião','PE','ME',79,1,'Ponta esquerda tatico e veloz.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,12,'Careca','GOL',NULL,72,0,'Goleiro reserva do elenco.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,13,'Zica','LD',NULL,73,0,'Lateral direito suplente.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,14,'Bibi','LE',NULL,74,0,'Lateral esquerdo reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,15,'Nadir','ZAG',NULL,74,0,'Zagueiro reserva do elenco.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,16,'Danilo','VOL',NULL,75,0,'Volante de contencao reserva.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,17,'Spencer','MEI',NULL,74,0,'Meio-campista de rotacao.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,17,'Spencer','MEI','ME',74,0,'Meio-campista de rotacao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,18,'Caldeira','PE',NULL,76,0,'Ponta esquerda reserva bastante acionado no ano.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,19,'Guara','ST',NULL,73,0,'Atacante de oficio reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (6,20,'Romeu','ATA',NULL,72,0,'Jovem atacante suplente.');
@@ -212,7 +212,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (8,17,'De Rosis','VOL','MC',80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (8,18,'João Carlos','LD','ZAG',80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (8,19,'Bernard','GOL',NULL,79,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (8,20,'Édson','MC',NULL,78,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (8,20,'Édson','MC','ME',78,0,'Elenco lendario.');
 
 INSERT INTO teams VALUES (9,'Vasco',1974,'Vasco 1974 (Campeao Brasileiro)','Mario Travaglini','#000000','#ffffff','Primeiro clube carioca a vencer o Brasileirao. Consagracao do jovem Roberto Dinamite.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (9,1,'Roberto Dinamite','ATA','MEI',93,1,'Elenco lendario.');
@@ -234,7 +234,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (9,17,'Amarildo','ATA',NULL,80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (9,18,'Jaílson','PD','ATA',80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (9,19,'Gaúcho','ZAG',NULL,79,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (9,20,'Galdino','PE',NULL,79,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (9,20,'Galdino','PE','ME',79,0,'Elenco lendario.');
 
 INSERT INTO teams VALUES (10,'Internacional',1975,'Internacional 1975 (Campeao Brasileiro)','Rubens Minelli','#D2122E','#ffffff','O inicio do dominio colorado na decada de 1970. Liderados pelo mestre Figueroa e pelo jovem Falcao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (10,1,'Falcão','VOL','MC',95,1,'Elenco lendario.');
@@ -277,7 +277,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (11,16,'Adaozinho','ZAG','LD',77,0,'Zagueiro-lateral reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (11,17,'Claudio Mineiro','LE','ZAG',77,0,'Lateral esquerdo reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (11,18,'Lance','MEI','ATA',76,0,'Meia atacante de suporte.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (11,19,'Edu Bala','PD',NULL,76,0,'Ponta direita reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (11,19,'Edu Bala','PD','MD',76,0,'Ponta direita reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (11,20,'Suprema','ATA',NULL,73,0,'Atacante jovem da base.');
 
 INSERT INTO teams VALUES (12,'Guarani',1978,'Guarani 1978 (Campeao Brasileiro)','Carlos Alberto Silva','#006437','#ffffff','Unico clube do interior do Brasil a conquistar a elite nacional desbancando gigantes.');
@@ -358,7 +358,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (15,9,'Andrade','VOL','MC',88,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (15,10,'Marinho','ZAG',NULL,87,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (15,11,'Lico','PE','MEI',86,1,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (15,12,'Baroninho','PE',NULL,84,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (15,12,'Baroninho','PE','ME',84,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (15,13,'Chiquinho','ATA',NULL,83,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (15,14,'Cantarele','GOL',NULL,81,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (15,15,'Rondinelli','ZAG',NULL,81,0,'Elenco lendario.');
@@ -402,15 +402,15 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,9,'Jandir','VOL','MC',86,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,10,'Duílio','ZAG','VOL',85,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,11,'Aldo','LD',NULL,85,1,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,12,'Wilsinho','PD',NULL,83,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,12,'Wilsinho','PD','MD',83,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,13,'Vica','ZAG',NULL,83,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,14,'Renê','MC','VOL',82,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,15,'Paulinho','ATA',NULL,81,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,16,'Leomir','MC',NULL,81,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,16,'Leomir','MC','MD',81,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,17,'Beto','LD',NULL,80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,18,'Renato','LE',NULL,80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,19,'Galvão','GOL',NULL,79,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,20,'Edson','PE',NULL,78,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (17,20,'Edson','PE','ME',78,0,'Elenco lendario.');
 
 INSERT INTO teams VALUES (18,'Coritiba',1985,'Coritiba 1985 (Campeao Brasileiro)','Enio Andrade','#006437','#ffffff','Unico titulo nacional do Coxa. Conquistado em uma final emocionante nos pênaltis contra o Bangu.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (18,1,'Lela','PD','ATA',89,1,'Elenco lendario.');
@@ -453,7 +453,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (19,16,'Pianelli','MEI','PE',81,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (19,17,'Lange','ATA',NULL,81,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (19,18,'Abelha','GOL',NULL,80,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (19,19,'Manu','MC',NULL,79,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (19,19,'Manu','MC','ME',79,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (19,20,'Quarenta','LE',NULL,78,0,'Elenco lendario.');
 
 INSERT INTO teams VALUES (20,'Sport',1987,'Sport 1987 (Campeão Brasileiro)','Emerson Leao','#C8102E','#000000','Campeão da Taça de Ouro de 1987. Conquista histórica consolidada na Ilha do Retiro.');
@@ -474,7 +474,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (20,15,'Givaldo','LD',NULL,80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (20,16,'Dedé','LE',NULL,80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (20,17,'Isaías','ATA',NULL,79,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (20,18,'Maceió','PD',NULL,79,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (20,18,'Maceió','PD','MD',79,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (20,19,'Moza','GOL',NULL,78,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (20,20,'Joécio','VOL',NULL,78,0,'Elenco lendario.');
 
@@ -492,13 +492,13 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,11,'Sandro','PE','ME',84,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,12,'Gil Sergipano','VOL','ZAG',84,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,13,'Osmar','ATA',NULL,83,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,14,'Deda','MEI',NULL,82,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,14,'Deda','MEI','MD',82,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,15,'Newmar','ZAG',NULL,81,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,16,'Edinho','LD',NULL,81,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,17,'Mailson','LE',NULL,80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,18,'Sidmar','GOL',NULL,80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,19,'Renato','PD',NULL,79,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,20,'Sales','MC',NULL,78,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (21,20,'Sales','MC','MD',78,0,'Elenco lendario.');
 
 INSERT INTO teams VALUES (22,'Vasco',1989,'Vasco 1989 (Campeão Brasileiro)','Nelsinho Rosa','#000000','#ffffff','O elenco conhecido como SeleVasco. Conquistou o bicampeonato nacional vencendo o São Paulo no Morumbi.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (22,1,'Acácio','GOL',NULL,85,1,'Elenco lendario.');
@@ -542,7 +542,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (23,17,'Marcos Roberto','LE',NULL,80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (23,18,'Wilson','GOL',NULL,80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (23,19,'Dama','ZAG',NULL,79,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (23,20,'Toninho','MC',NULL,78,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (23,20,'Toninho','MC','ME',78,0,'Elenco lendario.');
 
 INSERT INTO teams VALUES (24,'Sao Paulo',1991,'São Paulo 1991 (Campeão Brasileiro)','Tele Santana','#C8102E','#ffffff','O titulo que iniciou a era de ouro de Telê Santana no Morumbi desbancando o Bragantino.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (24,1,'Raí','MEI','MC',94,1,'Elenco lendario.');
@@ -572,7 +572,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (25,3,'Zinho','ME','MC',88,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (25,4,'Gaúcho','ATA',NULL,87,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (25,5,'Wilson Gottardo','ZAG',NULL,87,1,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (25,6,'Djalminha','MEI',NULL,86,1,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (25,6,'Djalminha','MEI','ME',86,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (25,7,'Piá','LE',NULL,86,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (25,8,'Charles','LD',NULL,85,1,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (25,9,'Júnior Baiano','ZAG',NULL,85,1,'Elenco lendario.');
@@ -605,10 +605,10 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (26,14,'Sorato','ATA',NULL,83,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (26,15,'Maurílio','PD','LD',82,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (26,16,'Amaral','VOL',NULL,82,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (26,17,'Jean Carlo','PE',NULL,81,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (26,17,'Jean Carlo','PE','ME',81,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (26,18,'Velloso','GOL',NULL,80,0,'Elenco lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (26,19,'Ricardo','LE',NULL,79,0,'Elenco lendario.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (26,20,'Juary','MC',NULL,78,0,'Elenco lendario.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (26,20,'Juary','MC','MD',78,0,'Elenco lendario.');
 
 INSERT INTO teams VALUES (27,'Palmeiras',1994,'Palmeiras 1994 (Bicampeão Brasileiro)','Vanderlei Luxemburgo','#006437','#ffffff','O Bicampeonato consecutivo consolidado em cima do arquirrival Corinthians com brilho de Rivaldo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (27,1,'Rivaldo','MEI','MC',94,1,'Elenco lendario.');
@@ -647,13 +647,13 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,11,'Tulio Maravilha','ATA',NULL,89,1,'23 gols. Artilheiro historico. Idolo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,12,'Moises','LE',NULL,72,0,'Lateral reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,13,'Iranildo','MEI',NULL,75,0,'Meia reserva criativo.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,14,'Marcelo Alves','MEI',NULL,72,0,'Meia do banco.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,14,'Marcelo Alves','MEI','MD',72,0,'Meia do banco.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,15,'Narcizio','ATA',NULL,71,0,'Atacante reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,16,'Rui','ATA',NULL,71,0,'Centroavante de recurso.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,17,'Marcio','LD',NULL,71,0,'Lateral de recurso.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,18,'Claudinho','ZAG',NULL,70,0,'Zagueiro jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,19,'Jorginho','MEI',NULL,71,0,'Meia jovem.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,20,'Alan','PE',NULL,70,0,'Ponta reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (28,20,'Alan','PE','ME',70,0,'Ponta reserva.');
 
 INSERT INTO teams VALUES (29,'Gremio',1996,'Gremio 1996','Luiz Felipe Scolari','#1c3f94','#000000','Felipao pre-Copa 98. Paulo Nunes artilheiro. Emerson jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,1,'Danrlei','GOL',NULL,82,1,'Grande goleiro gremista. Copa 94.');
@@ -664,7 +664,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,6,'Dinho','VOL','MEI',79,1,'Volante-meia de ligacao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,7,'Luis Carlos Goiano','VOL',NULL,78,1,'Volante de contencao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,8,'Emerson','MEI','VOL',82,1,'Meia eleito o melhor do time.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,9,'Carlos Miguel','MEI',NULL,79,1,'Meia de apoio.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,9,'Carlos Miguel','MEI','ME',79,1,'Meia de apoio.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,10,'Paulo Nunes','ATA',NULL,87,1,'16 gols artilheiro. Destaque.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,11,'Ze Alcino','PE',NULL,78,1,'Ponta esquerda.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,12,'Adilson','ZAG',NULL,75,0,'Terceiro zagueiro.');
@@ -673,7 +673,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,15,'Ze Afonso','ATA',NULL,72,0,'Centroavante de recurso.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,16,'Arilson','MEI',NULL,73,0,'Meia reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,17,'Helio','LD',NULL,71,0,'Lateral de apoio.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,18,'Marcelo','PE',NULL,71,0,'Ponta reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,18,'Marcelo','PE','ME',71,0,'Ponta reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,19,'Marcio','GOL',NULL,70,0,'Segundo goleiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (29,20,'Jose Wilson','ATA',NULL,70,0,'Atacante jovem.');
 
@@ -691,13 +691,13 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,11,'Evair','PE','ATA',85,1,'Parceiro de Edmundo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,12,'Marica','LD',NULL,73,0,'Lateral reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,13,'Alex Pinho','ZAG',NULL,72,0,'Terceiro zagueiro.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,14,'Pedrinho','MEI',NULL,77,0,'Meia reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,14,'Pedrinho','MEI','MD',77,0,'Meia reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,15,'Mauricinho','MEI',NULL,72,0,'Meia do banco.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,16,'Donizete','ATA',NULL,79,0,'Atacante reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,17,'Brener','ATA',NULL,73,0,'Centroavante de recurso.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,18,'Luizao','ATA',NULL,80,0,'Jovem; estrela no Corinthians 99.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,19,'Gil','ZAG',NULL,71,0,'Zagueiro jovem.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,20,'Sandro','MEI',NULL,70,0,'Meia em desenvolvimento.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (30,20,'Sandro','MEI','ME',70,0,'Meia em desenvolvimento.');
 
 INSERT INTO teams VALUES (31,'Vasco',1998,'Vasco 1998 (Libertadores)','Antonio Lopes','#000000','#ffffff','Campeao da Libertadores. Edmundo, Luizao, Donizete, Juninho.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (31,1,'Carlos Germano','GOL',NULL,83,1,'Goleiro campeao da Libertadores.');
@@ -718,7 +718,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (31,16,'Alex Pinho','ZAG',NULL,73,0,'Terceiro zagueiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (31,17,'Paulo','VOL',NULL,72,0,'Volante de suporte.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (31,18,'Valdir','LD',NULL,71,0,'Lateral de recurso.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (31,19,'Lima','MEI',NULL,71,0,'Meia jovem.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (31,19,'Lima','MEI','MD',71,0,'Meia jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (31,20,'Clayton','ATA',NULL,72,0,'Atacante reserva.');
 
 INSERT INTO teams VALUES (32,'Corinthians',1998,'Corinthians 1998 (Bicampeao)','Vanderlei Luxemburgo','#000000','#ffffff','Gamarra, Vampeta, Rincon, Marcelinho. Bicampeonato nascendo.');
@@ -731,7 +731,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (32,7,'Sylvinho','LE','PE',85,1,'Copa 98/02. Lateral moderno.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (32,8,'Vampeta','VOL',NULL,88,1,'Volante duro e astuto. Copa 98/02. Idolo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (32,9,'Rincon','MEI',NULL,87,1,'Colombiano genial. Copa 90/94/98.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (32,10,'Ricardinho','MEI',NULL,88,1,'Meia refinado. Copa 98/02.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (32,10,'Ricardinho','MEI','ME',88,1,'Meia refinado. Copa 98/02.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (32,11,'Marcelinho Carioca','MEI',NULL,91,1,'19 gols artilheiro. Pe de anjo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (32,12,'Edilson','ATA','MEI',90,0,'Bola de Ouro 98. 15 gols.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (32,13,'Dinei','ATA',NULL,78,0,'Talisma tricampeao.');
@@ -750,9 +750,9 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,4,'Marcio Costa','ZAG',NULL,79,1,'Parceiro na zaga.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,5,'Kleber','LE',NULL,79,1,'Lateral esquerdo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,6,'Vampeta','VOL',NULL,89,1,'Melhorou muito em 99. Idolo eterno.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,7,'Rincon','MEI',NULL,87,1,'Colombiano ainda no auge.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,7,'Rincon','MEI','MD',87,1,'Colombiano ainda no auge.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,8,'Ricardinho','MEI',NULL,88,1,'Meia refinado do tri.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,9,'Marcelinho Carioca','MEI',NULL,92,1,'Geracao de ouro do Corinthians.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,9,'Marcelinho Carioca','MEI','ME',92,1,'Geracao de ouro do Corinthians.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,10,'Edilson','ATA','MEI',89,1,'Decisivo na campanha.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,11,'Luizao','ATA',NULL,87,1,'Reforco importante.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,12,'Dinei','ATA',NULL,79,0,'Participou dos 5 gols nas finais.');
@@ -762,7 +762,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,16,'Gilmar','VOL',NULL,75,0,'Volante de suporte.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,17,'Edu','MEI',NULL,75,0,'Meia de reposicao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,18,'Fabinho','ZAG',NULL,73,0,'Zagueiro jovem.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,19,'Luis Carlos','PD',NULL,72,0,'Ponta reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,19,'Luis Carlos','PD','MD',72,0,'Ponta reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (33,20,'Anderson','ATA',NULL,71,0,'Atacante jovem.');
 
 INSERT INTO teams VALUES (34,'Vasco',2000,'Vasco 2000 (Brasileiro + Mercosul)','Oswaldo de Oliveira','#000000','#ffffff','Romario 36 anos ainda artilheiro. Donizete e Luizao. Campeao Copa Mercosul.');
@@ -772,7 +772,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,4,'Odvan','ZAG',NULL,78,1,'Veterano.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,5,'Felipe','LE',NULL,79,1,'Lateral esquerdo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,6,'Ramon','MEI','PD',82,1,'Meia ofensivo.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,7,'Juninho Paulista','MEI',NULL,84,1,'Meia virtuoso artilheiro.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,7,'Juninho Paulista','MEI','MD',84,1,'Meia virtuoso artilheiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,8,'Pedrinho','MEI',NULL,80,1,'Meia criativo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,9,'Luizao','ATA',NULL,86,1,'Centroavante de area.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,10,'Donizete','ATA',NULL,84,1,'Artilheiro parceiro de Romario.');
@@ -783,7 +783,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,15,'Everton','ATA',NULL,73,0,'Atacante jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,16,'Nasa','VOL',NULL,77,0,'Volante ainda presente.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,17,'Nilton','VOL',NULL,76,0,'Volante de reposicao.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,18,'Paulo Victor','MEI',NULL,74,0,'Meia jovem.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,18,'Paulo Victor','MEI','ME',74,0,'Meia jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,19,'Alexandre Pires','ATA',NULL,75,0,'Atacante reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (34,20,'Fabio Augusto','LD',NULL,72,0,'Lateral jovem.');
 
@@ -800,13 +800,13 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,10,'Kleber','ATA',NULL,84,1,'Artilheiro importante.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,11,'Alex Mineiro','ATA',NULL,85,1,'Craque e lider ofensivo. Artilheiro historico.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,12,'Igor','LD',NULL,73,0,'Lateral de reposicao.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,13,'Pires','MEI',NULL,72,0,'Meia reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,13,'Pires','MEI','MD',72,0,'Meia reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,14,'Rodriguinho','MEI',NULL,71,0,'Meia reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,15,'Souza','ATA',NULL,74,0,'Atacante de reposicao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,16,'Ilan','ATA',NULL,73,0,'Centroavante reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,17,'Adauto','ATA',NULL,72,0,'Atacante do banco.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,18,'Marcos','ZAG',NULL,71,0,'Zagueiro jovem.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,19,'Ederson','MEI',NULL,72,0,'Meia jovem.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,19,'Ederson','MEI','ME',72,0,'Meia jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (35,20,'Chico','LD',NULL,71,0,'Lateral de recurso.');
 
 INSERT INTO teams VALUES (36,'Santos',2002,'Santos 2002 (Meninos da Vila)','Emerson Leao','#000000','#ffffff','Meninos da Vila. Robinho, Diego, Elano revelados. Pedaladas na final.');
@@ -822,7 +822,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (36,10,'Robinho','ATA','PE',92,1,'Pedaladas na final. Revelacao Copa 02.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (36,11,'William','PE',NULL,76,1,'Ponta esquerda.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (36,12,'Julio Cesar','GOL',NULL,73,0,'Reserva.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (36,13,'Wellington','MEI',NULL,72,0,'Meia reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (36,13,'Wellington','MEI','MD',72,0,'Meia reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (36,14,'Alexandre','ATA',NULL,73,0,'Atacante reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (36,15,'Robert','ATA',NULL,74,0,'Centroavante de recurso.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (36,16,'Michel','ATA',NULL,71,0,'Atacante jovem.');
@@ -839,14 +839,14 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,5,'Leandro','LE',NULL,78,1,'Lateral esquerdo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,6,'Maldonado','VOL',NULL,79,1,'Volante de contencao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,7,'Augusto Recife','VOL',NULL,77,1,'Volante tecnico.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,8,'Wendell','MEI',NULL,78,1,'Meia de ligacao.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,8,'Wendell','MEI','ME',78,1,'Meia de ligacao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,9,'Alex','MEI',NULL,90,1,'23 gols artilheiro. Bola de Ouro 2003.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,10,'Aristizabal','ATA',NULL,82,1,'Colombiano artilheiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,11,'Mota','ATA',NULL,79,1,'Centroavante de area.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,12,'Maicon','LD',NULL,76,0,'Jovem que foi ao Inter de Milao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,13,'Luisao','ZAG',NULL,79,0,'Zagueiro que foi ao Benfica.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,14,'Felipe Melo','VOL',NULL,78,0,'Volante que foi ao exterior.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,15,'Zinho','MEI',NULL,73,0,'Veterano ainda com qualidade.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,15,'Zinho','MEI','MD',73,0,'Veterano ainda com qualidade.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,16,'Marcio Nobre','ATA',NULL,75,0,'Atacante reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,17,'Deivid','ATA',NULL,78,0,'Centroavante; brilharia no Santos 2004.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (37,18,'Alex Alves','ATA',NULL,74,0,'Atacante de recurso.');
@@ -861,12 +861,12 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,5,'Leo','LE',NULL,79,1,'Copa 10.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,6,'Fabinho','VOL',NULL,77,1,'Volante de contencao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,7,'Preto Casagrande','VOL','MEI',76,1,'Versatil.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,8,'Ricardinho','MEI',NULL,84,1,'Meia tecnico.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,8,'Ricardinho','MEI','ME',84,1,'Meia tecnico.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,9,'Elano','MEI',NULL,85,1,'Meia criativo. Manchester City.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,10,'Robinho','ATA','PE',91,1,'Bola de Ouro 2004. 22 gols.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,11,'Deivid','ATA',NULL,84,1,'22 gols parceiro de Robinho.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,12,'Paulo Cesar','LD',NULL,73,0,'Lateral reserva.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,13,'Marcinho','MEI',NULL,72,0,'Meia reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,13,'Marcinho','MEI','MD',72,0,'Meia reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,14,'Basilio','ATA',NULL,71,0,'Centroavante de recurso.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,15,'William','ATA','PE',73,0,'Atacante reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (38,16,'Adriano','ZAG',NULL,73,0,'Zagueiro reserva.');
@@ -890,10 +890,10 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,12,'Julio Cesar','GOL',NULL,74,0,'Reserva; depois Inter/Arsenal.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,13,'Sebastian Dominguez','ZAG',NULL,76,0,'Argentino de qualidade.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,14,'Mascherano','VOL',NULL,86,0,'Argentino lendario. Liverpool/Barcelona.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,15,'Roger','MEI',NULL,78,0,'Meia reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,15,'Roger','MEI','ME',78,0,'Meia reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,16,'Jo','ATA',NULL,76,0,'Jovem; depois CSKA Moscou.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,17,'Wescley','MEI',NULL,72,0,'Meia de reposicao.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,18,'Eduardo Ratinho','MEI',NULL,71,0,'Meia jovem.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,18,'Eduardo Ratinho','MEI','MD',71,0,'Meia jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,19,'Rodrigo','LD',NULL,71,0,'Lateral jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (39,20,'Rosinei','MEI',NULL,77,0,'Meia criativo.');
 
@@ -905,14 +905,14 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,5,'Junior','LE',NULL,77,1,'Lateral esquerdo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,6,'Mineiro','VOL',NULL,81,1,'Volante tecnico. Copa 10.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,7,'Josue','VOL','MEI',80,1,'Volante criativo.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,8,'Souza','MEI',NULL,78,1,'Meia de ligacao.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,8,'Souza','MEI','ME',78,1,'Meia de ligacao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,9,'Danilo','MEI',NULL,80,1,'Meia que foi ao Wolfsburg.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,10,'Leandro','PD','PE',77,1,'Ponta pelos dois lados.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,11,'Aloisio','ATA',NULL,81,1,'Centroavante artilheiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,12,'Lugano','ZAG',NULL,82,0,'Uruguaio de alto nivel.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,13,'Alex Silva','ZAG',NULL,73,0,'Terceiro zagueiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,14,'Cicinho','LD','PD',79,0,'Lateral-ponta dinamico.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,15,'Thiago Ribeiro','MEI',NULL,75,0,'Meia jovem.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,15,'Thiago Ribeiro','MEI','MD',75,0,'Meia jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,16,'Richarlyson','MEI',NULL,74,0,'Meia polivalente.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,17,'Lenilson','ATA',NULL,73,0,'Atacante reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (40,18,'Anderson','ATA',NULL,72,0,'Atacante jovem.');
@@ -928,7 +928,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,6,'Junior','LE',NULL,77,1,'Lateral esquerdo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,7,'Mineiro','VOL',NULL,82,1,'Volante bicampeao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,8,'Josue','VOL','MEI',81,1,'Meia-volante.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,9,'Danilo','MEI',NULL,81,1,'Meia bicampeao.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,9,'Danilo','MEI','ME',81,1,'Meia bicampeao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,10,'Hernanes','MEI',NULL,86,1,'Revelacao. Copa 10/14.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,11,'Grafite','ATA',NULL,85,1,'20 gols artilheiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,12,'Aloisio','ATA',NULL,80,0,'Atacante bicampeao.');
@@ -936,7 +936,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,14,'Cicinho','LD','PD',79,0,'Lateral-ponta.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,15,'Diego Tardelli','ATA',NULL,80,0,'Atacante que brilharia no Atletico.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,16,'Alex Silva','ZAG',NULL,74,0,'Terceiro zagueiro.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,17,'Souza','MEI',NULL,79,0,'Meia bicampeao.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,17,'Souza','MEI','MD',79,0,'Meia bicampeao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,18,'Lucas','PD',NULL,75,0,'Jovem pela direita.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,19,'Pablo','ZAG',NULL,73,0,'Zagueiro jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (41,20,'Rodrigo','LD',NULL,70,0,'Lateral de recurso.');
@@ -951,7 +951,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,7,'Mineiro','VOL',NULL,82,1,'Volante tricampeao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,8,'Josue','VOL','MEI',80,1,'Meia-volante tricampeao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,9,'Danilo','MEI',NULL,80,1,'Meia tricampeao.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,10,'Hernanes','MEI',NULL,88,1,'No auge artilheiro pela meia.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,10,'Hernanes','MEI','ME',88,1,'No auge artilheiro pela meia.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,11,'Borges','ATA',NULL,80,1,'18 gols artilheiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,12,'Aloisio','ATA',NULL,79,0,'Atacante tricampeao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,13,'Diego Tardelli','ATA',NULL,81,0,'Atacante no auge.');
@@ -961,7 +961,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,17,'Rafael','ZAG',NULL,73,0,'Zagueiro jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,18,'Jadson','MEI',NULL,77,0,'Meia jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,19,'Junior Cesar','LE',NULL,72,0,'Lateral jovem.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,20,'Souza','MEI',NULL,79,0,'Meia tricampeao.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (42,20,'Souza','MEI','MD',79,0,'Meia tricampeao.');
 INSERT INTO teams VALUES (43,'Flamengo',2009,'Flamengo 2009 (Hexacampeonato)','Andrade','#c8102e','#000000','Hexacampeonato improvavel. Petkovic 37 anos no meio. Juan e Leo Moura.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,1,'Bruno','GOL',NULL,87,1,'Melhor goleiro do Brasil em 2009.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,2,'Leo Moura','LD','PD',86,1,'Lateral-ponta idolo. Eleito selecao.');
@@ -976,10 +976,10 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,11,'Obina','ATA',NULL,80,1,'Centroavante reserva importante.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,12,'Ze Roberto','MEI','ATA',80,0,'Veterano ex-Bayern. Decisivo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,13,'Kleberson','VOL','MEI',81,0,'Ex-Copa 02 ainda contribuindo.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,14,'Josiel','PD',NULL,76,0,'Ponta direita.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,14,'Josiel','PD','MD',76,0,'Ponta direita.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,15,'Everton','ATA',NULL,78,0,'Atacante do plantel.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,16,'Alvaro','ZAG',NULL,78,0,'Terceiro zagueiro.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,17,'Fierro','MEI',NULL,75,0,'Meia reserva argentino.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,17,'Fierro','MEI','ME',75,0,'Meia reserva argentino.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,18,'Camacho','ATA',NULL,72,0,'Atacante de recurso.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,19,'Denis Marques','ATA',NULL,72,0,'Atacante jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (43,20,'Bruno Mezenga','ATA',NULL,73,0,'Atacante do banco.');
@@ -993,7 +993,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (44,6,'Adriano','VOL',NULL,79,1,'Volante de contencao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (44,7,'Arouca','VOL','MEI',83,1,'Volante tecnico.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (44,8,'Elano','MEI',NULL,87,1,'Ex-Man City. Maestro.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (44,9,'Paulo Henrique Ganso','MEI',NULL,88,1,'Revelacao genial. Visao unica.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (44,9,'Paulo Henrique Ganso','MEI','MD',88,1,'Revelacao genial. Visao unica.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (44,10,'Robinho','PE','ATA',89,1,'Artilheiro retornando. Copa 10.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (44,11,'Neymar','ATA','PE',93,1,'18 anos 18 gols. Explodindo para o mundo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (44,12,'Andre','ATA',NULL,82,0,'Centroavante artilheiro Copa do Brasil.');
@@ -1024,7 +1024,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (45,15,'Julio Cesar','LE','ME',76,0,'Lateral esquerdo reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (45,16,'Thiago Neves','MEI','PE',76,0,'Meia criativo reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (45,17,'Marquinho','ME','MC',76,0,'Meia esquerda versatil.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (45,18,'Rodrigueiro','MEI',NULL,74,0,'Meia de apoio reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (45,18,'Rodrigueiro','MEI','ME',74,0,'Meia de apoio reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (45,19,'Alan','ATA','PD',74,0,'Atacante de reposicao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (45,20,'Andre Luis','ZAG',NULL,73,0,'Zagueiro reserva jovem.');
 
@@ -1037,7 +1037,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (46,6,'Adriano','VOL',NULL,79,1,'Volante de contencao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (46,7,'Arouca','VOL','MEI',84,1,'Volante tecnico campeao Libertadores.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (46,8,'Elano','MEI',NULL,87,1,'Ex-Man City. Maestro.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (46,9,'Paulo Henrique Ganso','MEI',NULL,89,1,'Maestro absoluto da Libertadores.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (46,9,'Paulo Henrique Ganso','MEI','MD',89,1,'Maestro absoluto da Libertadores.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (46,10,'Neymar','ATA','PE',95,1,'Revelacao do seculo. Campeao Libertadores.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (46,11,'Ze Eduardo','ATA',NULL,80,1,'Centroavante parceiro de Neymar.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (46,12,'Andre','ATA',NULL,83,0,'Artilheiro reserva.');
@@ -1069,7 +1069,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (47,16,'Romarinho','ATA',NULL,78,0,'Talisma. Gols nos momentos certos.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (47,17,'Paulo Andre','ZAG',NULL,80,0,'Zagueiro reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (47,18,'Julio Cesar','GOL',NULL,80,0,'Reserva de qualidade.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (47,19,'Douglas','MEI',NULL,74,0,'Meia jovem.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (47,19,'Douglas','MEI','ME',74,0,'Meia jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (47,20,'Guilherme','ATA',NULL,73,0,'Atacante de recurso.');
 
 INSERT INTO teams VALUES (48,'Fluminense',2012,'Fluminense 2012 (Tetracampeonato)','Abel Braga','#7a1e3c','#006437','Tetracampeonato. Fred 25 gols artilheiro. Deco maestro em fim de carreira.');
@@ -1081,17 +1081,17 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,6,'Edinho','VOL','MEI',78,1,'Meia-volante versatil.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,7,'Jean','VOL',NULL,79,1,'Volante de contencao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,8,'Deco','MEI',NULL,87,1,'Portugues bicampeao Champions. Maestro.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,9,'Thiago Neves','MEI',NULL,88,1,'Craque do tetra.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,9,'Thiago Neves','MEI','MD',88,1,'Craque do tetra.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,10,'Wellington Nem','PD','MEI',83,1,'Ponta-meia criativo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,11,'Fred','ATA',NULL,90,1,'25 gols artilheiro do Brasileirao 2012.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,12,'Rafael Sobis','ATA',NULL,82,0,'Atacante de qualidade.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,13,'Rafael Moura','ATA',NULL,79,0,'Atacante versatil.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,14,'Wagner','MEI',NULL,76,0,'Meia de reposicao.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,15,'Lanzini','MEI',NULL,80,0,'Jovem argentino. Foi ao West Ham.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,15,'Lanzini','MEI','ME',80,0,'Jovem argentino. Foi ao West Ham.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,16,'Michael','MEI',NULL,74,0,'Meia jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,17,'Rodrigo Lindoso','VOL',NULL,78,0,'Volante de suporte.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,18,'Samuel','ATA',NULL,73,0,'Atacante jovem.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,19,'Martinuccio','MEI',NULL,74,0,'Meia reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,19,'Martinuccio','MEI','MD',74,0,'Meia reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (48,20,'Anderson','ZAG',NULL,78,0,'Terceiro zagueiro.');
 
 INSERT INTO teams VALUES (49,'Atletico-MG',2013,'Atletico-MG 2013 (Libertadores)','Cuca','#000000','#ffffff','Campeao da Libertadores. Victor heroi, Ronaldinho maestro, Tardelli artilheiro.');
@@ -1131,7 +1131,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (50,12,'Mayke','LD',NULL,78,0,'Jovem lateral revelado.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (50,13,'Leo','ZAG',NULL,79,0,'Terceiro zagueiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (50,14,'Willian','ATA','PE',84,0,'6 gols chegando no meio. Decisivo.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (50,15,'Julio Baptista','MEI',NULL,79,0,'Veterano experiente.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (50,15,'Julio Baptista','MEI','ME',79,0,'Veterano experiente.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (50,16,'Diego Souza','MEI',NULL,80,0,'Meia de qualidade.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (50,17,'Dagoberto','ATA',NULL,75,0,'Atacante de recurso.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (50,18,'Rafael','GOL',NULL,75,0,'Reserva do gol.');
@@ -1168,13 +1168,13 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,5,'Guilherme Arana','LE',NULL,83,1,'Jovem da base Copa 21/22.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,6,'Ralf','VOL',NULL,85,1,'Veterano idolo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,7,'Elias','VOL','MEI',84,1,'Volante-meia.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,8,'Renato Augusto','MEI',NULL,86,1,'Meia criativo. Copa 18.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,8,'Renato Augusto','MEI','MD',86,1,'Meia criativo. Copa 18.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,9,'Jadson','MEI',NULL,88,1,'Maestro. Cobracas magneticas.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,10,'Roberto Firmino','ATA','MEI',85,1,'Revelacao; foi ao Liverpool.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,11,'Malcom','PD','ATA',82,1,'Jovem; depois Barcelona.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,12,'Alessandro','LD',NULL,78,0,'Lateral veterano.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,13,'Chicao','ZAG',NULL,82,0,'Veterano presente.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,14,'Rodriguinho','MEI',NULL,83,0,'Meia criativo importante.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,14,'Rodriguinho','MEI','ME',83,0,'Meia criativo importante.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,15,'Willian Arao','VOL',NULL,80,0,'Volante Copa 18.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,16,'Petros','VOL',NULL,77,0,'Volante de reposicao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (52,17,'Lucca','ATA',NULL,73,0,'Atacante jovem.');
@@ -1201,7 +1201,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (53,16,'Mauricio Ramos','ZAG',NULL,76,0,'Zagueiro reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (53,17,'Jean','LD',NULL,78,0,'Lateral direito.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (53,18,'Thiago Martins','ZAG',NULL,79,0,'Zagueiro tecnico.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (53,19,'Raphael Veiga','MEI',NULL,80,0,'Jovem que seria idolo depois.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (53,19,'Raphael Veiga','MEI','MD',80,0,'Jovem que seria idolo depois.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (53,20,'Roger Guedes','ATA','PE',80,0,'Jovem com gols importantes.');
 
 INSERT INTO teams VALUES (54,'Corinthians',2017,'Corinthians 2017 (Heptacampeonato)','Fabio Carille','#000000','#ffffff','Carille campeao com 9 pontos de vantagem. Maycon e Pablo revelacoes.');
@@ -1213,7 +1213,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,6,'Ralf','VOL',NULL,84,1,'Veterano idolo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,7,'Maycon','VOL',NULL,85,1,'Revelacao. Depois Shakhtar.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,8,'Jadson','MEI',NULL,89,1,'Artilheiro e maestro.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,9,'Marlone','MEI',NULL,82,1,'Meia tecnico.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,9,'Marlone','MEI','ME',82,1,'Meia tecnico.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,10,'Jo','ATA',NULL,87,1,'16 gols artilheiro. Voltou do exterior.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,11,'Romero','PD','ATA',82,1,'Paraguaio artilheiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,12,'Malcom','PD','ATA',84,0,'Revelacao; depois Barcelona.');
@@ -1221,8 +1221,8 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,14,'Rodriguinho','MEI',NULL,84,0,'Meia criativo idolo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,15,'Kazim','ATA',NULL,73,0,'Atacante de recurso.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,16,'Leo Santos','ZAG',NULL,78,0,'Terceiro zagueiro jovem.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,17,'Camacho','MEI',NULL,74,0,'Meia jovem.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,18,'Mendoza','PD',NULL,74,0,'Ponta colombiana reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,17,'Camacho','MEI','MD',74,0,'Meia jovem.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,18,'Mendoza','PD','MD',74,0,'Ponta colombiana reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,19,'Carlos','LD',NULL,71,0,'Lateral de recurso.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (54,20,'Jo (reserva)','ATA',NULL,75,0,'Atacante reserva.');
 
@@ -1246,7 +1246,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (55,17,'Edu Dracena','ZAG',NULL,82,0,'Veterano lider.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (55,18,'Thiago Santos','VOL',NULL,78,0,'Volante de contencao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (55,19,'Rafael Marques','ATA',NULL,76,0,'Atacante veterano.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (55,20,'Raphael Veiga','MEI',NULL,80,0,'Jovem; seria idolo.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (55,20,'Raphael Veiga','MEI','ME',80,0,'Jovem; seria idolo.');
 
 INSERT INTO teams VALUES (56,'Athletico-PR',2019,'Athletico-PR 2019 (Copa do Brasil)','Tiago Nunes','#c8102e','#000000','Campeao Copa do Brasil. Bruno Guimaraes revelacao para o mundo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (56,1,'Santos','GOL',NULL,82,1,'Goleiro do titulo.');
@@ -1264,7 +1264,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (56,13,'Robson Bambu','ZAG',NULL,79,0,'Jovem zagueiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (56,14,'Abner','LE',NULL,77,0,'Lateral jovem revelado.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (56,15,'Lucho Gonzalez','MEI',NULL,83,0,'Argentino veterano.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (56,16,'Marcelo Cirino','PE',NULL,81,0,'Ponta esquerda veloz.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (56,16,'Marcelo Cirino','PE','ME',81,0,'Ponta esquerda veloz.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (56,17,'Wellington','VOL',NULL,79,0,'Volante de suporte.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (56,18,'Jonathan Rios','LD',NULL,78,0,'Lateral reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (56,19,'Vitinho','PD',NULL,80,0,'Ponta de velocidade.');
@@ -1279,14 +1279,14 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,6,'Willian Arao','VOL',NULL,88,1,'Volante campeao Copa 21.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,7,'Gerson','MEI','VOL',90,1,'Maestro criativo Copa 21.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,8,'Everton Ribeiro','MEI','PD',91,1,'Melhor do Brasileirao. Idolo.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,9,'Arrascaeta','MEI',NULL,92,1,'Uruguaio genial.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,9,'Arrascaeta','MEI','MD',92,1,'Uruguaio genial.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,10,'Bruno Henrique','PE','ATA',90,1,'Ponta-atacante decisivo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,11,'Gabigol','ATA',NULL,97,1,'25 gols no BR. Artilheiro da Libertadores.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,12,'Pedro','ATA',NULL,88,0,'Reserva que seria titular no bi.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,13,'Diego','MEI',NULL,84,0,'Veterano e idolo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,14,'Cuellar','VOL',NULL,85,0,'Volante colombiano.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,15,'Rodinei','LD',NULL,82,0,'Lateral reserva.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,16,'Reinier','MEI',NULL,82,0,'Jovem; foi ao Real Madrid.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,16,'Reinier','MEI','ME',82,0,'Jovem; foi ao Real Madrid.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,17,'Michael','ATA','PD',82,0,'Ponta veloz.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,18,'Thiago Maia','VOL',NULL,83,0,'Volante de contencao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (57,19,'Lincoln','ATA',NULL,79,0,'Jovem atacante.');
@@ -1308,8 +1308,8 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (58,13,'Thiago Maia','VOL',NULL,84,0,'Bicampeao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (58,14,'Michael','ATA','PD',83,0,'Ponta veloz.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (58,15,'Rodinei','LD',NULL,82,0,'Lateral reserva bicampeao.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (58,16,'Diego','MEI',NULL,82,0,'Veterano contribuindo.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (58,17,'Vitinho','PD',NULL,81,0,'Ponta criativa.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (58,16,'Diego','MEI','MD',82,0,'Veterano contribuindo.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (58,17,'Vitinho','PD','MD',81,0,'Ponta criativa.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (58,18,'Hugo Souza','GOL',NULL,76,0,'Jovem goleiro revelado.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (58,19,'Rene','LE',NULL,82,0,'Reserva da lateral.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (58,20,'Leo Ortiz','ZAG',NULL,80,0,'Zagueiro jovem.');
@@ -1323,7 +1323,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,6,'Allan','VOL','MEI',86,1,'Ex-Napoli. Copa 21.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,7,'Jair','VOL',NULL,83,1,'Volante de contencao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,8,'Zaracho','MEI',NULL,87,1,'Argentino de qualidade.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,9,'Nacho Fernandez','MEI',NULL,90,1,'Venezolano maestro. Craque do titulo.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,9,'Nacho Fernandez','MEI','ME',90,1,'Venezolano maestro. Craque do titulo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,10,'Keno','ATA','PE',85,1,'Ponta artilheiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,11,'Hulk','ATA',NULL,94,1,'35 anos artilheiro 19 gols. Lendario.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,12,'Vargas','MEI','PE',84,0,'Chileno versatil.');
@@ -1333,7 +1333,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,16,'Alisson','ZAG','LD',83,0,'Versatil.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,17,'Guga','LD',NULL,80,0,'Lateral jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,18,'Igor Gomes','MEI',NULL,78,0,'Jovem meia.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,19,'Hyoran','MEI',NULL,79,0,'Meia criativo.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,19,'Hyoran','MEI','MD',79,0,'Meia criativo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (59,20,'Rabelo','VOL',NULL,76,0,'Volante de suporte.');
 
 INSERT INTO teams VALUES (60,'Palmeiras',2022,'Palmeiras 2022 (81 pontos RECORDE historico)','Abel Ferreira','#006437','#ffffff','81 pontos RECORDE historico absoluto. Endrick 16 anos revelacao.');
@@ -1368,7 +1368,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (61,7,'Matheus Fernandes','VOL',NULL,83,1,'Voltou apos Barcelona.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (61,8,'Erick','VOL',NULL,82,1,'Volante jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (61,9,'Fernandinho','VOL','MEI',90,1,'Ex-Man City. Idolo eterno.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (61,10,'David Terans','MEI',NULL,86,1,'Uruguaio artilheiro.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (61,10,'David Terans','MEI','ME',86,1,'Uruguaio artilheiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (61,11,'Canobbio','PD','MEI',84,1,'Uruguaio criativo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (61,12,'Romulo','ATA',NULL,83,0,'Artilheiro 12 gols.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (61,13,'Pablo','ATA',NULL,82,0,'Centroavante veterano.');
@@ -1399,7 +1399,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (62,16,'Vanderlan','LE',NULL,79,0,'Lateral reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (62,17,'Atuesta','VOL',NULL,80,0,'Volante colombiano.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (62,18,'Jhon Jhon','MEI',NULL,82,0,'Meia jovem.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (62,19,'Artur','PD',NULL,78,0,'Ponta reserva.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (62,19,'Artur','PD','MD',78,0,'Ponta reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (62,20,'Lopes','ATA',NULL,75,0,'Atacante de recurso.');
 
 INSERT INTO teams VALUES (63,'Botafogo',2024,'Botafogo 2024 (Brasileirao + Libertadores)','Artur Jorge','#000000','#ffffff','Igor Jesus, Luiz Henrique, Thiago Almada. Fim do jejum de 29 anos com dupla coroa.');
@@ -1432,7 +1432,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,5,'Zeca','LE',NULL,80,1,'Lateral jovem da base.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,6,'Renato','VOL',NULL,82,1,'Veterano experiente.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,7,'Thiago Maia','VOL',NULL,85,1,'Revelacao. Depois Lille/Flamengo.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,8,'Lucas Lima','MEI',NULL,87,1,'Maestro. 6 assistencias.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,8,'Lucas Lima','MEI','MD',87,1,'Maestro. 6 assistencias.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,9,'Marquinhos Gabriel','PD','ATA',82,1,'Ponta criativa.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,10,'Ricardo Oliveira','ATA',NULL,90,1,'39 anos e 20 gols. ABSURDO historico.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,11,'Gabigol','ATA','PD',85,1,'17 anos 10 gols. Revelacao. Inter de Milao.');
@@ -1443,7 +1443,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,16,'Geuvânio','PE','ATA',80,0,'Ponta veloz.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,17,'Robinho','ATA','PE',81,0,'Ainda contribuindo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,18,'Elano','MEI',NULL,79,0,'Veterano com qualidade.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,19,'Leo Cittadini','MEI',NULL,77,0,'Meia tecnico.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,19,'Leo Cittadini','MEI','ME',77,0,'Meia tecnico.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (64,20,'Alison','VOL',NULL,77,0,'Volante de contencao.');
 
 INSERT INTO teams VALUES (65,'Santos',2020,'Santos 2020 (Vice-Campeao da Libertadores)','Cuca','#000000','#ffffff','Marinho, Soteldo, Lucas Verissimo e Kaio Jorge. Vice da Libertadores 2020.');
@@ -1484,7 +1484,7 @@ INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_sta
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (66,13,'Hugo','GOL',NULL,78,0,'Segundo goleiro.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (66,14,'Rafael','LD',NULL,79,0,'Lateral de reposicao.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (66,15,'Kayque','VOL',NULL,80,0,'Volante jovem revelado.');
-INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (66,16,'Oscar Romero','MEI',NULL,82,0,'Paraguaio criativo.');
+INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (66,16,'Oscar Romero','MEI','MD',82,0,'Paraguaio criativo.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (66,17,'Diego Costa','ATA',NULL,79,0,'Atacante reserva.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (66,18,'Patrick de Paula','VOL',NULL,82,0,'Volante jovem.');
 INSERT INTO players(team_id,jersey,name,pos_primary,pos_secondary,overall,is_starter,notes) VALUES (66,19,'Victor Sa','ATA',NULL,82,0,'Atacante alternativo.');

@@ -35,46 +35,6 @@ function matchPrng(roomSeed, roundKey, homeId, awayId) {
   return makePrng(hashSeed(`${roomSeed}|${roundKey}|${homeId}|${awayId}`));
 }
 
-// Fisher-Yates com PRNG injetado — determinístico entre navegadores/engines,
-// ao contrário de `.sort(() => rand() - 0.5)`, cuja ordem de comparações não é
-// garantida pela spec (dois clientes com a mesma seed podem embaralhar diferente).
-function seededShuffle(arr, rand) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(rand() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
-}
-
-// ============================================================
-// ÍCONES — SVG monocromáticos (sem emoji) usados em toda a UI
-// ============================================================
-const ICON_PATHS = {
-  trophy: <path d="M8 21h8M12 17v4M7 4h10v4a5 5 0 0 1-10 0V4ZM7 5H4a3 3 0 0 0 3 4M17 5h3a3 3 0 0 1-3 4" />,
-  ball: <><circle cx="12" cy="12" r="9" /><path d="M12 7l4 3-1.5 4.5h-5L8 10l4-3ZM12 3v4M4.5 8l2.5 1M4.5 16l2.5-1M19.5 8l-2.5 1M19.5 16l-2.5-1M9 20l1.5-4.5M15 20l-1.5-4.5" /></>,
-  dice: <><rect x="4" y="4" width="16" height="16" rx="3" /><circle cx="8.5" cy="8.5" r="1" fill="currentColor" stroke="none" /><circle cx="15.5" cy="8.5" r="1" fill="currentColor" stroke="none" /><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" /><circle cx="8.5" cy="15.5" r="1" fill="currentColor" stroke="none" /><circle cx="15.5" cy="15.5" r="1" fill="currentColor" stroke="none" /></>,
-  stadium: <><ellipse cx="12" cy="12" rx="9" ry="6" /><ellipse cx="12" cy="12" rx="4" ry="2.6" /><path d="M3 12v4a9 3.6 0 0 0 18 0v-4" /></>,
-  camera: <><path d="M4 8h3l1.5-2h7L17 8h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1Z" /><circle cx="12" cy="13" r="3.5" /></>,
-  music: <><circle cx="6.5" cy="18" r="2.5" /><circle cx="17" cy="16" r="2.5" /><path d="M9 18V5.5L19.5 4v11.5" /></>,
-  users: <><circle cx="9" cy="8" r="3.2" /><path d="M2.8 19a6.2 6.2 0 0 1 12.4 0" /><path d="M15.5 5.2a3.2 3.2 0 0 1 0 6.2M18.2 13.4a6.2 6.2 0 0 1 3.6 5.6" /></>,
-  clock: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3.2 2" /></>,
-  check: <><circle cx="12" cy="12" r="9" /><path d="M8 12.3l2.6 2.6L16.2 9" /></>,
-  shield: <path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3Z" />,
-  clipboard: <><rect x="6" y="4" width="12" height="17" rx="2" /><rect x="9" y="2.3" width="6" height="3.2" rx="1" /><path d="M9 11h6M9 15h6" /></>,
-  x: <path d="M6 6l12 12M18 6L6 18" />,
-};
-function Icon({ name, size = 16, color = 'currentColor', style, strokeWidth = 1.8 }) {
-  const body = ICON_PATHS[name];
-  if (!body) return null;
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={strokeWidth}
-      strokeLinecap="round" strokeLinejoin="round" style={{ display: 'inline-block', verticalAlign: 'middle', flexShrink: 0, ...style }}>
-      {body}
-    </svg>
-  );
-}
-
 // ============================================================
 // DADOS: 66 times históricos do Brasileirão (1959-2026)
 // ============================================================
@@ -1808,15 +1768,15 @@ const FORMATIONS = {
 
   // --- Variações do 4-3-3 ---
   '4-3-3-ofensivo': {
-    label: '4-3-3 Ofensivo (1 VOL, 2 MEI)',
+    label: '4-3-3 Ofensivo',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MEI: 2, PD: 1, PE: 1, ATA: 1 }
   },
   '4-3-3-misto': {
-    label: '4-3-3 Misto (1 VOL, 1 MC, 1 MEI)',
+    label: '4-3-3 Misto',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 1, MEI: 1, PD: 1, PE: 1, ATA: 1 }
   },
   '4-3-3-defensivo': {
-    label: '4-3-3 Contenção (2 VOL, 1 MC)',
+    label: '4-3-3 Contenção',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 1, PD: 1, PE: 1, ATA: 1 }
   },
 
@@ -1826,45 +1786,45 @@ const FORMATIONS = {
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MD: 1, ME: 1, ATA: 2 }
   },
   '4-4-2-losango-misto': {
-    label: '4-4-2 Losango (1 VOL, 2 MC, 1 MEI)',
+    label: '4-4-2 Losango Misto',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MEI: 1, ATA: 2 }
   },
   '4-4-2-quadrado': {
-    label: '4-4-2 Quadrado (2 VOL, 2 MEI)',
+    label: '4-4-2 Quadrado',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MEI: 2, ATA: 2 }
   },
 
   // --- Variações do 4-2-3-1 ---
   '4-2-3-1-classico': {
-    label: '4-2-3-1 Clássico (2 VOL, 1 MD, 1 MEI, 1 ME)',
+    label: '4-2-3-1',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MD: 1, MEI: 1, ME: 1, ATA: 1 }
   },
   '4-2-3-1-ofensivo': {
-    label: '4-2-3-1 Criativo (1 VOL, 1 MC, 1 MEI, 2 PONTA)',
+    label: '4-2-3-1',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 1, MEI: 1, PD: 1, PE: 1, ATA: 1 }
   },
 
   // --- Variações do 4-1-4-1 e 4-5-1 ---
   '4-1-4-1-ofensivo': {
-    label: '4-1-4-1 Ofensivo (1 VOL, 2 MC, 2 PONTA)',
+    label: '4-1-4-1',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, PD: 1, PE: 1, ATA: 1 }
   },
   '4-1-4-1-linha': {
-    label: '4-1-4-1 Técnico (1 VOL, 2 MEI, 1 MD, 1 ME)',
+    label: '4-1-4-1',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 2, ME: 1, ATA: 1 }
   },
   '4-5-1-retranca': {
-    label: '4-5-1 Bloqueio (2 VOL, 2 MC, 1 MEI)',
+    label: '4-5-1',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 2, MEI: 1, ATA: 1 }
   },
 
   // --- Variações do 4-3-1-2 e 4-1-3-2 ---
   '4-3-1-2-misto': {
-    label: '4-3-1-2 Italiano (1 VOL, 2 MC, 1 MEI)',
+    label: '4-3-1-2',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MEI: 1, ATA: 2 }
   },
   '4-1-3-2-ofensivo': {
-    label: '4-1-3-2 Pressão (1 VOL, 1 MD, 1 MEI, 1 ME)',
+    label: '4-1-3-2',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 1, ME: 1, ATA: 2 }
   },
 
@@ -1929,7 +1889,6 @@ const BASE_COORDS = {
   ZAG: { x: 50, y: 80 },
   LE: { x: 14, y: 76 },
   VOL: { x: 50, y: 62 },
-  MC: { x: 50, y: 54 },  // Meio-Campo (central midfielder, between VOL and MEI)
   MEI: { x: 50, y: 46 },
   MD: { x: 80, y: 48 },  // Meia Direita (wide midfielder right)
   ME: { x: 20, y: 48 },  // Meia Esquerda (wide midfielder left)
@@ -1937,15 +1896,6 @@ const BASE_COORDS = {
   PE: { x: 18, y: 22 },  // Ponta Esquerda (left winger, more attacking)
   ATA: { x: 50, y: 11 },
 };
-
-// Ordem goleiro → defesa → meio → ataque, pra listar titulares de forma
-// legível (ex.: painel de substituição) em vez da ordem de escalação no draft.
-const POS_ORDER = ['GOL', 'LD', 'ZAG', 'LE', 'VOL', 'MC', 'MEI', 'MD', 'ME', 'PD', 'PE', 'ATA'];
-function posOrderIndex(slotKey) {
-  const base = slotKey.replace(/\d+$/, '');
-  const idx = POS_ORDER.indexOf(base);
-  return idx === -1 ? POS_ORDER.length : idx;
-}
 
 function buildPitchSlots(formationKey) {
   const { counts } = FORMATIONS[formationKey];
@@ -1976,13 +1926,51 @@ function shuffle2(arr) {
 }
 
 // ============================================================
+// ENTROSAMENTO
+// ============================================================
+// Por par de jogadores:
+//   mesmo clube + mesmo ano  → +5  (= +2 clube + +3 extra)
+//   mesmo clube (anos dif.)  → +2
+//   mesmo país               → +1
+// Baseline: 11 jogadores, todos de países distintos → 0 pares com bônus
+const CHEM_MAX_OVR = 5; // bônus máximo de OVR concedido pelo entrosamento
+
+function calcChemistry(players) {
+  let score = 0;
+  const breakdown = { epoca: 0, clube: 0, pais: 0 };
+
+  for (let i = 0; i < players.length; i++) {
+    for (let j = i + 1; j < players.length; j++) {
+      const a = players[i], b = players[j];
+      const sameClub = a.club && b.club && a.club === b.club;
+      const sameYear = sameClub && a.year != null && a.year === b.year;
+      const sameNat = (a.nat || 'BRA') === (b.nat || 'BRA');
+
+      if (sameYear) { score += 5; breakdown.epoca++; }
+      else if (sameClub) { score += 2; breakdown.clube++; }
+      else if (sameNat) { score += 1; breakdown.pais++; }
+    }
+  }
+
+  const n = players.length;
+  const totalPairs = n * (n - 1) / 2;
+  // teórico: se todos sem nada em comum → 0; se todos mesmo clube ≠ ano → 2*totalPairs
+  const maxScore = totalPairs * 5; // todos mesmo ano+clube
+  const pct = maxScore > 0 ? Math.round(score / maxScore * 100) : 0;
+  const ovrBonus = maxScore > 0 ? (score / maxScore) * CHEM_MAX_OVR : 0;
+
+  return { score, breakdown, pct, ovrBonus: Math.round(ovrBonus * 10) / 10 };
+}
+
+// ============================================================
 // MOTOR DE SIMULAÇÃO
 // ============================================================
 function teamStrength(xi) {
   const vals = Object.values(xi).filter(p => !p.isBench);
   if (vals.length === 0) return 50;
   const baseOvr = vals.reduce((s, p) => s + p.ovr, 0) / vals.length;
-  return Math.round(baseOvr * 10) / 10;
+  const { ovrBonus } = calcChemistry(vals);
+  return Math.round((baseOvr + ovrBonus) * 10) / 10;
 }
 
 // Simulação de disputa de pênaltis (5 cobranças + morte súbita)
@@ -2030,79 +2018,23 @@ function poissonSample(lambda, rand = Math.random) {
 // ============================================================
 const MY_TEAM_ID = '__myteam__';
 
-// Narração real (Luiz Felipe Freitas) por clube — arquivos em public/gol/.
-// Times sem clipe gravado (ex.: Flamengo, ou o time montado pelo próprio
-// jogador, que não tem um clube único) caem na narração sintética abaixo.
-const GOAL_AUDIO = {
-  'Athletico-PR': ['/gol/Athletico-PR.mp3'],
-  'Atletico-MG': ['/gol/Atletico-MG.mp3'],
-  'Bahia': ['/gol/Bahia.mp3'],
-  'Botafogo': ['/gol/Botafogo-1.mp3', '/gol/Botafogo-2.mp3'],
-  'Corinthians': ['/gol/Corinthians.mp3'],
-  'Coritiba': ['/gol/Coritiba.mp3'],
-  'Cruzeiro': ['/gol/Cruzeiro.mp3'],
-  'Fluminense': ['/gol/Fluminense.mp3'],
-  'Gremio': ['/gol/Gremio.mp3'],
-  'Guarani': ['/gol/Guarani.mp3'],
-  'Internacional': ['/gol/Internacional.mp3'],
-  'Palmeiras': ['/gol/Palmeiras.mp3'],
-  'Santos': ['/gol/Santos.mp3'],
-  'Sao Paulo': ['/gol/Sao-Paulo.mp3'],
-  'Sport': ['/gol/Sport.mp3'],
-  'Vasco': ['/gol/Vasco.mp3'],
-};
-let goalAudioEl = null;
-function playAudioClip(src) {
-  if (!src) return false;
-  if (goalAudioEl) { goalAudioEl.pause(); goalAudioEl.currentTime = 0; }
-  goalAudioEl = new Audio(src);
-  goalAudioEl.volume = 1;
-  goalAudioEl.play().catch(() => { });
-  return true;
-}
-function playGoalAudio(club) {
-  const clips = GOAL_AUDIO[club];
-  if (!clips || clips.length === 0) return false;
-  return playAudioClip(clips[Math.floor(Math.random() * clips.length)]);
-}
-
-// Narração sintética (fallback) estilo transmissão de TV: grito de gol longo
-// seguido do nome do autor do gol com energia — dois utterances encadeados
-// para simular o ritmo "GOOOOOL... [nome]!" de um narrador.
-const GOAL_CALLS = [
-  'Que golaço, minha gente!',
-  'Ele não perdoa!',
-  'Vai pro alto, é festa total!',
-  'Inacreditável esse gol!',
-  'Explode o estádio!',
-];
-function narrateGoal(scorer, isMyGoal, club, myGoalAudio) {
-  if (isMyGoal && playAudioClip(myGoalAudio)) return;
-  if (playGoalAudio(club)) return;
+function narrateGoal(scorer, isMyGoal) {
   if (!('speechSynthesis' in window)) return;
   window.speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance();
+  u.lang = 'pt-BR';
   if (isMyGoal) {
-    const shout = new SpeechSynthesisUtterance('Goooooooooooool!');
-    shout.lang = 'pt-BR';
-    shout.pitch = 1.6;
-    shout.rate = 0.5;
-    shout.volume = 1;
-    const call = GOAL_CALLS[Math.floor(Math.random() * GOAL_CALLS.length)];
-    const name = new SpeechSynthesisUtterance(`${scorer}! ${call}`);
-    name.lang = 'pt-BR';
-    name.pitch = 1.4;
-    name.rate = 1.08;
-    name.volume = 1;
-    shout.onend = () => window.speechSynthesis.speak(name);
-    window.speechSynthesis.speak(shout);
+    u.text = `Goooooool! ${scorer}!`;
+    u.pitch = 1.55;
+    u.rate = 0.65;
+    u.volume = 1;
   } else {
-    const u = new SpeechSynthesisUtterance(`Gol. ${scorer} marca para o adversário.`);
-    u.lang = 'pt-BR';
+    u.text = `Gol! ${scorer}.`;
     u.pitch = 0.85;
-    u.rate = 0.92;
-    u.volume = 0.7;
-    window.speechSynthesis.speak(u);
+    u.rate = 0.85;
+    u.volume = 0.75;
   }
+  window.speechSynthesis.speak(u);
 }
 
 // Gera calendário round-robin (todos contra todos, turno único)
@@ -2146,7 +2078,6 @@ function generateCupFirstRound(teamIds) {
 function pickGoalScorer(players, rand = Math.random) {
   const field = players.filter(p => !p.pos.includes('GOL'));
   const pool = field.length > 0 ? field : players;
-  if (pool.length === 0) return 'Jogador'; // time sem elenco (ex.: draft multiplayer não concluído)
   return pool[Math.floor(rand() * pool.length)].name;
 }
 
@@ -2324,13 +2255,10 @@ export default function App() {
 
   // Time personalizado
   const [myTeamName, setMyTeamName] = useState(_sv?.myTeamName ?? 'Meu Time');
+  const [myTeamBadge, setMyTeamBadge] = useState(_sv?.myTeamBadge ?? '⭐');
   const [myTeamColor, setMyTeamColor] = useState(_sv?.myTeamColor ?? '#d4a23c');
   const [myTeamCoach, setMyTeamCoach] = useState(_sv?.myTeamCoach ?? '');
   const [myTeamCity, setMyTeamCity] = useState(_sv?.myTeamCity ?? '');
-  // Áudio customizado de gol (link direto, gravação ou arquivo — data URL ou link).
-  // Não é persistido no autosave: arquivos gravados/enviados viram data URLs grandes
-  // e estourariam a cota do localStorage (mesmo tratamento do myTeamLogo).
-  const [myGoalAudio, setMyGoalAudio] = useState(null);
 
   // Modo de jogo
   const [gameMode, setGameMode] = useState(_sv?.gameMode ?? 'brasileirao'); // 'brasileirao' | 'copa' | 'multi'
@@ -2392,11 +2320,6 @@ export default function App() {
   const [subSelectStarter, setSubSelectStarter] = useState(null);
   const [liveLineup, setLiveLineup] = useState(null);
   const [penaltyPhase, setPenaltyPhase] = useState(null);
-  const MAX_SUB_WINDOWS = 3;
-  const MAX_SUBS = 5;
-  const [subWindowsUsed, setSubWindowsUsed] = useState(0);
-  const [subsUsed, setSubsUsed] = useState(0);
-  const [subbedOutPlayers, setSubbedOutPlayers] = useState([]); // nomes dos jogadores que já saíram — não podem voltar
 
   const timerRef = useRef(null);
   const clockRef = useRef(null);
@@ -2484,22 +2407,6 @@ export default function App() {
     });
   };
 
-  // Igual acima, mas usado durante reposicionamento (mover jogador já escalado):
-  // inclui também slots já ocupados compatíveis, já que ali o clique dispara uma
-  // troca (swap) em vez de uma simples colocação. Só destaca slots ocupados quando
-  // a troca é possível nos dois sentidos — senão o clique não faria nada (ou, pior,
-  // apagaria quem estava lá), então nem mostramos como opção.
-  const eligibleSlotsForReposition = (player) => {
-    const canPlayAt = new Set(player.pos);
-    const srcMeta = pitchSlots.find(s => s.key === repositioningSlot);
-    return pitchSlots.filter(slot => {
-      if (!(slot.isBench || canPlayAt.has(slot.realPos))) return false;
-      const occupant = pitch[slot.key];
-      if (!occupant) return true;
-      return !srcMeta || srcMeta.isBench || occupant.pos.includes(srcMeta.realPos);
-    });
-  };
-
   const clickPlayer = (player) => {
     if (repositioningSlot !== null) {
       // Cancela reposição: devolve o jogador ao slot original
@@ -2525,19 +2432,26 @@ export default function App() {
       const occupant = pitch[slotKey];
       if (!occupant) {
         // Empty target – just place
-        setPitch(prev => ({ ...prev, [slotKey]: { ...player, slotKey, isBench: targetMeta.isBench } }));
+        setPitch(prev => ({ ...prev, [slotKey]: { ...player, slotKey } }));
       } else {
-        // Occupied target – only proceed if it's a genuine two-way swap (never
-        // silently drop the occupant — eligibleSlotsForReposition already keeps
-        // invalid targets from being highlighted/clickable, this is a backstop)
+        // Occupied target – try swap
         const srcMeta = pitchSlots.find(s => s.key === repositioningSlot);
         const occupantCanGoToSrc = !srcMeta || srcMeta.isBench || occupant.pos.includes(srcMeta.realPos);
-        if (!occupantCanGoToSrc) return;
-        setPitch(prev => ({
-          ...prev,
-          [slotKey]: { ...player, slotKey, isBench: targetMeta.isBench },
-          [repositioningSlot]: { ...occupant, slotKey: repositioningSlot, isBench: srcMeta ? srcMeta.isBench : occupant.isBench },
-        }));
+        if (occupantCanGoToSrc) {
+          setPitch(prev => ({
+            ...prev,
+            [slotKey]: { ...player, slotKey },
+            [repositioningSlot]: { ...occupant, slotKey: repositioningSlot },
+          }));
+        } else {
+          // Occupant can't go to source slot – displace (remove) occupant
+          setPitch(prev => {
+            const next = { ...prev };
+            delete next[repositioningSlot];
+            next[slotKey] = { ...player, slotKey };
+            return next;
+          });
+        }
       }
       setSelectedPlayer(null);
       setRepositioningSlot(null);
@@ -2558,31 +2472,12 @@ export default function App() {
     setRepositioningSlot(slotKey);
   };
 
-  // Usado na tela de Elenco (pós-draft): igual a clickPitchSlot, mas mantém a
-  // braçadeira de capitão grudada no jogador (não no slot) quando ele é movido
-  // entre titular e banco — senão o "C" ficaria com quem ocupar o slot depois.
-  const squadClickPitchSlot = (slotKey) => {
-    const srcKey = repositioningSlot;
-    if (srcKey !== null && captainSlot) {
-      const targetIsBench = pitchSlots.find(s => s.key === slotKey)?.isBench;
-      if (captainSlot === srcKey) {
-        setCaptainSlot(targetIsBench ? null : slotKey);
-      } else if (captainSlot === slotKey) {
-        const srcIsBench = pitchSlots.find(s => s.key === srcKey)?.isBench;
-        setCaptainSlot(srcIsBench ? null : srcKey);
-      }
-    }
-    clickPitchSlot(slotKey);
-  };
-
   const pauseSim = () => {
-    if (subWindowsUsed >= MAX_SUB_WINDOWS) return; // sem mais paradas pra substituir
     if (clockRef.current) clearTimeout(clockRef.current);
     clockRef.current = null;
     isPausedRef.current = true;
     setIsPaused(true);
     setShowSubPanel(true);
-    setSubWindowsUsed(w => w + 1);
   };
 
   const resumeSim = () => {
@@ -2597,8 +2492,6 @@ export default function App() {
   };
 
   const applyLiveSub = (starterKey, benchPlayer) => {
-    if (subsUsed >= MAX_SUBS) return; // já usou as 5 substituições
-    if (subbedOutPlayers.includes(benchPlayer.name)) return; // esse jogador já saiu e não pode voltar
     const starter = liveLineupRef.current?.[starterKey];
     if (!starter || !benchPlayer) return;
     const starterMeta = pitchSlots.find(s => s.key === starterKey);
@@ -2611,8 +2504,6 @@ export default function App() {
       liveLineupRef.current = next;
       return next;
     });
-    setSubbedOutPlayers(prev => [...prev, starter.name]);
-    setSubsUsed(n => n + 1);
     setSubSelectStarter(null);
   };
 
@@ -2657,7 +2548,7 @@ export default function App() {
     let pool = [];
     while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
     const opps = pool.slice(0, neededAI).map((t, idx) => {
-      // Adiciona club/year/nat — usados no hino do clube, no áudio de gol e na visualização de elenco
+      // Adiciona club/year/nat para que o entrosamento seja calculado corretamente
       const playersWithMeta = t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' }));
       return {
         id: `${t.id}_${idx}`,
@@ -2669,7 +2560,7 @@ export default function App() {
       };
     });
 
-    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
+    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
     const allTeams = [myTeamObj, ...opps];
 
     setLeagueTeams(allTeams);
@@ -2742,9 +2633,6 @@ export default function App() {
     setShowSubPanel(false);
     setSubSelectStarter(null);
     setPenaltyPhase(null);
-    setSubWindowsUsed(0);
-    setSubsUsed(0);
-    setSubbedOutPlayers([]);
     // Init live lineup from current pitch
     const initLL = { ...pitch };
     setLiveLineup(initLL);
@@ -2772,7 +2660,7 @@ export default function App() {
           ...prev,
           [ev.scorer]: { goals: (prev[ev.scorer]?.goals || 0) + 1, teamLabel: ev.teamLabel }
         }));
-        narrateGoal(ev.scorer, ev.teamId === myTeamId, ev.teamId === homeTeam.id ? homeTeam.club : awayTeam.club, myGoalAudio);
+        narrateGoal(ev.scorer, ev.teamId === myTeamId);
       }
 
       setClockMinute(minute);
@@ -2876,11 +2764,9 @@ export default function App() {
                     // Buscar direto pelo id evita trocar "meu time" pelo adversário quando o mando de campo inverte.
                     const myT = leagueTeams.find(t => t.id === myTeamId);
                     const opT = leagueTeams.find(t => t.id === (isHome ? match.awayId : match.homeId));
-                    // Só quem estava em campo (titulares + quem entrou por substituição) pode
-                    // cobrar — jogadores que ficaram no banco o jogo inteiro não entram na lista.
                     const myPlayers = liveLineupRef.current
-                      ? Object.values(liveLineupRef.current).filter(p => !p.isBench)
-                      : (myT?.players || []).slice(0, 11);
+                      ? Object.values(liveLineupRef.current)
+                      : (myT?.players || []).slice(0, 16);
                     const oppGk = (opT?.players || [])[0]?.name || 'Goleiro';
                     setPenaltyPhase({
                       kicks: userPen.kicks,
@@ -2912,7 +2798,7 @@ export default function App() {
 
     tickFnRef.current = tick;
     clockRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
-  }, [fixtures, currentRound, leagueTeams, isSimulating, gameMode, cupRoundIdx, myTeamId, roomSnap?.seed, myGoalAudio]);
+  }, [fixtures, currentRound, leagueTeams, isSimulating, gameMode, cupRoundIdx, myTeamId, roomSnap?.seed]);
 
   const goNextRound = useCallback(() => {
     const next = currentRound + 1;
@@ -3012,7 +2898,7 @@ export default function App() {
     try {
       const save = {
         phase, formationKey, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
-        gameMode, myTeamName, myTeamColor, myTeamCoach, myTeamCity,
+        gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity,
         leagueTeams, leagueTable, fixtures, currentRound,
         cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
         matchHistory, scorers,
@@ -3081,9 +2967,6 @@ export default function App() {
     setSubSelectStarter(null);
     setLiveLineup(null);
     setPenaltyPhase(null);
-    setSubWindowsUsed(0);
-    setSubsUsed(0);
-    setSubbedOutPlayers([]);
     isPausedRef.current = false;
     tickFnRef.current = null;
     liveLineupRef.current = null;
@@ -3146,7 +3029,7 @@ export default function App() {
       };
     });
 
-    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
+    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
     const allTeams = [myTeamObj, ...opps];
     setLeagueTeams(allTeams);
 
@@ -3167,7 +3050,7 @@ export default function App() {
       setLeagueTable([]);
     }
     setPhase('playing');
-  }, [pitch, captainSlot, gameMode, myTeamName, myTeamColor, myTeamLogo]);
+  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo]);
 
   // Simula todas as fases restantes da Copa até o campeão (usuário eliminado)
   const simulateAllCupa = useCallback(() => {
@@ -3487,7 +3370,7 @@ export default function App() {
     }));
     const needed = maxSlots - humanTeams.length;
     const prng = makePrng(roomSnap.seed);
-    const shuffled = seededShuffle(TEAMS, prng).slice(0, needed);
+    const shuffled = [...TEAMS].sort(() => prng() - 0.5).slice(0, needed);
     const aiTeams = shuffled.map((t, i) => {
       const pp = t.players.map(pl => ({ ...pl, club: t.club, year: t.year, nat: pl.nat || 'BRA' }));
       return { id: `ai_${i}`, label: t.label, badge: '', color: '#888', logo: null, clubLogo: CLUB_LOGOS[t.club] || null, club: t.club, ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))), players: pp, isHuman: false };
@@ -3506,7 +3389,7 @@ export default function App() {
     } else {
       // Copa do Brasil multiplayer
       const prng2 = makePrng(roomSnap.seed + 1);
-      const shuffledIds = seededShuffle(allTeams.map(t => t.id), prng2);
+      const shuffledIds = [...allTeams.map(t => t.id)].sort(() => prng2() - 0.5);
       const firstMatches = [];
       for (let i = 0; i + 1 < shuffledIds.length; i += 2)
         firstMatches.push({ homeId: shuffledIds[i], awayId: shuffledIds[i + 1] });
@@ -3531,8 +3414,7 @@ export default function App() {
       {/* Timer flutuante durante o draft multiplayer */}
       {multiPhase === 'in-draft' && multiTimerLeft !== null && (
         <div style={{ position: 'fixed', top: 12, right: 12, zIndex: 999, background: multiTimerLeft < 30 ? 'rgba(224,80,80,0.9)' : 'rgba(11,26,18,0.92)', border: `1px solid ${multiTimerLeft < 30 ? '#e05050' : 'rgba(212,162,60,0.4)'}`, borderRadius: 12, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Icon name="clock" size={13} color="#F4F1EA" style={{ opacity: 0.7 }} />
-          <span style={{ fontSize: 11, opacity: 0.7, color: '#F4F1EA' }}>Tempo restante</span>
+          <span style={{ fontSize: 11, opacity: 0.7, color: '#F4F1EA' }}>⏱ Tempo restante</span>
           <span style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: multiTimerLeft < 30 ? '#fff' : '#d4a23c' }}>
             {String(Math.floor(multiTimerLeft / 60)).padStart(2, '0')}:{String(multiTimerLeft % 60).padStart(2, '0')}
           </span>
@@ -3540,7 +3422,7 @@ export default function App() {
       )}
       <header style={styles.header}>
         <div style={styles.headerInner} className="header-inner-pad">
-          <div style={styles.crest}><Icon name="trophy" size={22} color="#d4a23c" /></div>
+          <div style={styles.crest}>🏆</div>
           <div>
             <div
               style={{ ...styles.title, cursor: 'pointer' }}
@@ -3589,13 +3471,12 @@ export default function App() {
           <Intro
             onStart={goToFormationPicker}
             gameMode={gameMode} onSetGameMode={setGameMode}
-            myTeamName={myTeamName} myTeamColor={myTeamColor}
+            myTeamName={myTeamName} myTeamBadge={myTeamBadge} myTeamColor={myTeamColor}
             myTeamCoach={myTeamCoach} myTeamCity={myTeamCity} myTeamLogo={myTeamLogo}
-            onSetName={setMyTeamName} onSetColor={setMyTeamColor}
+            onSetName={setMyTeamName} onSetBadge={setMyTeamBadge} onSetColor={setMyTeamColor}
             onSetCoach={setMyTeamCoach} onSetCity={setMyTeamCity}
             onSetLogo={setMyTeamLogo} cropSrc={cropSrc} onSetCropSrc={setCropSrc}
             onMultiPlayer={() => setMultiPhase('lobby')}
-            myGoalAudio={myGoalAudio} onSetGoalAudio={setMyGoalAudio}
           />
         )}
         {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} />}
@@ -3612,7 +3493,6 @@ export default function App() {
             selectedPlayer={selectedPlayer}
             repositioningSlot={repositioningSlot}
             eligibleSlotsForPlayer={eligibleSlotsForPlayer}
-            eligibleSlotsForReposition={eligibleSlotsForReposition}
             onClickPlayer={clickPlayer}
             onClickPitchSlot={clickPitchSlot}
             onUnplacePlayer={startReposition}
@@ -3629,11 +3509,6 @@ export default function App() {
             onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : startSeason}
             onRedo={() => { setPhase('formation'); setCaptainSlot(null); }}
             myTeamColor={myTeamColor}
-            selectedPlayer={selectedPlayer}
-            repositioningSlot={repositioningSlot}
-            eligibleSlotsForReposition={eligibleSlotsForReposition}
-            onClickPitchSlot={squadClickPitchSlot}
-            onUnplacePlayer={startReposition}
           />
         )}
         {phase === 'multi-waiting' && roomSnap && (
@@ -3656,6 +3531,7 @@ export default function App() {
             roundResults={roundResults}
             activeUserMatch={activeUserMatch}
             myTeamColor={myTeamColor}
+            myTeamBadge={myTeamBadge}
             myTeamLogo={myTeamLogo}
             gameMode={gameMode}
             cupRounds={cupRounds}
@@ -3683,15 +3559,10 @@ export default function App() {
             subSelectStarter={subSelectStarter}
             onSelectSubStarter={setSubSelectStarter}
             onApplySub={applyLiveSub}
-            subWindowsUsed={subWindowsUsed}
-            maxSubWindows={MAX_SUB_WINDOWS}
-            subsUsed={subsUsed}
-            maxSubs={MAX_SUBS}
-            subbedOutPlayers={subbedOutPlayers}
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} onNewSeason={roomSnap ? undefined : newSeason} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} onNewSeason={newSeason} />
         )}
         {viewingTeam && <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} />}
         {penaltyPhase && (
@@ -3803,7 +3674,8 @@ function ImageCropModal({ src, onConfirm, onCancel }) {
   );
 }
 
-const TEAM_COLORS =['#d4a23c', '#e05050', '#4a90d9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#e91e8c'];
+const TEAM_BADGES = ['⭐', '🔥', '🦅', '🐯', '🦁', '💎', '⚡', '🏆', '🌊', '🎯', '🛡️', '🌟'];
+const TEAM_COLORS = ['#d4a23c', '#e05050', '#4a90d9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#e91e8c'];
 
 function parseYouTubeId(input) {
   if (!input) return null;
@@ -3822,7 +3694,7 @@ function parseYouTubeId(input) {
   return null;
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo, onSetName, onSetColor, onSetCoach, onSetCity, onSetLogo, cropSrc, onSetCropSrc, onMultiPlayer, myGoalAudio, onSetGoalAudio }) {
+function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo, onSetName, onSetBadge, onSetColor, onSetCoach, onSetCity, onSetLogo, cropSrc, onSetCropSrc, onMultiPlayer }) {
   const displayName = myTeamName || 'Meu Time';
   const fileInputRef = useRef(null);
   const [musicOn, setMusicOn] = React.useState(false);
@@ -3842,70 +3714,6 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
     e.target.value = '';
   };
 
-  // Áudio de gol personalizado — link, gravação ou arquivo
-  const [goalAudioOn, setGoalAudioOn] = React.useState(false);
-  const [goalAudioMode, setGoalAudioMode] = React.useState('link'); // 'link' | 'record' | 'file'
-  const [goalAudioLinkInput, setGoalAudioLinkInput] = React.useState('');
-  const [goalAudioLinkError, setGoalAudioLinkError] = React.useState(false);
-  const [isRecordingGoalAudio, setIsRecordingGoalAudio] = React.useState(false);
-  const [recordError, setRecordError] = React.useState('');
-  const goalAudioFileRef = useRef(null);
-  const mediaRecorderRef = useRef(null);
-  const recordedChunksRef = useRef([]);
-  const recordStreamRef = useRef(null);
-  const recordTimeoutRef = useRef(null);
-
-  const applyGoalAudioLink = () => {
-    const url = goalAudioLinkInput.trim();
-    if (!/^https?:\/\/.+/i.test(url)) { setGoalAudioLinkError(true); return; }
-    setGoalAudioLinkError(false);
-    onSetGoalAudio(url);
-  };
-
-  const handleGoalAudioFile = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => onSetGoalAudio(ev.target.result);
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
-
-  const stopRecordingStream = () => {
-    if (recordTimeoutRef.current) { clearTimeout(recordTimeoutRef.current); recordTimeoutRef.current = null; }
-    recordStreamRef.current?.getTracks().forEach(t => t.stop());
-    recordStreamRef.current = null;
-  };
-
-  const startRecordingGoalAudio = async () => {
-    setRecordError('');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      recordStreamRef.current = stream;
-      recordedChunksRef.current = [];
-      const rec = new MediaRecorder(stream);
-      mediaRecorderRef.current = rec;
-      rec.ondataavailable = e => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
-      rec.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: rec.mimeType || 'audio/webm' });
-        const reader = new FileReader();
-        reader.onload = ev => onSetGoalAudio(ev.target.result);
-        reader.readAsDataURL(blob);
-        stopRecordingStream();
-        setIsRecordingGoalAudio(false);
-      };
-      rec.start();
-      setIsRecordingGoalAudio(true);
-      recordTimeoutRef.current = setTimeout(() => rec.state === 'recording' && rec.stop(), 6000);
-    } catch {
-      setRecordError('Não foi possível acessar o microfone. Verifique a permissão do navegador.');
-    }
-  };
-
-  const stopRecordingGoalAudio = () => {
-    if (mediaRecorderRef.current?.state === 'recording') mediaRecorderRef.current.stop();
-  };
-
   return (
     <>
       {cropSrc && (
@@ -3916,7 +3724,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
         />
       )}
       <div style={styles.introCard} className="intro-card-mob">
-        <div style={{ ...styles.introBadge, display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icon name="ball" size={13} /> Futebol Brasileiro · 1959–2026</div>
+        <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2026</div>
         <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
         <p style={styles.introLead}>
           Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
@@ -3925,17 +3733,17 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
 
         <div style={styles.featGrid} className="feat-grid-3">
           <div style={styles.featCard}>
-            <div style={styles.featIcon}><Icon name="dice" size={26} color="#d4a23c" /></div>
+            <div style={styles.featIcon}>🎲</div>
             <div style={styles.featTitle}>Role o dado</div>
             <div style={styles.featDesc}>Sorteie times campeões lendários. Recuse até 3 que não te interessar.</div>
           </div>
           <div style={styles.featCard}>
-            <div style={styles.featIcon}><Icon name="stadium" size={26} color="#d4a23c" /></div>
+            <div style={styles.featIcon}>🏟️</div>
             <div style={styles.featTitle}>Monte o Plantel</div>
             <div style={styles.featDesc}>Escolha 11 titulares e 5 reservas entre os maiores craques de cada era.</div>
           </div>
           <div style={styles.featCard}>
-            <div style={styles.featIcon}><Icon name="trophy" size={26} color="#d4a23c" /></div>
+            <div style={styles.featIcon}>🏆</div>
             <div style={styles.featTitle}>Dispute o título</div>
             <div style={styles.featDesc}>Liga com 20 times, 38 rodadas e gols aparecendo minuto a minuto.</div>
           </div>
@@ -3958,22 +3766,22 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
               >
                 {myTeamLogo
                   ? <img src={myTeamLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <Icon name="camera" size={30} color="rgba(255,255,255,0.4)" />
+                  : <span style={{ fontSize: 32, opacity: 0.4 }}>📷</span>
                 }
                 {myTeamLogo && (
                   <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.15s' }}
                     onMouseEnter={e => e.currentTarget.style.opacity = 1}
                     onMouseLeave={e => e.currentTarget.style.opacity = 0}
                   >
-                    <Icon name="camera" size={18} color="#fff" />
+                    <span style={{ fontSize: 20 }}>📷</span>
                   </div>
                 )}
               </div>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: myTeamColor, background: hexToRgba(myTeamColor, 0.12), border: `1px solid ${hexToRgba(myTeamColor, 0.3)}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}
+                style={{ fontSize: 11, fontWeight: 600, color: myTeamColor, background: hexToRgba(myTeamColor, 0.12), border: `1px solid ${hexToRgba(myTeamColor, 0.3)}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}
               >
-                <Icon name="camera" size={12} /> Upload logo
+                📷 Upload logo
               </button>
             </div>
             <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
@@ -4086,7 +3894,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
                 fontSize: 13, fontWeight: 600, transition: 'all 0.15s',
               }}
             >
-              <Icon name="music" size={15} />
+              <span>🎵</span>
               Música de fundo
               <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.6 }}>{musicOn ? 'ativada' : 'opcional'}</span>
             </button>
@@ -4099,7 +3907,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
                 {/* Indicador: tocando áudio padrão */}
                 {!musicId && (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <Icon name="music" size={16} />
+                    <span style={{ fontSize: 18 }}>🎵</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 11, opacity: 0.6 }}>Tocando áudio padrão</div>
                       <div style={{ display: 'flex', gap: 2, marginTop: 4, alignItems: 'flex-end', height: 12 }}>
@@ -4128,7 +3936,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
                     <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
                       <iframe key={musicId} width="1" height="1" src={`https://www.youtube.com/embed/${musicId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title="Música de fundo" />
                     </div>
-                    <Icon name="music" size={16} />
+                    <span style={{ fontSize: 18 }}>🎵</span>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ fontSize: 11, opacity: 0.6 }}>Tocando YouTube</div>
                       <div style={{ display: 'flex', gap: 2, marginTop: 4, alignItems: 'flex-end', height: 12 }}>
@@ -4142,96 +3950,6 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
                 )}
                 {!musicId && musicInput && (
                   <div style={{ fontSize: 11, color: '#e05050', marginTop: 6 }}>Link inválido — cole um link do YouTube ou ID de 11 caracteres.</div>
-                )}
-              </div>
-            )}
-          </div>
-
-          <div style={styles.teamEditSep} />
-
-          {/* Áudio do seu gol */}
-          <div>
-            <button
-              onClick={() => setGoalAudioOn(v => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                background: goalAudioOn ? hexToRgba(myTeamColor, 0.1) : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${goalAudioOn ? hexToRgba(myTeamColor, 0.35) : 'rgba(255,255,255,0.1)'}`,
-                borderRadius: 10, padding: '9px 14px', cursor: 'pointer',
-                color: goalAudioOn ? myTeamColor : 'rgba(255,255,255,0.5)',
-                fontSize: 13, fontWeight: 600, transition: 'all 0.15s',
-              }}
-            >
-              <Icon name="ball" size={15} />
-              Áudio do seu gol
-              <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.6 }}>{myGoalAudio ? 'definido' : 'opcional'}</span>
-            </button>
-            {goalAudioOn && (
-              <div style={{ marginTop: 8, background: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 12, border: '1px solid rgba(255,255,255,0.07)' }}>
-                {myGoalAudio ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <Icon name="ball" size={16} color={myTeamColor} />
-                    <div style={{ flex: 1, minWidth: 0, fontSize: 11, opacity: 0.7 }}>Áudio de gol definido</div>
-                    <button onClick={() => { new Audio(myGoalAudio).play().catch(() => { }); }} style={{ background: hexToRgba(myTeamColor, 0.15), border: `1px solid ${hexToRgba(myTeamColor, 0.4)}`, borderRadius: 6, color: myTeamColor, cursor: 'pointer', padding: '4px 10px', fontSize: 11, fontWeight: 600 }}>Tocar</button>
-                    <button onClick={() => onSetGoalAudio(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 16, padding: 0 }}>✕</button>
-                  </div>
-                ) : (
-                  <>
-                    <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
-                      {[['link', 'Link'], ['record', 'Gravar'], ['file', 'Arquivo']].map(([m, label]) => (
-                        <button key={m} onClick={() => setGoalAudioMode(m)} style={{
-                          flex: 1, fontSize: 11, fontWeight: 600, padding: '6px 8px', borderRadius: 6, cursor: 'pointer',
-                          border: `1px solid ${goalAudioMode === m ? hexToRgba(myTeamColor, 0.5) : 'rgba(255,255,255,0.12)'}`,
-                          background: goalAudioMode === m ? hexToRgba(myTeamColor, 0.15) : 'transparent',
-                          color: goalAudioMode === m ? myTeamColor : 'rgba(255,255,255,0.5)',
-                        }}>{label}</button>
-                      ))}
-                    </div>
-                    {goalAudioMode === 'link' && (
-                      <div>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <input
-                            value={goalAudioLinkInput}
-                            onChange={e => setGoalAudioLinkInput(e.target.value)}
-                            onKeyDown={e => e.key === 'Enter' && applyGoalAudioLink()}
-                            placeholder="Link direto do áudio (mp3, wav…)"
-                            style={{ ...styles.teamInput, flex: 1, margin: 0 }}
-                          />
-                          <button onClick={applyGoalAudioLink} style={{ background: myTeamColor, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                            Usar
-                          </button>
-                        </div>
-                        {goalAudioLinkError && (
-                          <div style={{ fontSize: 11, color: '#e05050', marginTop: 6 }}>Link inválido — cole a URL direta de um arquivo de áudio.</div>
-                        )}
-                      </div>
-                    )}
-                    {goalAudioMode === 'record' && (
-                      <div>
-                        <button
-                          onClick={isRecordingGoalAudio ? stopRecordingGoalAudio : startRecordingGoalAudio}
-                          style={{
-                            display: 'flex', alignItems: 'center', gap: 8, width: '100%', justifyContent: 'center',
-                            background: isRecordingGoalAudio ? 'rgba(224,80,80,0.15)' : hexToRgba(myTeamColor, 0.15),
-                            border: `1px solid ${isRecordingGoalAudio ? 'rgba(224,80,80,0.5)' : hexToRgba(myTeamColor, 0.4)}`,
-                            borderRadius: 8, color: isRecordingGoalAudio ? '#e05050' : myTeamColor,
-                            cursor: 'pointer', padding: '8px 14px', fontSize: 13, fontWeight: 700,
-                          }}
-                        >
-                          {isRecordingGoalAudio ? 'Gravando… toque para parar' : 'Gravar (máx. 6s)'}
-                        </button>
-                        {recordError && <div style={{ fontSize: 11, color: '#e05050', marginTop: 6 }}>{recordError}</div>}
-                      </div>
-                    )}
-                    {goalAudioMode === 'file' && (
-                      <>
-                        <input ref={goalAudioFileRef} type="file" accept="audio/*" onChange={handleGoalAudioFile} style={{ display: 'none' }} />
-                        <button onClick={() => goalAudioFileRef.current?.click()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', padding: '8px', borderRadius: 8, border: '1px dashed rgba(255,255,255,0.2)', background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: 12 }}>
-                          Escolher arquivo de áudio
-                        </button>
-                      </>
-                    )}
-                  </>
                 )}
               </div>
             )}
@@ -4293,7 +4011,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamColor, myTe
             display: 'flex', alignItems: 'center', gap: 14,
           }}
         >
-          <Icon name="users" size={26} color="#7fd99a" />
+          <span style={{ fontSize: 28 }}>👥</span>
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>Jogar com Amigos</div>
             <div style={{ fontSize: 11, opacity: 0.6 }}>Brasileirão (até 20) · Copa do Brasil (até 32) · Sala por código</div>
@@ -4346,7 +4064,7 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
         onClick={onCreateRoom}
         disabled={connecting}
       >
-        {connecting ? 'Conectando…' : 'Criar sala'}
+        {connecting ? '⏳ Conectando…' : '✦ Criar sala'}
       </button>
       {error && (
         <div style={{ fontSize: 12, color: '#e05050', background: 'rgba(224,80,80,0.08)', border: '1px solid rgba(224,80,80,0.25)', borderRadius: 8, padding: '8px 12px', marginBottom: 10 }}>
@@ -4415,8 +4133,8 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: mc, margin: '10px 0 6px', wordBreak: 'break-all', background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 14px', letterSpacing: 1 }}>
               {roomData.leaderPeerId}
             </div>
-            <button onClick={copyCode} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '5px 14px', color: copied ? '#7fd99a' : '#aaa', cursor: 'pointer' }}>
-              {copied ? '✓ Copiado!' : <><Icon name="clipboard" size={13} /> Copiar código</>}
+            <button onClick={copyCode} style={{ fontSize: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '5px 14px', color: copied ? '#7fd99a' : '#aaa', cursor: 'pointer' }}>
+              {copied ? '✓ Copiado!' : '📋 Copiar código'}
             </button>
             <div style={{ fontSize: 11, opacity: 0.4, marginTop: 6 }}>Envie este código para seus amigos entrarem na sala</div>
           </>
@@ -4489,8 +4207,8 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             </div>
           </div>
           <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => fileRef.current?.click()} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, flex: 1, padding: '8px', borderRadius: 8, border: '1px dashed rgba(255,255,255,0.2)', background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: 12 }}>
-              <Icon name="camera" size={13} /> Upload logo
+            <button onClick={() => fileRef.current?.click()} style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1px dashed rgba(255,255,255,0.2)', background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: 12 }}>
+              📷 Upload logo
             </button>
             <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
             {!myData.ready && (
@@ -4514,7 +4232,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
           <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             {p.logo
               ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)' }} />
-              : <div style={{ width: 32, height: 32, borderRadius: 8, background: hexToRgba(p.color || '#555', 0.18), border: `1px solid ${hexToRgba(p.color || '#555', 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={16} color={p.color || '#aaa'} /></div>
+              : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚽</div>
             }
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: p.color || '#F4F1EA' }}>{p.name || 'Jogador'}</div>
@@ -4522,7 +4240,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             </div>
             {pid === roomData.leaderId && <span style={{ fontSize: 10, color: '#d4a23c', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 4, padding: '1px 6px' }}>LÍDER</span>}
             {pid === myId && <span style={{ fontSize: 10, color: '#aaa', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, padding: '1px 6px' }}>VOCÊ</span>}
-            <Icon name={p.ready ? 'check' : 'clock'} size={15} color={p.ready ? '#7fd99a' : 'rgba(255,255,255,0.35)'} />
+            <span style={{ fontSize: 14 }}>{p.ready ? '✅' : '⏳'}</span>
           </div>
         ))}
       </div>
@@ -4560,7 +4278,7 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
   return (
     <div style={styles.card} className="card-mob">
       <div style={{ textAlign: 'center', padding: '16px 0 20px' }}>
-        <div style={{ marginBottom: 10 }}><Icon name="check" size={36} color="#7fd99a" /></div>
+        <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
         <div style={styles.eyebrow}>Time montado!</div>
         <h2 style={styles.h2}>Aguardando os outros jogadores…</h2>
         <div style={{ fontSize: 13, opacity: 0.5, marginTop: 4 }}>{readyCount} de {players.length} prontos</div>
@@ -4571,14 +4289,14 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
           <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
             {p.logo
               ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)' }} />
-              : <div style={{ width: 32, height: 32, borderRadius: 8, background: hexToRgba(p.color || '#555', 0.18), border: `1px solid ${hexToRgba(p.color || '#555', 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="shield" size={16} color={p.color || '#aaa'} /></div>
+              : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚽</div>
             }
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: p.color || '#F4F1EA' }}>{p.name || 'Jogador'}</div>
               {p.ovr > 0 && <div style={{ fontSize: 11, opacity: 0.5 }}>OVR {p.ovr}</div>}
             </div>
             {pid === myId && <span style={{ fontSize: 10, color: '#aaa', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, padding: '1px 6px' }}>VOCÊ</span>}
-            <Icon name={p.ready ? 'check' : 'clock'} size={16} color={p.ready ? '#7fd99a' : 'rgba(255,255,255,0.35)'} />
+            <span style={{ fontSize: 16 }}>{p.ready ? '✅' : '⏳'}</span>
           </div>
         ))}
       </div>
@@ -4601,73 +4319,30 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
 // ============================================================
 // FIM DAS TELAS MULTIPLAYER
 // ============================================================
-const FORMATION_GROUPS = [
-  { prefix: '4', title: 'Linha de 4 zagueiros', hint: 'Equilíbrio clássico entre defesa e ataque' },
-  { prefix: '3', title: 'Linha de 3 zagueiros', hint: 'Mais volume ofensivo, alas cobrindo as laterais' },
-  { prefix: '5', title: 'Linha de 5 zagueiros', hint: 'Retranca — prioriza solidez defensiva' },
-];
-
 function FormationPicker({ onChoose, onBack }) {
-  const groups = useMemo(() => (
-    FORMATION_GROUPS
-      .map(g => ({ ...g, items: Object.entries(FORMATIONS).filter(([key]) => key.split('-')[0] === g.prefix) }))
-      .filter(g => g.items.length > 0)
-  ), []);
-
   return (
     <div style={styles.card} className="card-mob">
       {onBack && <button onClick={onBack} style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 10px 0' }}>&#8592; Voltar</button>}
       <div style={styles.eyebrow}>Passo 1 de 2</div>
       <h2 style={styles.h2}>Escolha o esquema tático</h2>
-
-      {groups.map(g => (
-        <div key={g.prefix} style={{ marginBottom: 26 }}>
-          <div style={styles.formationSectionHead}>
-            <span style={styles.formationSectionTitle}>{g.title}</span>
-            <span style={styles.formationSectionHint}>{g.hint}</span>
-          </div>
-          <div style={styles.formationGrid} className="formation-grid">
-
-            {g.items.map(([key, f]) => {
-              const m = f.label.match(/^([\d-]+)\s*(.*)$/);
-              const shape = m ? m[1] : f.label;
-              const desc = m ? m[2] : '';
-              return (
-                <button key={key} className="formation-card" style={styles.formationCard} onClick={() => onChoose(key)}>
-                  <div style={styles.formationShapeNum}>{shape}</div>
-                  <div style={styles.formationShapeDesc}>{desc}</div>
-                  <MiniPitchPreview formationKey={key} />
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      ))}
+      <div style={styles.formationGrid}>
+        {Object.entries(FORMATIONS).map(([key, f]) => (
+          <button key={key} style={styles.formationCard} onClick={() => onChoose(key)}>
+            <div style={styles.formationName}>{f.label}</div>
+            <MiniPitchPreview formationKey={key} />
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
-
-const POS_GROUP_COLOR = {
-  GOL: '#F4F1EA',
-  LD: '#4a90d9', ZAG: '#4a90d9', LE: '#4a90d9',
-  VOL: '#d4a23c', MC: '#d4a23c', MEI: '#d4a23c', MD: '#d4a23c', ME: '#d4a23c',
-  PD: '#e05050', PE: '#e05050', ATA: '#e05050',
-};
 
 function MiniPitchPreview({ formationKey }) {
   const slots = useMemo(() => buildPitchSlots(formationKey), [formationKey]);
   return (
     <div style={styles.miniPitch}>
-      <div style={styles.miniPitchHalfLine} />
-      <div style={styles.miniPitchCircle} />
       {slots.map((s, i) => (
-        <div
-          key={i}
-          title={s.realPos}
-          style={{ ...styles.miniDot, left: `${s.x}%`, top: `${s.y}%`, background: POS_GROUP_COLOR[s.realPos] || '#d4a23c' }}
-        >
-          <span style={styles.miniDotLabel}>{s.realPos}</span>
-        </div>
+        <div key={i} style={{ ...styles.miniDot, left: `${s.x}%`, top: `${s.y}%` }} />
       ))}
     </div>
   );
@@ -4723,10 +4398,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
         {pitchSlots.filter(slot => !slot.isBench).map(slot => {
           const occupant = pitch[slot.key];
           const isHighlighted = highlightKeys.has(slot.key);
-          // canPlace também cobre slots ocupados (swap) — usado no reposicionamento
-          // (troca titular<->banco); no fluxo normal de draft os slots destacados
-          // já vêm garantidamente vazios, então isso não muda nada por lá.
-          const canPlace = isHighlighted && !!onClickSlot;
+          const canPlace = isHighlighted && !occupant && onClickSlot;
           const canUnplace = !!occupant && !!onUnplace;
           const clickable = canPlace || canUnplace;
           const isCap = captainSlot && slot.key === captainSlot;
@@ -4749,7 +4421,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
             <div
               key={slot.key}
               onClick={clickable ? () => canPlace ? onClickSlot(slot.key) : onUnplace(slot.key) : undefined}
-              title={canPlace && occupant ? `Trocar com ${occupant.name}` : occupant ? `${occupant.name}${occupant.teamLabel ? ` · ${occupant.teamLabel}` : ''} — clique para mover` : isHighlighted ? 'Colocar aqui' : slot.label}
+              title={occupant ? `${occupant.name}${occupant.teamLabel ? ` · ${occupant.teamLabel}` : ''} — clique para mover` : slot.label}
               style={{
                 position: 'absolute',
                 left: `${slot.x}%`,
@@ -4766,7 +4438,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
               className="pitch-spot"
             >
               {/* Círculo principal */}
-              <div className="pitch-spot-circle" style={{
+              <div style={{
                 width: 44, height: 44, borderRadius: '50%',
                 background: circleColor,
                 border: borderColor,
@@ -4774,17 +4446,11 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexDirection: 'column',
                 position: 'relative',
-                flexShrink: 0,
                 transform: isHighlighted && !occupant ? 'scale(1.12)' : 'scale(1)',
                 transition: 'all 0.15s',
               }}>
                 {isCap && (
-                  <span style={{
-                    position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)',
-                    width: 14, height: 14, borderRadius: '50%', background: '#d4a23c',
-                    color: '#0B1A12', fontSize: 9, fontWeight: 800, lineHeight: '14px', textAlign: 'center',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.5)',
-                  }}>C</span>
+                  <span style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>⭐</span>
                 )}
                 {occupant ? (
                   <span style={{ fontSize: 8, fontWeight: 800, color: dark ? '#0a1a0f' : '#fff', textAlign: 'center', lineHeight: 1.15, padding: '0 3px', maxWidth: 40, wordBreak: 'break-word' }} className="pitch-spot-name">
@@ -4838,14 +4504,14 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], onC
         {benchSlots.map(slot => {
           const p = pitch[slot.key];
           const isHighlighted = highlightKeys.has(slot.key);
-          const canPlace = isHighlighted && !!onClickSlot;
+          const canPlace = isHighlighted && !p && !!onClickSlot;
           const canUnplace = !!p && !!onUnplace;
           const clickable = canPlace || canUnplace;
           return (
             <div
               key={slot.key}
               onClick={clickable ? () => canPlace ? onClickSlot(slot.key) : onUnplace(slot.key) : undefined}
-              title={canPlace && p ? `Trocar com ${p.name}` : p ? `${p.name} — clique para mover` : canPlace ? 'Colocar aqui' : slot.label}
+              title={p ? `${p.name} — clique para remover` : canPlace ? 'Colocar no banco' : slot.label}
               style={{
                 padding: '6px 10px', borderRadius: 8, fontSize: 12, minWidth: 80, textAlign: 'center',
                 background: canPlace ? 'rgba(127,217,154,0.12)' : p ? `${mc}22` : 'rgba(255,255,255,0.04)',
@@ -4918,19 +4584,7 @@ function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor, onViewTeam 
 function TeamViewModal({ team, onClose, myTeamColor }) {
   const mc = myTeamColor || '#d4a23c';
   if (!team) return null;
-  const players = team.players || [];
-  // Times humanos (draft) marcam isBench explicitamente. Times históricos/IA não têm essa
-  // marcação — nesse caso os 11 primeiros do elenco (ordem de origem) são os titulares.
-  const hasBenchFlag = players.some(p => p.isBench !== undefined);
-  const starters = hasBenchFlag ? players.filter(p => !p.isBench) : players.slice(0, 11);
-  const bench = hasBenchFlag ? players.filter(p => p.isBench) : players.slice(11);
-  const row = (p, i) => (
-    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
-      <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.join('/') || '-'}</span>
-      <span style={{ flex: 1 }}>{p.name}</span>
-      <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
-    </div>
-  );
+  const starters = team.players?.filter(p => !p.isBench) || team.players || [];
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 400, maxHeight: '80vh', overflowY: 'auto' }}>
@@ -4942,18 +4596,13 @@ function TeamViewModal({ team, onClose, myTeamColor }) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20 }}>x</button>
         </div>
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc, marginBottom: 12 }}>OVR {team.ovr}</div>
-        <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4, fontFamily: "'Space Mono', monospace", textTransform: 'uppercase', letterSpacing: 1 }}>
-          Titulares
-        </div>
-        {starters.map(row)}
-        {bench.length > 0 && (
-          <>
-            <div style={{ fontSize: 10, opacity: 0.5, margin: '14px 0 4px', fontFamily: "'Space Mono', monospace", textTransform: 'uppercase', letterSpacing: 1 }}>
-              Reservas
-            </div>
-            {bench.map(row)}
-          </>
-        )}
+        {starters.map((p, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
+            <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.join('/') || '-'}</span>
+            <span style={{ flex: 1 }}>{p.name}</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -4968,7 +4617,7 @@ function getZoneInfo(pos, total) {
   return null;
 }
 
-function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack }) {
+function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, pitch, onBack }) {
   const pct = total > 0 ? (filled / total) * 100 : 0;
   const canSkip = skipsLeft > 0;
   return (
@@ -4999,6 +4648,11 @@ function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack 
       <div style={styles.progressBar}>
         <div style={{ ...styles.progressFill, width: `${pct}%` }} />
       </div>
+      {filled > 1 && (
+        <div style={{ marginTop: 8 }}>
+          <ChemistryDisplay pitch={pitch} compact />
+        </div>
+      )}
     </div>
   );
 }
@@ -5013,12 +4667,10 @@ function useIsMobile(bp = 768) {
   return mob;
 }
 
-function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, eligibleSlotsForReposition, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, myTeamColor, captainSlot }) {
+function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, myTeamColor, captainSlot }) {
   const isMobile = useIsMobile();
   const filledCount = Object.keys(pitch).length;
-  const highlightSlots = selectedPlayer
-    ? (repositioningSlot !== null ? eligibleSlotsForReposition(selectedPlayer) : eligibleSlotsForPlayer(selectedPlayer))
-    : [];
+  const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
 
   const mobileLayoutStyle = { display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 };
   const playersPanelStyle = isMobile
@@ -5031,7 +4683,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
     const rollingEl = (
       <div className="draft-left" style={playersPanelStyle}>
         <div style={styles.rollingBox}>
-          <span style={styles.diceIconSpin}><Icon name="dice" size={36} color="#d4a23c" /></span>
+          <span style={styles.diceIconSpin}>🎲</span>
           <div style={styles.rollingName}>{rollingPreview ? rollingPreview.label : '...'}</div>
           <div style={styles.rollingHint}>sorteando time...</div>
         </div>
@@ -5039,7 +4691,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
     );
     return (
       <div style={styles.card} className="card-mob">
-        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} />
+        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} pitch={pitch} />
         <div style={isMobile ? mobileLayoutStyle : styles.draftLayout} className="draft-layout-grid">
           {isMobile ? <>{pitchEl}{rollingEl}</> : <>{rollingEl}{pitchEl}</>}
         </div>
@@ -5059,7 +4711,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
 
   return (
     <div style={styles.card} className="card-mob">
-      <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} />
+      <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} pitch={pitch} />
 
       {selectedPlayer && (
         <div style={styles.selectedPlayerBanner}>
@@ -5091,7 +4743,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
           <div style={styles.teamHeaderCard}>
             {CLUB_LOGOS[rolledTeam.club]
               ? <img src={CLUB_LOGOS[rolledTeam.club]} style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }} alt={rolledTeam.club} />
-              : <Icon name="dice" size={20} color="#d4a23c" />
+              : <span style={{ fontSize: 20 }}>🎲</span>
             }
             <div>
               <div style={styles.rolledTeamLabel}>{rolledTeam.label}</div>
@@ -5190,55 +4842,85 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   );
 }
 
-function Squad({
-  pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor,
-  selectedPlayer, repositioningSlot, eligibleSlotsForReposition, onClickPitchSlot, onUnplacePlayer,
-}) {
+function ChemistryDisplay({ pitch, compact = false }) {
+  const xi = Object.values(pitch).filter(p => p && p.club);
+  const { score, breakdown, pct, ovrBonus } = calcChemistry(xi);
+  const chemColor = pct >= 66 ? '#7fd99a' : pct >= 33 ? '#d4a23c' : '#e05939';
+
+  if (compact) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>ENTR.</span>
+        <div style={{ flex: 1, height: 5, background: 'rgba(255,255,255,0.1)', borderRadius: 999 }}>
+          <div style={{ height: '100%', width: `${pct}%`, background: chemColor, borderRadius: 999, transition: 'width 0.4s' }} />
+        </div>
+        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: chemColor, minWidth: 30, textAlign: 'right' }}>{pct}%</span>
+        {ovrBonus > 0 && <span style={{ fontSize: 11, color: chemColor }}>+{ovrBonus} OVR</span>}
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', margin: '14px 0' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 15 }}>Entrosamento</span>
+        <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 18, color: chemColor }}>{pct}%</span>
+      </div>
+      <div style={{ height: 7, background: 'rgba(255,255,255,0.1)', borderRadius: 999, marginBottom: 12 }}>
+        <div style={{ height: '100%', width: `${pct}%`, background: chemColor, borderRadius: 999, transition: 'width 0.4s' }} />
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
+        {breakdown.epoca > 0 && (
+          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(127,217,154,0.15)', color: '#7fd99a', fontFamily: "'Space Mono', monospace" }}>
+            ⚡ {breakdown.epoca} par{breakdown.epoca > 1 ? 'es' : ''} mesma época (+5)
+          </span>
+        )}
+        {breakdown.clube > 0 && (
+          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(212,162,60,0.15)', color: '#d4a23c', fontFamily: "'Space Mono', monospace" }}>
+            🤝 {breakdown.clube} par{breakdown.clube > 1 ? 'es' : ''} mesmo clube (+2)
+          </span>
+        )}
+        {breakdown.pais > 0 && (
+          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)', fontFamily: "'Space Mono', monospace" }}>
+            🌎 {breakdown.pais} par{breakdown.pais > 1 ? 'es' : ''} mesmo país (+1)
+          </span>
+        )}
+      </div>
+      <div style={{ fontSize: 12, opacity: 0.5 }}>
+        Bônus de OVR: <span style={{ color: chemColor, fontWeight: 700 }}>+{ovrBonus}</span> aplicado na simulação
+      </div>
+    </div>
+  );
+}
+
+function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor }) {
   const starters = Object.values(pitch).filter(p => !p.isBench);
   const avgOvr = starters.length ? Math.round(starters.reduce((s, p) => s + p.ovr, 0) / starters.length) : 0;
-  const effectiveOvr = Math.round((avgOvr + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
+  const { ovrBonus } = calcChemistry(starters.filter(p => p.club));
+  const effectiveOvr = Math.round((avgOvr + ovrBonus + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
   const starterSlots = pitchSlots.filter(s => !s.isBench);
   const benchSlots = pitchSlots.filter(s => s.isBench);
-  const isRepositioning = repositioningSlot !== null;
-  const highlightSlots = selectedPlayer ? eligibleSlotsForReposition(selectedPlayer) : [];
 
   return (
     <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>{formationLabel}</div>
       <h2 style={styles.h2}>OVR base: {avgOvr} · Efetivo: {effectiveOvr} (11 titulares)</h2>
+      <ChemistryDisplay pitch={pitch} />
 
-      {isRepositioning ? (
-        <div style={styles.selectedPlayerBanner}>
-          Mova <b>{selectedPlayer.name}</b> para outra posição (titular ou banco) — ou clique nele de novo para cancelar
-        </div>
-      ) : (
-        <div style={{
-          textAlign: 'center', fontSize: 12, padding: '8px 12px',
-          background: captainSlot ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.04)',
-          border: `1px solid ${captainSlot ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.08)'}`,
-          borderRadius: 8, marginBottom: 10, color: captainSlot ? '#d4a23c' : 'rgba(255,255,255,0.5)',
-        }}>
-          {captainSlot
-            ? `Capitao: ${pitch[captainSlot]?.name} — +2 OVR`
-            : 'Toque em um titular para definir o capitao (bracadeira +2 OVR)'}
-        </div>
-      )}
-      <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.5, marginBottom: 10 }}>
-        Clique num jogador do campo ou do banco para trocá-lo de posição
+      {/* Instrução capitão */}
+      <div style={{
+        textAlign: 'center', fontSize: 12, padding: '8px 12px',
+        background: captainSlot ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.04)',
+        border: `1px solid ${captainSlot ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.08)'}`,
+        borderRadius: 8, marginBottom: 10, color: captainSlot ? '#d4a23c' : 'rgba(255,255,255,0.5)',
+      }}>
+        {captainSlot
+          ? `Capitao: ${pitch[captainSlot]?.name} — +2 OVR`
+          : 'Toque em um titular para definir o capitao (bracadeira +2 OVR)'}
       </div>
 
-      <Pitch
-        pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot}
-        highlightSlots={highlightSlots}
-        onClickSlot={onClickPitchSlot}
-        onUnplace={!isRepositioning ? onUnplacePlayer : undefined}
-      />
-      <BenchDisplay
-        pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor}
-        highlightSlots={highlightSlots}
-        onClickSlot={onClickPitchSlot}
-        onUnplace={!isRepositioning ? onUnplacePlayer : undefined}
-      />
+      <Pitch pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot} />
+      <BenchDisplay pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} />
 
       <div style={styles.squadList}>
         {/* Titulares */}
@@ -5249,13 +4931,11 @@ function Squad({
           return (
             <button
               key={slot.key}
-              onClick={() => !isRepositioning && onSetCaptain(isCap ? null : slot.key)}
-              disabled={isRepositioning}
+              onClick={() => onSetCaptain(isCap ? null : slot.key)}
               className="squad-row-g"
               style={{
                 ...styles.squadRow,
-                cursor: isRepositioning ? 'default' : 'pointer',
-                opacity: isRepositioning ? 0.5 : 1,
+                cursor: 'pointer',
                 background: isCap ? 'rgba(212,162,60,0.12)' : 'transparent',
                 border: `1px solid ${isCap ? 'rgba(212,162,60,0.4)' : 'transparent'}`,
                 borderRadius: 8,
@@ -5310,58 +4990,210 @@ function Squad({
 }
 
 // ============================================================
-// SIMULAÇÃO DE TEMPO — barra de progresso do jogo (0'-90') com
-// flash verde quando sai gol, sem tentar simular movimentação real.
+// CAMPINHO ANIMADO
 // ============================================================
-function MatchTimeStrip({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulating, clockMinute }) {
-  const [flash, setFlash] = useState({ side: null, on: false, scorer: '' });
-  const evLenRef = useRef(0);
+const _PPOS = {
+  GOL: { x: 5.5, y: 30 },
+  LD: { x: 20, y: 45 },
+  LE: { x: 20, y: 15 },
+  ZAG: { x: 23, y: 30 },
+  VOL: { x: 35, y: 30 },
+  MC: { x: 37, y: 22 },
+  MEI: { x: 41, y: 30 },
+  MD: { x: 37, y: 41 },
+  ME: { x: 37, y: 19 },
+  PD: { x: 44, y: 45 },
+  PE: { x: 44, y: 15 },
+  ATA: { x: 46.5, y: 30 },
+};
 
+function _buildLineup(team, isHome) {
+  const starters = (team?.players || []).slice(0, 11);
+  const cnt = {};
+  return starters.map((p, i) => {
+    const pos = p.pos?.[0] || 'MEI';
+    cnt[pos] = (cnt[pos] || 0);
+    const nth = cnt[pos]++;
+    const base = _PPOS[pos] || { x: 30, y: 30 };
+    // spread same-pos players vertically: 0→0, 1→+12, 2→-12, 3→+24…
+    const yOff = nth === 0 ? 0 : nth % 2 === 1 ? Math.ceil(nth / 2) * 13 : -Math.ceil(nth / 2) * 13;
+    const bx = isHome ? base.x : 100 - base.x;
+    const by = Math.max(4, Math.min(56, base.y + yOff));
+    const shortN = (p.name || '').split(' ').slice(-1)[0].slice(0, 8);
+    return { key: `${isHome ? 'h' : 'a'}-${i}`, name: p.name, shortN, pos, bx, by, idx: i };
+  });
+}
+
+function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulating, liveLineup }) {
+  const [jitter, setJitter] = useState({});
+  const [ball, setBall] = useState({ x: 50, y: 30 });
+  const [flash, setFlash] = useState({ side: null, on: false });
+  const evLenRef = useRef(0);
+  const tRef = useRef(0);
+
+  // Player jitter
+  useEffect(() => {
+    if (!isSimulating) { setJitter({}); return; }
+    const id = setInterval(() => {
+      const j = {};
+      for (let i = 0; i < 22; i++) j[i] = { dx: (Math.random() - 0.5) * 3.2, dy: (Math.random() - 0.5) * 3.2 };
+      setJitter(j);
+    }, 550);
+    return () => clearInterval(id);
+  }, [isSimulating]);
+
+  // Ball wander
+  useEffect(() => {
+    if (!isSimulating) return;
+    const id = setInterval(() => {
+      tRef.current += 0.3;
+      const t = tRef.current;
+      setBall({
+        x: Math.max(6, Math.min(94, 50 + Math.sin(t) * 30)),
+        y: Math.max(5, Math.min(55, 30 + Math.sin(t * 0.71 + 1.3) * 20)),
+      });
+    }, 350);
+    return () => clearInterval(id);
+  }, [isSimulating]);
+
+  // Goal flash + ball snap
   useEffect(() => {
     if (liveEvents.length > evLenRef.current) {
       const ev = liveEvents[liveEvents.length - 1];
       const scoredByHome = ev.teamId === homeTeam?.id;
-      setFlash({ side: scoredByHome ? 'home' : 'away', on: true, scorer: ev.scorer });
-      const t = setTimeout(() => setFlash(f => ({ ...f, on: false })), 1800);
-      return () => clearTimeout(t);
+      setFlash({ side: scoredByHome ? 'right' : 'left', on: true });
+      setBall({ x: scoredByHome ? 97 : 3, y: 30 });
+      setTimeout(() => setFlash(f => ({ ...f, on: false })), 1300);
     }
     evLenRef.current = liveEvents.length;
   }, [liveEvents, homeTeam]);
 
+  const effectiveHome = useMemo(() => {
+    if (homeTeam?.id === myTeamId && liveLineup) {
+      const lp = Object.values(liveLineup).filter(p => !p.isBench);
+      return { ...homeTeam, players: lp };
+    }
+    return homeTeam;
+  }, [homeTeam, myTeamId, liveLineup]);
+  const effectiveAway = useMemo(() => {
+    if (awayTeam?.id === myTeamId && liveLineup) {
+      const lp = Object.values(liveLineup).filter(p => !p.isBench);
+      return { ...awayTeam, players: lp };
+    }
+    return awayTeam;
+  }, [awayTeam, myTeamId, liveLineup]);
+  const homePlayers = useMemo(() => _buildLineup(effectiveHome, true), [effectiveHome]);
+  const awayPlayers = useMemo(() => _buildLineup(effectiveAway, false), [effectiveAway]);
+
   const hColor = homeTeam?.id === myTeamId ? mc : (homeTeam?.colors?.p || homeTeam?.color || '#3a85d9');
   const aColor = awayTeam?.id === myTeamId ? mc : (awayTeam?.colors?.p || awayTeam?.color || '#c94040');
-  const pct = Math.max(0, Math.min(100, (clockMinute / 90) * 100));
+
+  const dot = (p, i, color, isHome) => {
+    const off = jitter[isHome ? i : 11 + i] || { dx: 0, dy: 0 };
+    const left = `${Math.max(2, Math.min(96, p.bx + off.dx))}%`;
+    const top = `${Math.max(2, Math.min(94, p.by / 60 * 100 + off.dy / 60 * 100))}%`;
+    return (
+      <div key={p.key} title={p.name} style={{
+        position: 'absolute', left, top,
+        transform: 'translate(-50%,-50%)',
+        transition: 'left 0.42s ease, top 0.42s ease',
+        display: 'flex', flexDirection: 'column', alignItems: 'center',
+        zIndex: 2, pointerEvents: 'none', userSelect: 'none',
+      }}>
+        <div style={{
+          width: 20, height: 20, borderRadius: '50%',
+          background: color, border: '2px solid rgba(255,255,255,0.85)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 8, fontWeight: 800, color: '#fff',
+          boxShadow: '0 1px 5px rgba(0,0,0,0.55)',
+          lineHeight: 1,
+        }}>{i + 1}</div>
+        <div style={{
+          fontSize: 7, color: '#fff', fontWeight: 700, marginTop: 1,
+          textShadow: '0 1px 2px rgba(0,0,0,0.9)',
+          background: 'rgba(0,0,0,0.42)', borderRadius: 2,
+          padding: '1px 2px', whiteSpace: 'nowrap', lineHeight: 1,
+        }}>{p.shortN}</div>
+      </div>
+    );
+  };
 
   return (
-    <div style={{ padding: '14px 6px 30px', marginBottom: 4 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, opacity: 0.5, marginBottom: 8, fontFamily: "'Space Mono', monospace" }}>
-        <span style={{ color: hColor }}>{homeTeam?.label}</span>
-        <span>45'</span>
-        <span style={{ color: aColor }}>{awayTeam?.label}</span>
-      </div>
-      <div style={{ position: 'relative', height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)' }}>
-        <div style={{ position: 'absolute', inset: 0, borderRadius: 999, overflow: 'hidden' }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: `linear-gradient(90deg, ${hColor}, ${aColor})`, transition: 'width 0.4s linear' }} />
-        </div>
-        <div style={{
-          position: 'absolute', top: '50%', left: `${pct}%`, transform: 'translate(-50%,-50%)',
-          width: 14, height: 14, borderRadius: '50%',
-          background: isSimulating ? '#7fd99a' : '#F4F1EA',
-          border: '2px solid #0B1A12',
-          boxShadow: isSimulating ? '0 0 10px rgba(127,217,154,0.7)' : 'none',
-          transition: 'left 0.4s linear',
-        }} />
-        {flash.on && (
-          <div style={{
-            position: 'absolute', top: -34, [flash.side === 'home' ? 'left' : 'right']: 0,
-            display: 'flex', alignItems: 'center', gap: 5,
-            animation: 'goalPop 1.8s ease-out',
-          }}>
-            <div style={{ width: 16, height: 16, borderRadius: '50%', background: '#3fbf6f', boxShadow: '0 0 12px rgba(63,191,111,0.9)', flexShrink: 0 }} />
-            <span style={{ fontSize: 11, fontWeight: 800, color: '#3fbf6f', fontFamily: "'Space Mono', monospace", whiteSpace: 'nowrap' }}>GOL! {flash.scorer}</span>
-          </div>
+    <div style={{ position: 'relative', width: '100%', paddingBottom: '60%', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
+      {/* Pitch SVG */}
+      <svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid slice"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}>
+        {/* Grass stripes */}
+        {[...Array(10)].map((_, i) => (
+          <rect key={i} x={i * 10} y={0} width={10} height={60} fill={i % 2 === 0 ? '#2a5416' : '#2e5e1a'} />
+        ))}
+        {/* Outer border */}
+        <rect x={2} y={2} width={96} height={56} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
+        {/* Center line */}
+        <line x1={50} y1={2} x2={50} y2={58} stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
+        {/* Center circle */}
+        <circle cx={50} cy={30} r={9} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
+        <circle cx={50} cy={30} r={0.7} fill="rgba(255,255,255,0.75)" />
+        {/* Left penalty area */}
+        <rect x={2} y={13} width={17} height={34} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
+        {/* Left 6-yard */}
+        <rect x={2} y={20} width={5.5} height={20} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
+        {/* Left goal */}
+        <rect x={0} y={23} width={2} height={14} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
+        {/* Left penalty spot */}
+        <circle cx={13} cy={30} r={0.7} fill="rgba(255,255,255,0.75)" />
+        {/* Right penalty area */}
+        <rect x={81} y={13} width={17} height={34} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
+        {/* Right 6-yard */}
+        <rect x={92.5} y={20} width={5.5} height={20} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
+        {/* Right goal */}
+        <rect x={98} y={23} width={2} height={14} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
+        {/* Right penalty spot */}
+        <circle cx={87} cy={30} r={0.7} fill="rgba(255,255,255,0.75)" />
+        {/* Goal flash overlay */}
+        {flash.on && flash.side === 'right' && (
+          <rect x={75} y={0} width={25} height={60} fill="rgba(255,210,0,0.28)" style={{ transition: 'opacity 0.3s' }} />
         )}
+        {flash.on && flash.side === 'left' && (
+          <rect x={0} y={0} width={25} height={60} fill="rgba(255,210,0,0.28)" style={{ transition: 'opacity 0.3s' }} />
+        )}
+        {/* Team color band at top */}
+        <rect x={2} y={2} width={48} height={3} fill={hColor} opacity={0.55} />
+        <rect x={50} y={2} width={48} height={3} fill={aColor} opacity={0.55} />
+      </svg>
+
+      {/* Team name chips */}
+      <div style={{
+        position: 'absolute', top: 6, left: 6, fontSize: 8, fontWeight: 700, color: '#fff',
+        background: hColor + 'cc', borderRadius: 3, padding: '1px 4px', zIndex: 4, maxWidth: '40%',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.6)'
+      }}>
+        {homeTeam?.label}
       </div>
+      <div style={{
+        position: 'absolute', top: 6, right: 6, fontSize: 8, fontWeight: 700, color: '#fff',
+        background: aColor + 'cc', borderRadius: 3, padding: '1px 4px', zIndex: 4, maxWidth: '40%',
+        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.6)',
+        textAlign: 'right'
+      }}>
+        {awayTeam?.label}
+      </div>
+
+      {/* Players */}
+      {homePlayers.map((p, i) => dot(p, i, hColor, true))}
+      {awayPlayers.map((p, i) => dot(p, i, aColor, false))}
+
+      {/* Ball */}
+      <div style={{
+        position: 'absolute',
+        left: `${ball.x}%`,
+        top: `${ball.y / 60 * 100}%`,
+        transform: 'translate(-50%,-50%)',
+        transition: 'left 0.3s ease, top 0.3s ease',
+        fontSize: 11, zIndex: 3, lineHeight: 1,
+        filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.8))',
+        pointerEvents: 'none',
+      }}>⚽</div>
     </div>
   );
 }
@@ -5372,12 +5204,9 @@ function MatchTimeStrip({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimula
 // ============================================================
 function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
   const mc = myTeamColor || '#d4a23c';
-  // Cobrança 0 é sempre do time de casa (kickNum par). Se eu não for o time de
-  // casa na disputa, a primeira cobrança é do adversário — tem que começar em
-  // 'auto_kick', senão o modal me pede pra escolher cobrador num pênalti que não é meu.
-  const [inner, setInner] = React.useState(() => ({
+  const [inner, setInner] = React.useState({
     kickNum: 0,     // 0,1,...: even=home, odd=away
-    phase: penaltyPhase?.myIsHome ? 'pick' : 'auto_kick',
+    phase: 'pick',  // 'pick' | 'countdown' | 'result' | 'done'
     countdown: null,
     takerName: null,
     lastResult: null,
@@ -5385,7 +5214,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
     opGoals: 0,
     myKickResults: [],
     opKickResults: [],
-  }));
+  });
   const tiRef = React.useRef(null);
 
   if (!penaltyPhase) return null;
@@ -5407,16 +5236,18 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
   const clearT = () => { if (tiRef.current) clearTimeout(tiRef.current); };
 
   const getResultText = (scored, isMine) => {
-    if (scored) return isMine ? 'GOOOOOL!' : 'GOL';
+    if (scored) return isMine ? 'GOOOOOL! ⚽' : 'GOL ⚽';
     const r = Math.random();
-    if (r < 0.35 && !isMine) return `DEFENDE O ${oppGkName}!`;
-    if (r < 0.65) return isMine ? 'ISOLOOOOU!' : 'ISOLOU';
-    return isMine ? 'ERROOOOU!' : 'ERROU';
+    if (r < 0.35 && !isMine) return `DEFENDE O ${oppGkName}! 🧤`;
+    if (r < 0.65) return isMine ? 'ISOLOOOOU! 😩' : 'ISOLOU';
+    return isMine ? 'ERROOOOU! 😱' : 'ERROU';
   };
 
   const resolveKick = (taker) => {
     if (!currentKickPair) { advanceKick(null); return; }
-    const scored = isHomeKick ? currentKickPair.a : currentKickPair.b;
+    const scored = isMyKick
+      ? (isHomeKick ? currentKickPair.a : currentKickPair.b)
+      : (isHomeKick ? currentKickPair.a : currentKickPair.b);
     const resultText = getResultText(scored, isMyKick);
     const newMy = isMyKick ? myGoals + (scored ? 1 : 0) : myGoals;
     const newOp = !isMyKick ? opGoals + (scored ? 1 : 0) : opGoals;
@@ -5496,7 +5327,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
   const renderKickDots = (results, isMe) => (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
       {results.map((r, i) => (
-        <span key={i} style={{ display: 'inline-block', width: 12, height: 12, borderRadius: '50%', background: r.scored ? '#3fbf6f' : '#e0503f' }} />
+        <span key={i} style={{ fontSize: 16, lineHeight: 1 }}>{r.scored ? '🟢' : '🔴'}</span>
       ))}
     </div>
   );
@@ -5511,8 +5342,8 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
       padding: '20px 16px',
     }}>
       {/* Header */}
-      <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: 22, fontWeight: 700, color: '#F4F1EA', marginBottom: 4, textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-        <Icon name="ball" size={20} /> Disputa de Pênaltis
+      <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: 22, fontWeight: 700, color: '#F4F1EA', marginBottom: 4, textAlign: 'center' }}>
+        ⚽ Disputa de Pênaltis
         {isSuddenDeath && <span style={{ fontSize: 12, color: '#e05050', marginLeft: 8 }}>MORTE SÚBITA</span>}
       </div>
 
@@ -5583,9 +5414,8 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
 
         {phase === 'done' && (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: mc, fontFamily: "'Fraunces',Georgia,serif", marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              {winner === '__myteam__' && <Icon name="trophy" size={20} color={mc} />}
-              {winner === '__myteam__' ? 'Classificado nos pênaltis!' : 'Eliminado nos pênaltis'}
+            <div style={{ fontSize: 22, fontWeight: 700, color: mc, fontFamily: "'Fraunces',Georgia,serif", marginBottom: 8 }}>
+              {winner === '__myteam__' ? '🏆 Classificado nos pênaltis!' : '💔 Eliminado nos pênaltis'}
             </div>
             <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 16 }}>
               {myTeamLabel} {myGoals} × {opGoals} {oppTeamLabel}
@@ -5612,24 +5442,24 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
 // ============================================================
 // TELA DE JOGO: liga com cronômetro e tabela
 // ============================================================
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveScore, clockDisplay, clockMinute, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor, subWindowsUsed = 0, maxSubWindows = 3, subsUsed = 0, maxSubs = 5, subbedOutPlayers = [] }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
-  const teamCrest = (team) => team.id === myTeamId
-    ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 28, height: 28, objectFit: 'contain', borderRadius: 4 }} alt="" /> : <Icon name="shield" size={20} color={mc} />)
-    : (team.clubLogo && <img src={team.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />);
   return (
     <div style={styles.liveMatchBox} className="card-mob">
-      <MatchTimeStrip
+      <AnimatedPitch
         homeTeam={homeTeam} awayTeam={awayTeam}
         myTeamId={myTeamId} mc={mc}
         liveEvents={liveEvents} isSimulating={isSimulating}
-        clockMinute={clockMinute}
+        liveLineup={liveLineup}
       />
       <div style={styles.liveTeamsRow} className="live-teams-row">
         <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} className="live-team-n">
           <span>{homeTeam.label}</span>
-          {teamCrest(homeTeam)}
+          {homeTeam.id === myTeamId
+            ? (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>)
+            : (homeTeam.clubLogo && <img src={homeTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />)
+          }
         </div>
         <div style={styles.liveScoreBlock}>
           <span style={styles.liveScoreNum} className="live-score-n">{liveScore.home}</span>
@@ -5637,7 +5467,10 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
           <span style={styles.liveScoreNum} className="live-score-n">{liveScore.away}</span>
         </div>
         <div style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6 }} className="live-team-n">
-          {teamCrest(awayTeam)}
+          {awayTeam.id === myTeamId
+            ? (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>)
+            : (awayTeam.clubLogo && <img src={awayTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />)
+          }
           <span>{awayTeam.label}</span>
         </div>
       </div>
@@ -5661,12 +5494,11 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
           )}
           {roundDone && !isSimulating && <div style={styles.clockFull}>Tempo encerrado</div>}
           {isSimulating && !isPaused && (
-            <button onClick={onPause} disabled={subWindowsUsed >= maxSubWindows} title={subWindowsUsed >= maxSubWindows ? 'Sem mais paradas para substituição' : `Parar para substituir (${maxSubWindows - subWindowsUsed} restante${maxSubWindows - subWindowsUsed === 1 ? '' : 's'})`} style={{
+            <button onClick={onPause} style={{
               fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
               padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,140,0,0.5)',
-              background: 'rgba(255,140,0,0.1)', color: '#ffaa00', cursor: subWindowsUsed >= maxSubWindows ? 'not-allowed' : 'pointer', marginLeft: 6,
-              opacity: subWindowsUsed >= maxSubWindows ? 0.4 : 1,
-            }}>⏸ Pausar ({maxSubWindows - subWindowsUsed})</button>
+              background: 'rgba(255,140,0,0.1)', color: '#ffaa00', cursor: 'pointer', marginLeft: 6,
+            }}>⏸ Pausar</button>
           )}
           {isPaused && (
             <button onClick={onResume} style={{
@@ -5685,7 +5517,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
             return (
               <div key={i} style={{ ...styles.goalEvent, background: isMyGoal ? 'rgba(127,217,154,0.1)' : 'rgba(224,89,63,0.08)', borderLeft: isMyGoal ? '3px solid #7fd99a' : '3px solid rgba(224,89,63,0.5)' }}>
                 <span style={styles.goalMinute}>{ev.minute}'</span>
-                <span style={styles.goalBall}><Icon name="ball" size={13} color="#F4F1EA" /></span>
+                <span style={styles.goalBall}>⚽</span>
                 <div style={styles.goalInfo}>
                   <span style={styles.goalScorer}>{ev.scorer}</span>
                   <span style={styles.goalTeam}>{ev.teamLabel}</span>
@@ -5701,61 +5533,46 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
       {/* Sub panel */}
       {showSubPanel && liveLineup && (
         <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 12px' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || '#d4a23c', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>↕ Substituição</span>
-            <span style={{ opacity: 0.6, fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>
-              {subsUsed}/{maxSubs} usadas
-            </span>
-            {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: 'auto' }}>Escolha o reserva</span>}
-            {!subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, textTransform: 'none', letterSpacing: 0, marginLeft: 'auto' }}>Escolha o titular</span>}
+          <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || '#d4a23c', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>
+            ↕ Substituição
+            {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o reserva</span>}
+            {!subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o titular</span>}
           </div>
-          {subsUsed >= maxSubs ? (
-            <div style={{ fontSize: 11, opacity: 0.6, padding: '4px 0' }}>Você já usou as {maxSubs} substituições permitidas.</div>
-          ) : (
-            <div style={{ display: 'flex', gap: 8 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Titulares</div>
-                {Object.entries(liveLineup)
-                  .filter(([k, p]) => !p.isBench)
-                  .sort(([ka], [kb]) => posOrderIndex(ka) - posOrderIndex(kb))
-                  .map(([k, p]) => (
-                    <button key={k} onClick={() => !subSelectStarter ? onSelectSubStarter(k) : null}
-                      style={{
-                        display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                        background: subSelectStarter === k ? 'rgba(127,217,154,0.15)' : 'rgba(255,255,255,0.04)',
-                        border: subSelectStarter === k ? '1px solid rgba(127,217,154,0.5)' : '1px solid rgba(255,255,255,0.08)',
-                        borderRadius: 6, color: '#F4F1EA',
-                        fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
-                      }}
-                    >
-                      {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
-                    </button>
-                  ))}
-              </div>
-              {subSelectStarter && (
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Reservas</div>
-                  {Object.entries(liveLineup)
-                    .filter(([k, p]) => p.isBench && !subbedOutPlayers.includes(p.name))
-                    .map(([k, p]) => (
-                      <button key={k} onClick={() => onApplySub(subSelectStarter, p)}
-                        style={{
-                          display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                          borderRadius: 6, color: '#F4F1EA',
-                          fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
-                        }}
-                      >
-                        {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
-                      </button>
-                    ))}
-                  {Object.entries(liveLineup).filter(([k, p]) => p.isBench && !subbedOutPlayers.includes(p.name)).length === 0 && (
-                    <div style={{ fontSize: 10, opacity: 0.4, padding: '4px 0' }}>Sem reservas disponíveis.</div>
-                  )}
-                </div>
-              )}
+          <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Titulares</div>
+              {Object.entries(liveLineup).filter(([k, p]) => !p.isBench).map(([k, p]) => (
+                <button key={k} onClick={() => !subSelectStarter ? onSelectSubStarter(k) : null}
+                  style={{
+                    display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                    background: subSelectStarter === k ? 'rgba(127,217,154,0.15)' : 'rgba(255,255,255,0.04)',
+                    border: subSelectStarter === k ? '1px solid rgba(127,217,154,0.5)' : '1px solid rgba(255,255,255,0.08)',
+                    borderRadius: 6, color: '#F4F1EA',
+                    fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
+                  }}
+                >
+                  {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
+                </button>
+              ))}
             </div>
-          )}
+            {subSelectStarter && (
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Reservas</div>
+                {Object.entries(liveLineup).filter(([k, p]) => p.isBench).map(([k, p]) => (
+                  <button key={k} onClick={() => onApplySub(subSelectStarter, p)}
+                    style={{
+                      display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+                      borderRadius: 6, color: '#F4F1EA',
+                      fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
+                    }}
+                  >
+                    {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -5790,7 +5607,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamLogo, mc, liveSc
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subWindowsUsed, maxSubWindows, subsUsed, maxSubs, subbedOutPlayers }) {
+function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -5822,6 +5639,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         return (
           <div style={styles.card} className="card-mob">
             <div style={{ textAlign: 'center', padding: '24px 0 16px' }}>
+              <div style={{ fontSize: 40, marginBottom: 10 }}>😔</div>
               <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Eliminado nas {elimRoundName}</div>
               <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 20 }}>O torneio continua sem voce.</div>
               {simMode === 'manual' && <button style={styles.btnSmall} onClick={onStartRound}>Simular proxima fase</button>}
@@ -5855,6 +5673,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
       return (
         <div style={styles.card} className="card-mob">
           <div style={{ textAlign: 'center', padding: '20px 0 10px' }}>
+            <div style={{ fontSize: 48, marginBottom: 12 }}>😔</div>
             <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Eliminado!</div>
             <div style={{ fontSize: 14, opacity: 0.6, marginBottom: 6 }}>Seu time foi eliminado nas {elimRoundName}.</div>
             {elimUserAgg !== null && elimOppAgg !== null && (
@@ -5913,8 +5732,8 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
             <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginTop: 2 }}>{roundName}</div>
           </div>
           {roundDone && userInCup && simMode === 'manual' && (
-            <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12', display: 'inline-flex', alignItems: 'center', gap: 6 }} onClick={onNextRound}>
-              {isLastCupRound && cupLeg === 2 ? <><Icon name="trophy" size={13} /> Ver campeão →</> : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →'}
+            <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12' }} onClick={onNextRound}>
+              {isLastCupRound && cupLeg === 2 ? '🏆 Ver campeão →' : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →'}
             </button>
           )}
           {roundDone && userInCup && simMode === 'auto' && autoCountdown !== null && (
@@ -5939,8 +5758,8 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
 
         <LiveMatchBox
           um={um} homeTeam={homeTeam} awayTeam={awayTeam}
-          myTeamId={myTeamId} myTeamLogo={myTeamLogo} mc={mc}
-          liveScore={liveScore} clockDisplay={clockDisplay} clockMinute={clockMinute}
+          myTeamId={myTeamId} myTeamBadge={myTeamBadge} mc={mc}
+          liveScore={liveScore} clockDisplay={clockDisplay}
           isSimulating={isSimulating} roundDone={roundDone}
           liveEvents={liveEvents} simSpeed={simSpeed}
           onSetSpeed={onSetSpeed} simMode={simMode} onSetSimMode={onSetSimMode}
@@ -5951,8 +5770,6 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           subSelectStarter={subSelectStarter}
           onSelectSubStarter={onSelectSubStarter}
           onApplySub={onApplySub} myTeamColor={myTeamColor}
-          subWindowsUsed={subWindowsUsed} maxSubWindows={maxSubWindows}
-          subsUsed={subsUsed} maxSubs={maxSubs} subbedOutPlayers={subbedOutPlayers}
         />
 
         {/* Placar agregado após jogo de volta */}
@@ -5993,9 +5810,9 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
                   const winH = aggHome > aggAway, winA = aggAway > aggHome;
                   return (
                     <div key={i} style={styles.otherMatchRow}>
-                      <span onClick={() => onViewTeam && h && onViewTeam(h)} style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined, cursor: 'pointer' }}>{h?.label}</span>
+                      <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined }}>{h?.label}</span>
                       <span style={styles.otherScore}>{aggHome} – {aggAway}</span>
-                      <span onClick={() => onViewTeam && a && onViewTeam(a)} style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined, cursor: 'pointer' }}>{a?.label}</span>
+                      <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined }}>{a?.label}</span>
                     </div>
                   );
                 })
@@ -6005,9 +5822,9 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
                 const winH = r.homeGoals > r.awayGoals, winA = r.awayGoals > r.homeGoals;
                 return (
                   <div key={i} style={styles.otherMatchRow}>
-                    <span onClick={() => onViewTeam && h && onViewTeam(h)} style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined, cursor: 'pointer' }}>{h?.label}</span>
+                    <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined }}>{h?.label}</span>
                     <span style={styles.otherScore}>{r.homeGoals} – {r.awayGoals}</span>
-                    <span onClick={() => onViewTeam && a && onViewTeam(a)} style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined, cursor: 'pointer' }}>{a?.label}</span>
+                    <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined }}>{a?.label}</span>
                   </div>
                 );
               })
@@ -6073,8 +5890,8 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
 
       <LiveMatchBox
         um={um} homeTeam={homeTeam} awayTeam={awayTeam}
-        myTeamId={myTeamId} myTeamLogo={myTeamLogo} mc={mc}
-        liveScore={liveScore} clockDisplay={clockDisplay} clockMinute={clockMinute}
+        myTeamId={myTeamId} myTeamBadge={myTeamBadge} mc={mc}
+        liveScore={liveScore} clockDisplay={clockDisplay}
         isSimulating={isSimulating} roundDone={roundDone}
         liveEvents={liveEvents} simSpeed={simSpeed}
         onSetSpeed={onSetSpeed} simMode={simMode} onSetSimMode={onSetSimMode}
@@ -6085,8 +5902,6 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         subSelectStarter={subSelectStarter}
         onSelectSubStarter={onSelectSubStarter}
         onApplySub={onApplySub} myTeamColor={myTeamColor}
-        subWindowsUsed={subWindowsUsed} maxSubWindows={maxSubWindows}
-        subsUsed={subsUsed} maxSubs={maxSubs} subbedOutPlayers={subbedOutPlayers}
       />
 
       {roundDone && (
@@ -6098,9 +5913,9 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
             const hw = r.homeGoals > r.awayGoals, aw = r.awayGoals > r.homeGoals;
             return (
               <div key={i} style={styles.otherMatchRow}>
-                <span onClick={() => onViewTeam && h && onViewTeam(h)} style={{ ...styles.otherTeam, fontWeight: hw ? 700 : 400, cursor: 'pointer' }}>{h?.label}</span>
+                <span style={{ ...styles.otherTeam, fontWeight: hw ? 700 : 400 }}>{h?.label}</span>
                 <span style={styles.otherScore}>{r.homeGoals} – {r.awayGoals}</span>
-                <span onClick={() => onViewTeam && a && onViewTeam(a)} style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: aw ? 700 : 400, cursor: 'pointer' }}>{a?.label}</span>
+                <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: aw ? 700 : 400 }}>{a?.label}</span>
               </div>
             );
           })}
@@ -6138,7 +5953,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
                 style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, cursor: isMe ? 'default' : 'pointer' }}
               >
                 {isMe
-                  ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0, borderRadius: 3 }} alt="" /> : <Icon name="shield" size={13} color={mc} />)
+                  ? (myTeamBadge && <span>{myTeamBadge}</span>)
                   : (row.clubLogo && <img src={row.clubLogo} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} alt="" />)
                 }
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</span>
@@ -6222,29 +6037,25 @@ function getMostCommonClub(players = []) {
 function AnthemPlayer({ club }) {
   const [playing, setPlaying] = React.useState(true);
   const videoId = CLUB_ANTHEMS[club];
+  if (!videoId) return null;
   return (
     <div style={{ marginTop: 24, borderRadius: 12, border: '1px solid rgba(212,162,60,0.3)', background: '#0a1a0f', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-      {/* iframe escondido — só áudio (hino específico do clube, quando existe) */}
-      {videoId ? (
-        <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
-          {playing && (
-            <iframe
-              key={videoId}
-              width="1"
-              height="1"
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0`}
-              allow="autoplay; encrypted-media"
-              title={`Hino ${club}`}
-            />
-          )}
-        </div>
-      ) : (
-        // Sem hino mapeado pro clube — toca o áudio-base padrão
-        playing && <audio key="acabou-bg" src="/acabou.mp3" autoPlay loop style={{ display: 'none' }} />
-      )}
+      {/* iframe escondido — só áudio */}
+      <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+        {playing && (
+          <iframe
+            key={videoId}
+            width="1"
+            height="1"
+            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0`}
+            allow="autoplay; encrypted-media"
+            title={`Hino ${club}`}
+          />
+        )}
+      </div>
 
       {/* Indicador visual */}
-      <Icon name="music" size={24} color="#d4a23c" />
+      <div style={{ fontSize: 28 }}>🎵</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#d4a23c' }}>Hino do Campeão</div>
         <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>{club}</div>
@@ -6260,13 +6071,13 @@ function AnthemPlayer({ club }) {
         onClick={() => setPlaying(p => !p)}
         style={{ background: playing ? 'rgba(212,162,60,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${playing ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 8, color: playing ? '#d4a23c' : '#aaa', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 600 }}
       >
-        {playing ? 'Pausar' : 'Tocar'}
+        {playing ? '⏸ Pausar' : '▶ Tocar'}
       </button>
     </div>
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, onNewSeason }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, onNewSeason }) {
   const mc = myTeamColor || '#d4a23c';
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
 
@@ -6278,18 +6089,18 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamLogo, gameMode, cup
     return (
       <div style={styles.card} className="card-mob">
         <div style={{ textAlign: 'center', padding: '12px 0 28px' }}>
-          <div style={{ marginBottom: 12 }}><Icon name={userWon ? 'trophy' : 'ball'} size={48} color={userWon ? mc : 'rgba(255,255,255,0.5)'} /></div>
+          <div style={{ fontSize: 56, marginBottom: 12 }}>{userWon ? '🏆' : '⚽'}</div>
           <div style={styles.eyebrow}>Copa do Brasil — Resultado Final</div>
           <h1 style={{ ...styles.h1, color: userWon ? mc : '#F4F1EA', marginTop: 8 }}>
             {userWon ? 'CAMPEAO!' : 'Copa encerrada'}
           </h1>
           <div style={{ fontSize: 15, opacity: 0.7, marginBottom: 20 }}>
             {userWon
-              ? 'Seu time conquistou a Copa do Brasil!'
+              ? `${myTeamBadge || ''} ${myTeamBadge ? ' ' : ''}Seu time conquistou a Copa do Brasil!`
               : <>Campeao: <b style={{ color: '#d4a23c' }}>{winner?.label ?? '-'}</b></>
             }
           </div>
-          {!userWon && (
+          {!userWon && myTeamBadge && (
             <div style={styles.badgeMuted}>Seu time foi eliminado antes da final. Tente de novo!</div>
           )}
           {userWon && <div style={styles.badge}>Copa do Brasil conquistada! Time lendario!</div>}
@@ -6327,7 +6138,6 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamLogo, gameMode, cup
   return (
     <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>Fim do Brasileirao · Serie A</div>
-      {isChampion && <div style={{ marginTop: 8 }}><Icon name="trophy" size={40} color={mc} /></div>}
       <h1 style={styles.h1} className="h1-mob">
         {isChampion ? 'CAMPEAO!' : podium ? `${pos}o lugar — podio!` : `${pos}o lugar`}
       </h1>
@@ -6391,8 +6201,8 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamLogo, gameMode, cup
               borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
             }}>
               <span style={styles.tablePos}>{i + 1}</span>
-              <span style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
-                {isMe && (myTeamLogo ? <img src={myTeamLogo} style={{ width: 15, height: 15, objectFit: 'contain', borderRadius: 3 }} alt="" /> : <Icon name="shield" size={13} color={mc} />)}
+              <span style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13 }}>
+                {isMe && myTeamBadge && <span style={{ marginRight: 4 }}>{myTeamBadge}</span>}
                 {row.label}
               </span>
               <span style={styles.tableCell}>{row.pj}</span>
@@ -6438,7 +6248,6 @@ const globalCss = `
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   @keyframes fadeSlideIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
-  @keyframes goalPop { 0%{opacity:0; transform:scale(0.6);} 15%{opacity:1; transform:scale(1.15);} 25%{transform:scale(1);} 78%{opacity:1;} 100%{opacity:0;} }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
@@ -6460,9 +6269,8 @@ const globalCss = `
     .live-teams-row { gap: 6px !important; }
     .live-team-n { font-size: 12px !important; }
     .squad-row-g { grid-template-columns: 36px 1fr auto 36px !important; gap: 8px !important; }
-    .pitch-spot-circle { width: 36px !important; height: 36px !important; }
-    .pitch-spot-name { font-size: 7px !important; max-width: 32px !important; }
-    .formation-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
+    .pitch-spot { width: 40px !important; height: 40px !important; font-size: 8px !important; }
+    .pitch-spot-name { font-size: 7px !important; }
     .h1-mob { font-size: 24px !important; }
     .h2-mob { font-size: 18px !important; }
     .intro-card-mob { padding: 28px 16px 24px !important; }
@@ -6474,8 +6282,6 @@ const globalCss = `
   .draft-left::-webkit-scrollbar-track { background: transparent; }
   .draft-left::-webkit-scrollbar-thumb { background: rgba(212,162,60,0.35); border-radius: 999px; }
   .draft-left::-webkit-scrollbar-thumb:hover { background: rgba(212,162,60,0.65); }
-  .formation-card:hover { background: rgba(212,162,60,0.09) !important; border-color: rgba(212,162,60,0.45) !important; transform: translateY(-2px); }
-  .formation-card:active { transform: translateY(0); }
 `;
 
 const styles = {
@@ -6501,19 +6307,11 @@ const styles = {
   btnRow: { display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' },
   emptyState: { background: 'rgba(224,89,63,0.1)', border: '1px solid rgba(224,89,63,0.4)', borderRadius: 10, padding: '16px 18px', fontSize: 14, lineHeight: 1.5 },
 
-  formationGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 },
-  formationCard: { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 14, padding: '16px 14px', color: '#F4F1EA', textAlign: 'center', cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s, transform 0.15s' },
+  formationGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 },
+  formationCard: { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '14px 12px', color: '#F4F1EA', textAlign: 'center' },
   formationName: { fontSize: 13, fontWeight: 700, marginBottom: 10, fontFamily: "'Space Mono', monospace" },
-  formationShapeNum: { fontSize: 21, fontWeight: 800, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, color: '#F4F1EA' },
-  formationShapeDesc: { fontSize: 11, opacity: 0.55, marginTop: 3, marginBottom: 12, lineHeight: 1.35, minHeight: 30 },
-  formationSectionHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' },
-  formationSectionTitle: { fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', color: '#d4a23c' },
-  formationSectionHint: { fontSize: 11, opacity: 0.45 },
-  miniPitch: { position: 'relative', width: '100%', aspectRatio: '0.68', background: 'linear-gradient(180deg,#0f3d22,#145c30)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden' },
-  miniPitchHalfLine: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.18)', pointerEvents: 'none' },
-  miniPitchCircle: { position: 'absolute', left: '50%', top: '50%', width: 26, height: 26, marginLeft: -13, marginTop: -13, border: '1px solid rgba(255,255,255,0.18)', borderRadius: '50%', pointerEvents: 'none' },
-  miniDot: { position: 'absolute', width: 16, height: 16, borderRadius: '50%', transform: 'translate(-50%,-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.35)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' },
-  miniDotLabel: { fontSize: 6, fontWeight: 800, color: '#0B1A12', fontFamily: "'Space Mono', monospace", lineHeight: 1 },
+  miniPitch: { position: 'relative', width: '100%', aspectRatio: '0.7', background: 'linear-gradient(180deg,#0f3d22,#145c30)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)' },
+  miniDot: { position: 'absolute', width: 8, height: 8, borderRadius: '50%', background: '#d4a23c', transform: 'translate(-50%,-50%)' },
 
   pitchWrap: { margin: '20px 0', display: 'flex', justifyContent: 'center' },
   pitchField: { position: 'relative', width: '100%', maxWidth: 380, aspectRatio: '0.68', background: 'linear-gradient(180deg,#0f3d22 0%,#145c30 50%,#0f3d22 100%)', border: '2px solid rgba(255,255,255,0.3)', borderRadius: 8, overflow: 'hidden' },
