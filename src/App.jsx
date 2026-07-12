@@ -2484,6 +2484,22 @@ export default function App() {
     });
   };
 
+  // Igual acima, mas usado durante reposicionamento (mover jogador já escalado):
+  // inclui também slots já ocupados compatíveis, já que ali o clique dispara uma
+  // troca (swap) em vez de uma simples colocação. Só destaca slots ocupados quando
+  // a troca é possível nos dois sentidos — senão o clique não faria nada (ou, pior,
+  // apagaria quem estava lá), então nem mostramos como opção.
+  const eligibleSlotsForReposition = (player) => {
+    const canPlayAt = new Set(player.pos);
+    const srcMeta = pitchSlots.find(s => s.key === repositioningSlot);
+    return pitchSlots.filter(slot => {
+      if (!(slot.isBench || canPlayAt.has(slot.realPos))) return false;
+      const occupant = pitch[slot.key];
+      if (!occupant) return true;
+      return !srcMeta || srcMeta.isBench || occupant.pos.includes(srcMeta.realPos);
+    });
+  };
+
   const clickPlayer = (player) => {
     if (repositioningSlot !== null) {
       // Cancela reposição: devolve o jogador ao slot original
@@ -2509,26 +2525,19 @@ export default function App() {
       const occupant = pitch[slotKey];
       if (!occupant) {
         // Empty target – just place
-        setPitch(prev => ({ ...prev, [slotKey]: { ...player, slotKey } }));
+        setPitch(prev => ({ ...prev, [slotKey]: { ...player, slotKey, isBench: targetMeta.isBench } }));
       } else {
-        // Occupied target – try swap
+        // Occupied target – only proceed if it's a genuine two-way swap (never
+        // silently drop the occupant — eligibleSlotsForReposition already keeps
+        // invalid targets from being highlighted/clickable, this is a backstop)
         const srcMeta = pitchSlots.find(s => s.key === repositioningSlot);
         const occupantCanGoToSrc = !srcMeta || srcMeta.isBench || occupant.pos.includes(srcMeta.realPos);
-        if (occupantCanGoToSrc) {
-          setPitch(prev => ({
-            ...prev,
-            [slotKey]: { ...player, slotKey },
-            [repositioningSlot]: { ...occupant, slotKey: repositioningSlot },
-          }));
-        } else {
-          // Occupant can't go to source slot – displace (remove) occupant
-          setPitch(prev => {
-            const next = { ...prev };
-            delete next[repositioningSlot];
-            next[slotKey] = { ...player, slotKey };
-            return next;
-          });
-        }
+        if (!occupantCanGoToSrc) return;
+        setPitch(prev => ({
+          ...prev,
+          [slotKey]: { ...player, slotKey, isBench: targetMeta.isBench },
+          [repositioningSlot]: { ...occupant, slotKey: repositioningSlot, isBench: srcMeta ? srcMeta.isBench : occupant.isBench },
+        }));
       }
       setSelectedPlayer(null);
       setRepositioningSlot(null);
@@ -2547,6 +2556,23 @@ export default function App() {
     setPitch(prev => { const next = { ...prev }; delete next[slotKey]; return next; });
     setSelectedPlayer(player);
     setRepositioningSlot(slotKey);
+  };
+
+  // Usado na tela de Elenco (pós-draft): igual a clickPitchSlot, mas mantém a
+  // braçadeira de capitão grudada no jogador (não no slot) quando ele é movido
+  // entre titular e banco — senão o "C" ficaria com quem ocupar o slot depois.
+  const squadClickPitchSlot = (slotKey) => {
+    const srcKey = repositioningSlot;
+    if (srcKey !== null && captainSlot) {
+      const targetIsBench = pitchSlots.find(s => s.key === slotKey)?.isBench;
+      if (captainSlot === srcKey) {
+        setCaptainSlot(targetIsBench ? null : slotKey);
+      } else if (captainSlot === slotKey) {
+        const srcIsBench = pitchSlots.find(s => s.key === srcKey)?.isBench;
+        setCaptainSlot(srcIsBench ? null : srcKey);
+      }
+    }
+    clickPitchSlot(slotKey);
   };
 
   const pauseSim = () => {
@@ -3586,6 +3612,7 @@ export default function App() {
             selectedPlayer={selectedPlayer}
             repositioningSlot={repositioningSlot}
             eligibleSlotsForPlayer={eligibleSlotsForPlayer}
+            eligibleSlotsForReposition={eligibleSlotsForReposition}
             onClickPlayer={clickPlayer}
             onClickPitchSlot={clickPitchSlot}
             onUnplacePlayer={startReposition}
@@ -3602,6 +3629,11 @@ export default function App() {
             onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : startSeason}
             onRedo={() => { setPhase('formation'); setCaptainSlot(null); }}
             myTeamColor={myTeamColor}
+            selectedPlayer={selectedPlayer}
+            repositioningSlot={repositioningSlot}
+            eligibleSlotsForReposition={eligibleSlotsForReposition}
+            onClickPitchSlot={squadClickPitchSlot}
+            onUnplacePlayer={startReposition}
           />
         )}
         {phase === 'multi-waiting' && roomSnap && (
@@ -4569,30 +4601,72 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
 // ============================================================
 // FIM DAS TELAS MULTIPLAYER
 // ============================================================
+const FORMATION_GROUPS = [
+  { prefix: '4', title: 'Linha de 4 zagueiros', hint: 'Equilíbrio clássico entre defesa e ataque' },
+  { prefix: '3', title: 'Linha de 3 zagueiros', hint: 'Mais volume ofensivo, alas cobrindo as laterais' },
+  { prefix: '5', title: 'Linha de 5 zagueiros', hint: 'Retranca — prioriza solidez defensiva' },
+];
+
 function FormationPicker({ onChoose, onBack }) {
+  const groups = useMemo(() => (
+    FORMATION_GROUPS
+      .map(g => ({ ...g, items: Object.entries(FORMATIONS).filter(([key]) => key.split('-')[0] === g.prefix) }))
+      .filter(g => g.items.length > 0)
+  ), []);
+
   return (
     <div style={styles.card} className="card-mob">
       {onBack && <button onClick={onBack} style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 10px 0' }}>&#8592; Voltar</button>}
       <div style={styles.eyebrow}>Passo 1 de 2</div>
       <h2 style={styles.h2}>Escolha o esquema tático</h2>
-      <div style={styles.formationGrid}>
-        {Object.entries(FORMATIONS).map(([key, f]) => (
-          <button key={key} style={styles.formationCard} onClick={() => onChoose(key)}>
-            <div style={styles.formationName}>{f.label}</div>
-            <MiniPitchPreview formationKey={key} />
-          </button>
-        ))}
-      </div>
+
+      {groups.map(g => (
+        <div key={g.prefix} style={{ marginBottom: 26 }}>
+          <div style={styles.formationSectionHead}>
+            <span style={styles.formationSectionTitle}>{g.title}</span>
+            <span style={styles.formationSectionHint}>{g.hint}</span>
+          </div>
+          <div style={styles.formationGrid}>
+            {g.items.map(([key, f]) => {
+              const m = f.label.match(/^([\d-]+)\s*(.*)$/);
+              const shape = m ? m[1] : f.label;
+              const desc = m ? m[2] : '';
+              return (
+                <button key={key} className="formation-card" style={styles.formationCard} onClick={() => onChoose(key)}>
+                  <div style={styles.formationShapeNum}>{shape}</div>
+                  <div style={styles.formationShapeDesc}>{desc}</div>
+                  <MiniPitchPreview formationKey={key} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
+
+const POS_GROUP_COLOR = {
+  GOL: '#F4F1EA',
+  LD: '#4a90d9', ZAG: '#4a90d9', LE: '#4a90d9',
+  VOL: '#d4a23c', MC: '#d4a23c', MEI: '#d4a23c', MD: '#d4a23c', ME: '#d4a23c',
+  PD: '#e05050', PE: '#e05050', ATA: '#e05050',
+};
 
 function MiniPitchPreview({ formationKey }) {
   const slots = useMemo(() => buildPitchSlots(formationKey), [formationKey]);
   return (
     <div style={styles.miniPitch}>
+      <div style={styles.miniPitchHalfLine} />
+      <div style={styles.miniPitchCircle} />
       {slots.map((s, i) => (
-        <div key={i} style={{ ...styles.miniDot, left: `${s.x}%`, top: `${s.y}%` }} />
+        <div
+          key={i}
+          title={s.realPos}
+          style={{ ...styles.miniDot, left: `${s.x}%`, top: `${s.y}%`, background: POS_GROUP_COLOR[s.realPos] || '#d4a23c' }}
+        >
+          <span style={styles.miniDotLabel}>{s.realPos}</span>
+        </div>
       ))}
     </div>
   );
@@ -4648,7 +4722,10 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
         {pitchSlots.filter(slot => !slot.isBench).map(slot => {
           const occupant = pitch[slot.key];
           const isHighlighted = highlightKeys.has(slot.key);
-          const canPlace = isHighlighted && !occupant && onClickSlot;
+          // canPlace também cobre slots ocupados (swap) — usado no reposicionamento
+          // (troca titular<->banco); no fluxo normal de draft os slots destacados
+          // já vêm garantidamente vazios, então isso não muda nada por lá.
+          const canPlace = isHighlighted && !!onClickSlot;
           const canUnplace = !!occupant && !!onUnplace;
           const clickable = canPlace || canUnplace;
           const isCap = captainSlot && slot.key === captainSlot;
@@ -4671,7 +4748,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
             <div
               key={slot.key}
               onClick={clickable ? () => canPlace ? onClickSlot(slot.key) : onUnplace(slot.key) : undefined}
-              title={occupant ? `${occupant.name}${occupant.teamLabel ? ` · ${occupant.teamLabel}` : ''} — clique para mover` : slot.label}
+              title={canPlace && occupant ? `Trocar com ${occupant.name}` : occupant ? `${occupant.name}${occupant.teamLabel ? ` · ${occupant.teamLabel}` : ''} — clique para mover` : isHighlighted ? 'Colocar aqui' : slot.label}
               style={{
                 position: 'absolute',
                 left: `${slot.x}%`,
@@ -4759,14 +4836,14 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], onC
         {benchSlots.map(slot => {
           const p = pitch[slot.key];
           const isHighlighted = highlightKeys.has(slot.key);
-          const canPlace = isHighlighted && !p && !!onClickSlot;
+          const canPlace = isHighlighted && !!onClickSlot;
           const canUnplace = !!p && !!onUnplace;
           const clickable = canPlace || canUnplace;
           return (
             <div
               key={slot.key}
               onClick={clickable ? () => canPlace ? onClickSlot(slot.key) : onUnplace(slot.key) : undefined}
-              title={p ? `${p.name} — clique para remover` : canPlace ? 'Colocar no banco' : slot.label}
+              title={canPlace && p ? `Trocar com ${p.name}` : p ? `${p.name} — clique para mover` : canPlace ? 'Colocar aqui' : slot.label}
               style={{
                 padding: '6px 10px', borderRadius: 8, fontSize: 12, minWidth: 80, textAlign: 'center',
                 background: canPlace ? 'rgba(127,217,154,0.12)' : p ? `${mc}22` : 'rgba(255,255,255,0.04)',
@@ -4934,10 +5011,12 @@ function useIsMobile(bp = 768) {
   return mob;
 }
 
-function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, myTeamColor, captainSlot }) {
+function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, eligibleSlotsForReposition, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, myTeamColor, captainSlot }) {
   const isMobile = useIsMobile();
   const filledCount = Object.keys(pitch).length;
-  const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
+  const highlightSlots = selectedPlayer
+    ? (repositioningSlot !== null ? eligibleSlotsForReposition(selectedPlayer) : eligibleSlotsForPlayer(selectedPlayer))
+    : [];
 
   const mobileLayoutStyle = { display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 };
   const playersPanelStyle = isMobile
@@ -5109,32 +5188,55 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   );
 }
 
-function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor }) {
+function Squad({
+  pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor,
+  selectedPlayer, repositioningSlot, eligibleSlotsForReposition, onClickPitchSlot, onUnplacePlayer,
+}) {
   const starters = Object.values(pitch).filter(p => !p.isBench);
   const avgOvr = starters.length ? Math.round(starters.reduce((s, p) => s + p.ovr, 0) / starters.length) : 0;
   const effectiveOvr = Math.round((avgOvr + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
   const starterSlots = pitchSlots.filter(s => !s.isBench);
   const benchSlots = pitchSlots.filter(s => s.isBench);
+  const isRepositioning = repositioningSlot !== null;
+  const highlightSlots = selectedPlayer ? eligibleSlotsForReposition(selectedPlayer) : [];
 
   return (
     <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>{formationLabel}</div>
       <h2 style={styles.h2}>OVR base: {avgOvr} · Efetivo: {effectiveOvr} (11 titulares)</h2>
 
-      {/* Instrução capitão */}
-      <div style={{
-        textAlign: 'center', fontSize: 12, padding: '8px 12px',
-        background: captainSlot ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${captainSlot ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.08)'}`,
-        borderRadius: 8, marginBottom: 10, color: captainSlot ? '#d4a23c' : 'rgba(255,255,255,0.5)',
-      }}>
-        {captainSlot
-          ? `Capitao: ${pitch[captainSlot]?.name} — +2 OVR`
-          : 'Toque em um titular para definir o capitao (bracadeira +2 OVR)'}
+      {isRepositioning ? (
+        <div style={styles.selectedPlayerBanner}>
+          Mova <b>{selectedPlayer.name}</b> para outra posição (titular ou banco) — ou clique nele de novo para cancelar
+        </div>
+      ) : (
+        <div style={{
+          textAlign: 'center', fontSize: 12, padding: '8px 12px',
+          background: captainSlot ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${captainSlot ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.08)'}`,
+          borderRadius: 8, marginBottom: 10, color: captainSlot ? '#d4a23c' : 'rgba(255,255,255,0.5)',
+        }}>
+          {captainSlot
+            ? `Capitao: ${pitch[captainSlot]?.name} — +2 OVR`
+            : 'Toque em um titular para definir o capitao (bracadeira +2 OVR)'}
+        </div>
+      )}
+      <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.5, marginBottom: 10 }}>
+        Clique num jogador do campo ou do banco para trocá-lo de posição
       </div>
 
-      <Pitch pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot} />
-      <BenchDisplay pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} />
+      <Pitch
+        pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot}
+        highlightSlots={highlightSlots}
+        onClickSlot={onClickPitchSlot}
+        onUnplace={!isRepositioning ? onUnplacePlayer : undefined}
+      />
+      <BenchDisplay
+        pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor}
+        highlightSlots={highlightSlots}
+        onClickSlot={onClickPitchSlot}
+        onUnplace={!isRepositioning ? onUnplacePlayer : undefined}
+      />
 
       <div style={styles.squadList}>
         {/* Titulares */}
@@ -5145,11 +5247,13 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
           return (
             <button
               key={slot.key}
-              onClick={() => onSetCaptain(isCap ? null : slot.key)}
+              onClick={() => !isRepositioning && onSetCaptain(isCap ? null : slot.key)}
+              disabled={isRepositioning}
               className="squad-row-g"
               style={{
                 ...styles.squadRow,
-                cursor: 'pointer',
+                cursor: isRepositioning ? 'default' : 'pointer',
+                opacity: isRepositioning ? 0.5 : 1,
                 background: isCap ? 'rgba(212,162,60,0.12)' : 'transparent',
                 border: `1px solid ${isCap ? 'rgba(212,162,60,0.4)' : 'transparent'}`,
                 borderRadius: 8,
@@ -6367,6 +6471,8 @@ const globalCss = `
   .draft-left::-webkit-scrollbar-track { background: transparent; }
   .draft-left::-webkit-scrollbar-thumb { background: rgba(212,162,60,0.35); border-radius: 999px; }
   .draft-left::-webkit-scrollbar-thumb:hover { background: rgba(212,162,60,0.65); }
+  .formation-card:hover { background: rgba(212,162,60,0.09) !important; border-color: rgba(212,162,60,0.45) !important; transform: translateY(-2px); }
+  .formation-card:active { transform: translateY(0); }
 `;
 
 const styles = {
@@ -6392,11 +6498,19 @@ const styles = {
   btnRow: { display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' },
   emptyState: { background: 'rgba(224,89,63,0.1)', border: '1px solid rgba(224,89,63,0.4)', borderRadius: 10, padding: '16px 18px', fontSize: 14, lineHeight: 1.5 },
 
-  formationGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 },
-  formationCard: { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '14px 12px', color: '#F4F1EA', textAlign: 'center' },
+  formationGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 14 },
+  formationCard: { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 14, padding: '16px 14px', color: '#F4F1EA', textAlign: 'center', cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s, transform 0.15s' },
   formationName: { fontSize: 13, fontWeight: 700, marginBottom: 10, fontFamily: "'Space Mono', monospace" },
-  miniPitch: { position: 'relative', width: '100%', aspectRatio: '0.7', background: 'linear-gradient(180deg,#0f3d22,#145c30)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)' },
-  miniDot: { position: 'absolute', width: 8, height: 8, borderRadius: '50%', background: '#d4a23c', transform: 'translate(-50%,-50%)' },
+  formationShapeNum: { fontSize: 21, fontWeight: 800, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, color: '#F4F1EA' },
+  formationShapeDesc: { fontSize: 11, opacity: 0.55, marginTop: 3, marginBottom: 12, lineHeight: 1.35, minHeight: 30 },
+  formationSectionHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 8, marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' },
+  formationSectionTitle: { fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', color: '#d4a23c' },
+  formationSectionHint: { fontSize: 11, opacity: 0.45 },
+  miniPitch: { position: 'relative', width: '100%', aspectRatio: '0.68', background: 'linear-gradient(180deg,#0f3d22,#145c30)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden' },
+  miniPitchHalfLine: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.18)', pointerEvents: 'none' },
+  miniPitchCircle: { position: 'absolute', left: '50%', top: '50%', width: 26, height: 26, marginLeft: -13, marginTop: -13, border: '1px solid rgba(255,255,255,0.18)', borderRadius: '50%', pointerEvents: 'none' },
+  miniDot: { position: 'absolute', width: 16, height: 16, borderRadius: '50%', transform: 'translate(-50%,-50%)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0,0,0,0.35)', boxShadow: '0 1px 3px rgba(0,0,0,0.4)' },
+  miniDotLabel: { fontSize: 6, fontWeight: 800, color: '#0B1A12', fontFamily: "'Space Mono', monospace", lineHeight: 1 },
 
   pitchWrap: { margin: '20px 0', display: 'flex', justifyContent: 'center' },
   pitchField: { position: 'relative', width: '100%', maxWidth: 380, aspectRatio: '0.68', background: 'linear-gradient(180deg,#0f3d22 0%,#145c30 50%,#0f3d22 100%)', border: '2px solid rgba(255,255,255,0.3)', borderRadius: 8, overflow: 'hidden' },

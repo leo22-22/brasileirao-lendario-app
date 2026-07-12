@@ -19,7 +19,11 @@
       "Bash(cp draft_walkthrough.js timestrip_test.js)",
       "Bash(sed -i 's/5188/5195/' timestrip_test.js)",
       "Bash(node timestrip_test.js)",
-      "Bash(pkill -f \"vite --port 5195\")"
+      "Bash(pkill -f \"vite --port 5195\")",
+      "Bash(awk -F: '$1<3600')",
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\formation_squad_test.js\")",
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\captain_swap_test.js\")",
+      "Bash(pkill -f \"vite --port 5196\")"
     ]
   }
 }
