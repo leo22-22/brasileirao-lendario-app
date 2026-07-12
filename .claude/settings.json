@@ -38,7 +38,13 @@
       "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\md_me_draft_test.js\")",
       "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\debug_labels.js\")",
       "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\debug_labels2.js\")",
-      "Bash(pkill -f \"vite --port 519\")"
+      "Bash(pkill -f \"vite --port 519\")",
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\apply_player_positions.js\")",
+      "Bash(grep -iE \"^\\(ezio|mario|orlando|adao|angelo|savio|muller|sidney|elvelton|paulo|gilberto|albuquerque\\)$\")",
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\fix_unmatched.js\")",
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\apply_corrections.js\")",
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\final_check.js\")",
+      "Bash(pkill -f \"vite --port 520\")"
     ]
   }
 }

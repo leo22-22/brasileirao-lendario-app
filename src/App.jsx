@@ -1896,8 +1896,43 @@ const BASE_COORDS = {
 
 function buildPitchSlots(formationKey) {
   const { counts } = FORMATIONS[formationKey];
+
+  // VOL e MC, quando os dois têm qty 1, ficam lado a lado na mesma linha (em
+  // vez de um atrás do outro) — só a função muda, não a altura no campo.
+  // MD/ME sempre entram na linha do MC quando ele existe (formando MD-MC-ME);
+  // sem MC, entram na linha do MEI (MD-MEI-ME); sem os dois, ficam com o VOL
+  // (formando o "4" plano de um 4-4-2 tradicional, por exemplo).
+  const mergeVolMc = counts.VOL === 1 && counts.MC === 1;
+  const hasMC = !!counts.MC;
+  const hasMEI = !!counts.MEI;
+  const hasWide = !!counts.MD || !!counts.ME;
+  const wideJoinsMei = !hasMC && hasMEI && hasWide;
+
+  const mcRowY = mergeVolMc ? 58 : 54;
+  const volRowY = mergeVolMc ? 58 : 62;
+  const meiRowY = 46;
+  const wideRowY = hasMC ? mcRowY : hasMEI ? meiRowY : volRowY;
+
+  const ROW_ORDER = { ME: 0, VOL: 1, MC: 2, MEI: 2, MD: 3 };
+  const rows = new Map(); // y -> [{ pos, order }]
+  const pushToRow = (pos, qty, y, order) => {
+    if (!qty) return;
+    if (!rows.has(y)) rows.set(y, []);
+    const arr = rows.get(y);
+    for (let i = 0; i < qty; i++) arr.push({ pos, order });
+  };
+  pushToRow('VOL', mergeVolMc ? 1 : counts.VOL, volRowY, ROW_ORDER.VOL);
+  pushToRow('MC', mergeVolMc ? 1 : counts.MC, mcRowY, ROW_ORDER.MC);
+  pushToRow('MD', counts.MD, wideRowY, ROW_ORDER.MD);
+  pushToRow('ME', counts.ME, wideRowY, ROW_ORDER.ME);
+  if (wideJoinsMei) pushToRow('MEI', counts.MEI, wideRowY, ROW_ORDER.MEI);
+
+  const groupedPos = new Set(['VOL', 'MC', 'MD', 'ME']);
+  if (wideJoinsMei) groupedPos.add('MEI');
+
   const slots = [];
   Object.entries(counts).forEach(([pos, qty]) => {
+    if (groupedPos.has(pos)) return; // tratado abaixo via `rows`
     const base = BASE_COORDS[pos];
     for (let i = 0; i < qty; i++) {
       const key = qty === 1 ? pos : `${pos}${i + 1}`;
@@ -1911,20 +1946,22 @@ function buildPitchSlots(formationKey) {
     }
   });
 
-  // VOL/MC/MEI usam x=50 por padrão quando aparecem sozinhos (qty 1). Se uma
-  // formação combina 2+ desses ao mesmo tempo, isso empilhava tudo numa coluna
-  // reta no centro do campo. Aqui espalha em zigue-zague pra ficar em linha,
-  // como as posições com qty>1 já ficam.
-  const CENTRAL_CODES = ['VOL', 'MC', 'MEI'];
-  const centralSolo = slots.filter(s => CENTRAL_CODES.includes(s.realPos) && counts[s.realPos] === 1);
-  if (centralSolo.length >= 2) {
-    centralSolo.sort((a, b) => b.y - a.y); // mais perto do próprio gol primeiro
-    const ZIGZAG = [0, -10, 10, -6, 6];
-    centralSolo.forEach((s, i) => { s.x = 50 + (ZIGZAG[i] ?? 0); });
+  const counters = {};
+  for (const [y, items] of rows.entries()) {
+    items.sort((a, b) => a.order - b.order);
+    const n = items.length;
+    const spread = n <= 1 ? 0 : n === 2 ? 16 : n === 3 ? 22 : 12;
+    items.forEach((item, i) => {
+      const offset = n <= 1 ? 0 : (i - (n - 1) / 2) * (spread * 2 / Math.max(n - 1, 1));
+      const x = Math.max(8, Math.min(92, 50 + offset));
+      counters[item.pos] = (counters[item.pos] ?? 0) + 1;
+      const key = counts[item.pos] === 1 ? item.pos : `${item.pos}${counters[item.pos]}`;
+      slots.push({ key, label: item.pos, realPos: item.pos, x, y });
+    });
   }
 
   // 4-2-2-2: os MEIs ficam mais avançados e abertos, os volantes mais fechados
-  // e recuados — se não sobrepõem, mas também não ficam achatados numa linha só.
+  // e recuados — não sobrepõem, mas também não ficam achatados numa linha só.
   if (formationKey === '4-4-2-quadrado') {
     slots.forEach(s => {
       if (s.realPos === 'MEI') { s.y = 38; s.x = s.x < 50 ? 28 : 72; }
@@ -5762,18 +5799,28 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           )}
         </div>
 
-        {/* Contexto do jogo de ida quando estamos no jogo de volta */}
-        {cupLeg === 2 && userLeg1 && origMatch && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '8px 14px', background: 'rgba(0,0,0,0.25)', borderRadius: 10, marginBottom: 12, fontSize: 12 }}>
-            <span style={{ opacity: 0.55 }}>1º jogo:</span>
-            <span style={{ fontWeight: 700, fontFamily: 'monospace', color: mc }}>
-              {origMatch.homeId === myTeamId ? userLeg1.homeGoals : userLeg1.awayGoals}
-              {' × '}
-              {origMatch.homeId === myTeamId ? userLeg1.awayGoals : userLeg1.homeGoals}
-            </span>
-            <span style={{ opacity: 0.55 }}>· 2º jogo decide o agregado</span>
-          </div>
-        )}
+        {/* Contexto do jogo de ida + agregado ao vivo quando estamos no jogo de volta */}
+        {cupLeg === 2 && userLeg1 && origMatch && um && (() => {
+          const myLeg1 = origMatch.homeId === myTeamId ? userLeg1.homeGoals : userLeg1.awayGoals;
+          const oppLeg1 = origMatch.homeId === myTeamId ? userLeg1.awayGoals : userLeg1.homeGoals;
+          // Placar ao vivo do jogo de volta (não o resultado final salvo em roundResults,
+          // que só existe depois que a partida termina) — soma ao 1º jogo pra dar o
+          // agregado em tempo real, minuto a minuto.
+          const isUserHomeLeg2 = um.homeId === myTeamId;
+          const myLeg2Live = isUserHomeLeg2 ? liveScore.home : liveScore.away;
+          const oppLeg2Live = isUserHomeLeg2 ? liveScore.away : liveScore.home;
+          const myAggLive = myLeg1 + myLeg2Live;
+          const oppAggLive = oppLeg1 + oppLeg2Live;
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '8px 14px', background: 'rgba(0,0,0,0.25)', borderRadius: 10, marginBottom: 12, fontSize: 12, flexWrap: 'wrap' }}>
+              <span style={{ opacity: 0.55 }}>1º jogo:</span>
+              <span style={{ fontWeight: 700, fontFamily: 'monospace', color: '#F4F1EA' }}>{myLeg1} × {oppLeg1}</span>
+              <span style={{ opacity: 0.4 }}>·</span>
+              <span style={{ opacity: 0.55 }}>Agregado:</span>
+              <span style={{ fontWeight: 700, fontFamily: 'monospace', color: myAggLive > oppAggLive ? '#7fd99a' : myAggLive < oppAggLive ? '#e05050' : mc }}>{myAggLive} × {oppAggLive}</span>
+            </div>
+          );
+        })()}
 
         <LiveMatchBox
           um={um} homeTeam={homeTeam} awayTeam={awayTeam}
