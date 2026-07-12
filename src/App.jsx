@@ -4626,7 +4626,8 @@ function FormationPicker({ onChoose, onBack }) {
             <span style={styles.formationSectionTitle}>{g.title}</span>
             <span style={styles.formationSectionHint}>{g.hint}</span>
           </div>
-          <div style={styles.formationGrid}>
+          <div style={styles.formationGrid} className="formation-grid">
+
             {g.items.map(([key, f]) => {
               const m = f.label.match(/^([\d-]+)\s*(.*)$/);
               const shape = m ? m[1] : f.label;
@@ -4765,7 +4766,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
               className="pitch-spot"
             >
               {/* Círculo principal */}
-              <div style={{
+              <div className="pitch-spot-circle" style={{
                 width: 44, height: 44, borderRadius: '50%',
                 background: circleColor,
                 border: borderColor,
@@ -4773,6 +4774,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexDirection: 'column',
                 position: 'relative',
+                flexShrink: 0,
                 transform: isHighlighted && !occupant ? 'scale(1.12)' : 'scale(1)',
                 transition: 'all 0.15s',
               }}>
@@ -6458,8 +6460,9 @@ const globalCss = `
     .live-teams-row { gap: 6px !important; }
     .live-team-n { font-size: 12px !important; }
     .squad-row-g { grid-template-columns: 36px 1fr auto 36px !important; gap: 8px !important; }
-    .pitch-spot { width: 40px !important; height: 40px !important; font-size: 8px !important; }
-    .pitch-spot-name { font-size: 7px !important; }
+    .pitch-spot-circle { width: 36px !important; height: 36px !important; }
+    .pitch-spot-name { font-size: 7px !important; max-width: 32px !important; }
+    .formation-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
     .h1-mob { font-size: 24px !important; }
     .h2-mob { font-size: 18px !important; }
     .intro-card-mob { padding: 28px 16px 24px !important; }

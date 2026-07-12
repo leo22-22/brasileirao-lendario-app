@@ -23,7 +23,12 @@
       "Bash(awk -F: '$1<3600')",
       "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\formation_squad_test.js\")",
       "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\captain_swap_test.js\")",
-      "Bash(pkill -f \"vite --port 5196\")"
+      "Bash(pkill -f \"vite --port 5196\")",
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\mobile_audit.js\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" http://localhost:5197)",
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\mobile_formation_zoom.js\")",
+      "Bash(node \"C:\\\\Users\\\\ueer\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-ueer-Downloads-brasileirao-lendario-app\\\\7ba68663-85b2-4d35-b208-1eea85f59811\\\\scratchpad\\\\mobile_formation_recheck.js\")",
+      "Bash(pkill -f \"vite --port 5197\")"
     ]
   }
 }
