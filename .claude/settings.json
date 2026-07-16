@@ -109,7 +109,10 @@
       "PowerShell(Get-NetTCPConnection -LocalPort 5196 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force })",
       "Bash(node \"C:/Users/ueer/AppData/Local/Temp/claude/c--Users-ueer-Downloads-brasileirao-lendario-app/7ba68663-85b2-4d35-b208-1eea85f59811/scratchpad/check_multipos_coverage.js\")",
       "Bash(node \"C:/Users/ueer/AppData/Local/Temp/claude/c--Users-ueer-Downloads-brasileirao-lendario-app/7ba68663-85b2-4d35-b208-1eea85f59811/scratchpad/bump_overall.js\" 38 3)",
-      "Bash(node \"C:/Users/ueer/AppData/Local/Temp/claude/c--Users-ueer-Downloads-brasileirao-lendario-app/7ba68663-85b2-4d35-b208-1eea85f59811/scratchpad/bump_overall.js\" 30 3 Edmundo)"
+      "Bash(node \"C:/Users/ueer/AppData/Local/Temp/claude/c--Users-ueer-Downloads-brasileirao-lendario-app/7ba68663-85b2-4d35-b208-1eea85f59811/scratchpad/bump_overall.js\" 30 3 Edmundo)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue)",
+      "PowerShell(Get-NetTCPConnection -LocalPort 5173 -State Listen -ErrorAction SilentlyContinue)",
+      "Bash(node \"C:/Users/ueer/AppData/Local/Temp/claude/c--Users-ueer-Downloads-brasileirao-lendario-app/7ba68663-85b2-4d35-b208-1eea85f59811/scratchpad/check_auth_fix.js\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\ueer\\Downloads\\brasileirao-lendario-app\\server"

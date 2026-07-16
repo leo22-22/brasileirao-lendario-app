@@ -33,6 +33,14 @@ async function request(path, { method = 'GET', body, auth = false } = {}) {
     error.status = res.status;
     throw error;
   }
+  // Sucesso (2xx) sem corpo JSON é esperado só pra DELETE (204). Em qualquer
+  // outro caso, algo respondeu no lugar da API (proxy fora do ar, etc.) —
+  // melhor falhar aqui do que devolver null pro chamador desestruturar.
+  if (data === null && method !== 'DELETE') {
+    const error = new Error('Resposta inválida do servidor. Verifique se o backend está rodando.');
+    error.status = res.status;
+    throw error;
+  }
   return data;
 }
 

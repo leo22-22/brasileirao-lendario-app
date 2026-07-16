@@ -2056,7 +2056,10 @@ export default function App() {
     let cancelled = false;
     setAuthLoading(true);
     api.fetchMe()
-      .then(({ user }) => { if (!cancelled) setCurrentUser(user); })
+      .then(data => {
+        if (!data?.user) throw new Error('Resposta invalida ao restaurar sessao.');
+        if (!cancelled) setCurrentUser(data.user);
+      })
       .catch(() => { if (!cancelled) { api.clearToken(); setAuthToken(null); } })
       .finally(() => { if (!cancelled) setAuthLoading(false); });
     return () => { cancelled = true; };
@@ -2081,7 +2084,12 @@ export default function App() {
     setMyTeamCity(currentUser.team_city || '');
   }, [currentUser]);
 
-  const handleAuthSuccess = ({ token, user }) => {
+  const handleAuthSuccess = (result) => {
+    if (!result?.token || !result?.user) {
+      setAuthError('Erro ao autenticar. Verifique se o servidor está rodando e tente de novo.');
+      return;
+    }
+    const { token, user } = result;
     api.setToken(token);
     setAuthToken(token);
     setCurrentUser(user);
