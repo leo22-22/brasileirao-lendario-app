@@ -7,6 +7,8 @@ dist-ssr
 .env
 server/.env
 *.db
+*.db-shm
+*.db-wal
 server/data.db
 
 # Editor
