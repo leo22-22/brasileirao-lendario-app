@@ -3,6 +3,12 @@ dist
 dist-ssr
 *.local
 
+# Backend secrets/data
+.env
+server/.env
+*.db
+server/data.db
+
 # Editor
 .vscode/*
 !.vscode/extensions.json

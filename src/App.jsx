@@ -1,5 +1,6 @@
 ﻿import React, { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import Peer from 'peerjs';
+import * as api from './api.js';
 
 // ─── MULTIPLAYER (PeerJS — sem conta, sem backend) ────────────────────────────
 // O líder vira o "servidor": peers conectam diretamente ao ID dele via WebRTC.
@@ -39,840 +40,535 @@ function matchPrng(roomSeed, roundKey, homeId, awayId) {
 // DADOS: 66 times históricos do Brasileirão (1959-2026)
 // ============================================================
 const TEAMS = [
-  {
-    id: 'bahia1959', club: 'Bahia', year: 1959, label: 'Bahia 1959 (1o Campeonato Nacional)', coach: 'Otacilio Goncalves',
-    colors: { p: '#003399', s: '#ffffff' },
-    players: [
-      { name: 'Paulo', pos: ['GOL'], ovr: 79 },
-      { name: 'Antonio', pos: ['LD'], ovr: 76 },
-      { name: 'Raimundo', pos: ['ZAG'], ovr: 78 },
-      { name: 'Bino', pos: ['ZAG'], ovr: 77 },
-      { name: 'Dema', pos: ['LE'], ovr: 76 },
-      { name: 'Nilton', pos: ['VOL'], ovr: 77 },
-      { name: 'Ze', pos: ['VOL'], ovr: 76 },
-      { name: 'Magalhaes', pos: ['MEI'], ovr: 79 },
-      { name: 'Mario', pos: ['PD'], ovr: 78 },
-      { name: 'Doval', pos: ['ATA'], ovr: 82 },
-      { name: 'Orlando', pos: ['PE'], ovr: 78 },
-      { name: 'Elinaldo', pos: ['GOL'], ovr: 71 },
-      { name: 'Batista', pos: ['LD'], ovr: 73 },
-      { name: 'Airton', pos: ['ZAG'], ovr: 72 },
-      { name: 'Juarez', pos: ['VOL'], ovr: 73 },
-      { name: 'Ezio', pos: ['MEI'], ovr: 74 },
-      { name: 'Hilton', pos: ['MEI'], ovr: 73 },
-      { name: 'Carlinhos', pos: ['ATA'], ovr: 75 },
-      { name: 'Nelson', pos: ['ATA'], ovr: 72 },
-      { name: 'Adao', pos: ['PE'], ovr: 71 },
-    ]
-  },
-  {
-    id: 'santos1961', club: 'Santos', year: 1961, label: 'Santos 1961 (Taca Brasil)', coach: 'Lula',
-    colors: { p: '#000000', s: '#ffffff' },
-    players: [
-      { name: 'Gylmar', pos: ['GOL'], ovr: 86 },
-      { name: 'Lima', pos: ['LD'], ovr: 78 },
-      { name: 'Mauro', pos: ['ZAG'], ovr: 82 },
-      { name: 'Calvet', pos: ['ZAG'], ovr: 76 },
-      { name: 'Dalmo', pos: ['LE'], ovr: 77 },
-      { name: 'Zito', pos: ['VOL', 'MEI'], ovr: 87 },
-      { name: 'Mengalvio', pos: ['VOL', 'MEI'], ovr: 83 },
-      { name: 'Dorval', pos: ['PD', 'ATA'], ovr: 80 },
-      { name: 'Coutinho', pos: ['MEI', 'ATA'], ovr: 88 },
-      { name: 'Pele', pos: ['ATA', 'MEI'], ovr: 99 },
-      { name: 'Pepe', pos: ['PE', 'ATA'], ovr: 89 },
-      { name: 'Laercio', pos: ['GOL'], ovr: 72 },
-      { name: 'Carlos Alberto Torres', pos: ['LD'], ovr: 75 },
-      { name: 'Clodoaldo', pos: ['VOL', 'MEI'], ovr: 74 },
-      { name: 'Toninho Guerreiro', pos: ['ATA'], ovr: 76 },
-      { name: 'Edu', pos: ['PE', 'ATA'], ovr: 74 },
-      { name: 'Olavo', pos: ['ZAG'], ovr: 73 },
-      { name: 'Tite', pos: ['PE'], ovr: 73 },
-      { name: 'Formiga', pos: ['VOL'], ovr: 72 },
-      { name: 'Apolinario', pos: ['ZAG'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'santos1962', club: 'Santos', year: 1962, label: 'Santos 1962 (Libertadores + Mundial + Taca Brasil)', coach: 'Lula',
-    colors: { p: '#000000', s: '#ffffff' },
-    players: [
-      { name: 'Gylmar', pos: ['GOL'], ovr: 90 },
-      { name: 'Lima', pos: ['LD'], ovr: 80 },
-      { name: 'Mauro', pos: ['ZAG'], ovr: 86 },
-      { name: 'Calvet', pos: ['ZAG'], ovr: 78 },
-      { name: 'Dalmo', pos: ['LE'], ovr: 79 },
-      { name: 'Zito', pos: ['VOL', 'MEI'], ovr: 90 },
-      { name: 'Mengalvio', pos: ['VOL', 'MEI'], ovr: 86 },
-      { name: 'Dorval', pos: ['PD', 'ATA'], ovr: 84 },
-      { name: 'Coutinho', pos: ['MEI', 'ATA'], ovr: 92 },
-      { name: 'Pele', pos: ['ATA', 'MEI'], ovr: 99 },
-      { name: 'Pepe', pos: ['PE', 'ATA'], ovr: 91 },
-      { name: 'Carlos Alberto Torres', pos: ['LD'], ovr: 76 },
-      { name: 'Clodoaldo', pos: ['VOL', 'MEI'], ovr: 78 },
-      { name: 'Toninho Guerreiro', pos: ['ATA'], ovr: 76 },
-      { name: 'Edu', pos: ['PE', 'ATA'], ovr: 74 },
-      { name: 'Joel', pos: ['ZAG'], ovr: 72 },
-      { name: 'Laercio', pos: ['GOL'], ovr: 73 },
-      { name: 'Rodrigues Neto', pos: ['ZAG'], ovr: 71 },
-      { name: 'Orlando', pos: ['ATA'], ovr: 70 },
-      { name: 'Pagao', pos: ['LD'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'botafogo1968', club: 'Botafogo', year: 1968, label: 'Botafogo 1968', coach: 'Zagallo',
-    colors: { p: '#000000', s: '#ffffff' },
-    players: [
-      { name: 'Cao', pos: ['GOL'], ovr: 79 },
-      { name: 'Moreira', pos: ['LD'], ovr: 77 },
-      { name: 'Ze Carlos', pos: ['ZAG'], ovr: 78 },
-      { name: 'Leonidas', pos: ['ZAG'], ovr: 77 },
-      { name: 'Waltencir', pos: ['LE'], ovr: 78 },
-      { name: 'Carlos Roberto', pos: ['VOL'], ovr: 81 },
-      { name: 'Gerson', pos: ['MEI', 'VOL'], ovr: 92 },
-      { name: 'Rogerio', pos: ['PD'], ovr: 80 },
-      { name: 'Roberto', pos: ['ATA'], ovr: 81 },
-      { name: 'Jairzinho', pos: ['ATA', 'PD'], ovr: 93 },
-      { name: 'Paulo Cezar Caju', pos: ['PE', 'MEI'], ovr: 86 },
-      { name: 'Ubirajara Motta', pos: ['GOL'], ovr: 71 },
-      { name: 'Chiquinho Pastor', pos: ['ZAG'], ovr: 73 },
-      { name: 'Moises', pos: ['ZAG'], ovr: 72 },
-      { name: 'Nei Conceicao', pos: ['VOL'], ovr: 75 },
-      { name: 'Zequinha', pos: ['PD'], ovr: 74 },
-      { name: 'Ferretti', pos: ['ATA'], ovr: 78 },
-      { name: 'Humberto', pos: ['ATA'], ovr: 74 },
-      { name: 'Afonsinho', pos: ['MEI'], ovr: 76 },
-      { name: 'Torino', pos: ['ATA'], ovr: 72 },
-    ]
-  },
-  {
-    id: 'fluminense1970', club: 'Fluminense', year: 1970, label: 'Fluminense 1970 (1o titulo nacional)', coach: 'Yustrich',
-    colors: { p: '#7a1e3c', s: '#006437' },
-    players: [
-      { name: 'Felix', pos: ['GOL'], ovr: 84 },
-      { name: 'Marco Antonio', pos: ['LE'], ovr: 83 },
-      { name: 'Flavio Minuano', pos: ['ATA'], ovr: 82 },
-      { name: 'Samarone', pos: ['MEI', 'MC'], ovr: 81 },
-      { name: 'Denilson', pos: ['VOL', 'ZAG'], ovr: 81 },
-      { name: 'Lula', pos: ['PE', 'ME'], ovr: 80 },
-      { name: 'Mickey', pos: ['ATA'], ovr: 79 },
-      { name: 'Cafuringa', pos: ['PD', 'MD'], ovr: 79 },
-      { name: 'Assis', pos: ['ZAG', 'VOL'], ovr: 78 },
-      { name: 'Galhardo', pos: ['ZAG'], ovr: 78 },
-      { name: 'Oliveira', pos: ['LD'], ovr: 77 },
-      { name: 'Didi', pos: ['VOL', 'MC'], ovr: 76 },
-      { name: 'Silveira', pos: ['ZAG', 'VOL'], ovr: 76 },
-      { name: 'Claudio Garcia', pos: ['PD', 'MEI'], ovr: 75 },
-      { name: 'Toninho', pos: ['LD'], ovr: 74 },
-      { name: 'Jorge Vitorio', pos: ['GOL'], ovr: 73 },
-      { name: 'Gilson Nunes', pos: ['PE'], ovr: 73 },
-      { name: 'Wilton', pos: ['PD', 'ATA'], ovr: 72 },
-      { name: 'Lulinha', pos: ['MC', 'VOL'], ovr: 72 },
-      { name: 'Jair', pos: ['ATA'], ovr: 71 },
-    ]
-  },
-  {
-    id: 'atletico-mg1971', club: 'Atletico-MG', year: 1971, label: 'Atletico-MG 1971 (1o titulo)', coach: 'Vantuil de Oliveira',
-    colors: { p: '#000000', s: '#ffffff' },
-    players: [
-      { name: 'Laerte', pos: ['GOL'], ovr: 78 },
-      { name: 'Licio', pos: ['LD'], ovr: 76 },
-      { name: 'Raimundo', pos: ['ZAG'], ovr: 78 },
-      { name: 'Vantuil', pos: ['ZAG'], ovr: 77 },
-      { name: 'Maneco', pos: ['LE'], ovr: 76 },
-      { name: 'Rogerio', pos: ['VOL'], ovr: 78 },
-      { name: 'Dario', pos: ['VOL'], ovr: 77 },
-      { name: 'Reinaldo', pos: ['MEI'], ovr: 83 },
-      { name: 'Ezio', pos: ['PD'], ovr: 79 },
-      { name: 'Dada Maravilha', pos: ['ATA'], ovr: 84 },
-      { name: 'Angelo', pos: ['PE'], ovr: 78 },
-      { name: 'Marinho', pos: ['GOL'], ovr: 71 },
-      { name: 'Sergio', pos: ['LD'], ovr: 73 },
-      { name: 'Carlos', pos: ['ZAG'], ovr: 72 },
-      { name: 'Gil', pos: ['VOL'], ovr: 73 },
-      { name: 'Tiao', pos: ['MEI'], ovr: 74 },
-      { name: 'Edu', pos: ['ATA'], ovr: 75 },
-      { name: 'Ze Maria', pos: ['LE'], ovr: 72 },
-      { name: 'Wilson', pos: ['ATA'], ovr: 72 },
-      { name: 'Jonas', pos: ['PD'], ovr: 71 },
-    ]
-  },
-  {
-    id: 'palmeiras1972', club: 'Palmeiras', year: 1972, label: 'Palmeiras 1972 (Academia)', coach: 'Osvaldo Brandao',
-    colors: { p: '#006437', s: '#ffffff' },
-    players: [
-      { name: 'Leao', pos: ['GOL'], ovr: 85 },
-      { name: 'Eurico', pos: ['LD'], ovr: 78 },
-      { name: 'Luis Pereira', pos: ['ZAG'], ovr: 86 },
-      { name: 'Alfredo', pos: ['ZAG'], ovr: 77 },
-      { name: 'Zeca', pos: ['LE'], ovr: 78 },
-      { name: 'Dudu', pos: ['VOL'], ovr: 84 },
-      { name: 'Ademir da Guia', pos: ['MEI', 'PD'], ovr: 91 },
-      { name: 'Edu Bala', pos: ['PD', 'MEI'], ovr: 81 },
-      { name: 'Madurga', pos: ['ATA'], ovr: 78 },
-      { name: 'Leivinha', pos: ['ATA', 'PE'], ovr: 87 },
-      { name: 'Nei', pos: ['PE'], ovr: 80 },
-      { name: 'Ze Carlos', pos: ['MEI'], ovr: 73 },
-      { name: 'Ronaldo', pos: ['ATA'], ovr: 74 },
-      { name: 'Cesar', pos: ['ATA'], ovr: 73 },
-      { name: 'Marco Antonio', pos: ['VOL'], ovr: 74 },
-      { name: 'Ostrovski', pos: ['LD'], ovr: 71 },
-      { name: 'Baldochi', pos: ['ZAG'], ovr: 72 },
-      { name: 'Flavio', pos: ['MEI'], ovr: 75 },
-      { name: 'Alfredo Jr', pos: ['ZAG'], ovr: 70 },
-      { name: 'Rinaldo', pos: ['PE'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'palmeiras1973', club: 'Palmeiras', year: 1973, label: 'Palmeiras 1973 (Bicampeonato Academia)', coach: 'Osvaldo Brandao',
-    colors: { p: '#006437', s: '#ffffff' },
-    players: [
-      { name: 'Leao', pos: ['GOL'], ovr: 85 },
-      { name: 'Eurico', pos: ['LD'], ovr: 78 },
-      { name: 'Luis Pereira', pos: ['ZAG'], ovr: 87 },
-      { name: 'Alfredo', pos: ['ZAG'], ovr: 77 },
-      { name: 'Zeca', pos: ['LE'], ovr: 78 },
-      { name: 'Dudu', pos: ['VOL'], ovr: 85 },
-      { name: 'Ademir da Guia', pos: ['MEI', 'PD'], ovr: 92 },
-      { name: 'Edu Bala', pos: ['PD', 'MEI'], ovr: 82 },
-      { name: 'Cesar', pos: ['ATA'], ovr: 79 },
-      { name: 'Leivinha', pos: ['ATA', 'PE'], ovr: 88 },
-      { name: 'Nei', pos: ['PE'], ovr: 80 },
-      { name: 'Ze Carlos', pos: ['MEI'], ovr: 74 },
-      { name: 'Ronaldo', pos: ['ATA'], ovr: 75 },
-      { name: 'Marco Antonio', pos: ['VOL'], ovr: 75 },
-      { name: 'Luis Carlos', pos: ['LD'], ovr: 73 },
-      { name: 'Gilberto', pos: ['ZAG'], ovr: 72 },
-      { name: 'Flavio', pos: ['MEI'], ovr: 76 },
-      { name: 'Edilson', pos: ['ATA'], ovr: 74 },
-      { name: 'Amaral', pos: ['PE'], ovr: 71 },
-      { name: 'Cica', pos: ['MEI'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'vasco1974', club: 'Vasco', year: 1974, label: 'Vasco 1974 (1o Brasileiro moderno)', coach: 'Mario Travaglini',
-    colors: { p: '#000000', s: '#ffffff' },
-    players: [
-      { name: 'Andrada', pos: ['GOL'], ovr: 80 },
-      { name: 'Fidelis', pos: ['LD'], ovr: 76 },
-      { name: 'Miguel', pos: ['ZAG'], ovr: 78 },
-      { name: 'Moises', pos: ['ZAG'], ovr: 79 },
-      { name: 'Alfinete', pos: ['LE'], ovr: 77 },
-      { name: 'Alcir', pos: ['VOL'], ovr: 78 },
-      { name: 'Zanata', pos: ['VOL', 'MEI'], ovr: 79 },
-      { name: 'Ademir', pos: ['MEI'], ovr: 79 },
-      { name: 'Jorginho Carvoeiro', pos: ['PD', 'MEI'], ovr: 82 },
-      { name: 'Roberto Dinamite', pos: ['ATA'], ovr: 88 },
-      { name: 'Luiz Carlos', pos: ['PE'], ovr: 78 },
-      { name: 'Carlos Henrique', pos: ['GOL'], ovr: 72 },
-      { name: 'Paulo Cesar', pos: ['LD'], ovr: 74 },
-      { name: 'Joel', pos: ['ZAG'], ovr: 74 },
-      { name: 'Gaucho', pos: ['VOL'], ovr: 76 },
-      { name: 'Jair Pereira', pos: ['PD'], ovr: 74 },
-      { name: 'Amarildo', pos: ['ATA'], ovr: 76 },
-      { name: 'Bill', pos: ['ATA'], ovr: 72 },
-      { name: 'Galdino', pos: ['PE'], ovr: 73 },
-      { name: 'Marcelo', pos: ['ZAG'], ovr: 72 },
-    ]
-  },
-  {
-    id: 'internacional1975', club: 'Internacional', year: 1975, label: 'Internacional 1975', coach: 'Rubens Minelli',
-    colors: { p: '#d2122e', s: '#ffffff' },
-    players: [
-      { name: 'Manga', pos: ['GOL'], ovr: 83 },
-      { name: 'Valdir', pos: ['LD'], ovr: 76 },
-      { name: 'Figueroa', pos: ['ZAG'], ovr: 92 },
-      { name: 'Herminio', pos: ['ZAG'], ovr: 77 },
-      { name: 'Chico Fraga', pos: ['LE'], ovr: 76 },
-      { name: 'Cacapava', pos: ['VOL'], ovr: 79 },
-      { name: 'Falcao', pos: ['MEI', 'VOL'], ovr: 90 },
-      { name: 'Carpegiani', pos: ['MEI', 'VOL'], ovr: 83 },
-      { name: 'Valdomiro', pos: ['PD', 'ATA'], ovr: 80 },
-      { name: 'Flavio Minuano', pos: ['ATA'], ovr: 85 },
-      { name: 'Lula', pos: ['PE'], ovr: 79 },
-      { name: 'Tony', pos: ['LD'], ovr: 71 },
-      { name: 'Belini', pos: ['ZAG'], ovr: 72 },
-      { name: 'Jair', pos: ['PD', 'ATA'], ovr: 75 },
-      { name: 'Escurinho', pos: ['ATA'], ovr: 73 },
-      { name: 'Dario', pos: ['ATA'], ovr: 72 },
-      { name: 'Batista', pos: ['VOL'], ovr: 77 },
-      { name: 'Romano', pos: ['MEI'], ovr: 73 },
-      { name: 'Duilio', pos: ['ATA'], ovr: 70 },
-      { name: 'Darcy', pos: ['PE'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'corinthians1977', club: 'Corinthians', year: 1977, label: 'Corinthians 1977', coach: 'Oswaldo Brandao',
+  { id: 'corinthians1977', club: 'Corinthians', year: 1977, label: 'Corinthians 1977', coach: 'Oswaldo Brandao',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Tobias', pos: ['GOL'], ovr: 84 },
-      { name: 'Ze Maria', pos: ['LD'], ovr: 88 },
-      { name: 'Amaral', pos: ['ZAG'], ovr: 83 },
-      { name: 'Moises', pos: ['ZAG'], ovr: 81 },
-      { name: 'Wladimir', pos: ['LE'], ovr: 86 },
-      { name: 'Russo', pos: ['VOL', 'MC'], ovr: 82 },
-      { name: 'Basilio', pos: ['MEI', 'ATA'], ovr: 87 },
-      { name: 'Vaguinho', pos: ['PD', 'MD'], ovr: 84 },
-      { name: 'Geraldao', pos: ['ATA'], ovr: 83 },
-      { name: 'Palinha', pos: ['ATA', 'MEI'], ovr: 86 },
-      { name: 'Romeu', pos: ['PE', 'ME'], ovr: 82 },
-      { name: 'Jairo', pos: ['GOL'], ovr: 78 },
-      { name: 'Ruco', pos: ['VOL', 'MC'], ovr: 81 },
-      { name: 'Luciano', pos: ['MC', 'VOL'], ovr: 79 },
-      { name: 'Givanildo Oliveira', pos: ['VOL', 'MC'], ovr: 78 },
-      { name: 'Adaozinho', pos: ['ZAG', 'LD'], ovr: 77 },
-      { name: 'Claudio Mineiro', pos: ['LE', 'ZAG'], ovr: 77 },
-      { name: 'Lance', pos: ['MEI', 'ATA'], ovr: 76 },
-      { name: 'Edu Bala', pos: ['PD'], ovr: 76 },
-      { name: 'Suprema', pos: ['ATA'], ovr: 73 },
-    ]
-  },
-  {
-    id: 'guarani1978', club: 'Guarani', year: 1978, label: 'Guarani 1978 (Unico titulo)', coach: 'Jair Pereira',
+      { name: 'Zé Maria', pos: ['LD','MD'], ovr: 89 },
+      { name: 'Wladimir', pos: ['LE','ME'], ovr: 89 },
+      { name: 'Moisés', pos: ['ZAG'], ovr: 84 },
+      { name: 'Ademir', pos: ['ZAG'], ovr: 82 },
+      { name: 'Ruço', pos: ['VOL','MC'], ovr: 83 },
+      { name: 'Basílio', pos: ['MC','MEI','ATA'], ovr: 86 },
+      { name: 'Palhinha', pos: ['MEI','ATA','MC'], ovr: 90 },
+      { name: 'Vaguinho', pos: ['PD','ATA'], ovr: 85 },
+      { name: 'Geraldão', pos: ['ATA'], ovr: 84 },
+      { name: 'Romeu Cambalhota', pos: ['PE','PD'], ovr: 84 },
+      { name: 'Jairo', pos: ['GOL'], ovr: 79 },
+      { name: 'Cláudio Mineiro', pos: ['LE','ME'], ovr: 79 },
+      { name: 'Zé Eduardo', pos: ['ZAG'], ovr: 78 },
+      { name: 'Givanildo Oliveira', pos: ['VOL','MC'], ovr: 82 },
+      { name: 'Tião', pos: ['VOL'], ovr: 77 },
+      { name: 'Luciano', pos: ['MEI'], ovr: 76 },
+      { name: 'Ivan', pos: ['PD'], ovr: 75 },
+      { name: 'Edu', pos: ['PE','MEI'], ovr: 80 },
+      { name: 'Lance', pos: ['ATA'], ovr: 76 },
+    ]},
+  { id: 'guarani1978', club: 'Guarani', year: 1978, label: 'Guarani 1978 (Campeao Brasileiro)', coach: 'Carlos Alberto Silva',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
-      { name: 'Manga', pos: ['GOL'], ovr: 80 },
-      { name: 'Valber', pos: ['LD'], ovr: 76 },
-      { name: 'Pedrinho', pos: ['ZAG'], ovr: 78 },
-      { name: 'Macaranduba', pos: ['ZAG'], ovr: 77 },
-      { name: 'Moraes', pos: ['LE'], ovr: 76 },
-      { name: 'Djalma', pos: ['VOL'], ovr: 78 },
-      { name: 'Juari', pos: ['VOL', 'MEI'], ovr: 80 },
-      { name: 'Ronaldo', pos: ['MEI'], ovr: 78 },
-      { name: 'Careca', pos: ['ATA'], ovr: 85 },
-      { name: 'Paulo Cesar', pos: ['ATA', 'MEI'], ovr: 82 },
-      { name: 'Leandro', pos: ['PE'], ovr: 78 },
-      { name: 'Toninho', pos: ['GOL'], ovr: 71 },
-      { name: 'Sergio', pos: ['LD'], ovr: 73 },
-      { name: 'Leandro Jr', pos: ['ZAG'], ovr: 72 },
-      { name: 'Mauro', pos: ['VOL'], ovr: 73 },
-      { name: 'Ze Luis', pos: ['MEI'], ovr: 74 },
-      { name: 'Roque', pos: ['ATA'], ovr: 75 },
-      { name: 'Adriano', pos: ['PE'], ovr: 72 },
-      { name: 'Alves', pos: ['ATA'], ovr: 72 },
-      { name: 'Henrique', pos: ['LD'], ovr: 71 },
-    ]
-  },
-  {
-    id: 'internacional1979', club: 'Internacional', year: 1979, label: 'Internacional 1979 (Invicto)', coach: 'Enio Andrade',
-    colors: { p: '#d2122e', s: '#ffffff' },
+      { name: 'Careca', pos: ['ATA'], ovr: 94 },
+      { name: 'Zenon', pos: ['MEI','MC'], ovr: 92 },
+      { name: 'Renato', pos: ['MC'], ovr: 89 },
+      { name: 'Neneca', pos: ['GOL'], ovr: 88 },
+      { name: 'Gomes', pos: ['ZAG'], ovr: 87 },
+      { name: 'Capitão', pos: ['PD','MD'], ovr: 86 },
+      { name: 'Bozó', pos: ['PE','ME'], ovr: 86 },
+      { name: 'Miranda', pos: ['LE'], ovr: 85 },
+      { name: 'Mauro', pos: ['LD','ME'], ovr: 85 },
+      { name: 'Zé Carlos', pos: ['VOL','MC'], ovr: 85 },
+      { name: 'Edson', pos: ['ZAG','ME'], ovr: 85 },
+      { name: 'Manguinha', pos: ['VOL','MC'], ovr: 83 },
+      { name: 'Silvinho', pos: ['PE','ATA'], ovr: 82 },
+      { name: 'Macedo', pos: ['ATA'], ovr: 81 },
+      { name: 'João de Deus', pos: ['GOL'], ovr: 80 },
+      { name: 'Adriano', pos: ['MC'], ovr: 80 },
+      { name: 'Alexandre', pos: ['LD','ZAG'], ovr: 79 },
+      { name: 'Almeida', pos: ['LE'], ovr: 79 },
+      { name: 'Gersinho', pos: ['PD'], ovr: 78 },
+      { name: 'Cidão', pos: ['ZAG'], ovr: 78 },
+    ]},
+  { id: 'internacional1979', club: 'Internacional', year: 1979, label: 'Internacional 1979 (Invicto)', coach: 'Enio Andrade',
+    colors: { p: '#D2122E', s: '#ffffff' },
     players: [
-      { name: 'Benitez', pos: ['GOL'], ovr: 82 },
-      { name: 'Joao Carlos', pos: ['LD'], ovr: 76 },
-      { name: 'Mauro Pastor', pos: ['ZAG'], ovr: 77 },
-      { name: 'Mauro Galvao', pos: ['ZAG'], ovr: 84 },
-      { name: 'Claudio Mineiro', pos: ['LE'], ovr: 76 },
-      { name: 'Batista', pos: ['VOL'], ovr: 80 },
-      { name: 'Falcao', pos: ['MEI', 'VOL'], ovr: 93 },
-      { name: 'Jair', pos: ['MEI', 'VOL'], ovr: 82 },
-      { name: 'Valdomiro', pos: ['PD'], ovr: 79 },
-      { name: 'Bira', pos: ['ATA'], ovr: 78 },
-      { name: 'Mario Sergio', pos: ['PE', 'ATA'], ovr: 80 },
-      { name: 'Chico Spina', pos: ['ATA'], ovr: 76 },
-      { name: 'Beliato', pos: ['ZAG'], ovr: 72 },
-      { name: 'Larry', pos: ['ZAG'], ovr: 71 },
-      { name: 'Toninho', pos: ['VOL'], ovr: 72 },
-      { name: 'Claudiomir', pos: ['LD'], ovr: 71 },
-      { name: 'Gilberto', pos: ['PE'], ovr: 70 },
-      { name: 'Lula', pos: ['PE', 'ATA'], ovr: 74 },
-      { name: 'Marcos', pos: ['MEI'], ovr: 71 },
-      { name: 'Renato', pos: ['ATA'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'flamengo1980', club: 'Flamengo', year: 1980, label: 'Flamengo 1980', coach: 'Claudio Coutinho',
-    colors: { p: '#c8102e', s: '#000000' },
+      { name: 'Benítez', pos: ['GOL'], ovr: 89 },
+      { name: 'João Carlos', pos: ['LD'], ovr: 80 },
+      { name: 'Cláudio Mineiro', pos: ['LE','ME'], ovr: 85 },
+      { name: 'Mauro Galvão', pos: ['ZAG','VOL'], ovr: 88 },
+      { name: 'Mauro Pastor', pos: ['ZAG'], ovr: 86 },
+      { name: 'Batista', pos: ['VOL','MC'], ovr: 90 },
+      { name: 'Falcão', pos: ['MC','MEI','VOL'], ovr: 98 },
+      { name: 'Jair', pos: ['MEI','MC','ATA'], ovr: 91 },
+      { name: 'Mário Sérgio', pos: ['MEI','PE','ME'], ovr: 88 },
+      { name: 'Valdomiro', pos: ['PD','ATA'], ovr: 89 },
+      { name: 'Bira', pos: ['ATA'], ovr: 87 },
+      { name: 'Gasperin', pos: ['GOL'], ovr: 76 },
+      { name: 'Édson Galvão', pos: ['LD'], ovr: 76 },
+      { name: 'Beliato', pos: ['ZAG'], ovr: 79 },
+      { name: 'Valdir Lima', pos: ['VOL'], ovr: 79 },
+      { name: 'Tonho', pos: ['MEI'], ovr: 83 },
+      { name: 'Chico Spina', pos: ['PD','ATA'], ovr: 83 },
+      { name: 'Silvinho', pos: ['PE'], ovr: 78 },
+      { name: 'Adílson', pos: ['PE'], ovr: 82 },
+      { name: 'Mário Motta', pos: ['ATA'], ovr: 78 },
+    ]},
+  { id: 'flamengo1980', club: 'Flamengo', year: 1980, label: 'Flamengo 1980 (Campeao Brasileiro)', coach: 'Claudio Coutinho',
+    colors: { p: '#C8102E', s: '#000000' },
     players: [
-      { name: 'Raul', pos: ['GOL'], ovr: 84 },
-      { name: 'Toninho', pos: ['LD'], ovr: 78 },
-      { name: 'Rondinelli', pos: ['ZAG'], ovr: 79 },
-      { name: 'Marinho', pos: ['ZAG'], ovr: 82 },
-      { name: 'Junior', pos: ['LE', 'PE'], ovr: 91 },
-      { name: 'Andrade', pos: ['VOL'], ovr: 86 },
-      { name: 'Carpegiani', pos: ['MEI'], ovr: 81 },
-      { name: 'Zico', pos: ['MEI'], ovr: 97 },
-      { name: 'Tita', pos: ['PD'], ovr: 83 },
-      { name: 'Nunes', pos: ['ATA'], ovr: 85 },
-      { name: 'Julio Cesar', pos: ['PE'], ovr: 78 },
-      { name: 'Cantarelli', pos: ['GOL'], ovr: 70 },
-      { name: 'Nei Dias', pos: ['LD'], ovr: 72 },
+      { name: 'Raul Plassmann', pos: ['GOL'], ovr: 85 },
+      { name: 'Leandro', pos: ['LD','ZAG','MC'], ovr: 92 },
+      { name: 'Mozer', pos: ['ZAG'], ovr: 87 },
+      { name: 'Marinho', pos: ['ZAG'], ovr: 83 },
+      { name: 'Júnior', pos: ['LE','MC','ME'], ovr: 93 },
+      { name: 'Andrade', pos: ['VOL','MC'], ovr: 88 },
+      { name: 'Adílio', pos: ['MC','MEI','ME'], ovr: 89 },
+      { name: 'Zico', pos: ['MEI','ATA','MC'], ovr: 97 },
+      { name: 'Tita', pos: ['MEI','PD','ATA'], ovr: 86 },
+      { name: 'Nunes', pos: ['ATA'], ovr: 86 },
+      { name: 'Júlio César Uri Geller', pos: ['PE'], ovr: 81 },
+      { name: 'Cantarele', pos: ['GOL'], ovr: 78 },
+      { name: 'Antunes', pos: ['LD'], ovr: 74 },
       { name: 'Figueiredo', pos: ['ZAG'], ovr: 78 },
-      { name: 'Vitor', pos: ['VOL'], ovr: 74 },
-      { name: 'Lico', pos: ['PD', 'ATA'], ovr: 79 },
-      { name: 'Peu', pos: ['ATA'], ovr: 75 },
-      { name: 'Anselmo', pos: ['ATA'], ovr: 71 },
-      { name: 'Carlos Henrique', pos: ['ATA'], ovr: 76 },
-      { name: 'Barao', pos: ['MEI'], ovr: 73 },
-    ]
-  },
-  {
-    id: 'flamengo1981', club: 'Flamengo', year: 1981, label: 'Flamengo 1981 (Libertadores + Mundial)', coach: 'Paulo Cesar Carpegiani',
-    colors: { p: '#c8102e', s: '#000000' },
+      { name: 'Vítor', pos: ['VOL'], ovr: 76 },
+      { name: 'Lico', pos: ['MEI','PE'], ovr: 83 },
+      { name: 'Chiquinho', pos: ['PD'], ovr: 76 },
+      { name: 'Anselmo', pos: ['ATA'], ovr: 77 },
+      { name: 'Reinaldo', pos: ['ATA'], ovr: 75 },
+      { name: 'Popoca', pos: ['ATA','MEI'], ovr: 74 },
+    ]},
+  { id: 'flamengo1981', club: 'Flamengo', year: 1981, label: 'Flamengo 1981 (Mundial)', coach: 'Paulo Cesar Carpegiani',
+    colors: { p: '#C8102E', s: '#000000' },
     players: [
-      { name: 'Raul', pos: ['GOL'], ovr: 85 },
-      { name: 'Leandro', pos: ['LD', 'PD'], ovr: 88 },
-      { name: 'Marinho', pos: ['ZAG'], ovr: 82 },
-      { name: 'Mozer', pos: ['ZAG'], ovr: 85 },
-      { name: 'Junior', pos: ['LE', 'PE'], ovr: 92 },
-      { name: 'Andrade', pos: ['VOL'], ovr: 87 },
-      { name: 'Adilio', pos: ['MEI'], ovr: 84 },
-      { name: 'Zico', pos: ['MEI'], ovr: 98 },
-      { name: 'Lico', pos: ['PD', 'ATA'], ovr: 80 },
-      { name: 'Tita', pos: ['ATA', 'PD'], ovr: 84 },
-      { name: 'Nunes', pos: ['PE', 'ATA'], ovr: 87 },
-      { name: 'Cantarelli', pos: ['GOL'], ovr: 70 },
-      { name: 'Nei Dias', pos: ['LD'], ovr: 72 },
+      { name: 'Raul Plassmann', pos: ['GOL'], ovr: 87 },
+      { name: 'Leandro', pos: ['LD','ZAG','MC'], ovr: 94 },
+      { name: 'Marinho', pos: ['ZAG'], ovr: 85 },
+      { name: 'Mozer', pos: ['ZAG'], ovr: 89 },
+      { name: 'Júnior', pos: ['LE','MC','ME'], ovr: 95 },
+      { name: 'Andrade', pos: ['VOL','MC'], ovr: 90 },
+      { name: 'Adílio', pos: ['MC','MEI','ME'], ovr: 91 },
+      { name: 'Zico', pos: ['MEI','ATA','MC'], ovr: 99 },
+      { name: 'Tita', pos: ['MEI','PD','ATA'], ovr: 88 },
+      { name: 'Lico', pos: ['MEI','PE'], ovr: 85 },
+      { name: 'Nunes', pos: ['ATA'], ovr: 89 },
+      { name: 'Cantarele', pos: ['GOL'], ovr: 78 },
+      { name: 'Nei Dias', pos: ['LD'], ovr: 76 },
       { name: 'Figueiredo', pos: ['ZAG'], ovr: 78 },
-      { name: 'Vitor', pos: ['VOL'], ovr: 74 },
-      { name: 'Baroninho', pos: ['MEI'], ovr: 73 },
-      { name: 'Carlos Henrique', pos: ['ATA'], ovr: 76 },
-      { name: 'Paulo Cesar', pos: ['ATA'], ovr: 73 },
-      { name: 'Pirilo', pos: ['ZAG'], ovr: 71 },
-      { name: 'Eduardo', pos: ['PE'], ovr: 71 },
-    ]
-  },
-  {
-    id: 'flamengo1982', club: 'Flamengo', year: 1982, label: 'Flamengo 1982 (Tricampeonato)', coach: 'Paulo Cesar Carpegiani',
-    colors: { p: '#c8102e', s: '#000000' },
+      { name: 'Rondinelli', pos: ['ZAG'], ovr: 81 },
+      { name: 'Vítor', pos: ['VOL'], ovr: 76 },
+      { name: 'Chiquinho', pos: ['PD'], ovr: 76 },
+      { name: 'Júlio César Uri Geller', pos: ['PE'], ovr: 82 },
+      { name: 'Anselmo', pos: ['ATA'], ovr: 78 },
+      { name: 'Baroninho', pos: ['PE','ATA'], ovr: 81 },
+    ]},
+  { id: 'flamengo1982', club: 'Flamengo', year: 1982, label: 'Flamengo 1982 (Bicampeao Brasileiro)', coach: 'Paulo Cesar Carpegiani',
+    colors: { p: '#C8102E', s: '#000000' },
     players: [
-      { name: 'Raul', pos: ['GOL'], ovr: 84 },
-      { name: 'Leandro', pos: ['LD', 'PD'], ovr: 87 },
-      { name: 'Marinho', pos: ['ZAG'], ovr: 81 },
-      { name: 'Figueiredo', pos: ['ZAG'], ovr: 78 },
-      { name: 'Junior', pos: ['LE', 'PE'], ovr: 91 },
-      { name: 'Andrade', pos: ['VOL'], ovr: 86 },
-      { name: 'Adilio', pos: ['MEI'], ovr: 84 },
-      { name: 'Zico', pos: ['MEI'], ovr: 97 },
-      { name: 'Tita', pos: ['PD', 'ATA'], ovr: 82 },
-      { name: 'Lico', pos: ['ATA', 'PD'], ovr: 79 },
-      { name: 'Nunes', pos: ['PE', 'ATA'], ovr: 87 },
-      { name: 'Cantarelli', pos: ['GOL'], ovr: 70 },
-      { name: 'Mozer', pos: ['ZAG'], ovr: 83 },
-      { name: 'Vitor', pos: ['VOL'], ovr: 74 },
-      { name: 'Chiquinho Carioca', pos: ['ATA'], ovr: 75 },
-      { name: 'Anselmo', pos: ['ATA'], ovr: 71 },
-      { name: 'Carlos Henrique', pos: ['ATA'], ovr: 76 },
-      { name: 'Nei Dias', pos: ['LD'], ovr: 72 },
-      { name: 'Jose Carlos', pos: ['LD'], ovr: 71 },
-      { name: 'Eduardo', pos: ['PE'], ovr: 71 },
-    ]
-  },
-  {
-    id: 'fluminense1984', club: 'Fluminense', year: 1984, label: 'Fluminense 1984 (Maquina Tricolor)', coach: 'Carlos Alberto Parreira',
-    colors: { p: '#7a1e3c', s: '#006437' },
+      { name: 'Zico', pos: ['MEI','MC'], ovr: 99 },
+      { name: 'Júnior', pos: ['LE','MC'], ovr: 94 },
+      { name: 'Leandro', pos: ['LD','MC'], ovr: 94 },
+      { name: 'Mozer', pos: ['ZAG'], ovr: 89 },
+      { name: 'Nunes', pos: ['ATA'], ovr: 89 },
+      { name: 'Adílio', pos: ['MC','MEI'], ovr: 89 },
+      { name: 'Tita', pos: ['PD','MD'], ovr: 89 },
+      { name: 'Raul Plassmann', pos: ['GOL'], ovr: 88 },
+      { name: 'Andrade', pos: ['VOL','MC'], ovr: 88 },
+      { name: 'Marinho', pos: ['ZAG'], ovr: 86 },
+      { name: 'Lico', pos: ['PE','MD'], ovr: 86 },
+      { name: 'Vítor', pos: ['VOL','MC'], ovr: 82 },
+      { name: 'Cantarele', pos: ['GOL'], ovr: 81 },
+      { name: 'Figueiredo', pos: ['ZAG'], ovr: 81 },
+      { name: 'Popoca', pos: ['MEI','MC'], ovr: 81 },
+      { name: 'Chiquinho', pos: ['ATA','MC'], ovr: 80 },
+      { name: 'Antunes', pos: ['LD'], ovr: 79 },
+      { name: 'Reinaldo', pos: ['PE'], ovr: 79 },
+      { name: 'Anselmo', pos: ['ATA'], ovr: 79 },
+      { name: 'Wilsinho', pos: ['PD','MD'], ovr: 78 },
+    ]},
+  { id: 'fluminense1984', club: 'Fluminense', year: 1984, label: 'Fluminense 1984 (Campeao Brasileiro)', coach: 'Carlos Alberto Parreira',
+    colors: { p: '#7A1921', s: '#006633' },
     players: [
-      { name: 'Paulo Vitor', pos: ['GOL'], ovr: 81 },
-      { name: 'Aldo', pos: ['LD'], ovr: 77 },
-      { name: 'Duilio', pos: ['ZAG'], ovr: 80 },
-      { name: 'Ricardo Gomes', pos: ['ZAG'], ovr: 88 },
-      { name: 'Branco', pos: ['LE', 'PE'], ovr: 87 },
-      { name: 'Jandir', pos: ['VOL'], ovr: 78 },
-      { name: 'Delei', pos: ['MEI'], ovr: 79 },
-      { name: 'Romerito', pos: ['MEI', 'VOL'], ovr: 86 },
-      { name: 'Assis', pos: ['PD'], ovr: 83 },
-      { name: 'Washington', pos: ['ATA'], ovr: 82 },
-      { name: 'Tato', pos: ['PE'], ovr: 80 },
-      { name: 'Ricardo Lopes', pos: ['LD'], ovr: 73 },
-      { name: 'Renato Martins', pos: ['LE'], ovr: 74 },
-      { name: 'Vica', pos: ['MEI'], ovr: 73 },
-      { name: 'Leomir', pos: ['MEI'], ovr: 75 },
-      { name: 'Wilsinho', pos: ['PD'], ovr: 74 },
-      { name: 'Paulinho', pos: ['ATA'], ovr: 73 },
-      { name: 'Getulio', pos: ['LD'], ovr: 72 },
-      { name: 'Fernando', pos: ['ZAG'], ovr: 71 },
-      { name: 'Ivan', pos: ['VOL'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'coritiba1985', club: 'Coritiba', year: 1985, label: 'Coritiba 1985 (Unico titulo)', coach: 'Enio Andrade',
+      { name: 'Paulo Vítor', pos: ['GOL'], ovr: 84 },
+      { name: 'Aldo', pos: ['LD'], ovr: 82 },
+      { name: 'Branco', pos: ['LE','ME'], ovr: 88 },
+      { name: 'Duílio', pos: ['ZAG'], ovr: 83 },
+      { name: 'Ricardo Rocha', pos: ['ZAG','VOL'], ovr: 86 },
+      { name: 'Jandir', pos: ['VOL'], ovr: 83 },
+      { name: 'Delei', pos: ['VOL','MC'], ovr: 85 },
+      { name: 'Assis', pos: ['MC','MEI'], ovr: 88 },
+      { name: 'Romerito', pos: ['MEI','PD','MC'], ovr: 91 },
+      { name: 'Tato', pos: ['PE','ME'], ovr: 82 },
+      { name: 'Washington', pos: ['ATA'], ovr: 87 },
+      { name: 'Ricardo Pinto', pos: ['GOL'], ovr: 75 },
+      { name: 'Renato', pos: ['LE'], ovr: 74 },
+      { name: 'Vica', pos: ['ZAG'], ovr: 80 },
+      { name: 'Renê', pos: ['MEI','MC'], ovr: 78 },
+      { name: 'Wilsinho', pos: ['PD'], ovr: 79 },
+      { name: 'Paulinho', pos: ['PE'], ovr: 76 },
+      { name: 'Cláudio Adão', pos: ['ATA'], ovr: 84 },
+      { name: 'Agnaldo', pos: ['ATA'], ovr: 76 },
+      { name: 'Gustavo', pos: ['ATA'], ovr: 74 },
+    ]},
+  { id: 'coritiba1985', club: 'Coritiba', year: 1985, label: 'Coritiba 1985 (Campeao Brasileiro)', coach: 'Enio Andrade',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
-      { name: 'Rafael', pos: ['GOL'], ovr: 83 },
-      { name: 'Andre', pos: ['LD'], ovr: 76 },
-      { name: 'Gomes', pos: ['ZAG'], ovr: 79 },
-      { name: 'Heraldo', pos: ['ZAG'], ovr: 78 },
-      { name: 'Dida', pos: ['LE'], ovr: 76 },
-      { name: 'Almir', pos: ['VOL'], ovr: 78 },
-      { name: 'Marildo', pos: ['MEI'], ovr: 76 },
-      { name: 'Tobi', pos: ['MEI'], ovr: 79 },
-      { name: 'Lela', pos: ['PD'], ovr: 80 },
-      { name: 'Indio', pos: ['ATA'], ovr: 81 },
-      { name: 'Edson', pos: ['PE'], ovr: 78 },
-      { name: 'Vava', pos: ['ZAG'], ovr: 72 },
-      { name: 'Marco Aurelio', pos: ['VOL'], ovr: 73 },
-      { name: 'Eliseu', pos: ['LD'], ovr: 71 },
-      { name: 'Heldo', pos: ['MEI'], ovr: 72 },
-      { name: 'Jardel', pos: ['ATA'], ovr: 74 },
-      { name: 'Delmo', pos: ['ZAG'], ovr: 71 },
-      { name: 'Rene', pos: ['VOL'], ovr: 70 },
-      { name: 'Albuquerque', pos: ['PE'], ovr: 71 },
-      { name: 'Neto Cida', pos: ['GOL'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'sao-paulo1986', club: 'Sao Paulo', year: 1986, label: 'Sao Paulo 1986', coach: 'Pepe',
-    colors: { p: '#c8102e', s: '#000000' },
+      { name: 'Rafael Cammarota', pos: ['GOL'], ovr: 84 },
+      { name: 'André', pos: ['LD','ZAG'], ovr: 80 },
+      { name: 'Dida', pos: ['LE','ZAG'], ovr: 81 },
+      { name: 'Gomes', pos: ['ZAG'], ovr: 83 },
+      { name: 'Heraldo', pos: ['ZAG'], ovr: 81 },
+      { name: 'Almir', pos: ['VOL'], ovr: 82 },
+      { name: 'Marildo', pos: ['VOL','MC'], ovr: 79 },
+      { name: 'Édson', pos: ['PE'], ovr: 79 },
+      { name: 'Lela', pos: ['PD','ATA'], ovr: 85 },
+      { name: 'Índio', pos: ['ATA'], ovr: 83 },
+      { name: 'Toby', pos: ['ATA','MEI'], ovr: 81 },
+      { name: 'Jairo', pos: ['GOL'], ovr: 77 },
+      { name: 'Caxias', pos: ['LD'], ovr: 74 },
+      { name: 'Vavá', pos: ['ZAG'], ovr: 75 },
+      { name: 'Marco Aurélio', pos: ['MC','MEI'], ovr: 83 },
+      { name: 'Tovar', pos: ['MEI','MC'], ovr: 80 },
+      { name: 'Miltinho', pos: ['MEI'], ovr: 76 },
+      { name: 'Paulinho', pos: ['PD'], ovr: 75 },
+      { name: 'Vicente', pos: ['PE'], ovr: 74 },
+      { name: 'Hélcio', pos: ['ATA'], ovr: 75 },
+    ]},
+  { id: 'sao-paulo1986', club: 'Sao Paulo', year: 1986, label: 'São Paulo 1986 (Campeão Brasileiro)', coach: 'Pepe',
+    colors: { p: '#C8102E', s: '#ffffff' },
     players: [
-      { name: 'Gilmar', pos: ['GOL'], ovr: 82 },
-      { name: 'Fonseca', pos: ['LD'], ovr: 77 },
-      { name: 'Wagner Basilio', pos: ['ZAG'], ovr: 78 },
-      { name: 'Dario Pereyra', pos: ['ZAG'], ovr: 83 },
-      { name: 'Nelsinho', pos: ['LE'], ovr: 78 },
-      { name: 'Bernardo', pos: ['VOL'], ovr: 79 },
-      { name: 'Silas', pos: ['MEI'], ovr: 82 },
-      { name: 'Pita', pos: ['MEI'], ovr: 84 },
-      { name: 'Muller', pos: ['PD'], ovr: 88 },
-      { name: 'Careca', pos: ['ATA'], ovr: 92 },
-      { name: 'Sidney', pos: ['PE', 'ATA'], ovr: 81 },
-      { name: 'Oscar', pos: ['ZAG'], ovr: 80 },
-      { name: 'Falcao', pos: ['MEI'], ovr: 82 },
-      { name: 'Marcio Araujo', pos: ['MEI'], ovr: 74 },
-      { name: 'Ze Teodoro', pos: ['LD'], ovr: 74 },
-      { name: 'Romulo', pos: ['ATA'], ovr: 73 },
-      { name: 'Pianelli', pos: ['ATA'], ovr: 72 },
-      { name: 'Roberto', pos: ['LE'], ovr: 71 },
-      { name: 'Mauro', pos: ['VOL'], ovr: 71 },
-      { name: 'Helio', pos: ['PD'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'sport1987', club: 'Sport', year: 1987, label: 'Sport 1987 (Unico titulo)', coach: 'Emerson Leao',
-    colors: { p: '#c8102e', s: '#000000' },
+      { name: 'Careca', pos: ['ATA'], ovr: 96 },
+      { name: 'Müller', pos: ['ATA','MD'], ovr: 92 },
+      { name: 'Darío Pereyra', pos: ['ZAG','VOL'], ovr: 90 },
+      { name: 'Gilmar Rinaldi', pos: ['GOL'], ovr: 88 },
+      { name: 'Silas', pos: ['MC'], ovr: 88 },
+      { name: 'Oscar', pos: ['ZAG'], ovr: 88 },
+      { name: 'Nelsinho', pos: ['LE'], ovr: 87 },
+      { name: 'Bernardo', pos: ['VOL','MC'], ovr: 86 },
+      { name: 'Pita', pos: ['MEI','MC'], ovr: 86 },
+      { name: 'Zé Teodoro', pos: ['LD'], ovr: 85 },
+      { name: 'Sidnei', pos: ['PD','MC'], ovr: 84 },
+      { name: 'Wagner Basílio', pos: ['ZAG'], ovr: 83 },
+      { name: 'Fonseca', pos: ['LD','ZAG'], ovr: 83 },
+      { name: 'Ronaldão', pos: ['ZAG','MC'], ovr: 82 },
+      { name: 'Vizolli', pos: ['VOL'], ovr: 82 },
+      { name: 'Pianelli', pos: ['MEI','PE'], ovr: 81 },
+      { name: 'Lange', pos: ['ATA'], ovr: 81 },
+      { name: 'Abelha', pos: ['GOL'], ovr: 80 },
+      { name: 'Manu', pos: ['MC','ME'], ovr: 79 },
+      { name: 'Quarenta', pos: ['LE'], ovr: 78 },
+    ]},
+  { id: 'sport1987', club: 'Sport', year: 1987, label: 'Sport 1987 (Campeão Brasileiro)', coach: 'Emerson Leao',
+    colors: { p: '#C8102E', s: '#000000' },
     players: [
-      { name: 'Flavio', pos: ['GOL'], ovr: 78 },
-      { name: 'Betao', pos: ['LD'], ovr: 75 },
-      { name: 'Estevam', pos: ['ZAG'], ovr: 77 },
-      { name: 'Marco Antonio', pos: ['ZAG'], ovr: 78 },
-      { name: 'Ze Carlos Macae', pos: ['LE'], ovr: 76 },
-      { name: 'Rogerio', pos: ['VOL'], ovr: 76 },
-      { name: 'Ribamar', pos: ['MEI'], ovr: 76 },
-      { name: 'Zico Sport', pos: ['MEI'], ovr: 77 },
-      { name: 'Robertinho', pos: ['PD'], ovr: 77 },
-      { name: 'Nando', pos: ['ATA'], ovr: 78 },
-      { name: 'Neco', pos: ['PE'], ovr: 78 },
-      { name: 'Sidmar', pos: ['GOL'], ovr: 72 },
-      { name: 'Augusto', pos: ['VOL'], ovr: 72 },
-      { name: 'Saulo', pos: ['ZAG'], ovr: 71 },
-      { name: 'Paulo Roberto', pos: ['LD'], ovr: 71 },
-      { name: 'Leandro', pos: ['MEI'], ovr: 73 },
-      { name: 'Chiquinho', pos: ['VOL'], ovr: 70 },
-      { name: 'Claudio', pos: ['ATA'], ovr: 73 },
-      { name: 'Ze Carlos Jr', pos: ['LE'], ovr: 70 },
-      { name: 'Marcos', pos: ['PD'], ovr: 71 },
-    ]
-  },
-  {
-    id: 'bahia1988', club: 'Bahia', year: 1988, label: 'Bahia 1988 (Unico titulo)', coach: 'Evaristo de Macedo',
-    colors: { p: '#1c3f94', s: '#c8102e' },
+      { name: 'Flávio', pos: ['GOL'], ovr: 84 },
+      { name: 'Betão', pos: ['LD'], ovr: 82 },
+      { name: 'Macaxeira', pos: ['LE'], ovr: 81 },
+      { name: 'Estevam', pos: ['ZAG'], ovr: 85 },
+      { name: 'Marco Antônio', pos: ['ZAG'], ovr: 83 },
+      { name: 'Rogério', pos: ['VOL'], ovr: 83 },
+      { name: 'Zé do Carmo', pos: ['VOL','MC'], ovr: 86 },
+      { name: 'Ribamar', pos: ['MC','MEI'], ovr: 84 },
+      { name: 'Robertinho', pos: ['PD','ATA'], ovr: 83 },
+      { name: 'Neco', pos: ['PE','ME'], ovr: 85 },
+      { name: 'Nando', pos: ['ATA'], ovr: 85 },
+      { name: 'Moacir', pos: ['GOL'], ovr: 76 },
+      { name: 'Adriano', pos: ['ZAG'], ovr: 77 },
+      { name: 'Dedé', pos: ['VOL'], ovr: 77 },
+      { name: 'Nando', pos: ['MEI','MC'], ovr: 82 },
+      { name: 'Zico', pos: ['MEI'], ovr: 78 },
+      { name: 'Augusto', pos: ['PD'], ovr: 75 },
+      { name: 'Émerson', pos: ['PE'], ovr: 76 },
+      { name: 'Betinho', pos: ['ATA'], ovr: 80 },
+      { name: 'Isaías', pos: ['ATA'], ovr: 75 },
+    ]},
+  { id: 'bahia1988', club: 'Bahia', year: 1988, label: 'Bahia 1988 (Bicampeão Brasileiro)', coach: 'Evaristo de Macedo',
+    colors: { p: '#003399', s: '#C8102E' },
     players: [
-      { name: 'Ronaldo', pos: ['GOL'], ovr: 80 },
-      { name: 'Tarantini', pos: ['LD'], ovr: 77 },
-      { name: 'Joao Marcelo', pos: ['ZAG'], ovr: 78 },
-      { name: 'Claudir', pos: ['ZAG'], ovr: 76 },
-      { name: 'Edinho', pos: ['LE'], ovr: 76 },
-      { name: 'Paulo Rodrigues', pos: ['VOL'], ovr: 81 },
-      { name: 'Ze Carlos', pos: ['MEI'], ovr: 80 },
-      { name: 'Bobo', pos: ['MEI'], ovr: 86 },
-      { name: 'Osmar', pos: ['PD'], ovr: 77 },
-      { name: 'Charles', pos: ['ATA'], ovr: 84 },
-      { name: 'Marquinhos', pos: ['PE'], ovr: 79 },
-      { name: 'Sidmar', pos: ['GOL'], ovr: 73 },
-      { name: 'Zanata', pos: ['LD'], ovr: 74 },
-      { name: 'Pereira', pos: ['ZAG'], ovr: 76 },
-      { name: 'Paulo Robson', pos: ['LE'], ovr: 73 },
-      { name: 'Gil Sergipano', pos: ['MEI'], ovr: 74 },
-      { name: 'Renato', pos: ['ATA'], ovr: 75 },
-      { name: 'Sandro', pos: ['ATA'], ovr: 72 },
-      { name: 'Newmar', pos: ['ZAG'], ovr: 71 },
-      { name: 'Dico', pos: ['ATA'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'vasco1989', club: 'Vasco', year: 1989, label: 'Vasco 1989 (SeleVasco)', coach: 'Nelsinho Rosa',
+      { name: 'Ronaldo', pos: ['GOL'], ovr: 88 },
+      { name: 'Tarantini', pos: ['LD','ZAG'], ovr: 83 },
+      { name: 'Paulo Róbson', pos: ['LE','ME'], ovr: 84 },
+      { name: 'João Marcelo', pos: ['ZAG'], ovr: 86 },
+      { name: 'Claudir', pos: ['ZAG'], ovr: 85 },
+      { name: 'Paulo Rodrigues', pos: ['VOL','MC'], ovr: 87 },
+      { name: 'Zé Carlos', pos: ['MC','MEI','VOL'], ovr: 88 },
+      { name: 'Bobô', pos: ['MEI','MC','ATA'], ovr: 92 },
+      { name: 'Marquinhos', pos: ['PD','PE'], ovr: 81 },
+      { name: 'Sandro', pos: ['PE','ME'], ovr: 84 },
+      { name: 'Charles Fabian', pos: ['ATA'], ovr: 89 },
+      { name: 'Sidmar', pos: ['GOL'], ovr: 77 },
+      { name: 'Maizena', pos: ['LD'], ovr: 76 },
+      { name: 'Edinho', pos: ['LE'], ovr: 75 },
+      { name: 'Newmar', pos: ['ZAG'], ovr: 78 },
+      { name: 'Sales', pos: ['VOL'], ovr: 83 },
+      { name: 'Gil Sergipano', pos: ['VOL','MC'], ovr: 81 },
+      { name: 'Dácio', pos: ['MEI'], ovr: 75 },
+      { name: 'Osmar', pos: ['PD','ATA'], ovr: 83 },
+      { name: 'Renato', pos: ['ATA'], ovr: 80 },
+    ]},
+  { id: 'vasco1989', club: 'Vasco', year: 1989, label: 'Vasco 1989 (Campeão Brasileiro)', coach: 'Nelsinho Rosa',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Acacio', pos: ['GOL'], ovr: 81 },
-      { name: 'Luis Carlos Winck', pos: ['LD'], ovr: 79 },
-      { name: 'Marco Aurelio', pos: ['ZAG'], ovr: 79 },
-      { name: 'Quinonez', pos: ['ZAG'], ovr: 80 },
-      { name: 'Mazinho', pos: ['LE', 'VOL'], ovr: 84 },
-      { name: 'Ze do Carmo', pos: ['VOL', 'MEI'], ovr: 78 },
-      { name: 'Boiadeiro', pos: ['MEI'], ovr: 79 },
-      { name: 'Bismarck', pos: ['MEI', 'PD'], ovr: 80 },
-      { name: 'Bebeto', pos: ['PD', 'ATA'], ovr: 90 },
-      { name: 'Sorato', pos: ['ATA'], ovr: 80 },
-      { name: 'William', pos: ['PE'], ovr: 78 },
-      { name: 'Celio Silva', pos: ['ZAG'], ovr: 73 },
-      { name: 'Cassio', pos: ['LE'], ovr: 71 },
-      { name: 'Andrade', pos: ['VOL'], ovr: 79 },
-      { name: 'Tita', pos: ['MEI', 'ATA'], ovr: 78 },
-      { name: 'Vivinho', pos: ['ATA'], ovr: 73 },
-      { name: 'Tato', pos: ['PE'], ovr: 76 },
-      { name: 'Paulinho', pos: ['LD'], ovr: 71 },
-      { name: 'Rene', pos: ['ZAG'], ovr: 70 },
-      { name: 'Alex', pos: ['MEI'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'corinthians1990', club: 'Corinthians', year: 1990, label: 'Corinthians 1990', coach: 'Nelsinho Baptista',
+      { name: 'Acácio', pos: ['GOL'], ovr: 85 },
+      { name: 'Luís Carlos Winck', pos: ['LD'], ovr: 84 },
+      { name: 'Quiñonez', pos: ['ZAG'], ovr: 83 },
+      { name: 'Marco Aurélio', pos: ['ZAG','MC'], ovr: 82 },
+      { name: 'Célio Silva', pos: ['ZAG'], ovr: 80 },
+      { name: 'Mazinho', pos: ['LE','VOL'], ovr: 88 },
+      { name: 'Zé do Carmo', pos: ['VOL','MC'], ovr: 84 },
+      { name: 'Andrade', pos: ['VOL','MC'], ovr: 83 },
+      { name: 'Marco Antônio Boiadeiro', pos: ['MC'], ovr: 83 },
+      { name: 'Bismarck', pos: ['MEI','MD'], ovr: 86 },
+      { name: 'Bebeto', pos: ['ATA','MEI'], ovr: 92 },
+      { name: 'Tita', pos: ['MEI','MD'], ovr: 85 },
+      { name: 'William', pos: ['MEI','ME'], ovr: 82 },
+      { name: 'Sorato', pos: ['ATA'], ovr: 83 },
+      { name: 'Tato', pos: ['PE','ME'], ovr: 80 },
+      { name: 'Ayupe', pos: ['LD'], ovr: 74 },
+      { name: 'Leonardo Siqueira', pos: ['ZAG'], ovr: 76 },
+      { name: 'Cássio', pos: ['LE'], ovr: 74 },
+      { name: 'França', pos: ['VOL'], ovr: 75 },
+      { name: 'Reginaldo', pos: ['GOL'], ovr: 75 },
+    ]},
+  { id: 'corinthians1990', club: 'Corinthians', year: 1990, label: 'Corinthians 1990 (Primeiro Titulo)', coach: 'Nelsinho Baptista',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Ronaldo', pos: ['GOL'], ovr: 80 },
-      { name: 'Giba', pos: ['LD'], ovr: 77 },
-      { name: 'Marcelo Djian', pos: ['ZAG'], ovr: 79 },
-      { name: 'Guinei', pos: ['ZAG'], ovr: 76 },
-      { name: 'Jacenir', pos: ['LE'], ovr: 76 },
-      { name: 'Marcio', pos: ['VOL'], ovr: 78 },
-      { name: 'Wilson Mano', pos: ['MEI', 'VOL'], ovr: 80 },
-      { name: 'Neto', pos: ['MEI'], ovr: 89 },
-      { name: 'Tupazinho', pos: ['PD', 'ATA'], ovr: 81 },
-      { name: 'Fabinho', pos: ['ATA'], ovr: 77 },
-      { name: 'Mauro', pos: ['PE'], ovr: 77 },
-      { name: 'Ezequiel', pos: ['MEI'], ovr: 73 },
-      { name: 'Paulo Sergio', pos: ['ATA'], ovr: 75 },
-      { name: 'Dinei', pos: ['ATA'], ovr: 78 },
-      { name: 'Sergio', pos: ['GOL'], ovr: 71 },
-      { name: 'Antonio Carlos', pos: ['ZAG'], ovr: 73 },
-      { name: 'Luisinho', pos: ['LD'], ovr: 71 },
-      { name: 'Flavio', pos: ['MEI'], ovr: 72 },
-      { name: 'Silvinho', pos: ['LE'], ovr: 73 },
-      { name: 'Josemil', pos: ['ATA'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'sao-paulo1991', club: 'Sao Paulo', year: 1991, label: 'Sao Paulo 1991 (Brasileiro)', coach: 'Tele Santana',
-    colors: { p: '#c8102e', s: '#000000' },
+      { name: 'Neto', pos: ['MEI','MC'], ovr: 93 },
+      { name: 'Ronaldo Giovanelli', pos: ['GOL'], ovr: 89 },
+      { name: 'Márcio Bittencourt', pos: ['VOL','MC'], ovr: 87 },
+      { name: 'Tupãzinho', pos: ['MC','MD'], ovr: 87 },
+      { name: 'Marcelo Djian', pos: ['ZAG'], ovr: 86 },
+      { name: 'Wilson Mano', pos: ['VOL','LD'], ovr: 86 },
+      { name: 'Giba', pos: ['LD'], ovr: 85 },
+      { name: 'Jacenir', pos: ['LE'], ovr: 85 },
+      { name: 'Fabinho', pos: ['PD','MC'], ovr: 85 },
+      { name: 'Mauro', pos: ['ZAG','ME'], ovr: 84 },
+      { name: 'Guinei', pos: ['ZAG'], ovr: 84 },
+      { name: 'Dinei', pos: ['ATA'], ovr: 84 },
+      { name: 'Gérson', pos: ['ZAG','LD'], ovr: 78 },
+      { name: 'Ezequiel', pos: ['VOL','MC'], ovr: 83 },
+      { name: 'Paulo Sérgio', pos: ['ATA','ME'], ovr: 82 },
+      { name: 'Jairo', pos: ['ATA'], ovr: 81 },
+      { name: 'Marcos Roberto', pos: ['LE'], ovr: 80 },
+      { name: 'Wilson', pos: ['GOL'], ovr: 80 },
+      { name: 'Dama', pos: ['ZAG'], ovr: 79 },
+      { name: 'Dagoberto', pos: ['GOL'], ovr: 74 },
+    ]},
+  { id: 'sao-paulo1991', club: 'Sao Paulo', year: 1991, label: 'São Paulo 1991 (Campeão Brasileiro)', coach: 'Tele Santana',
+    colors: { p: '#C8102E', s: '#ffffff' },
     players: [
-      { name: 'Zetti', pos: ['GOL'], ovr: 83 },
-      { name: 'Cafu', pos: ['LD', 'PD'], ovr: 87 },
-      { name: 'Antonio Carlos', pos: ['ZAG'], ovr: 84 },
-      { name: 'Ricardo Rocha', pos: ['ZAG'], ovr: 85 },
-      { name: 'Leonardo', pos: ['LE'], ovr: 86 },
-      { name: 'Ronaldao', pos: ['VOL'], ovr: 78 },
-      { name: 'Bernardo', pos: ['MEI'], ovr: 80 },
-      { name: 'Rai', pos: ['MEI', 'PD'], ovr: 93 },
-      { name: 'Muller', pos: ['PD', 'ATA'], ovr: 87 },
-      { name: 'Macedo', pos: ['ATA'], ovr: 78 },
-      { name: 'Elvelton', pos: ['PE'], ovr: 77 },
-      { name: 'Ze Teodoro', pos: ['LD'], ovr: 73 },
-      { name: 'Sidnei', pos: ['VOL'], ovr: 73 },
-      { name: 'Suelio', pos: ['VOL'], ovr: 72 },
-      { name: 'Mario Tilico', pos: ['ATA'], ovr: 75 },
-      { name: 'Flavio', pos: ['ATA'], ovr: 73 },
-      { name: 'Guga', pos: ['ZAG'], ovr: 71 },
-      { name: 'Celso', pos: ['MEI'], ovr: 72 },
-      { name: 'Paulo Sergio', pos: ['PE'], ovr: 72 },
-      { name: 'Helio', pos: ['LD'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'flamengo1992', club: 'Flamengo', year: 1992, label: 'Flamengo 1992', coach: 'Nelsinho Baptista',
-    colors: { p: '#c8102e', s: '#000000' },
+      { name: 'Zetti', pos: ['GOL'], ovr: 91 },
+      { name: 'Cafu', pos: ['LD','MD','PD','MC'], ovr: 92 },
+      { name: 'Ricardo Rocha', pos: ['ZAG','VOL'], ovr: 92 },
+      { name: 'Antônio Carlos Zago', pos: ['ZAG'], ovr: 86 },
+      { name: 'Leonardo', pos: ['LE','ME','MC'], ovr: 90 },
+      { name: 'Bernardo', pos: ['VOL','MC'], ovr: 85 },
+      { name: 'Sídnei', pos: ['VOL'], ovr: 81 },
+      { name: 'Raí', pos: ['MEI','ATA'], ovr: 93 },
+      { name: 'Elivélton', pos: ['PE','ME'], ovr: 84 },
+      { name: 'Müller', pos: ['ATA','PD','PE','MEI'], ovr: 91 },
+      { name: 'Macedo', pos: ['ATA','PD'], ovr: 83 },
+      { name: 'Marcos Bonequini', pos: ['GOL'], ovr: 76 },
+      { name: 'Zé Teodoro', pos: ['LD'], ovr: 80 },
+      { name: 'Nelsinho', pos: ['LE'], ovr: 82 },
+      { name: 'Ronaldão', pos: ['ZAG','VOL'], ovr: 85 },
+      { name: 'Suélio', pos: ['VOL'], ovr: 79 },
+      { name: 'Catê', pos: ['ATA','PD'], ovr: 75 },
+      { name: 'Flávio Campos', pos: ['MC','VOL'], ovr: 81 },
+      { name: 'Mário Tilico', pos: ['PD','PE'], ovr: 83 },
+      { name: 'Rinaldo', pos: ['ATA'], ovr: 78 },
+    ]},
+  { id: 'flamengo1992', club: 'Flamengo', year: 1992, label: 'Flamengo 1992 (Campeão Brasileiro)', coach: 'Carlinhos',
+    colors: { p: '#C8102E', s: '#000000' },
     players: [
-      { name: 'Ze Carlos', pos: ['GOL'], ovr: 80 },
-      { name: 'Leandro', pos: ['LD', 'PD'], ovr: 82 },
-      { name: 'Carlos', pos: ['ZAG'], ovr: 76 },
-      { name: 'Chico Anysio', pos: ['ZAG'], ovr: 75 },
-      { name: 'Junior', pos: ['LE', 'PE'], ovr: 80 },
-      { name: 'Marquinhos', pos: ['VOL'], ovr: 78 },
-      { name: 'Djalminha', pos: ['MEI'], ovr: 84 },
-      { name: 'Fabio Baiano', pos: ['MEI'], ovr: 80 },
-      { name: 'Savio', pos: ['PD', 'ATA'], ovr: 82 },
-      { name: 'Paulo Nunes', pos: ['ATA'], ovr: 80 },
-      { name: 'Marcelinho Carioca', pos: ['MEI'], ovr: 82 },
-      { name: 'Nelio', pos: ['MEI'], ovr: 77 },
-      { name: 'Luis Antonio', pos: ['MEI'], ovr: 76 },
-      { name: 'Tita', pos: ['ATA', 'MEI'], ovr: 75 },
-      { name: 'William', pos: ['ATA'], ovr: 73 },
-      { name: 'Pia', pos: ['LE'], ovr: 73 },
-      { name: 'Sele', pos: ['LE'], ovr: 71 },
-      { name: 'Edinho', pos: ['PE'], ovr: 72 },
-      { name: 'Celso', pos: ['VOL'], ovr: 70 },
-      { name: 'Reginaldo Araujo', pos: ['ATA'], ovr: 72 },
-    ]
-  },
-  {
-    id: 'palmeiras1993', club: 'Palmeiras', year: 1993, label: 'Palmeiras 1993 (Parmalat)', coach: 'Vanderlei Luxemburgo',
+      { name: 'Júnior', pos: ['MC','LE'], ovr: 93 },
+      { name: 'Gilmar', pos: ['GOL','MC'], ovr: 88 },
+      { name: 'Zinho', pos: ['ME','MC'], ovr: 88 },
+      { name: 'Gaúcho', pos: ['ATA','MC'], ovr: 87 },
+      { name: 'Wilson Gottardo', pos: ['ZAG'], ovr: 87 },
+      { name: 'Djalminha', pos: ['MEI','MC'], ovr: 86 },
+      { name: 'Piá', pos: ['LE'], ovr: 86 },
+      { name: 'Charles', pos: ['LD'], ovr: 85 },
+      { name: 'Júnior Baiano', pos: ['ZAG'], ovr: 85 },
+      { name: 'Uidemar', pos: ['VOL','MC'], ovr: 85 },
+      { name: 'Nélio', pos: ['PE','MC'], ovr: 85 },
+      { name: 'Marcelinho Carioca', pos: ['MEI','ME'], ovr: 84 },
+      { name: 'Rogério', pos: ['ZAG'], ovr: 83 },
+      { name: 'Marquinhos', pos: ['MC','ME'], ovr: 83 },
+      { name: 'Paulo Nunes', pos: ['PD','ATA'], ovr: 83 },
+      { name: 'Fabinho', pos: ['VOL','MC'], ovr: 82 },
+      { name: 'Totó', pos: ['ATA'], ovr: 81 },
+      { name: 'Gelson', pos: ['ZAG'], ovr: 80 },
+      { name: 'Adriano', pos: ['GOL','MC'], ovr: 79 },
+      { name: 'Luís Antônio', pos: ['LE','MC'], ovr: 78 },
+    ]},
+  { id: 'palmeiras1993', club: 'Palmeiras', year: 1993, label: 'Palmeiras 1993 (Campeão Brasileiro)', coach: 'Vanderlei Luxemburgo',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
-      { name: 'Sergio', pos: ['GOL'], ovr: 81 },
-      { name: 'Claudio', pos: ['LD'], ovr: 77 },
-      { name: 'Antonio Carlos', pos: ['ZAG'], ovr: 85 },
-      { name: 'Cleber', pos: ['ZAG'], ovr: 78 },
-      { name: 'Roberto Carlos', pos: ['LE', 'PE'], ovr: 89 },
-      { name: 'Cesar Sampaio', pos: ['VOL'], ovr: 84 },
-      { name: 'Mazinho', pos: ['VOL', 'LE'], ovr: 80 },
-      { name: 'Zinho', pos: ['MEI', 'PD'], ovr: 85 },
-      { name: 'Edilson', pos: ['PD', 'ATA'], ovr: 81 },
-      { name: 'Edmundo', pos: ['ATA'], ovr: 90 },
-      { name: 'Evair', pos: ['PE', 'ATA'], ovr: 86 },
-      { name: 'Velloso', pos: ['GOL'], ovr: 74 },
-      { name: 'Tonhao', pos: ['ZAG'], ovr: 73 },
-      { name: 'Daniel Frasson', pos: ['VOL'], ovr: 74 },
-      { name: 'Amaral', pos: ['VOL'], ovr: 72 },
-      { name: 'Maurilio', pos: ['ATA'], ovr: 73 },
-      { name: 'Jean Carlo', pos: ['MEI'], ovr: 73 },
-      { name: 'Soares', pos: ['ATA'], ovr: 72 },
-      { name: 'Dario', pos: ['LD'], ovr: 71 },
-      { name: 'Paulo Victor', pos: ['ZAG'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'palmeiras1994', club: 'Palmeiras', year: 1994, label: 'Palmeiras 1994 (Parmalat)', coach: 'Vanderlei Luxemburgo',
+      { name: 'Sérgio', pos: ['GOL'], ovr: 87 },
+      { name: 'Mazinho', pos: ['LD','VOL','LE','MC'], ovr: 87 },
+      { name: 'Cláudio', pos: ['LD','MD'], ovr: 86 },
+      { name: 'Roberto Carlos', pos: ['LE','ME'], ovr: 92 },
+      { name: 'Antônio Carlos Zago', pos: ['ZAG'], ovr: 89 },
+      { name: 'Cléber', pos: ['ZAG'], ovr: 86 },
+      { name: 'César Sampaio', pos: ['VOL','MC'], ovr: 91 },
+      { name: 'Zinho', pos: ['MEI','ME','MC'], ovr: 90 },
+      { name: 'Edmundo', pos: ['PD','ATA','MEI'], ovr: 93 },
+      { name: 'Edílson', pos: ['PE','ATA','PD','MEI'], ovr: 87 },
+      { name: 'Evair', pos: ['ATA','MEI'], ovr: 92 },
+      { name: 'Velloso', pos: ['GOL'], ovr: 80 },
+      { name: 'Tonhão', pos: ['ZAG'], ovr: 83 },
+      { name: 'Edinho Baiano', pos: ['ZAG'], ovr: 78 },
+      { name: 'Daniel Frasson', pos: ['VOL','MC'], ovr: 84 },
+      { name: 'Amaral', pos: ['VOL'], ovr: 82 },
+      { name: 'Jean Carlo', pos: ['MEI','PE'], ovr: 81 },
+      { name: 'Maurílio', pos: ['PD','ATA','LD'], ovr: 82 },
+      { name: 'Sorato', pos: ['ATA'], ovr: 83 },
+      { name: 'Saulo', pos: ['ATA'], ovr: 78 },
+    ]},
+  { id: 'palmeiras1994', club: 'Palmeiras', year: 1994, label: 'Palmeiras 1994 (Bicampeão Brasileiro)', coach: 'Vanderlei Luxemburgo',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
-      { name: 'Sergio', pos: ['GOL'], ovr: 81 },
-      { name: 'Claudio', pos: ['LD'], ovr: 77 },
-      { name: 'Antonio Carlos', pos: ['ZAG'], ovr: 85 },
-      { name: 'Cleber', pos: ['ZAG'], ovr: 78 },
-      { name: 'Roberto Carlos', pos: ['LE', 'PE'], ovr: 90 },
-      { name: 'Cesar Sampaio', pos: ['VOL'], ovr: 85 },
-      { name: 'Mazinho', pos: ['VOL', 'LE'], ovr: 80 },
-      { name: 'Zinho', pos: ['MEI', 'PD'], ovr: 85 },
-      { name: 'Rivaldo', pos: ['PD', 'MEI'], ovr: 89 },
-      { name: 'Edmundo', pos: ['ATA'], ovr: 91 },
-      { name: 'Evair', pos: ['PE', 'ATA'], ovr: 86 },
-      { name: 'Velloso', pos: ['GOL'], ovr: 74 },
-      { name: 'Tonhao', pos: ['ZAG'], ovr: 73 },
-      { name: 'Daniel Frasson', pos: ['VOL'], ovr: 74 },
-      { name: 'Flavio Conceicao', pos: ['VOL'], ovr: 77 },
-      { name: 'Edilson', pos: ['PD', 'ATA'], ovr: 81 },
-      { name: 'Soares', pos: ['ATA'], ovr: 72 },
-      { name: 'Jean Carlo', pos: ['MEI'], ovr: 73 },
-      { name: 'Nali', pos: ['LD'], ovr: 70 },
-      { name: 'Ciro', pos: ['ZAG'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'botafogo1995', club: 'Botafogo', year: 1995, label: 'Botafogo 1995', coach: 'Paulo Autuori',
+      { name: 'Rivaldo', pos: ['MEI','MC'], ovr: 94 },
+      { name: 'Edmundo', pos: ['PD','ATA'], ovr: 93 },
+      { name: 'Roberto Carlos', pos: ['LE'], ovr: 93 },
+      { name: 'Evair', pos: ['ATA','ME'], ovr: 92 },
+      { name: 'César Sampaio', pos: ['VOL','MC'], ovr: 91 },
+      { name: 'Zinho', pos: ['ME','MC'], ovr: 90 },
+      { name: 'Cléber', pos: ['ZAG'], ovr: 89 },
+      { name: 'Antônio Carlos', pos: ['ZAG'], ovr: 88 },
+      { name: 'Velloso', pos: ['GOL'], ovr: 88 },
+      { name: 'Flávio Conceição', pos: ['MC'], ovr: 87 },
+      { name: 'Mazinho', pos: ['MC','LD'], ovr: 86 },
+      { name: 'Cláudio', pos: ['LD'], ovr: 85 },
+      { name: 'Amaral', pos: ['VOL','ME'], ovr: 85 },
+      { name: 'Maurílio', pos: ['PD','ATA'], ovr: 83 },
+      { name: 'Tonhão', pos: ['ZAG'], ovr: 83 },
+      { name: 'Sorato', pos: ['ATA'], ovr: 82 },
+      { name: 'Wagner', pos: ['LE','MC'], ovr: 81 },
+      { name: 'Sérgio', pos: ['GOL'], ovr: 80 },
+      { name: 'Macula', pos: ['MC'], ovr: 79 },
+      { name: 'Chiquinho', pos: ['PE','MC'], ovr: 78 },
+    ]},
+  { id: 'botafogo1995', club: 'Botafogo', year: 1995, label: 'Botafogo 1995', coach: 'Paulo Autuori',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Wagner', pos: ['GOL'], ovr: 81 },
+      { name: 'Wagner', pos: ['GOL','MC'], ovr: 81 },
       { name: 'Wilson Goiano', pos: ['LD'], ovr: 77 },
       { name: 'Wilson Gottardo', pos: ['ZAG'], ovr: 80 },
       { name: 'Goncalves', pos: ['ZAG'], ovr: 79 },
       { name: 'Andre Silva', pos: ['LE'], ovr: 76 },
-      { name: 'Leandro Avila', pos: ['VOL'], ovr: 78 },
-      { name: 'Jamir', pos: ['VOL', 'MEI'], ovr: 78 },
-      { name: 'Beto', pos: ['MEI', 'VOL'], ovr: 77 },
-      { name: 'Sergio Manoel', pos: ['MEI', 'PD'], ovr: 80 },
+      { name: 'Leandro Avila', pos: ['VOL','MC'], ovr: 78 },
+      { name: 'Jamir', pos: ['VOL','MEI'], ovr: 78 },
+      { name: 'Beto', pos: ['MEI','VOL'], ovr: 77 },
+      { name: 'Sergio Manoel', pos: ['MEI','PD'], ovr: 80 },
       { name: 'Donizete', pos: ['ATA'], ovr: 81 },
       { name: 'Tulio Maravilha', pos: ['ATA'], ovr: 89 },
       { name: 'Moises', pos: ['LE'], ovr: 72 },
-      { name: 'Iranildo', pos: ['MEI'], ovr: 75 },
-      { name: 'Marcelo Alves', pos: ['MEI'], ovr: 72 },
+      { name: 'Iranildo', pos: ['MEI','MC'], ovr: 75 },
+      { name: 'Marcelo Alves', pos: ['MEI','MC'], ovr: 72 },
       { name: 'Narcizio', pos: ['ATA'], ovr: 71 },
       { name: 'Rui', pos: ['ATA'], ovr: 71 },
-      { name: 'Marcio', pos: ['LD'], ovr: 71 },
+      { name: 'Marcio', pos: ['LD','MC'], ovr: 71 },
       { name: 'Claudinho', pos: ['ZAG'], ovr: 70 },
-      { name: 'Jorginho', pos: ['MEI'], ovr: 71 },
-      { name: 'Alan', pos: ['PE'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'gremio1996', club: 'Gremio', year: 1996, label: 'Gremio 1996', coach: 'Luiz Felipe Scolari',
+      { name: 'Jorginho', pos: ['MEI','MC'], ovr: 71 },
+      { name: 'Alan', pos: ['PE','ME'], ovr: 70 },
+    ]},
+  { id: 'gremio1996', club: 'Gremio', year: 1996, label: 'Gremio 1996', coach: 'Luiz Felipe Scolari',
     colors: { p: '#1c3f94', s: '#000000' },
     players: [
-      { name: 'Danrlei', pos: ['GOL'], ovr: 82 },
-      { name: 'Arce', pos: ['LD', 'PD'], ovr: 81 },
-      { name: 'Rivarola', pos: ['ZAG'], ovr: 79 },
-      { name: 'Mauro Galvao', pos: ['ZAG'], ovr: 82 },
-      { name: 'Roger', pos: ['LE'], ovr: 79 },
-      { name: 'Dinho', pos: ['VOL', 'MEI'], ovr: 79 },
-      { name: 'Luis Carlos Goiano', pos: ['VOL'], ovr: 78 },
-      { name: 'Emerson', pos: ['MEI', 'VOL'], ovr: 82 },
-      { name: 'Carlos Miguel', pos: ['MEI'], ovr: 79 },
-      { name: 'Paulo Nunes', pos: ['ATA'], ovr: 87 },
-      { name: 'Ze Alcino', pos: ['PE'], ovr: 78 },
-      { name: 'Adilson', pos: ['ZAG'], ovr: 75 },
-      { name: 'Luciano', pos: ['ZAG'], ovr: 73 },
-      { name: 'Ailton', pos: ['ATA'], ovr: 76 },
-      { name: 'Ze Afonso', pos: ['ATA'], ovr: 72 },
-      { name: 'Arilson', pos: ['MEI'], ovr: 73 },
-      { name: 'Helio', pos: ['LD'], ovr: 71 },
-      { name: 'Marcelo', pos: ['PE'], ovr: 71 },
-      { name: 'Marcio', pos: ['GOL'], ovr: 70 },
-      { name: 'Jose Wilson', pos: ['ATA'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'vasco1997', club: 'Vasco', year: 1997, label: 'Vasco 1997 (Brasileiro)', coach: 'Antonio Lopes',
+      { name: 'Danrlei', pos: ['GOL'], ovr: 88 },
+      { name: 'Arce', pos: ['LD','MD'], ovr: 90 },
+      { name: 'Roger Machado', pos: ['LE','ZAG'], ovr: 86 },
+      { name: 'Adilson Batista', pos: ['ZAG'], ovr: 87 },
+      { name: 'Rivarola', pos: ['ZAG'], ovr: 85 },
+      { name: 'Dinho', pos: ['VOL'], ovr: 85 },
+      { name: 'Goiano', pos: ['VOL','MC'], ovr: 86 },
+      { name: 'Emerson', pos: ['MC','VOL'], ovr: 84 },
+      { name: 'Carlos Miguel', pos: ['MEI','ME','PE'], ovr: 86 },
+      { name: 'Paulo Nunes', pos: ['PD','ATA'], ovr: 90 },
+      { name: 'Jardel', pos: ['ATA'], ovr: 91 },
+      { name: 'Murilo', pos: ['GOL'], ovr: 77 },
+      { name: 'Marco Antônio', pos: ['LD'], ovr: 76 },
+      { name: 'Cristiano', pos: ['LE'], ovr: 75 },
+      { name: 'Mauro Galvão', pos: ['ZAG','VOL'], ovr: 89 },
+      { name: 'João Antônio', pos: ['VOL','MC'], ovr: 81 },
+      { name: 'Ailton', pos: ['MEI','ATA'], ovr: 82 },
+      { name: 'Zinho', pos: ['PE','PD'], ovr: 80 },
+      { name: 'Zé Alcino', pos: ['ATA'], ovr: 85 },
+      { name: 'Rodrigo Gral', pos: ['ATA'], ovr: 77 },
+    ]},
+  { id: 'vasco1997', club: 'Vasco', year: 1997, label: 'Vasco 1997 (Brasileiro)', coach: 'Antonio Lopes',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Carlos Germano', pos: ['GOL'], ovr: 82 },
-      { name: 'Valber', pos: ['LD'], ovr: 78 },
-      { name: 'Odvan', pos: ['ZAG'], ovr: 79 },
-      { name: 'Mauro Galvao', pos: ['ZAG'], ovr: 81 },
-      { name: 'Felipe', pos: ['LE'], ovr: 80 },
-      { name: 'Luisinho', pos: ['VOL', 'MEI'], ovr: 79 },
-      { name: 'Nasa', pos: ['VOL', 'MEI'], ovr: 78 },
-      { name: 'Juninho Pernambucano', pos: ['MEI', 'PD'], ovr: 85 },
-      { name: 'Ramon', pos: ['MEI', 'PD'], ovr: 81 },
+      { name: 'Carlos Germano', pos: ['GOL'], ovr: 85 },
+      { name: 'Valber', pos: ['LD'], ovr: 81 },
+      { name: 'Odvan', pos: ['ZAG'], ovr: 82 },
+      { name: 'Mauro Galvao', pos: ['ZAG'], ovr: 84 },
+      { name: 'Felipe', pos: ['LE'], ovr: 83 },
+      { name: 'Luisinho', pos: ['VOL','MEI'], ovr: 82 },
+      { name: 'Nasa', pos: ['VOL','MEI'], ovr: 81 },
+      { name: 'Juninho Pernambucano', pos: ['MEI','MD'], ovr: 88 },
+      { name: 'Ramon', pos: ['MEI','MD'], ovr: 84 },
       { name: 'Edmundo', pos: ['ATA'], ovr: 95 },
-      { name: 'Evair', pos: ['PE', 'ATA'], ovr: 85 },
-      { name: 'Marica', pos: ['LD'], ovr: 73 },
-      { name: 'Alex Pinho', pos: ['ZAG'], ovr: 72 },
-      { name: 'Pedrinho', pos: ['MEI'], ovr: 77 },
-      { name: 'Mauricinho', pos: ['MEI'], ovr: 72 },
-      { name: 'Donizete', pos: ['ATA'], ovr: 79 },
-      { name: 'Brener', pos: ['ATA'], ovr: 73 },
-      { name: 'Luizao', pos: ['ATA'], ovr: 80 },
-      { name: 'Gil', pos: ['ZAG'], ovr: 71 },
-      { name: 'Sandro', pos: ['MEI'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'vasco1998', club: 'Vasco', year: 1998, label: 'Vasco 1998 (Libertadores)', coach: 'Antonio Lopes',
+      { name: 'Evair', pos: ['PE','ME'], ovr: 88 },
+      { name: 'Marica', pos: ['LD'], ovr: 76 },
+      { name: 'Alex Pinho', pos: ['ZAG'], ovr: 75 },
+      { name: 'Pedrinho', pos: ['MEI','MC'], ovr: 80 },
+      { name: 'Mauricinho', pos: ['MEI','MC'], ovr: 75 },
+      { name: 'Donizete', pos: ['ATA'], ovr: 82 },
+      { name: 'Brener', pos: ['ATA'], ovr: 76 },
+      { name: 'Luizao', pos: ['ATA'], ovr: 83 },
+      { name: 'Gil', pos: ['ZAG','MC'], ovr: 74 },
+      { name: 'Sandro', pos: ['MEI','MC'], ovr: 73 },
+    ]},
+  { id: 'vasco1998', club: 'Vasco', year: 1998, label: 'Vasco 1998 (Libertadores)', coach: 'Antonio Lopes',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Carlos Germano', pos: ['GOL'], ovr: 83 },
-      { name: 'Vagner', pos: ['LD'], ovr: 79 },
-      { name: 'Mauro Galvao', pos: ['ZAG'], ovr: 82 },
-      { name: 'Odvan', pos: ['ZAG'], ovr: 80 },
-      { name: 'Felipe', pos: ['LE'], ovr: 81 },
-      { name: 'Luisinho', pos: ['VOL', 'MEI'], ovr: 80 },
-      { name: 'Nasa', pos: ['VOL', 'MEI'], ovr: 79 },
-      { name: 'Juninho Pernambucano', pos: ['MEI', 'PD'], ovr: 87 },
-      { name: 'Pedrinho', pos: ['MEI'], ovr: 80 },
-      { name: 'Edmundo', pos: ['ATA'], ovr: 91 },
-      { name: 'Luizao', pos: ['ATA'], ovr: 87 },
-      { name: 'Donizete', pos: ['ATA'], ovr: 84 },
-      { name: 'Evair', pos: ['PE', 'ATA'], ovr: 83 },
-      { name: 'Ramon', pos: ['MEI', 'PD'], ovr: 82 },
-      { name: 'Cesar Prates', pos: ['LD'], ovr: 77 },
-      { name: 'Alex Pinho', pos: ['ZAG'], ovr: 73 },
-      { name: 'Paulo', pos: ['VOL'], ovr: 72 },
-      { name: 'Valdir', pos: ['LD'], ovr: 71 },
-      { name: 'Lima', pos: ['MEI'], ovr: 71 },
-      { name: 'Clayton', pos: ['ATA'], ovr: 72 },
-    ]
-  },
-  {
-    id: 'corinthians1998', club: 'Corinthians', year: 1998, label: 'Corinthians 1998 (Bicampeao)', coach: 'Vanderlei Luxemburgo',
+      { name: 'Carlos Germano', pos: ['GOL'], ovr: 91 },
+      { name: 'Vágner', pos: ['LD','VOL','MC'], ovr: 85 },
+      { name: 'Mauro Galvão', pos: ['ZAG','VOL'], ovr: 92 },
+      { name: 'Odvan', pos: ['ZAG'], ovr: 85 },
+      { name: 'Felipe', pos: ['LE','ME','MEI'], ovr: 91 },
+      { name: 'Luisinho', pos: ['VOL'], ovr: 85 },
+      { name: 'Nasa', pos: ['VOL'], ovr: 84 },
+      { name: 'Juninho Pernambucano', pos: ['MC','MEI','MD'], ovr: 92 },
+      { name: 'Pedrinho', pos: ['MEI','ME','PE'], ovr: 87 },
+      { name: 'Donizete', pos: ['PD','ATA'], ovr: 89 },
+      { name: 'Luizão', pos: ['PE','ATA'], ovr: 90 },
+      { name: 'Márcio', pos: ['GOL'], ovr: 77 },
+      { name: 'Filipe Alvim', pos: ['LD'], ovr: 76 },
+      { name: 'Géder', pos: ['ZAG'], ovr: 78 },
+      { name: 'Nelson', pos: ['VOL'], ovr: 79 },
+      { name: 'Válber', pos: ['MEI','MC','LD'], ovr: 83 },
+      { name: 'Gian', pos: ['MEI'], ovr: 77 },
+      { name: 'Mauricinho', pos: ['PE'], ovr: 78 },
+      { name: 'Sorato', pos: ['ATA'], ovr: 80 },
+      { name: 'Luiz Cláudio', pos: ['ATA'], ovr: 76 },
+    ]},
+  { id: 'corinthians1998', club: 'Corinthians', year: 1998, label: 'Corinthians 1998 (Bicampeao)', coach: 'Vanderlei Luxemburgo',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Nei', pos: ['GOL'], ovr: 77 },
-      { name: 'Dida', pos: ['GOL'], ovr: 86 },
-      { name: 'Indio', pos: ['LD'], ovr: 80 },
-      { name: 'Batata', pos: ['ZAG'], ovr: 79 },
-      { name: 'Marcio Costa', pos: ['ZAG'], ovr: 78 },
+      { name: 'Índio', pos: ['LD'], ovr: 80 },
       { name: 'Gamarra', pos: ['ZAG'], ovr: 92 },
-      { name: 'Sylvinho', pos: ['LE', 'PE'], ovr: 85 },
-      { name: 'Vampeta', pos: ['VOL'], ovr: 88 },
-      { name: 'Rincon', pos: ['MEI'], ovr: 87 },
-      { name: 'Ricardinho', pos: ['MEI'], ovr: 88 },
-      { name: 'Marcelinho Carioca', pos: ['MEI'], ovr: 91 },
-      { name: 'Edilson', pos: ['ATA', 'MEI'], ovr: 90 },
-      { name: 'Dinei', pos: ['ATA'], ovr: 78 },
-      { name: 'Didi', pos: ['ATA'], ovr: 75 },
+      { name: 'Batata', pos: ['ZAG'], ovr: 79 },
+      { name: 'Silvinho', pos: ['LE','ME'], ovr: 85 },
+      { name: 'Vampeta', pos: ['VOL','MC','LD'], ovr: 88 },
+      { name: 'Rincón', pos: ['VOL','MC','MEI'], ovr: 87 },
+      { name: 'Marcelinho Carioca', pos: ['MEI','MD','PD','ATA'], ovr: 91 },
+      { name: 'Ricardinho', pos: ['MEI','ME','MC'], ovr: 88 },
+      { name: 'Edílson', pos: ['PE','ATA','PD','MEI'], ovr: 90 },
+      { name: 'Mirandinha', pos: ['PD','ATA'], ovr: 79 },
+      { name: 'Maurício', pos: ['GOL'], ovr: 74 },
+      { name: 'Rodrigo', pos: ['LD'], ovr: 75 },
+      { name: 'Cris', pos: ['ZAG'], ovr: 74 },
+      { name: 'Romeu', pos: ['ZAG'], ovr: 75 },
       { name: 'Amaral', pos: ['VOL'], ovr: 76 },
-      { name: 'Cris', pos: ['ZAG', 'LE'], ovr: 74 },
-      { name: 'Adilson', pos: ['ZAG'], ovr: 73 },
-      { name: 'Kleber', pos: ['LE'], ovr: 78 },
-      { name: 'Mirandinha', pos: ['ATA'], ovr: 74 },
-      { name: 'Gilmar Fuba', pos: ['VOL'], ovr: 76 },
-    ]
-  },
-  {
-    id: 'corinthians1999', club: 'Corinthians', year: 1999, label: 'Corinthians 1999 (Tricampeao)', coach: 'Oswaldo de Oliveira',
+      { name: 'Gilmar Fubá', pos: ['VOL'], ovr: 76 },
+      { name: 'Souza', pos: ['MEI'], ovr: 76 },
+      { name: 'Didi', pos: ['ATA'], ovr: 75 },
+      { name: 'Dinei', pos: ['ATA'], ovr: 78 },
+    ]},
+  { id: 'corinthians1999', club: 'Corinthians', year: 1999, label: 'Corinthians 1999 (Tricampeao)', coach: 'Oswaldo de Oliveira',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Dida', pos: ['GOL'], ovr: 88 },
@@ -880,25 +576,23 @@ const TEAMS = [
       { name: 'Joao Carlos', pos: ['ZAG'], ovr: 79 },
       { name: 'Marcio Costa', pos: ['ZAG'], ovr: 79 },
       { name: 'Kleber', pos: ['LE'], ovr: 79 },
-      { name: 'Vampeta', pos: ['VOL'], ovr: 89 },
-      { name: 'Rincon', pos: ['MEI'], ovr: 87 },
-      { name: 'Ricardinho', pos: ['MEI'], ovr: 88 },
-      { name: 'Marcelinho Carioca', pos: ['MEI'], ovr: 92 },
-      { name: 'Edilson', pos: ['ATA', 'MEI'], ovr: 89 },
+      { name: 'Vampeta', pos: ['VOL','MC'], ovr: 89 },
+      { name: 'Rincon', pos: ['MEI','MC'], ovr: 87 },
+      { name: 'Ricardinho', pos: ['MEI','MC'], ovr: 88 },
+      { name: 'Marcelinho Carioca', pos: ['MEI','ME'], ovr: 92 },
+      { name: 'Edilson', pos: ['ATA','MD'], ovr: 89 },
       { name: 'Luizao', pos: ['ATA'], ovr: 87 },
       { name: 'Dinei', pos: ['ATA'], ovr: 79 },
-      { name: 'Marcos Senna', pos: ['VOL'], ovr: 81 },
-      { name: 'Sylvinho', pos: ['LE', 'PE'], ovr: 86 },
+      { name: 'Marcos Senna', pos: ['VOL','MC'], ovr: 81 },
+      { name: 'Sylvinho', pos: ['LE','PE'], ovr: 86 },
       { name: 'Adilson', pos: ['ZAG'], ovr: 74 },
-      { name: 'Gilmar', pos: ['VOL'], ovr: 75 },
-      { name: 'Edu', pos: ['MEI'], ovr: 75 },
-      { name: 'Fabinho', pos: ['ZAG'], ovr: 73 },
-      { name: 'Luis Carlos', pos: ['PD'], ovr: 72 },
+      { name: 'Gilmar', pos: ['VOL','MC'], ovr: 75 },
+      { name: 'Edu', pos: ['MEI','ME'], ovr: 75 },
+      { name: 'Fabinho', pos: ['ZAG','MC'], ovr: 73 },
+      { name: 'Luis Carlos', pos: ['PD','MD'], ovr: 72 },
       { name: 'Anderson', pos: ['ATA'], ovr: 71 },
-    ]
-  },
-  {
-    id: 'vasco2000', club: 'Vasco', year: 2000, label: 'Vasco 2000 (Brasileiro + Mercosul)', coach: 'Oswaldo de Oliveira',
+    ]},
+  { id: 'vasco2000', club: 'Vasco', year: 2000, label: 'Vasco 2000 (Brasileiro + Mercosul)', coach: 'Oswaldo de Oliveira',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Carlos Germano', pos: ['GOL'], ovr: 82 },
@@ -906,219 +600,203 @@ const TEAMS = [
       { name: 'Anderson Polga', pos: ['ZAG'], ovr: 80 },
       { name: 'Odvan', pos: ['ZAG'], ovr: 78 },
       { name: 'Felipe', pos: ['LE'], ovr: 79 },
-      { name: 'Ramon', pos: ['MEI', 'PD'], ovr: 82 },
-      { name: 'Juninho Paulista', pos: ['MEI'], ovr: 84 },
-      { name: 'Pedrinho', pos: ['MEI'], ovr: 80 },
+      { name: 'Ramon', pos: ['MEI','MD'], ovr: 82 },
+      { name: 'Juninho Paulista', pos: ['MEI','MC'], ovr: 84 },
+      { name: 'Pedrinho', pos: ['MEI','MC'], ovr: 80 },
       { name: 'Luizao', pos: ['ATA'], ovr: 86 },
       { name: 'Donizete', pos: ['ATA'], ovr: 84 },
       { name: 'Romario', pos: ['ATA'], ovr: 91 },
-      { name: 'Sandro', pos: ['GOL'], ovr: 71 },
+      { name: 'Sandro', pos: ['GOL','MC'], ovr: 71 },
       { name: 'Valdir', pos: ['LD'], ovr: 73 },
       { name: 'Mauro Galvao', pos: ['ZAG'], ovr: 79 },
       { name: 'Everton', pos: ['ATA'], ovr: 73 },
       { name: 'Nasa', pos: ['VOL'], ovr: 77 },
-      { name: 'Nilton', pos: ['VOL'], ovr: 76 },
-      { name: 'Paulo Victor', pos: ['MEI'], ovr: 74 },
+      { name: 'Nilton', pos: ['VOL','MC'], ovr: 76 },
+      { name: 'Paulo Victor', pos: ['MEI','MC'], ovr: 74 },
       { name: 'Alexandre Pires', pos: ['ATA'], ovr: 75 },
       { name: 'Fabio Augusto', pos: ['LD'], ovr: 72 },
-    ]
-  },
-  {
-    id: 'athletico-pr2001', club: 'Athletico-PR', year: 2001, label: 'Athletico-PR 2001', coach: 'Geninho',
+    ]},
+  { id: 'athletico-pr2001', club: 'Athletico-PR', year: 2001, label: 'Athletico-PR 2001', coach: 'Geninho',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
-      { name: 'Flavio', pos: ['GOL'], ovr: 80 },
-      { name: 'Alessandro', pos: ['LD'], ovr: 78 },
-      { name: 'Rogerio Correa', pos: ['ZAG'], ovr: 78 },
-      { name: 'Nem', pos: ['ZAG'], ovr: 79 },
-      { name: 'Gustavo', pos: ['ZAG'], ovr: 80 },
-      { name: 'Fabiano', pos: ['LE'], ovr: 77 },
-      { name: 'Cocito', pos: ['VOL'], ovr: 78 },
-      { name: 'Kleberson', pos: ['VOL', 'MEI'], ovr: 86 },
-      { name: 'Adriano', pos: ['MEI'], ovr: 79 },
-      { name: 'Kleber', pos: ['ATA'], ovr: 84 },
-      { name: 'Alex Mineiro', pos: ['ATA'], ovr: 85 },
-      { name: 'Igor', pos: ['LD'], ovr: 73 },
-      { name: 'Pires', pos: ['MEI'], ovr: 72 },
-      { name: 'Rodriguinho', pos: ['MEI'], ovr: 71 },
-      { name: 'Souza', pos: ['ATA'], ovr: 74 },
-      { name: 'Ilan', pos: ['ATA'], ovr: 73 },
-      { name: 'Adauto', pos: ['ATA'], ovr: 72 },
-      { name: 'Marcos', pos: ['ZAG'], ovr: 71 },
-      { name: 'Ederson', pos: ['MEI'], ovr: 72 },
-      { name: 'Chico', pos: ['LD'], ovr: 71 },
-    ]
-  },
-  {
-    id: 'santos2002', club: 'Santos', year: 2002, label: 'Santos 2002 (Meninos da Vila)', coach: 'Emerson Leao',
+      { name: 'Flávio', pos: ['GOL'], ovr: 82 },
+      { name: 'Nem', pos: ['ZAG'], ovr: 84 },
+      { name: 'Gustavo', pos: ['ZAG'], ovr: 81 },
+      { name: 'Rogério Corrêa', pos: ['ZAG'], ovr: 81 },
+      { name: 'Alessandro', pos: ['LD','MD'], ovr: 81 },
+      { name: 'Fabiano', pos: ['LE','ME'], ovr: 80 },
+      { name: 'Cocito', pos: ['VOL'], ovr: 82 },
+      { name: 'Kléberson', pos: ['VOL','MC','MD'], ovr: 87 },
+      { name: 'Adriano Gabiru', pos: ['MC','MEI','MD'], ovr: 83 },
+      { name: 'Alex Mineiro', pos: ['ATA'], ovr: 88 },
+      { name: 'Kléber Pereira', pos: ['ATA'], ovr: 86 },
+      { name: 'Luisinho Netto', pos: ['LD','MD'], ovr: 76 },
+      { name: 'Vicente', pos: ['LE'], ovr: 75 },
+      { name: 'Igor', pos: ['ZAG'], ovr: 76 },
+      { name: 'Pires', pos: ['VOL'], ovr: 77 },
+      { name: 'Souza', pos: ['MEI','MC'], ovr: 81 },
+      { name: 'Lobatón', pos: ['MEI'], ovr: 74 },
+      { name: 'Ilan', pos: ['ATA','PD'], ovr: 79 },
+      { name: 'Dagoberto', pos: ['ATA','PE'], ovr: 72 },
+      { name: 'Adauto', pos: ['ATA'], ovr: 74 },
+    ]},
+  { id: 'santos2002', club: 'Santos', year: 2002, label: 'Santos 2002 (Meninos da Vila)', coach: 'Emerson Leao',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Fabio Costa', pos: ['GOL'], ovr: 81 },
+      { name: 'Fabio Costa', pos: ['GOL'], ovr: 86 },
       { name: 'Maurinho', pos: ['LD'], ovr: 78 },
-      { name: 'Andre Luis', pos: ['ZAG'], ovr: 77 },
-      { name: 'Alex', pos: ['ZAG'], ovr: 78 },
-      { name: 'Leo', pos: ['LE'], ovr: 79 },
-      { name: 'Paulo Almeida', pos: ['VOL'], ovr: 77 },
-      { name: 'Renato', pos: ['VOL', 'MEI'], ovr: 78 },
-      { name: 'Elano', pos: ['MEI'], ovr: 84 },
-      { name: 'Diego', pos: ['MEI', 'PD'], ovr: 85 },
-      { name: 'Robinho', pos: ['ATA', 'PE'], ovr: 92 },
-      { name: 'William', pos: ['PE'], ovr: 76 },
+      { name: 'Andre Luis', pos: ['ZAG'], ovr: 83 },
+      { name: 'Alex', pos: ['ZAG'], ovr: 85 },
+      { name: 'Leo', pos: ['LE'], ovr: 83 },
+      { name: 'Paulo Almeida', pos: ['VOL','MC'], ovr: 82 },
+      { name: 'Renato', pos: ['VOL','MC'], ovr: 86 },
+      { name: 'Elano', pos: ['MEI','MD'], ovr: 87 },
+      { name: 'Diego', pos: ['MEI','MC'], ovr: 88 },
+      { name: 'Robinho', pos: ['ATA','PE','ME'], ovr: 92 },
+      { name: 'William', pos: ['PE','ME'], ovr: 76 },
       { name: 'Julio Cesar', pos: ['GOL'], ovr: 73 },
-      { name: 'Wellington', pos: ['MEI'], ovr: 72 },
+      { name: 'Wellington', pos: ['MEI','MC'], ovr: 72 },
       { name: 'Alexandre', pos: ['ATA'], ovr: 73 },
-      { name: 'Robert', pos: ['ATA'], ovr: 74 },
+      { name: 'Robert', pos: ['ATA'], ovr: 82 },
       { name: 'Michel', pos: ['ATA'], ovr: 71 },
       { name: 'Adriano', pos: ['ZAG'], ovr: 73 },
       { name: 'Felipe', pos: ['LD'], ovr: 72 },
-      { name: 'Marcos', pos: ['VOL'], ovr: 71 },
-      { name: 'Junior', pos: ['MEI'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'cruzeiro2003', club: 'Cruzeiro', year: 2003, label: 'Cruzeiro 2003 (Triplice Coroa)', coach: 'Vanderlei Luxemburgo',
+      { name: 'Marcos', pos: ['VOL','MD'], ovr: 71 },
+      { name: 'Junior', pos: ['MEI','MC'], ovr: 70 },
+    ]},
+  { id: 'cruzeiro2003', club: 'Cruzeiro', year: 2003, label: 'Cruzeiro 2003 (Triplice Coroa)', coach: 'Vanderlei Luxemburgo',
     colors: { p: '#1c3f94', s: '#ffffff' },
     players: [
       { name: 'Gomes', pos: ['GOL'], ovr: 80 },
       { name: 'Maurinho', pos: ['LD'], ovr: 78 },
       { name: 'Cris', pos: ['ZAG'], ovr: 79 },
       { name: 'Edu Dracena', pos: ['ZAG'], ovr: 82 },
-      { name: 'Leandro', pos: ['LE'], ovr: 78 },
-      { name: 'Maldonado', pos: ['VOL'], ovr: 79 },
-      { name: 'Augusto Recife', pos: ['VOL'], ovr: 77 },
-      { name: 'Wendell', pos: ['MEI'], ovr: 78 },
-      { name: 'Alex', pos: ['MEI'], ovr: 90 },
+      { name: 'Leandro', pos: ['LE','MC'], ovr: 78 },
+      { name: 'Maldonado', pos: ['VOL','MC'], ovr: 79 },
+      { name: 'Augusto Recife', pos: ['VOL','MC'], ovr: 77 },
+      { name: 'Wendell', pos: ['MEI','MC'], ovr: 78 },
+      { name: 'Alex', pos: ['MEI','MC'], ovr: 90 },
       { name: 'Aristizabal', pos: ['ATA'], ovr: 82 },
       { name: 'Mota', pos: ['ATA'], ovr: 79 },
       { name: 'Maicon', pos: ['LD'], ovr: 76 },
       { name: 'Luisao', pos: ['ZAG'], ovr: 79 },
-      { name: 'Felipe Melo', pos: ['VOL'], ovr: 78 },
-      { name: 'Zinho', pos: ['MEI'], ovr: 73 },
+      { name: 'Felipe Melo', pos: ['VOL','MC'], ovr: 78 },
+      { name: 'Zinho', pos: ['MEI','MC'], ovr: 73 },
       { name: 'Marcio Nobre', pos: ['ATA'], ovr: 75 },
       { name: 'Deivid', pos: ['ATA'], ovr: 78 },
       { name: 'Alex Alves', pos: ['ATA'], ovr: 74 },
-      { name: 'Martinez', pos: ['MEI'], ovr: 73 },
+      { name: 'Martinez', pos: ['MEI','MC'], ovr: 73 },
       { name: 'Thiago', pos: ['ZAG'], ovr: 75 },
-    ]
-  },
-  {
-    id: 'santos2004', club: 'Santos', year: 2004, label: 'Santos 2004 (Bicampeonato + 103 gols)', coach: 'Vanderlei Luxemburgo',
+    ]},
+  { id: 'santos2004', club: 'Santos', year: 2004, label: 'Santos 2004 (Bicampeonato + 103 gols)', coach: 'Vanderlei Luxemburgo',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Mauro', pos: ['GOL'], ovr: 78 },
-      { name: 'Flavio', pos: ['LD'], ovr: 75 },
-      { name: 'Avaulos', pos: ['ZAG'], ovr: 77 },
-      { name: 'Leonardo', pos: ['ZAG'], ovr: 77 },
-      { name: 'Leo', pos: ['LE'], ovr: 79 },
-      { name: 'Fabinho', pos: ['VOL'], ovr: 77 },
-      { name: 'Preto Casagrande', pos: ['VOL', 'MEI'], ovr: 76 },
-      { name: 'Ricardinho', pos: ['MEI'], ovr: 84 },
-      { name: 'Elano', pos: ['MEI'], ovr: 85 },
-      { name: 'Robinho', pos: ['ATA', 'PE'], ovr: 91 },
-      { name: 'Deivid', pos: ['ATA'], ovr: 84 },
-      { name: 'Paulo Cesar', pos: ['LD'], ovr: 73 },
-      { name: 'Marcinho', pos: ['MEI'], ovr: 72 },
-      { name: 'Basilio', pos: ['ATA'], ovr: 71 },
-      { name: 'William', pos: ['ATA', 'PE'], ovr: 73 },
-      { name: 'Adriano', pos: ['ZAG'], ovr: 73 },
-      { name: 'Rodrigo', pos: ['LD'], ovr: 71 },
-      { name: 'Gabriel', pos: ['ZAG'], ovr: 72 },
-      { name: 'Marquinhos', pos: ['VOL'], ovr: 71 },
-      { name: 'Adriano Jr', pos: ['ATA'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'corinthians2005', club: 'Corinthians', year: 2005, label: 'Corinthians 2005', coach: 'Antonio Lopes',
+      { name: 'Mauro', pos: ['GOL'], ovr: 81 },
+      { name: 'Alex', pos: ['ZAG'], ovr: 86 },
+      { name: 'André Luís', pos: ['ZAG'], ovr: 83 },
+      { name: 'Paulo César', pos: ['LD'], ovr: 83 },
+      { name: 'Léo', pos: ['LE'], ovr: 87 },
+      { name: 'Renato', pos: ['VOL','MC'], ovr: 85 },
+      { name: 'Paulo Almeida', pos: ['VOL','MC'], ovr: 84 },
+      { name: 'Elano', pos: ['MEI','MD'], ovr: 91 },
+      { name: 'Ricardinho', pos: ['MEI','MC'], ovr: 89 },
+      { name: 'Robinho', pos: ['ATA','ME'], ovr: 94 },
+      { name: 'Deivid', pos: ['ATA'], ovr: 87 },
+      { name: 'Doni', pos: ['GOL'], ovr: 77 },
+      { name: 'Júlio Sérgio', pos: ['GOL'], ovr: 75 },
+      { name: 'Ávalos', pos: ['ZAG'], ovr: 79 },
+      { name: 'Flávio', pos: ['LD','LE'], ovr: 77 },
+      { name: 'Fabinho', pos: ['VOL','MC'], ovr: 79 },
+      { name: 'Preto Casagrande', pos: ['MEI','VOL'], ovr: 79 },
+      { name: 'Marcinho', pos: ['MEI','ATA'], ovr: 77 },
+      { name: 'Basílio', pos: ['ATA'], ovr: 82 },
+      { name: 'William', pos: ['ATA','ME'], ovr: 76 },
+    ]},
+  { id: 'corinthians2005', club: 'Corinthians', year: 2005, label: 'Corinthians 2005', coach: 'Antonio Lopes',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Fabio Costa', pos: ['GOL'], ovr: 80 },
-      { name: 'Marinho', pos: ['LD'], ovr: 76 },
-      { name: 'Wendel', pos: ['ZAG'], ovr: 77 },
-      { name: 'Betao', pos: ['ZAG'], ovr: 73 },
-      { name: 'Gustavo Nery', pos: ['LE'], ovr: 80 },
-      { name: 'Coelho', pos: ['ZAG'], ovr: 76 },
-      { name: 'Marcelo Mattos', pos: ['VOL'], ovr: 79 },
-      { name: 'Bruno Octavio', pos: ['VOL', 'MEI'], ovr: 76 },
-      { name: 'Carlos Alberto', pos: ['MEI'], ovr: 81 },
-      { name: 'Tevez', pos: ['ATA'], ovr: 93 },
-      { name: 'Nilmar', pos: ['ATA'], ovr: 80 },
-      { name: 'Julio Cesar', pos: ['GOL'], ovr: 74 },
-      { name: 'Sebastian Dominguez', pos: ['ZAG'], ovr: 76 },
-      { name: 'Mascherano', pos: ['VOL'], ovr: 86 },
-      { name: 'Roger', pos: ['MEI'], ovr: 78 },
-      { name: 'Jo', pos: ['ATA'], ovr: 76 },
-      { name: 'Wescley', pos: ['MEI'], ovr: 72 },
-      { name: 'Eduardo Ratinho', pos: ['MEI'], ovr: 71 },
-      { name: 'Rodrigo', pos: ['LD'], ovr: 71 },
-      { name: 'Rosinei', pos: ['MEI'], ovr: 77 },
-    ]
-  },
-  {
-    id: 'sao-paulo2006', club: 'Sao Paulo', year: 2006, label: 'Sao Paulo 2006', coach: 'Muricy Ramalho',
+      { name: 'Fábio Costa', pos: ['GOL'], ovr: 88 },
+      { name: 'Marinho', pos: ['ZAG'], ovr: 82 },
+      { name: 'Betão', pos: ['ZAG','LD'], ovr: 82 },
+      { name: 'Gustavo Nery', pos: ['LE','ME','MC'], ovr: 86 },
+      { name: 'Coelho', pos: ['LD','MD'], ovr: 83 },
+      { name: 'Marcelo Mattos', pos: ['VOL'], ovr: 86 },
+      { name: 'Wendel', pos: ['VOL','LD'], ovr: 78 },
+      { name: 'Bruno Octávio', pos: ['VOL'], ovr: 76 },
+      { name: 'Carlos Alberto', pos: ['MC','MEI','PD'], ovr: 87 },
+      { name: 'Tevez', pos: ['ATA','MEI','PE'], ovr: 95 },
+      { name: 'Nilmar', pos: ['ATA','PD','PE'], ovr: 90 },
+      { name: 'Tiago Campagnaro', pos: ['GOL'], ovr: 77 },
+      { name: 'Edson', pos: ['LD'], ovr: 76 },
+      { name: 'Sebá Domínguez', pos: ['ZAG'], ovr: 84 },
+      { name: 'Marcus Vinícius', pos: ['ZAG'], ovr: 77 },
+      { name: 'Rosinei', pos: ['VOL','MC','MD'], ovr: 85 },
+      { name: 'Roger Flores', pos: ['MEI','MC'], ovr: 86 },
+      { name: 'Hugo', pos: ['MEI','ME'], ovr: 80 },
+      { name: 'Jô', pos: ['ATA','PE'], ovr: 82 },
+      { name: 'Bobô', pos: ['ATA'], ovr: 76 },
+    ]},
+  { id: 'sao-paulo2006', club: 'Sao Paulo', year: 2006, label: 'Sao Paulo 2006', coach: 'Muricy Ramalho',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
-      { name: 'Rogerio Ceni', pos: ['GOL'], ovr: 89 },
-      { name: 'Ilsinho', pos: ['LD', 'PD'], ovr: 78 },
+      { name: 'Rogerio Ceni', pos: ['GOL'], ovr: 94 },
+      { name: 'Ilsinho', pos: ['LD','PD'], ovr: 78 },
       { name: 'Fabao', pos: ['ZAG'], ovr: 81 },
       { name: 'Miranda', pos: ['ZAG'], ovr: 82 },
-      { name: 'Junior', pos: ['LE'], ovr: 77 },
-      { name: 'Mineiro', pos: ['VOL'], ovr: 81 },
-      { name: 'Josue', pos: ['VOL', 'MEI'], ovr: 80 },
-      { name: 'Souza', pos: ['MEI'], ovr: 78 },
-      { name: 'Danilo', pos: ['MEI'], ovr: 80 },
-      { name: 'Leandro', pos: ['PD', 'PE'], ovr: 77 },
+      { name: 'Junior', pos: ['LE','MC'], ovr: 77 },
+      { name: 'Mineiro', pos: ['VOL','MC'], ovr: 81 },
+      { name: 'Josue', pos: ['VOL','MEI'], ovr: 80 },
+      { name: 'Souza', pos: ['MEI','MC'], ovr: 78 },
+      { name: 'Danilo', pos: ['MEI','MC'], ovr: 80 },
+      { name: 'Leandro', pos: ['PD','MC'], ovr: 77 },
       { name: 'Aloisio', pos: ['ATA'], ovr: 81 },
       { name: 'Lugano', pos: ['ZAG'], ovr: 82 },
       { name: 'Alex Silva', pos: ['ZAG'], ovr: 73 },
-      { name: 'Cicinho', pos: ['LD', 'PD'], ovr: 79 },
-      { name: 'Thiago Ribeiro', pos: ['MEI'], ovr: 75 },
-      { name: 'Richarlyson', pos: ['MEI'], ovr: 74 },
+      { name: 'Cicinho', pos: ['LD','PD'], ovr: 79 },
+      { name: 'Thiago Ribeiro', pos: ['MEI','MD'], ovr: 75 },
+      { name: 'Richarlyson', pos: ['MEI','MC'], ovr: 74 },
       { name: 'Lenilson', pos: ['ATA'], ovr: 73 },
       { name: 'Anderson', pos: ['ATA'], ovr: 72 },
       { name: 'Rodrigo', pos: ['LD'], ovr: 71 },
       { name: 'Edcarlos', pos: ['ZAG'], ovr: 76 },
-    ]
-  },
-  {
-    id: 'sao-paulo2007', club: 'Sao Paulo', year: 2007, label: 'Sao Paulo 2007 (Bicampeonato)', coach: 'Muricy Ramalho',
+    ]},
+  { id: 'sao-paulo2007', club: 'Sao Paulo', year: 2007, label: 'Sao Paulo 2007 (Bicampeonato)', coach: 'Muricy Ramalho',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
-      { name: 'Rogerio Ceni', pos: ['GOL'], ovr: 89 },
-      { name: 'Ilsinho', pos: ['LD', 'PD'], ovr: 78 },
-      { name: 'Fabao', pos: ['ZAG'], ovr: 80 },
+      { name: 'Rogério Ceni', pos: ['GOL'], ovr: 92 },
+      { name: 'Breno', pos: ['ZAG'], ovr: 82 },
       { name: 'Miranda', pos: ['ZAG'], ovr: 84 },
-      { name: 'Lugano', pos: ['ZAG'], ovr: 84 },
-      { name: 'Junior', pos: ['LE'], ovr: 77 },
-      { name: 'Mineiro', pos: ['VOL'], ovr: 82 },
-      { name: 'Josue', pos: ['VOL', 'MEI'], ovr: 81 },
-      { name: 'Danilo', pos: ['MEI'], ovr: 81 },
-      { name: 'Hernanes', pos: ['MEI'], ovr: 86 },
-      { name: 'Grafite', pos: ['ATA'], ovr: 85 },
-      { name: 'Aloisio', pos: ['ATA'], ovr: 80 },
-      { name: 'Borges', pos: ['ATA'], ovr: 79 },
-      { name: 'Cicinho', pos: ['LD', 'PD'], ovr: 79 },
-      { name: 'Diego Tardelli', pos: ['ATA'], ovr: 80 },
       { name: 'Alex Silva', pos: ['ZAG'], ovr: 74 },
-      { name: 'Souza', pos: ['MEI'], ovr: 79 },
-      { name: 'Lucas', pos: ['PD'], ovr: 75 },
-      { name: 'Pablo', pos: ['ZAG'], ovr: 73 },
-      { name: 'Rodrigo', pos: ['LD'], ovr: 70 },
-    ]
-  },
-  {
-    id: 'sao-paulo2008', club: 'Sao Paulo', year: 2008, label: 'Sao Paulo 2008 (Tricampeonato)', coach: 'Muricy Ramalho',
+      { name: 'Ilsinho', pos: ['LD','MD','MC'], ovr: 78 },
+      { name: 'Jorge Wagner', pos: ['ME','MEI','LE'], ovr: 82 },
+      { name: 'Josué', pos: ['VOL'], ovr: 81 },
+      { name: 'Richarlyson', pos: ['VOL','LE','ZAG','MC'], ovr: 79 },
+      { name: 'Hernanes', pos: ['MC','VOL','MEI'], ovr: 86 },
+      { name: 'Aloísio Chulapa', pos: ['ATA'], ovr: 80 },
+      { name: 'Borges', pos: ['ATA'], ovr: 79 },
+      { name: 'Bosco', pos: ['GOL'], ovr: 74 },
+      { name: 'Reasco', pos: ['LD'], ovr: 76 },
+      { name: 'Júnior', pos: ['LE','ME','MC'], ovr: 77 },
+      { name: 'Jadilson', pos: ['LE','ME'], ovr: 76 },
+      { name: 'André Dias', pos: ['ZAG'], ovr: 78 },
+      { name: 'Fernando', pos: ['VOL'], ovr: 77 },
+      { name: 'Hugo', pos: ['MEI','MC','ME'], ovr: 75 },
+      { name: 'Leandro', pos: ['ATA','MD','PD'], ovr: 76 },
+      { name: 'Dagoberto', pos: ['ATA','PE','PD'], ovr: 81 },
+    ]},
+  { id: 'sao-paulo2008', club: 'Sao Paulo', year: 2008, label: 'Sao Paulo 2008 (Tricampeonato)', coach: 'Muricy Ramalho',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
-      { name: 'Rogerio Ceni', pos: ['GOL'], ovr: 88 },
-      { name: 'Ilsinho', pos: ['LD', 'PD'], ovr: 77 },
+      { name: 'Rogerio Ceni', pos: ['GOL'], ovr: 91 },
+      { name: 'Ilsinho', pos: ['LD','PD'], ovr: 77 },
       { name: 'Fabao', pos: ['ZAG'], ovr: 80 },
       { name: 'Miranda', pos: ['ZAG'], ovr: 85 },
       { name: 'Lugano', pos: ['ZAG'], ovr: 84 },
-      { name: 'Junior', pos: ['LE'], ovr: 76 },
-      { name: 'Mineiro', pos: ['VOL'], ovr: 82 },
-      { name: 'Josue', pos: ['VOL', 'MEI'], ovr: 80 },
-      { name: 'Danilo', pos: ['MEI'], ovr: 80 },
-      { name: 'Hernanes', pos: ['MEI'], ovr: 88 },
+      { name: 'Junior', pos: ['LE','MC'], ovr: 76 },
+      { name: 'Mineiro', pos: ['VOL','MC'], ovr: 82 },
+      { name: 'Josue', pos: ['VOL','MEI'], ovr: 80 },
+      { name: 'Danilo', pos: ['MEI','MC'], ovr: 80 },
+      { name: 'Hernanes', pos: ['MEI','MC'], ovr: 88 },
       { name: 'Borges', pos: ['ATA'], ovr: 80 },
       { name: 'Aloisio', pos: ['ATA'], ovr: 79 },
       { name: 'Diego Tardelli', pos: ['ATA'], ovr: 81 },
@@ -1126,143 +804,131 @@ const TEAMS = [
       { name: 'Alex Silva', pos: ['ZAG'], ovr: 74 },
       { name: 'Eder Luis', pos: ['ATA'], ovr: 74 },
       { name: 'Rafael', pos: ['ZAG'], ovr: 73 },
-      { name: 'Jadson', pos: ['MEI'], ovr: 77 },
+      { name: 'Jadson', pos: ['MEI','MC'], ovr: 77 },
       { name: 'Junior Cesar', pos: ['LE'], ovr: 72 },
-      { name: 'Souza', pos: ['MEI'], ovr: 79 },
-    ]
-  },
-  {
-    id: 'flamengo2009', club: 'Flamengo', year: 2009, label: 'Flamengo 2009 (Hexacampeonato)', coach: 'Andrade',
+      { name: 'Souza', pos: ['MEI','MC'], ovr: 79 },
+    ]},
+  { id: 'flamengo2009', club: 'Flamengo', year: 2009, label: 'Flamengo 2009 (Hexacampeonato)', coach: 'Andrade',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
-      { name: 'Bruno', pos: ['GOL'], ovr: 87 },
-      { name: 'Leo Moura', pos: ['LD', 'PD'], ovr: 86 },
-      { name: 'David Braz', pos: ['ZAG'], ovr: 80 },
+      { name: 'Bruno', pos: ['GOL'], ovr: 82 },
       { name: 'Ronaldo Angelim', pos: ['ZAG'], ovr: 82 },
+      { name: 'Leo Moura', pos: ['LD','PD'], ovr: 86 },
+      { name: 'Willians', pos: ['LE'], ovr: 79 },
+      { name: 'Wellinton Souza', pos: ['ZAG'], ovr: 78 },
+      { name: 'Ze Roberto', pos: ['MD','MEI'], ovr: 80 },
+      { name: 'Gonzalo Fierro', pos: ['MEI','MC'], ovr: 81 },
+      { name: 'Petkovic', pos: ['MEI','MC'], ovr: 85 },
+      { name: 'Rafael Toro', pos: ['MC','MEI'], ovr: 78 },
+      { name: 'Adriano', pos: ['ATA','MEI'], ovr: 88 },
+      { name: 'Kleber', pos: ['ATA'], ovr: 83 },
       { name: 'Juan', pos: ['ZAG'], ovr: 84 },
-      { name: 'Gonzalez', pos: ['LE'], ovr: 79 },
-      { name: 'Airton', pos: ['VOL'], ovr: 79 },
-      { name: 'Willians', pos: ['VOL'], ovr: 80 },
-      { name: 'Petkovic', pos: ['MEI'], ovr: 85 },
-      { name: 'Adriano', pos: ['ATA'], ovr: 91 },
-      { name: 'Obina', pos: ['ATA'], ovr: 80 },
-      { name: 'Ze Roberto', pos: ['MEI', 'ATA'], ovr: 80 },
-      { name: 'Kleberson', pos: ['VOL', 'MEI'], ovr: 81 },
-      { name: 'Josiel', pos: ['PD'], ovr: 76 },
-      { name: 'Everton', pos: ['ATA'], ovr: 78 },
-      { name: 'Alvaro', pos: ['ZAG'], ovr: 78 },
-      { name: 'Fierro', pos: ['MEI'], ovr: 75 },
-      { name: 'Camacho', pos: ['ATA'], ovr: 72 },
-      { name: 'Denis Marques', pos: ['ATA'], ovr: 72 },
-      { name: 'Bruno Mezenga', pos: ['ATA'], ovr: 73 },
-    ]
-  },
-  {
-    id: 'santos2010', club: 'Santos', year: 2010, label: 'Santos 2010 (Copa do Brasil)', coach: 'Dorival Junior',
+      { name: 'Alvaro', pos: ['LD','LE'], ovr: 74 },
+      { name: 'Emerson Sheik', pos: ['PD','ATA'], ovr: 78 },
+      { name: 'Maldonado', pos: ['VOL','MC'], ovr: 74 },
+      { name: 'Denis Marques', pos: ['ATA'], ovr: 73 },
+      { name: 'Everton Silva', pos: ['ZAG'], ovr: 74 },
+      { name: 'David Braz', pos: ['ZAG'], ovr: 80 },
+      { name: 'Ibson', pos: ['VOL','MC'], ovr: 79 },
+      { name: 'Diego', pos: ['GOL'], ovr: 72 },
+    ]},
+  { id: 'santos2010', club: 'Santos', year: 2010, label: 'Santos 2010 (Copa do Brasil)', coach: 'Dorival Junior',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Rafael', pos: ['GOL'], ovr: 80 },
-      { name: 'Danilo', pos: ['LD', 'PD'], ovr: 83 },
-      { name: 'Edu Dracena', pos: ['ZAG'], ovr: 83 },
-      { name: 'Durval', pos: ['ZAG'], ovr: 80 },
+      { name: 'Rafael', pos: ['GOL'], ovr: 87 },
+      { name: 'Danilo', pos: ['LD','MC','VOL'], ovr: 83 },
+      { name: 'Edu Dracena', pos: ['ZAG'], ovr: 85 },
+      { name: 'Durval', pos: ['ZAG'], ovr: 86 },
       { name: 'Leo', pos: ['LE'], ovr: 81 },
-      { name: 'Adriano', pos: ['VOL'], ovr: 79 },
-      { name: 'Arouca', pos: ['VOL', 'MEI'], ovr: 83 },
-      { name: 'Elano', pos: ['MEI'], ovr: 87 },
-      { name: 'Paulo Henrique Ganso', pos: ['MEI'], ovr: 88 },
-      { name: 'Robinho', pos: ['PE', 'ATA'], ovr: 89 },
-      { name: 'Neymar', pos: ['ATA', 'PE'], ovr: 93 },
+      { name: 'Adriano', pos: ['VOL','MC'], ovr: 79 },
+      { name: 'Arouca', pos: ['VOL','MC'], ovr: 85 },
+      { name: 'Elano', pos: ['MEI','MD'], ovr: 87 },
+      { name: 'Paulo Henrique Ganso', pos: ['MEI','MC'], ovr: 88 },
+      { name: 'Robinho', pos: ['PE','ME'], ovr: 89 },
+      { name: 'Neymar', pos: ['ATA','PE'], ovr: 93 },
       { name: 'Andre', pos: ['ATA'], ovr: 82 },
       { name: 'Ze Eduardo', pos: ['ATA'], ovr: 79 },
       { name: 'Alan Kardec', pos: ['ATA'], ovr: 78 },
-      { name: 'Alan Patrick', pos: ['MEI'], ovr: 78 },
-      { name: 'Alex Sandro', pos: ['LE'], ovr: 78 },
-      { name: 'Wesley', pos: ['VOL'], ovr: 79 },
+      { name: 'Alan Patrick', pos: ['MEI','MC'], ovr: 78 },
+      { name: 'Alex Sandro', pos: ['LE'], ovr: 81 },
+      { name: 'Wesley', pos: ['VOL','MC','LD','MD'], ovr: 82 },
       { name: 'Bruno Rodrigo', pos: ['ZAG'], ovr: 79 },
       { name: 'Felipe', pos: ['GOL'], ovr: 75 },
       { name: 'Para', pos: ['LD'], ovr: 78 },
-    ]
-  },
-  {
-    id: 'fluminense2010', club: 'Fluminense', year: 2010, label: 'Fluminense 2010 (Tricampeonato)', coach: 'Muricy Ramalho',
+    ]},
+  { id: 'fluminense2010', club: 'Fluminense', year: 2010, label: 'Fluminense 2010 (Tricampeonato)', coach: 'Muricy Ramalho',
     colors: { p: '#7a1e3c', s: '#006437' },
     players: [
       { name: 'Ricardo Berna', pos: ['GOL'], ovr: 79 },
-      { name: 'Mariano', pos: ['LD', 'MD'], ovr: 83 },
+      { name: 'Mariano', pos: ['LD','MD'], ovr: 83 },
       { name: 'Gum', pos: ['ZAG'], ovr: 81 },
       { name: 'Leandro Euzebio', pos: ['ZAG'], ovr: 80 },
       { name: 'Carlinhos', pos: ['LE'], ovr: 79 },
-      { name: 'Diguinho', pos: ['VOL', 'MC'], ovr: 80 },
-      { name: 'Deco', pos: ['MC', 'MEI'], ovr: 85 },
-      { name: 'Conca', pos: ['MEI', 'MC'], ovr: 88 },
-      { name: 'Emerson Sheik', pos: ['ATA', 'PE'], ovr: 79 },
+      { name: 'Diguinho', pos: ['VOL','MC'], ovr: 80 },
+      { name: 'Deco', pos: ['MC'], ovr: 85 },
+      { name: 'Conca', pos: ['MEI','MC'], ovr: 88 },
+      { name: 'Emerson Sheik', pos: ['ATA','ME'], ovr: 79 },
       { name: 'Washington', pos: ['ATA'], ovr: 82 },
       { name: 'Fred', pos: ['ATA'], ovr: 86 },
       { name: 'Fernando Henrique', pos: ['GOL'], ovr: 76 },
       { name: 'Valencia', pos: ['VOL'], ovr: 78 },
-      { name: 'Rodrigo Souto', pos: ['VOL', 'MC'], ovr: 77 },
-      { name: 'Julio Cesar', pos: ['LE', 'ME'], ovr: 76 },
-      { name: 'Thiago Neves', pos: ['MEI', 'PE'], ovr: 76 },
-      { name: 'Marquinho', pos: ['ME', 'MC'], ovr: 76 },
-      { name: 'Rodrigueiro', pos: ['MEI'], ovr: 74 },
-      { name: 'Alan', pos: ['ATA', 'PD'], ovr: 74 },
+      { name: 'Rodrigo Souto', pos: ['VOL','MC'], ovr: 77 },
+      { name: 'Julio Cesar', pos: ['LE','ME'], ovr: 76 },
+      { name: 'Thiago Neves', pos: ['MEI','ME'], ovr: 76 },
+      { name: 'Marquinho', pos: ['ME','MC'], ovr: 76 },
+      { name: 'Rodrigueiro', pos: ['MEI','MC'], ovr: 74 },
+      { name: 'Alan', pos: ['ATA','ME'], ovr: 74 },
       { name: 'Andre Luis', pos: ['ZAG'], ovr: 73 },
-    ]
-  },
-  {
-    id: 'santos2011', club: 'Santos', year: 2011, label: 'Santos 2011 (Libertadores)', coach: 'Adilson Batista',
+    ]},
+  { id: 'santos2011', club: 'Santos', year: 2011, label: 'Santos 2011 (Libertadores)', coach: 'Adilson Batista',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Rafael', pos: ['GOL'], ovr: 82 },
-      { name: 'Danilo', pos: ['LD', 'PD'], ovr: 85 },
+      { name: 'Rafael Cabral', pos: ['GOL'], ovr: 82 },
+      { name: 'Danilo', pos: ['LD','VOL','MC','MD'], ovr: 85 },
       { name: 'Edu Dracena', pos: ['ZAG'], ovr: 84 },
       { name: 'Durval', pos: ['ZAG'], ovr: 78 },
-      { name: 'Leo', pos: ['LE'], ovr: 82 },
-      { name: 'Adriano', pos: ['VOL'], ovr: 79 },
-      { name: 'Arouca', pos: ['VOL', 'MEI'], ovr: 84 },
-      { name: 'Elano', pos: ['MEI'], ovr: 87 },
-      { name: 'Paulo Henrique Ganso', pos: ['MEI'], ovr: 89 },
-      { name: 'Neymar', pos: ['ATA', 'PE'], ovr: 95 },
-      { name: 'Ze Eduardo', pos: ['ATA'], ovr: 80 },
-      { name: 'Andre', pos: ['ATA'], ovr: 83 },
-      { name: 'Robinho', pos: ['PE', 'ATA'], ovr: 87 },
-      { name: 'Alex Sandro', pos: ['LE'], ovr: 80 },
-      { name: 'Bruno Rodrigo', pos: ['ZAG'], ovr: 79 },
-      { name: 'Jonathan', pos: ['LD'], ovr: 76 },
-      { name: 'Alan Kardec', pos: ['ATA'], ovr: 78 },
-      { name: 'Maikon Leite', pos: ['ATA', 'PD'], ovr: 78 },
+      { name: 'Léo', pos: ['LE','ME'], ovr: 82 },
+      { name: 'Arouca', pos: ['VOL','MC'], ovr: 84 },
+      { name: 'Wesley', pos: ['MC','LD','VOL'], ovr: 78 },
+      { name: 'Ganso', pos: ['MEI','MC'], ovr: 89 },
+      { name: 'Marquinhos', pos: ['MEI','MC'], ovr: 78 },
+      { name: 'Neymar', pos: ['PE','PD','MEI','ATA'], ovr: 95 },
+      { name: 'Zé Eduardo', pos: ['ATA','PE','PD'], ovr: 80 },
       { name: 'Felipe', pos: ['GOL'], ovr: 77 },
-      { name: 'Marquinhos', pos: ['VOL'], ovr: 78 },
-    ]
-  },
-  {
-    id: 'corinthians2011', club: 'Corinthians', year: 2011, label: 'Corinthians 2011 (Pentacampeonato)', coach: 'Tite',
+      { name: 'Pará', pos: ['LD','LE','VOL'], ovr: 80 },
+      { name: 'Alex Sandro', pos: ['LE','ME'], ovr: 80 },
+      { name: 'Bruno Aguiar', pos: ['ZAG'], ovr: 76 },
+      { name: 'Roberto Brum', pos: ['VOL'], ovr: 76 },
+      { name: 'Rodrigo Mancha', pos: ['VOL'], ovr: 75 },
+      { name: 'Madson', pos: ['MEI','PD'], ovr: 78 },
+      { name: 'Robinho', pos: ['ATA','PE','PD'], ovr: 87 },
+      { name: 'André', pos: ['ATA'], ovr: 83 },
+    ]},
+  { id: 'corinthians2011', club: 'Corinthians', year: 2011, label: 'Corinthians 2011 (Pentacampeonato)', coach: 'Tite',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Cassio', pos: ['GOL'], ovr: 87 },
-      { name: 'Alessandro', pos: ['LD'], ovr: 80 },
-      { name: 'Chicao', pos: ['ZAG'], ovr: 84 },
-      { name: 'Leandro Castan', pos: ['ZAG'], ovr: 84 },
-      { name: 'Fabio Santos', pos: ['LE'], ovr: 82 },
-      { name: 'Ralf', pos: ['VOL'], ovr: 85 },
-      { name: 'Paulinho', pos: ['VOL', 'MEI'], ovr: 88 },
-      { name: 'Danilo', pos: ['MEI', 'PD'], ovr: 85 },
-      { name: 'Alex', pos: ['MEI'], ovr: 85 },
-      { name: 'Paolo Guerrero', pos: ['ATA'], ovr: 88 },
-      { name: 'Emerson Sheik', pos: ['ATA', 'MEI'], ovr: 85 },
-      { name: 'Jorge Henrique', pos: ['PD', 'ATA'], ovr: 80 },
-      { name: 'Liedson', pos: ['ATA'], ovr: 82 },
-      { name: 'Willian', pos: ['PD', 'MEI'], ovr: 84 },
-      { name: 'Adriano', pos: ['ATA'], ovr: 80 },
-      { name: 'Romarinho', pos: ['ATA'], ovr: 78 },
-      { name: 'Paulo Andre', pos: ['ZAG'], ovr: 80 },
-      { name: 'Julio Cesar', pos: ['GOL'], ovr: 80 },
-      { name: 'Douglas', pos: ['MEI'], ovr: 74 },
-      { name: 'Guilherme', pos: ['ATA'], ovr: 73 },
-    ]
-  },
-  {
-    id: 'fluminense2012', club: 'Fluminense', year: 2012, label: 'Fluminense 2012 (Tetracampeonato)', coach: 'Abel Braga',
+      { name: 'Júlio César', pos: ['GOL'], ovr: 78 },
+      { name: 'Alessandro', pos: ['LD','LE'], ovr: 79 },
+      { name: 'Chicão', pos: ['ZAG'], ovr: 84 },
+      { name: 'Leandro Castán', pos: ['ZAG','LE'], ovr: 85 },
+      { name: 'Fábio Santos', pos: ['LE'], ovr: 83 },
+      { name: 'Ralf', pos: ['VOL'], ovr: 86 },
+      { name: 'Paulinho', pos: ['VOL','MC'], ovr: 88 },
+      { name: 'Alex', pos: ['MC','MEI','ME'], ovr: 85 },
+      { name: 'Danilo', pos: ['MEI','MC','PE','ATA'], ovr: 84 },
+      { name: 'Emerson Sheik', pos: ['PE','ATA','PD'], ovr: 85 },
+      { name: 'Liédson', pos: ['ATA'], ovr: 82 },
+      { name: 'Danilo Fernandes', pos: ['GOL'], ovr: 74 },
+      { name: 'Weldinho', pos: ['LD'], ovr: 74 },
+      { name: 'Ramon', pos: ['LE','ME'], ovr: 76 },
+      { name: 'Wallace', pos: ['ZAG'], ovr: 79 },
+      { name: 'Paulo André', pos: ['ZAG'], ovr: 80 },
+      { name: 'Edenílson', pos: ['VOL','LD','MD'], ovr: 77 },
+      { name: 'Morais', pos: ['MEI','MD'], ovr: 76 },
+      { name: 'Jorge Henrique', pos: ['PD','PE','MD'], ovr: 80 },
+      { name: 'Willian Bigode', pos: ['ATA','PD','PE'], ovr: 76 },
+    ]},
+  { id: 'fluminense2012', club: 'Fluminense', year: 2012, label: 'Fluminense 2012 (Tetracampeonato)', coach: 'Abel Braga',
     colors: { p: '#7a1e3c', s: '#006437' },
     players: [
       { name: 'Diego Cavalieri', pos: ['GOL'], ovr: 84 },
@@ -1270,103 +936,95 @@ const TEAMS = [
       { name: 'Gum', pos: ['ZAG'], ovr: 85 },
       { name: 'Leandro Euzebio', pos: ['ZAG'], ovr: 82 },
       { name: 'Carlinhos', pos: ['LE'], ovr: 82 },
-      { name: 'Edinho', pos: ['VOL', 'MEI'], ovr: 78 },
-      { name: 'Jean', pos: ['VOL'], ovr: 79 },
-      { name: 'Deco', pos: ['MEI'], ovr: 87 },
-      { name: 'Thiago Neves', pos: ['MEI'], ovr: 88 },
-      { name: 'Wellington Nem', pos: ['PD', 'MEI'], ovr: 83 },
+      { name: 'Edinho', pos: ['VOL','ME'], ovr: 78 },
+      { name: 'Jean', pos: ['VOL','MC'], ovr: 79 },
+      { name: 'Deco', pos: ['MEI','MC'], ovr: 87 },
+      { name: 'Thiago Neves', pos: ['MEI','ME'], ovr: 88 },
+      { name: 'Wellington Nem', pos: ['PD','MEI'], ovr: 83 },
       { name: 'Fred', pos: ['ATA'], ovr: 90 },
       { name: 'Rafael Sobis', pos: ['ATA'], ovr: 82 },
       { name: 'Rafael Moura', pos: ['ATA'], ovr: 79 },
-      { name: 'Wagner', pos: ['MEI'], ovr: 76 },
-      { name: 'Lanzini', pos: ['MEI'], ovr: 80 },
-      { name: 'Michael', pos: ['MEI'], ovr: 74 },
+      { name: 'Wagner', pos: ['MEI','MC'], ovr: 76 },
+      { name: 'Lanzini', pos: ['MEI','MC'], ovr: 80 },
+      { name: 'Michael', pos: ['MEI','MD'], ovr: 74 },
       { name: 'Rodrigo Lindoso', pos: ['VOL'], ovr: 78 },
       { name: 'Samuel', pos: ['ATA'], ovr: 73 },
-      { name: 'Martinuccio', pos: ['MEI'], ovr: 74 },
+      { name: 'Martinuccio', pos: ['MEI','MC'], ovr: 74 },
       { name: 'Anderson', pos: ['ZAG'], ovr: 78 },
-    ]
-  },
-  {
-    id: 'atletico-mg2013', club: 'Atletico-MG', year: 2013, label: 'Atletico-MG 2013 (Libertadores)', coach: 'Cuca',
+    ]},
+  { id: 'atletico-mg2013', club: 'Atletico-MG', year: 2013, label: 'Atletico-MG 2013 (Libertadores)', coach: 'Cuca',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Victor', pos: ['GOL'], ovr: 93 },
-      { name: 'Marcos Rocha', pos: ['LD'], ovr: 83 },
-      { name: 'Rever', pos: ['ZAG'], ovr: 84 },
-      { name: 'Leonardo Silva', pos: ['ZAG'], ovr: 83 },
-      { name: 'Junior Cesar', pos: ['LE'], ovr: 80 },
-      { name: 'Richarlyson', pos: ['LE', 'VOL'], ovr: 82 },
-      { name: 'Pierre', pos: ['VOL'], ovr: 85 },
-      { name: 'Josue', pos: ['VOL', 'MEI'], ovr: 82 },
-      { name: 'Ronaldinho Gaucho', pos: ['MEI'], ovr: 91 },
-      { name: 'Diego Tardelli', pos: ['MEI', 'ATA'], ovr: 89 },
-      { name: 'Bernard', pos: ['PD', 'MEI'], ovr: 88 },
-      { name: 'Jo', pos: ['ATA'], ovr: 86 },
-      { name: 'Guilherme', pos: ['ATA'], ovr: 81 },
-      { name: 'Luan', pos: ['ATA', 'PE'], ovr: 82 },
-      { name: 'Alecsandro', pos: ['ATA'], ovr: 79 },
-      { name: 'Michel', pos: ['LD'], ovr: 80 },
-      { name: 'Jemerson', pos: ['ZAG'], ovr: 80 },
-      { name: 'Rafael Carioca', pos: ['VOL'], ovr: 79 },
-      { name: 'Leandro Donizete', pos: ['MEI', 'VOL'], ovr: 83 },
-      { name: 'Douglas Santos', pos: ['LE'], ovr: 77 },
-    ]
-  },
-  {
-    id: 'cruzeiro2013', club: 'Cruzeiro', year: 2013, label: 'Cruzeiro 2013 (Brasileiro)', coach: 'Marcelo Oliveira',
+      { name: 'Victor', pos: ['GOL'], ovr: 91 },
+      { name: 'Marcos Rocha', pos: ['LD','MD'], ovr: 85 },
+      { name: 'Réver', pos: ['ZAG'], ovr: 87 },
+      { name: 'Leonardo Silva', pos: ['ZAG'], ovr: 87 },
+      { name: 'Junior Cesar', pos: ['LE'], ovr: 81 },
+      { name: 'Richarlyson', pos: ['LE','VOL','ZAG'], ovr: 81 },
+      { name: 'Pierre', pos: ['VOL'], ovr: 84 },
+      { name: 'Josué', pos: ['VOL'], ovr: 82 },
+      { name: 'Ronaldinho Gaúcho', pos: ['MEI','PE','ATA'], ovr: 95 },
+      { name: 'Diego Tardelli', pos: ['PD','ATA','PE'], ovr: 89 },
+      { name: 'Bernard', pos: ['PE','PD','MEI'], ovr: 87 },
+      { name: 'Giovanni', pos: ['GOL'], ovr: 78 },
+      { name: 'Carlos César', pos: ['LD'], ovr: 76 },
+      { name: 'Gilberto Silva', pos: ['ZAG','VOL'], ovr: 80 },
+      { name: 'Rafael Marques', pos: ['ZAG'], ovr: 77 },
+      { name: 'Leandro Donizete', pos: ['VOL','MC'], ovr: 84 },
+      { name: 'Guilherme', pos: ['MEI','ATA'], ovr: 82 },
+      { name: 'Leleu', pos: ['MEI'], ovr: 72 },
+      { name: 'Luan', pos: ['PD','PE'], ovr: 82 },
+      { name: 'Jô', pos: ['ATA'], ovr: 88 },
+    ]},
+  { id: 'cruzeiro2013', club: 'Cruzeiro', year: 2013, label: 'Cruzeiro 2013 (Brasileiro)', coach: 'Marcelo Oliveira',
     colors: { p: '#1c3f94', s: '#ffffff' },
     players: [
-      { name: 'Fabio', pos: ['GOL'], ovr: 87 },
-      { name: 'Ceara', pos: ['LD'], ovr: 82 },
-      { name: 'Bruno Rodrigo', pos: ['ZAG'], ovr: 81 },
-      { name: 'Dede', pos: ['ZAG'], ovr: 88 },
-      { name: 'Egidio', pos: ['LE'], ovr: 80 },
-      { name: 'Lucas Silva', pos: ['VOL'], ovr: 83 },
-      { name: 'Nilton', pos: ['VOL'], ovr: 84 },
-      { name: 'Everton Ribeiro', pos: ['MEI', 'PD'], ovr: 91 },
-      { name: 'Ricardo Goulart', pos: ['MEI', 'ATA'], ovr: 88 },
-      { name: 'Borges', pos: ['ATA'], ovr: 81 },
-      { name: 'Marcelo Moreno', pos: ['ATA'], ovr: 83 },
-      { name: 'Mayke', pos: ['LD'], ovr: 78 },
-      { name: 'Leo', pos: ['ZAG'], ovr: 79 },
-      { name: 'Willian', pos: ['ATA', 'PE'], ovr: 84 },
-      { name: 'Julio Baptista', pos: ['MEI'], ovr: 79 },
-      { name: 'Diego Souza', pos: ['MEI'], ovr: 80 },
-      { name: 'Dagoberto', pos: ['ATA'], ovr: 75 },
-      { name: 'Rafael', pos: ['GOL'], ovr: 75 },
-      { name: 'Cris', pos: ['ZAG'], ovr: 78 },
-      { name: 'Samudio', pos: ['LE'], ovr: 73 },
-    ]
-  },
-  {
-    id: 'cruzeiro2014', club: 'Cruzeiro', year: 2014, label: 'Cruzeiro 2014 (Tetracampeonato)', coach: 'Marcelo Oliveira',
+      { name: 'Fábio', pos: ['GOL'], ovr: 89 },
+      { name: 'Ceará', pos: ['LD'], ovr: 82 },
+      { name: 'Dedé', pos: ['ZAG'], ovr: 86 },
+      { name: 'Bruno Rodrigo', pos: ['ZAG'], ovr: 84 },
+      { name: 'Egídio', pos: ['LE','ME'], ovr: 82 },
+      { name: 'Nilton', pos: ['VOL'], ovr: 85 },
+      { name: 'Lucas Silva', pos: ['VOL','MC'], ovr: 84 },
+      { name: 'Éverton Ribeiro', pos: ['MEI','PD','MC'], ovr: 91 },
+      { name: 'Ricardo Goulart', pos: ['MEI','ATA'], ovr: 87 },
+      { name: 'Willian Bigode', pos: ['PE','PD','ATA'], ovr: 85 },
+      { name: 'Borges', pos: ['ATA'], ovr: 85 },
+      { name: 'Rafael', pos: ['GOL'], ovr: 79 },
+      { name: 'Mayke', pos: ['LD','MD'], ovr: 82 },
+      { name: 'Leo', pos: ['ZAG','LD'], ovr: 80 },
+      { name: 'Paulão', pos: ['ZAG'], ovr: 77 },
+      { name: 'Henrique', pos: ['VOL'], ovr: 81 },
+      { name: 'Leandro Guerreiro', pos: ['VOL','ZAG'], ovr: 77 },
+      { name: 'Júlio Baptista', pos: ['MEI','ATA'], ovr: 81 },
+      { name: 'Luan', pos: ['PD','PE'], ovr: 79 },
+      { name: 'Dagoberto', pos: ['PE','ATA'], ovr: 84 },
+    ]},
+  { id: 'cruzeiro2014', club: 'Cruzeiro', year: 2014, label: 'Cruzeiro 2014 (Tetracampeonato)', coach: 'Marcelo Oliveira',
     colors: { p: '#1c3f94', s: '#ffffff' },
     players: [
-      { name: 'Fabio', pos: ['GOL'], ovr: 87 },
-      { name: 'Ceara', pos: ['LD'], ovr: 82 },
-      { name: 'Dede', pos: ['ZAG'], ovr: 90 },
+      { name: 'Fábio', pos: ['GOL'], ovr: 87 },
+      { name: 'Ceará', pos: ['LD'], ovr: 82 },
+      { name: 'Dedé', pos: ['ZAG'], ovr: 90 },
       { name: 'Bruno Rodrigo', pos: ['ZAG'], ovr: 81 },
-      { name: 'Egidio', pos: ['LE'], ovr: 81 },
-      { name: 'Lucas Silva', pos: ['VOL'], ovr: 84 },
+      { name: 'Egídio', pos: ['LE','ME'], ovr: 81 },
+      { name: 'Lucas Silva', pos: ['VOL','MC'], ovr: 84 },
       { name: 'Henrique', pos: ['VOL'], ovr: 81 },
       { name: 'Nilton', pos: ['VOL'], ovr: 83 },
-      { name: 'Everton Ribeiro', pos: ['MEI', 'PD'], ovr: 90 },
-      { name: 'Ricardo Goulart', pos: ['MEI', 'ATA'], ovr: 89 },
+      { name: 'Éverton Ribeiro', pos: ['MEI','PD','MC'], ovr: 90 },
+      { name: 'Ricardo Goulart', pos: ['MEI','ATA','MC'], ovr: 89 },
       { name: 'Marcelo Moreno', pos: ['ATA'], ovr: 85 },
-      { name: 'Willian', pos: ['ATA', 'PE'], ovr: 83 },
-      { name: 'Borges', pos: ['ATA'], ovr: 79 },
-      { name: 'Dagoberto', pos: ['ATA'], ovr: 74 },
-      { name: 'Luan', pos: ['ATA'], ovr: 76 },
-      { name: 'Mayke', pos: ['LD'], ovr: 80 },
-      { name: 'Leo', pos: ['ZAG'], ovr: 80 },
-      { name: 'Elisson', pos: ['GOL'], ovr: 73 },
+      { name: 'Rafael', pos: ['GOL'], ovr: 75 },
+      { name: 'Mayke', pos: ['LD','MD'], ovr: 80 },
+      { name: 'Samudio', pos: ['LE'], ovr: 73 },
       { name: 'Manoel', pos: ['ZAG'], ovr: 78 },
-      { name: 'Bruno Ramires', pos: ['VOL'], ovr: 79 },
-    ]
-  },
-  {
-    id: 'corinthians2015', club: 'Corinthians', year: 2015, label: 'Corinthians 2015 (Hexacampeonato)', coach: 'Tite',
+      { name: 'Leo', pos: ['ZAG','LD'], ovr: 80 },
+      { name: 'Willian Farias', pos: ['VOL'], ovr: 79 },
+      { name: 'Marlone', pos: ['MEI','PE'], ovr: 78 },
+      { name: 'Marquinhos', pos: ['PD','PE'], ovr: 77 },
+      { name: 'Willian Bigode', pos: ['PE','PD','ATA'], ovr: 75 },
+    ]},
+  { id: 'corinthians2015', club: 'Corinthians', year: 2015, label: 'Corinthians 2015 (Hexacampeonato)', coach: 'Tite',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Cassio', pos: ['GOL'], ovr: 89 },
@@ -1374,25 +1032,23 @@ const TEAMS = [
       { name: 'Gil Baiano', pos: ['ZAG'], ovr: 87 },
       { name: 'Edu Dracena', pos: ['ZAG'], ovr: 84 },
       { name: 'Guilherme Arana', pos: ['LE'], ovr: 83 },
-      { name: 'Ralf', pos: ['VOL'], ovr: 85 },
-      { name: 'Elias', pos: ['VOL', 'MEI'], ovr: 84 },
-      { name: 'Renato Augusto', pos: ['MEI'], ovr: 86 },
-      { name: 'Jadson', pos: ['MEI'], ovr: 88 },
-      { name: 'Roberto Firmino', pos: ['ATA', 'MEI'], ovr: 85 },
-      { name: 'Malcom', pos: ['PD', 'ATA'], ovr: 82 },
+      { name: 'Ralf', pos: ['VOL','MC'], ovr: 85 },
+      { name: 'Elias', pos: ['VOL','MEI'], ovr: 84 },
+      { name: 'Renato Augusto', pos: ['MEI','MC'], ovr: 86 },
+      { name: 'Jadson', pos: ['MEI','MC'], ovr: 88 },
+      { name: 'Roberto Firmino', pos: ['ATA','MEI'], ovr: 85 },
+      { name: 'Malcom', pos: ['PD','MD'], ovr: 82 },
       { name: 'Alessandro', pos: ['LD'], ovr: 78 },
       { name: 'Chicao', pos: ['ZAG'], ovr: 82 },
-      { name: 'Rodriguinho', pos: ['MEI'], ovr: 83 },
-      { name: 'Willian Arao', pos: ['VOL'], ovr: 80 },
-      { name: 'Petros', pos: ['VOL'], ovr: 77 },
+      { name: 'Rodriguinho', pos: ['MEI','MC'], ovr: 83 },
+      { name: 'Willian Arao', pos: ['VOL','MC'], ovr: 80 },
+      { name: 'Petros', pos: ['VOL','MC'], ovr: 77 },
       { name: 'Lucca', pos: ['ATA'], ovr: 73 },
       { name: 'Luciano', pos: ['ATA'], ovr: 79 },
       { name: 'Danilo Avelar', pos: ['LE'], ovr: 77 },
       { name: 'Uendel', pos: ['LE'], ovr: 78 },
-    ]
-  },
-  {
-    id: 'palmeiras2016', club: 'Palmeiras', year: 2016, label: 'Palmeiras 2016', coach: 'Cuca',
+    ]},
+  { id: 'palmeiras2016', club: 'Palmeiras', year: 2016, label: 'Palmeiras 2016', coach: 'Cuca',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Fernando Prass', pos: ['GOL'], ovr: 84 },
@@ -1400,51 +1056,47 @@ const TEAMS = [
       { name: 'Edu Dracena', pos: ['ZAG'], ovr: 83 },
       { name: 'Mina', pos: ['ZAG'], ovr: 84 },
       { name: 'Egidio', pos: ['LE'], ovr: 81 },
-      { name: 'Arouca', pos: ['VOL'], ovr: 83 },
-      { name: 'Felipe Melo', pos: ['VOL'], ovr: 87 },
-      { name: 'Thiago Santos', pos: ['VOL'], ovr: 79 },
-      { name: 'Allione', pos: ['MEI', 'PD'], ovr: 82 },
-      { name: 'Dudu', pos: ['PD', 'ATA'], ovr: 88 },
+      { name: 'Arouca', pos: ['VOL','MC'], ovr: 83 },
+      { name: 'Felipe Melo', pos: ['VOL','MC'], ovr: 87 },
+      { name: 'Thiago Santos', pos: ['VOL','MC'], ovr: 79 },
+      { name: 'Allione', pos: ['MEI','PD'], ovr: 82 },
+      { name: 'Dudu', pos: ['PD','MD'], ovr: 88 },
       { name: 'Gabriel Jesus', pos: ['ATA'], ovr: 91 },
-      { name: 'Cleiton Xavier', pos: ['MEI'], ovr: 79 },
-      { name: 'Tche Tche', pos: ['MEI', 'VOL'], ovr: 80 },
+      { name: 'Cleiton Xavier', pos: ['MEI','MC'], ovr: 79 },
+      { name: 'Tche Tche', pos: ['MEI','VOL'], ovr: 80 },
       { name: 'Rafael Marques', pos: ['ATA'], ovr: 77 },
-      { name: 'Willian', pos: ['ATA', 'PE'], ovr: 78 },
+      { name: 'Willian', pos: ['ATA','ME'], ovr: 78 },
       { name: 'Mauricio Ramos', pos: ['ZAG'], ovr: 76 },
-      { name: 'Jean', pos: ['LD'], ovr: 78 },
+      { name: 'Jean', pos: ['LD','MC'], ovr: 78 },
       { name: 'Thiago Martins', pos: ['ZAG'], ovr: 79 },
-      { name: 'Raphael Veiga', pos: ['MEI'], ovr: 80 },
-      { name: 'Roger Guedes', pos: ['ATA', 'PE'], ovr: 80 },
-    ]
-  },
-  {
-    id: 'corinthians2017', club: 'Corinthians', year: 2017, label: 'Corinthians 2017 (Heptacampeonato)', coach: 'Fabio Carille',
+      { name: 'Raphael Veiga', pos: ['MEI','MC'], ovr: 80 },
+      { name: 'Roger Guedes', pos: ['ATA','PE'], ovr: 80 },
+    ]},
+  { id: 'corinthians2017', club: 'Corinthians', year: 2017, label: 'Corinthians 2017 (Heptacampeonato)', coach: 'Fabio Carille',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Cassio', pos: ['GOL'], ovr: 90 },
+      { name: 'Cássio', pos: ['GOL'], ovr: 90 },
       { name: 'Fagner', pos: ['LD'], ovr: 85 },
-      { name: 'Pablo', pos: ['ZAG'], ovr: 82 },
       { name: 'Balbuena', pos: ['ZAG'], ovr: 84 },
-      { name: 'Guilherme Arana', pos: ['LE'], ovr: 83 },
-      { name: 'Ralf', pos: ['VOL'], ovr: 84 },
-      { name: 'Maycon', pos: ['VOL'], ovr: 85 },
-      { name: 'Jadson', pos: ['MEI'], ovr: 89 },
-      { name: 'Marlone', pos: ['MEI'], ovr: 82 },
-      { name: 'Jo', pos: ['ATA'], ovr: 87 },
-      { name: 'Romero', pos: ['PD', 'ATA'], ovr: 82 },
-      { name: 'Malcom', pos: ['PD', 'ATA'], ovr: 84 },
-      { name: 'Marquinhos Gabriel', pos: ['PD'], ovr: 80 },
-      { name: 'Rodriguinho', pos: ['MEI'], ovr: 84 },
-      { name: 'Kazim', pos: ['ATA'], ovr: 73 },
-      { name: 'Leo Santos', pos: ['ZAG'], ovr: 78 },
-      { name: 'Camacho', pos: ['MEI'], ovr: 74 },
-      { name: 'Mendoza', pos: ['PD'], ovr: 74 },
-      { name: 'Carlos', pos: ['LD'], ovr: 71 },
-      { name: 'Jo (reserva)', pos: ['ATA'], ovr: 75 },
-    ]
-  },
-  {
-    id: 'palmeiras2018', club: 'Palmeiras', year: 2018, label: 'Palmeiras 2018 (80 pontos recorde)', coach: 'Luiz Felipe Scolari',
+      { name: 'Pablo', pos: ['ZAG'], ovr: 82 },
+      { name: 'Guilherme Arana', pos: ['LE','ME'], ovr: 83 },
+      { name: 'Gabriel', pos: ['VOL'], ovr: 82 },
+      { name: 'Maycon', pos: ['VOL','MC','LE'], ovr: 85 },
+      { name: 'Jadson', pos: ['MEI','MD','MC'], ovr: 89 },
+      { name: 'Ángel Romero', pos: ['PD','PE','ATA'], ovr: 82 },
+      { name: 'Clayson', pos: ['PE','PD'], ovr: 80 },
+      { name: 'Jô', pos: ['ATA'], ovr: 87 },
+      { name: 'Walter', pos: ['GOL'], ovr: 75 },
+      { name: 'Léo Príncipe', pos: ['LD'], ovr: 76 },
+      { name: 'Moisés', pos: ['LE'], ovr: 76 },
+      { name: 'Pedro Henrique', pos: ['ZAG'], ovr: 77 },
+      { name: 'Camacho', pos: ['VOL','MC'], ovr: 74 },
+      { name: 'Paulo Roberto', pos: ['VOL','LD'], ovr: 76 },
+      { name: 'Rodriguinho', pos: ['MC','MEI','ATA'], ovr: 84 },
+      { name: 'Marquinhos Gabriel', pos: ['MEI','MD','PD'], ovr: 80 },
+      { name: 'Pedrinho', pos: ['PE','PD','MEI'], ovr: 78 },
+    ]},
+  { id: 'palmeiras2018', club: 'Palmeiras', year: 2018, label: 'Palmeiras 2018 (80 pontos recorde)', coach: 'Luiz Felipe Scolari',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Weverton', pos: ['GOL'], ovr: 89 },
@@ -1452,25 +1104,23 @@ const TEAMS = [
       { name: 'Gustavo Gomez', pos: ['ZAG'], ovr: 88 },
       { name: 'Luan', pos: ['ZAG'], ovr: 83 },
       { name: 'Diogo Barbosa', pos: ['LE'], ovr: 82 },
-      { name: 'Felipe Melo', pos: ['VOL'], ovr: 88 },
-      { name: 'Bruno Henrique', pos: ['VOL'], ovr: 84 },
-      { name: 'Ze Rafael', pos: ['VOL', 'MEI'], ovr: 83 },
-      { name: 'Hyoran', pos: ['MEI', 'PD'], ovr: 80 },
-      { name: 'Dudu', pos: ['PD', 'ATA'], ovr: 92 },
+      { name: 'Felipe Melo', pos: ['VOL','MC'], ovr: 88 },
+      { name: 'Bruno Henrique', pos: ['VOL','ME'], ovr: 84 },
+      { name: 'Ze Rafael', pos: ['VOL','MC'], ovr: 83 },
+      { name: 'Hyoran', pos: ['MEI','MC'], ovr: 80 },
+      { name: 'Dudu', pos: ['PD','MD'], ovr: 92 },
       { name: 'Borja', pos: ['ATA'], ovr: 81 },
-      { name: 'Lucas Lima', pos: ['MEI'], ovr: 82 },
-      { name: 'Willian', pos: ['ATA', 'PE'], ovr: 82 },
+      { name: 'Lucas Lima', pos: ['MEI','MC'], ovr: 82 },
+      { name: 'Willian', pos: ['ATA','ME'], ovr: 82 },
       { name: 'Deyverson', pos: ['ATA'], ovr: 80 },
-      { name: 'Moises', pos: ['VOL', 'LE'], ovr: 79 },
+      { name: 'Moises', pos: ['VOL','LE'], ovr: 79 },
       { name: 'Mayke', pos: ['LD'], ovr: 80 },
       { name: 'Edu Dracena', pos: ['ZAG'], ovr: 82 },
-      { name: 'Thiago Santos', pos: ['VOL'], ovr: 78 },
+      { name: 'Thiago Santos', pos: ['VOL','MC'], ovr: 78 },
       { name: 'Rafael Marques', pos: ['ATA'], ovr: 76 },
-      { name: 'Raphael Veiga', pos: ['MEI'], ovr: 80 },
-    ]
-  },
-  {
-    id: 'athletico-pr2019', club: 'Athletico-PR', year: 2019, label: 'Athletico-PR 2019 (Copa do Brasil)', coach: 'Tiago Nunes',
+      { name: 'Raphael Veiga', pos: ['MEI','MC'], ovr: 80 },
+    ]},
+  { id: 'athletico-pr2019', club: 'Athletico-PR', year: 2019, label: 'Athletico-PR 2019 (Copa do Brasil)', coach: 'Tiago Nunes',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
       { name: 'Santos', pos: ['GOL'], ovr: 82 },
@@ -1478,25 +1128,23 @@ const TEAMS = [
       { name: 'Pedro Henrique', pos: ['ZAG'], ovr: 80 },
       { name: 'Thiago Heleno', pos: ['ZAG'], ovr: 82 },
       { name: 'Leo Pereira', pos: ['LE'], ovr: 80 },
-      { name: 'Christian', pos: ['VOL'], ovr: 83 },
-      { name: 'Matheus Fernandes', pos: ['VOL'], ovr: 82 },
-      { name: 'Bruno Guimaraes', pos: ['VOL', 'MEI'], ovr: 86 },
-      { name: 'Nikao', pos: ['MEI', 'PD'], ovr: 88 },
-      { name: 'Rony', pos: ['PD', 'ATA'], ovr: 86 },
+      { name: 'Christian', pos: ['VOL','MC'], ovr: 83 },
+      { name: 'Matheus Fernandes', pos: ['VOL','MC'], ovr: 82 },
+      { name: 'Bruno Guimaraes', pos: ['VOL','MEI'], ovr: 86 },
+      { name: 'Nikao', pos: ['MEI','MD'], ovr: 88 },
+      { name: 'Rony', pos: ['PD','ME'], ovr: 86 },
       { name: 'Marco Ruben', pos: ['ATA'], ovr: 81 },
       { name: 'Jonathan', pos: ['GOL'], ovr: 75 },
       { name: 'Robson Bambu', pos: ['ZAG'], ovr: 79 },
       { name: 'Abner', pos: ['LE'], ovr: 77 },
-      { name: 'Lucho Gonzalez', pos: ['MEI'], ovr: 83 },
-      { name: 'Marcelo Cirino', pos: ['PE'], ovr: 81 },
-      { name: 'Wellington', pos: ['VOL'], ovr: 79 },
+      { name: 'Lucho Gonzalez', pos: ['MEI','MC'], ovr: 83 },
+      { name: 'Marcelo Cirino', pos: ['PE','ME'], ovr: 81 },
+      { name: 'Wellington', pos: ['VOL','MC'], ovr: 79 },
       { name: 'Jonathan Rios', pos: ['LD'], ovr: 78 },
       { name: 'Vitinho', pos: ['PD'], ovr: 80 },
-      { name: 'Marcinho', pos: ['LD'], ovr: 76 },
-    ]
-  },
-  {
-    id: 'flamengo2019', club: 'Flamengo', year: 2019, label: 'Flamengo 2019 (Bicampeonato + Libertadores)', coach: 'Jorge Jesus',
+      { name: 'Marcinho', pos: ['LD','MC'], ovr: 76 },
+    ]},
+  { id: 'flamengo2019', club: 'Flamengo', year: 2019, label: 'Flamengo 2019 (Bicampeonato + Libertadores)', coach: 'Jorge Jesus',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
       { name: 'Diego Alves', pos: ['GOL'], ovr: 87 },
@@ -1504,25 +1152,23 @@ const TEAMS = [
       { name: 'Rodrigo Caio', pos: ['ZAG'], ovr: 86 },
       { name: 'Pablo Mari', pos: ['ZAG'], ovr: 85 },
       { name: 'Filipe Luis', pos: ['LE'], ovr: 91 },
-      { name: 'Willian Arao', pos: ['VOL'], ovr: 88 },
-      { name: 'Gerson', pos: ['MEI', 'VOL'], ovr: 90 },
-      { name: 'Everton Ribeiro', pos: ['MEI', 'PD'], ovr: 91 },
-      { name: 'Arrascaeta', pos: ['MEI'], ovr: 92 },
-      { name: 'Bruno Henrique', pos: ['PE', 'ATA'], ovr: 90 },
+      { name: 'Willian Arao', pos: ['VOL','MC','ZAG'], ovr: 88 },
+      { name: 'Gerson', pos: ['VOL','MC','MD','MEI'], ovr: 90 },
+      { name: 'Everton Ribeiro', pos: ['MEI','MD'], ovr: 91 },
+      { name: 'Arrascaeta', pos: ['MEI','MC'], ovr: 92 },
+      { name: 'Bruno Henrique', pos: ['PE','ATA','ME','PD'], ovr: 90 },
       { name: 'Gabigol', pos: ['ATA'], ovr: 97 },
       { name: 'Pedro', pos: ['ATA'], ovr: 88 },
-      { name: 'Diego', pos: ['MEI'], ovr: 84 },
-      { name: 'Cuellar', pos: ['VOL'], ovr: 85 },
+      { name: 'Diego', pos: ['MEI','MC'], ovr: 84 },
+      { name: 'Cuellar', pos: ['VOL','MC'], ovr: 85 },
       { name: 'Rodinei', pos: ['LD'], ovr: 82 },
-      { name: 'Reinier', pos: ['MEI'], ovr: 82 },
-      { name: 'Michael', pos: ['ATA', 'PD'], ovr: 82 },
-      { name: 'Thiago Maia', pos: ['VOL'], ovr: 83 },
+      { name: 'Reinier', pos: ['MEI','MC','ATA'], ovr: 82 },
+      { name: 'Michael', pos: ['PE','ME','ATA'], ovr: 82 },
+      { name: 'Thiago Maia', pos: ['VOL','MC'], ovr: 83 },
       { name: 'Lincoln', pos: ['ATA'], ovr: 79 },
       { name: 'Leo Ortiz', pos: ['ZAG'], ovr: 80 },
-    ]
-  },
-  {
-    id: 'flamengo2020', club: 'Flamengo', year: 2020, label: 'Flamengo 2020 (Bicampeonato)', coach: 'Rogerio Ceni',
+    ]},
+  { id: 'flamengo2020', club: 'Flamengo', year: 2020, label: 'Flamengo 2020 (Bicampeonato)', coach: 'Rogerio Ceni',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
       { name: 'Diego Alves', pos: ['GOL'], ovr: 86 },
@@ -1530,51 +1176,47 @@ const TEAMS = [
       { name: 'Rodrigo Caio', pos: ['ZAG'], ovr: 87 },
       { name: 'Leo Pereira', pos: ['ZAG'], ovr: 84 },
       { name: 'Filipe Luis', pos: ['LE'], ovr: 89 },
-      { name: 'Willian Arao', pos: ['VOL'], ovr: 88 },
-      { name: 'Gerson', pos: ['MEI', 'VOL'], ovr: 90 },
-      { name: 'Everton Ribeiro', pos: ['MEI', 'PD'], ovr: 91 },
-      { name: 'Arrascaeta', pos: ['MEI'], ovr: 91 },
-      { name: 'Bruno Henrique', pos: ['PE', 'ATA'], ovr: 89 },
+      { name: 'Willian Arao', pos: ['VOL','MC'], ovr: 88 },
+      { name: 'Gerson', pos: ['MEI','VOL'], ovr: 90 },
+      { name: 'Everton Ribeiro', pos: ['MEI','MD'], ovr: 91 },
+      { name: 'Arrascaeta', pos: ['MEI','MC'], ovr: 91 },
+      { name: 'Bruno Henrique', pos: ['PE','ME'], ovr: 89 },
       { name: 'Gabigol', pos: ['ATA'], ovr: 96 },
       { name: 'Pedro', pos: ['ATA'], ovr: 90 },
-      { name: 'Thiago Maia', pos: ['VOL'], ovr: 84 },
-      { name: 'Michael', pos: ['ATA', 'PD'], ovr: 83 },
+      { name: 'Thiago Maia', pos: ['VOL','MC'], ovr: 84 },
+      { name: 'Michael', pos: ['ATA','MD'], ovr: 83 },
       { name: 'Rodinei', pos: ['LD'], ovr: 82 },
-      { name: 'Diego', pos: ['MEI'], ovr: 82 },
-      { name: 'Vitinho', pos: ['PD'], ovr: 81 },
+      { name: 'Diego', pos: ['MEI','MC'], ovr: 82 },
+      { name: 'Vitinho', pos: ['PD','MD'], ovr: 81 },
       { name: 'Hugo Souza', pos: ['GOL'], ovr: 76 },
-      { name: 'Rene', pos: ['LE'], ovr: 82 },
+      { name: 'Rene', pos: ['LE','MC'], ovr: 82 },
       { name: 'Leo Ortiz', pos: ['ZAG'], ovr: 80 },
-    ]
-  },
-  {
-    id: 'atletico-mg2021', club: 'Atletico-MG', year: 2021, label: 'Atletico-MG 2021 (Brasileiro + Copa do Brasil)', coach: 'Cuca',
+    ]},
+  { id: 'atletico-mg2021', club: 'Atletico-MG', year: 2021, label: 'Atletico-MG 2021 (Brasileiro + Copa do Brasil)', coach: 'Cuca',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Everson', pos: ['GOL'], ovr: 88 },
-      { name: 'Marcos Rocha', pos: ['LD'], ovr: 83 },
-      { name: 'Rever', pos: ['ZAG'], ovr: 82 },
-      { name: 'Nathan Silva', pos: ['ZAG'], ovr: 85 },
-      { name: 'Guilherme Arana', pos: ['LE'], ovr: 88 },
-      { name: 'Allan', pos: ['VOL', 'MEI'], ovr: 86 },
-      { name: 'Jair', pos: ['VOL'], ovr: 83 },
-      { name: 'Zaracho', pos: ['MEI'], ovr: 87 },
-      { name: 'Nacho Fernandez', pos: ['MEI'], ovr: 90 },
-      { name: 'Keno', pos: ['ATA', 'PE'], ovr: 85 },
-      { name: 'Hulk', pos: ['ATA'], ovr: 94 },
-      { name: 'Vargas', pos: ['MEI', 'PE'], ovr: 84 },
-      { name: 'Savarino', pos: ['PE'], ovr: 82 },
-      { name: 'Eduardo Sasha', pos: ['ATA'], ovr: 82 },
-      { name: 'Tardelli', pos: ['ATA'], ovr: 79 },
-      { name: 'Alisson', pos: ['ZAG', 'LD'], ovr: 83 },
-      { name: 'Guga', pos: ['LD'], ovr: 80 },
-      { name: 'Igor Gomes', pos: ['MEI'], ovr: 78 },
-      { name: 'Hyoran', pos: ['MEI'], ovr: 79 },
-      { name: 'Rabelo', pos: ['VOL'], ovr: 76 },
-    ]
-  },
-  {
-    id: 'palmeiras2022', club: 'Palmeiras', year: 2022, label: 'Palmeiras 2022 (81 pontos RECORDE historico)', coach: 'Abel Ferreira',
+      { name: 'Mariano', pos: ['LD','VOL'], ovr: 78 },
+      { name: 'Rever', pos: ['ZAG','VOL'], ovr: 82 },
+      { name: 'Junior Alonso', pos: ['ZAG','LE'], ovr: 83 },
+      { name: 'Guilherme Arana', pos: ['LE','ME'], ovr: 88 },
+      { name: 'Allan', pos: ['VOL','MC'], ovr: 86 },
+      { name: 'Jair', pos: ['VOL','MC'], ovr: 83 },
+      { name: 'Matias Zaracho', pos: ['MC','MD'], ovr: 87 },
+      { name: 'Nacho Fernandez', pos: ['MEI','MC'], ovr: 90 },
+      { name: 'Jefferson Savarino', pos: ['PD','MD'], ovr: 84 },
+      { name: 'Hulk', pos: ['ATA','PD'], ovr: 94 },
+      { name: 'Guga', pos: ['LD','LE'], ovr: 80 },
+      { name: 'Dodo', pos: ['LE','ME'], ovr: 79 },
+      { name: 'Tche Tche', pos: ['VOL','MC'], ovr: 78 },
+      { name: 'Hyoran', pos: ['MEI','ME'], ovr: 79 },
+      { name: 'Savio', pos: ['PD','PE'], ovr: 76 },
+      { name: 'Keno', pos: ['PE','PD'], ovr: 85 },
+      { name: 'Eduardo Vargas', pos: ['PE','ATA'], ovr: 84 },
+      { name: 'Diego Costa', pos: ['ATA'], ovr: 77 },
+      { name: 'Eduardo Sasha', pos: ['ATA','MEI'], ovr: 82 },
+    ]},
+  { id: 'palmeiras2022', club: 'Palmeiras', year: 2022, label: 'Palmeiras 2022 (81 pontos RECORDE historico)', coach: 'Abel Ferreira',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Weverton', pos: ['GOL'], ovr: 92 },
@@ -1582,25 +1224,23 @@ const TEAMS = [
       { name: 'Gustavo Gomez', pos: ['ZAG'], ovr: 90 },
       { name: 'Murilo', pos: ['ZAG'], ovr: 87 },
       { name: 'Piquerez', pos: ['LE'], ovr: 89 },
-      { name: 'Danilo', pos: ['VOL', 'MEI'], ovr: 88 },
-      { name: 'Ze Rafael', pos: ['VOL'], ovr: 86 },
-      { name: 'Atuesta', pos: ['VOL'], ovr: 81 },
-      { name: 'Raphael Veiga', pos: ['MEI', 'ATA'], ovr: 90 },
-      { name: 'Dudu', pos: ['PD', 'ATA'], ovr: 88 },
+      { name: 'Danilo', pos: ['VOL','MC'], ovr: 88 },
+      { name: 'Ze Rafael', pos: ['VOL','MC'], ovr: 86 },
+      { name: 'Atuesta', pos: ['VOL','MC'], ovr: 81 },
+      { name: 'Raphael Veiga', pos: ['MEI','MC'], ovr: 90 },
+      { name: 'Dudu', pos: ['PD','MD'], ovr: 88 },
       { name: 'Flaco Lopez', pos: ['ATA'], ovr: 86 },
-      { name: 'Rony', pos: ['PE', 'ATA'], ovr: 85 },
+      { name: 'Rony', pos: ['PE','ME'], ovr: 85 },
       { name: 'Endrick', pos: ['ATA'], ovr: 91 },
       { name: 'Mayke', pos: ['LD'], ovr: 81 },
-      { name: 'Gabriel Menino', pos: ['VOL'], ovr: 82 },
+      { name: 'Gabriel Menino', pos: ['VOL','MC'], ovr: 82 },
       { name: 'Luan', pos: ['ZAG'], ovr: 80 },
       { name: 'Vanderlan', pos: ['LE'], ovr: 78 },
       { name: 'Pedro Geromel', pos: ['ZAG'], ovr: 79 },
       { name: 'Jose Manuel Lopez', pos: ['ATA'], ovr: 75 },
-      { name: 'Jhon Jhon', pos: ['MEI'], ovr: 79 },
-    ]
-  },
-  {
-    id: 'athletico-pr2022', club: 'Athletico-PR', year: 2022, label: 'Athletico-PR 2022 (Finalista Libertadores)', coach: 'Luiz Felipe Scolari',
+      { name: 'Jhon Jhon', pos: ['MEI','MC'], ovr: 79 },
+    ]},
+  { id: 'athletico-pr2022', club: 'Athletico-PR', year: 2022, label: 'Athletico-PR 2022 (Finalista Libertadores)', coach: 'Luiz Felipe Scolari',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
       { name: 'Bento', pos: ['GOL'], ovr: 87 },
@@ -1608,12 +1248,12 @@ const TEAMS = [
       { name: 'Pedro Henrique', pos: ['ZAG'], ovr: 83 },
       { name: 'Thiago Heleno', pos: ['ZAG'], ovr: 82 },
       { name: 'Abner', pos: ['LE'], ovr: 83 },
-      { name: 'Christian', pos: ['VOL'], ovr: 84 },
-      { name: 'Matheus Fernandes', pos: ['VOL'], ovr: 83 },
-      { name: 'Erick', pos: ['VOL'], ovr: 82 },
-      { name: 'Fernandinho', pos: ['VOL', 'MEI'], ovr: 90 },
-      { name: 'David Terans', pos: ['MEI'], ovr: 86 },
-      { name: 'Canobbio', pos: ['PD', 'MEI'], ovr: 84 },
+      { name: 'Christian', pos: ['VOL','MC'], ovr: 84 },
+      { name: 'Matheus Fernandes', pos: ['VOL','MC'], ovr: 83 },
+      { name: 'Erick', pos: ['VOL','MC'], ovr: 82 },
+      { name: 'Fernandinho', pos: ['VOL','MC','MEI'], ovr: 90 },
+      { name: 'David Terans', pos: ['MEI','MC'], ovr: 86 },
+      { name: 'Canobbio', pos: ['PD','MD'], ovr: 84 },
       { name: 'Romulo', pos: ['ATA'], ovr: 83 },
       { name: 'Pablo', pos: ['ATA'], ovr: 82 },
       { name: 'Vitor Roque', pos: ['ATA'], ovr: 87 },
@@ -1621,38 +1261,34 @@ const TEAMS = [
       { name: 'Ze Ivaldo', pos: ['ZAG'], ovr: 82 },
       { name: 'Anderson', pos: ['GOL'], ovr: 79 },
       { name: 'Matheus Felipe', pos: ['ZAG'], ovr: 81 },
-      { name: 'Pedrinho', pos: ['LE'], ovr: 81 },
+      { name: 'Pedrinho', pos: ['LE','MC'], ovr: 81 },
       { name: 'Khellven', pos: ['LD'], ovr: 79 },
-    ]
-  },
-  {
-    id: 'palmeiras2023', club: 'Palmeiras', year: 2023, label: 'Palmeiras 2023 (Tricampeonato com Abel)', coach: 'Abel Ferreira',
+    ]},
+  { id: 'palmeiras2023', club: 'Palmeiras', year: 2023, label: 'Palmeiras 2023 (Tricampeonato com Abel)', coach: 'Abel Ferreira',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
-      { name: 'Weverton', pos: ['GOL'], ovr: 91 },
-      { name: 'Marcos Rocha', pos: ['LD'], ovr: 83 },
-      { name: 'Gustavo Gomez', pos: ['ZAG'], ovr: 91 },
-      { name: 'Murilo', pos: ['ZAG'], ovr: 88 },
-      { name: 'Piquerez', pos: ['LE'], ovr: 89 },
-      { name: 'Danilo', pos: ['VOL', 'MEI'], ovr: 88 },
-      { name: 'Ze Rafael', pos: ['VOL'], ovr: 85 },
-      { name: 'Gabriel Menino', pos: ['VOL'], ovr: 83 },
-      { name: 'Raphael Veiga', pos: ['MEI', 'ATA'], ovr: 92 },
-      { name: 'Estevao', pos: ['PD', 'MEI'], ovr: 89 },
-      { name: 'Flaco Lopez', pos: ['ATA'], ovr: 90 },
-      { name: 'Dudu', pos: ['PD', 'ATA'], ovr: 87 },
-      { name: 'Rony', pos: ['PE', 'ATA'], ovr: 84 },
-      { name: 'Endrick', pos: ['ATA'], ovr: 93 },
-      { name: 'Mayke', pos: ['LD'], ovr: 80 },
-      { name: 'Vanderlan', pos: ['LE'], ovr: 79 },
-      { name: 'Atuesta', pos: ['VOL'], ovr: 80 },
-      { name: 'Jhon Jhon', pos: ['MEI'], ovr: 82 },
-      { name: 'Artur', pos: ['PD'], ovr: 78 },
-      { name: 'Lopes', pos: ['ATA'], ovr: 75 },
-    ]
-  },
-  {
-    id: 'botafogo2024', club: 'Botafogo', year: 2024, label: 'Botafogo 2024 (Tricampeonato + Libertadores)', coach: 'Artur Jorge',
+      { name: 'Weverton', pos: ['GOL'], ovr: 90 },
+      { name: 'Marcos Rocha', pos: ['LD','ZAG'], ovr: 83 },
+      { name: 'Gustavo Gómez', pos: ['ZAG'], ovr: 91 },
+      { name: 'Murilo', pos: ['ZAG'], ovr: 86 },
+      { name: 'Joaquín Piquerez', pos: ['LE','ME','ZAG'], ovr: 88 },
+      { name: 'Zé Rafael', pos: ['VOL','MC'], ovr: 87 },
+      { name: 'Richard Ríos', pos: ['VOL','MC'], ovr: 82 },
+      { name: 'Gabriel Menino', pos: ['VOL','MC','LD'], ovr: 82 },
+      { name: 'Raphael Veiga', pos: ['MEI','MC','MD'], ovr: 91 },
+      { name: 'Dudu', pos: ['PE','PD','MEI'], ovr: 88 },
+      { name: 'Endrick', pos: ['ATA'], ovr: 90 },
+      { name: 'Marcelo Lomba', pos: ['GOL'], ovr: 79 },
+      { name: 'Mayke', pos: ['LD','MD','PD'], ovr: 86 },
+      { name: 'Vanderlan', pos: ['LE','ME'], ovr: 79 },
+      { name: 'Luan', pos: ['ZAG','VOL'], ovr: 83 },
+      { name: 'Fabinho', pos: ['VOL'], ovr: 76 },
+      { name: 'Luis Guilherme', pos: ['MEI','PD'], ovr: 77 },
+      { name: 'Artur', pos: ['PD','PE','ATA'], ovr: 84 },
+      { name: 'Breno Lopes', pos: ['PE','PD'], ovr: 81 },
+      { name: 'Rony', pos: ['ATA','PD','PE'], ovr: 84 },
+    ]},
+  { id: 'botafogo2024', club: 'Botafogo', year: 2024, label: 'Botafogo 2024 (Brasileirao + Libertadores)', coach: 'Artur Jorge',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'John', pos: ['GOL'], ovr: 83 },
@@ -1660,102 +1296,136 @@ const TEAMS = [
       { name: 'Alexander Barboza', pos: ['ZAG'], ovr: 82 },
       { name: 'Bastos', pos: ['ZAG'], ovr: 81 },
       { name: 'Cuiabano', pos: ['LE'], ovr: 80 },
-      { name: 'Marlon Freitas', pos: ['MC', 'VOL'], ovr: 82 },
-      { name: 'Gregore', pos: ['VOL'], ovr: 81 },
-      { name: 'Thiago Almada', pos: ['MEI', 'PE'], ovr: 85 },
+      { name: 'Marlon Freitas', pos: ['MC','VOL'], ovr: 82 },
+      { name: 'Gregore', pos: ['VOL','MC'], ovr: 81 },
+      { name: 'Thiago Almada', pos: ['MEI','ME'], ovr: 85 },
       { name: 'Igor Jesus', pos: ['ATA'], ovr: 87 },
-      { name: 'Jefferson Savarino', pos: ['PE', 'MEI'], ovr: 81 },
-      { name: 'Luiz Henrique', pos: ['PD', 'MD'], ovr: 86 },
+      { name: 'Jefferson Savarino', pos: ['PE','ME'], ovr: 81 },
+      { name: 'Luiz Henrique', pos: ['PD','MD'], ovr: 86 },
       { name: 'Gatito Fernandez', pos: ['GOL'], ovr: 76 },
       { name: 'Adryelson', pos: ['ZAG'], ovr: 78 },
       { name: 'Tiquinho Soares', pos: ['ATA'], ovr: 79 },
-      { name: 'Danilo Barbosa', pos: ['VOL', 'MC'], ovr: 78 },
-      { name: 'Tche Tche', pos: ['MC', 'VOL'], ovr: 78 },
+      { name: 'Danilo Barbosa', pos: ['VOL','MC'], ovr: 78 },
+      { name: 'Tche Tche', pos: ['MC','VOL'], ovr: 78 },
       { name: 'Marcal', pos: ['LE'], ovr: 76 },
       { name: 'Mateo Ponte', pos: ['LD'], ovr: 77 },
-      { name: 'Junior Santos', pos: ['PD', 'ATA'], ovr: 76 },
-      { name: 'Carlos Alberto', pos: ['PE', 'ATA'], ovr: 74 },
-    ]
-  },
-  {
-    id: 'santos2015', club: 'Santos', year: 2015, label: 'Santos 2015 (Paulistao + Vice Copa BR)', coach: 'Dorival Junior',
+      { name: 'Junior Santos', pos: ['PD','ATA'], ovr: 76 },
+      { name: 'Carlos Alberto', pos: ['PE','MC'], ovr: 74 },
+    ]},
+  { id: 'santos2015', club: 'Santos', year: 2015, label: 'Santos 2015 (Paulistao + Vice Copa BR)', coach: 'Dorival Junior',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Vanderlei', pos: ['GOL'], ovr: 84 },
-      { name: 'Victor Ferraz', pos: ['LD'], ovr: 80 },
+      { name: 'Vanderlei', pos: ['GOL'], ovr: 88 },
+      { name: 'Victor Ferraz', pos: ['LD','MD','LE'], ovr: 84 },
       { name: 'David Braz', pos: ['ZAG'], ovr: 83 },
       { name: 'Gustavo Henrique', pos: ['ZAG'], ovr: 82 },
-      { name: 'Zeca', pos: ['LE'], ovr: 80 },
-      { name: 'Renato', pos: ['VOL'], ovr: 82 },
-      { name: 'Thiago Maia', pos: ['VOL'], ovr: 85 },
-      { name: 'Lucas Lima', pos: ['MEI'], ovr: 87 },
-      { name: 'Marquinhos Gabriel', pos: ['PD', 'ATA'], ovr: 82 },
-      { name: 'Ricardo Oliveira', pos: ['ATA'], ovr: 90 },
-      { name: 'Gabigol', pos: ['ATA', 'PD'], ovr: 85 },
-      { name: 'Vladimir', pos: ['GOL'], ovr: 79 },
-      { name: 'Daniel Guedes', pos: ['LD'], ovr: 75 },
-      { name: 'Luiz Felipe', pos: ['ZAG'], ovr: 79 },
-      { name: 'Werley', pos: ['ZAG'], ovr: 76 },
-      { name: 'Geuvânio', pos: ['PE', 'ATA'], ovr: 80 },
-      { name: 'Robinho', pos: ['ATA', 'PE'], ovr: 81 },
-      { name: 'Elano', pos: ['MEI'], ovr: 79 },
-      { name: 'Leo Cittadini', pos: ['MEI'], ovr: 77 },
-      { name: 'Alison', pos: ['VOL'], ovr: 77 },
-    ]
-  },
-  {
-    id: 'santos2020', club: 'Santos', year: 2020, label: 'Santos 2020 (Vici-Campeão da Libertadores)', coach: 'Cuca',
+      { name: 'Zeca', pos: ['LE','LD','ME'], ovr: 83 },
+      { name: 'Renato', pos: ['VOL','MC'], ovr: 86 },
+      { name: 'Thiago Maia', pos: ['VOL'], ovr: 84 },
+      { name: 'Lucas Lima', pos: ['MEI','MC'], ovr: 91 },
+      { name: 'Marquinhos Gabriel', pos: ['MEI','PD','PE'], ovr: 84 },
+      { name: 'Ricardo Oliveira', pos: ['ATA'], ovr: 92 },
+      { name: 'Gabigol', pos: ['PD','ATA'], ovr: 89 },
+      { name: 'Vladimir', pos: ['GOL'], ovr: 81 },
+      { name: 'Daniel Guedes', pos: ['LD'], ovr: 77 },
+      { name: 'Chiquinho', pos: ['LE','ME'], ovr: 77 },
+      { name: 'Werley', pos: ['ZAG'], ovr: 79 },
+      { name: 'Valencia', pos: ['VOL'], ovr: 78 },
+      { name: 'Geuvânio', pos: ['PD','PE'], ovr: 83 },
+      { name: 'Robinho', pos: ['PE','MEI','ATA'], ovr: 88 },
+      { name: 'Leandro Damião', pos: ['ATA'], ovr: 80 },
+      { name: 'Nilson', pos: ['ATA'], ovr: 74 },
+    ]},
+  { id: 'santos2020', club: 'Santos', year: 2020, label: 'Santos 2020 (Vice-Campeao da Libertadores)', coach: 'Cuca',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'John', pos: ['GOL'], ovr: 79 },
-      { name: 'Para', pos: ['LD', 'LE'], ovr: 77 },
-      { name: 'Lucas Verissimo', pos: ['ZAG'], ovr: 83 },
-      { name: 'Luan Peres', pos: ['ZAG', 'LE'], ovr: 80 },
-      { name: 'Felipe Jonatan', pos: ['LE', 'ME'], ovr: 78 },
-      { name: 'Alison', pos: ['VOL'], ovr: 79 },
-      { name: 'Diego Pituca', pos: ['MC', 'VOL'], ovr: 81 },
-      { name: 'Marinho', pos: ['PD', 'MD'], ovr: 85 },
-      { name: 'Soteldo', pos: ['PE', 'MEI'], ovr: 84 },
-      { name: 'Lucas Braga', pos: ['PE', 'LE'], ovr: 77 },
-      { name: 'Kaio Jorge', pos: ['ATA'], ovr: 78 },
-      { name: 'Joao Paulo', pos: ['GOL'], ovr: 78 },
-      { name: 'Laercio', pos: ['ZAG'], ovr: 73 },
-      { name: 'Sandry', pos: ['VOL', 'MC'], ovr: 76 },
-      { name: 'Jean Mota', pos: ['MC', 'MEI'], ovr: 75 },
-      { name: 'Madson', pos: ['LD'], ovr: 76 },
-      { name: 'Arthur Gomes', pos: ['PE', 'MD'], ovr: 75 },
-      { name: 'Jobson', pos: ['VOL', 'MC'], ovr: 75 },
-      { name: 'Alex Nascimento', pos: ['ZAG'], ovr: 72 },
-      { name: 'Marcos Leonardo', pos: ['ATA'], ovr: 72 },
-    ]
-  },
-  {
-    id: 'botafogo2023', club: 'Botafogo', year: 2023, label: 'Botafogo 2023 (Deixou escapar)', coach: 'Luis Castro',
+      { name: 'John', pos: ['GOL'], ovr: 82 },
+      { name: 'Pará', pos: ['LD','LE','VOL'], ovr: 78 },
+      { name: 'Lucas Veríssimo', pos: ['ZAG'], ovr: 86 },
+      { name: 'Luan Peres', pos: ['ZAG','LE'], ovr: 83 },
+      { name: 'Felipe Jonatan', pos: ['LE','ME','MC'], ovr: 79 },
+      { name: 'Alison', pos: ['VOL'], ovr: 80 },
+      { name: 'Sandry', pos: ['VOL','MC'], ovr: 79 },
+      { name: 'Diego Pituca', pos: ['VOL','MC','LE'], ovr: 84 },
+      { name: 'Marinho', pos: ['PD','ATA'], ovr: 90 },
+      { name: 'Soteldo', pos: ['PE','MEI','PD'], ovr: 88 },
+      { name: 'Kaio Jorge', pos: ['ATA'], ovr: 83 },
+      { name: 'João Paulo', pos: ['GOL'], ovr: 81 },
+      { name: 'Laércio', pos: ['ZAG'], ovr: 75 },
+      { name: 'Madson', pos: ['LD','MD'], ovr: 79 },
+      { name: 'Luiz Felipe', pos: ['ZAG'], ovr: 77 },
+      { name: 'Jobson', pos: ['VOL','MC'], ovr: 76 },
+      { name: 'Jean Mota', pos: ['MC','MEI','LE'], ovr: 76 },
+      { name: 'Lucas Lourenço', pos: ['MEI'], ovr: 73 },
+      { name: 'Arthur Gomes', pos: ['PE','PD','LE'], ovr: 76 },
+      { name: 'Lucas Braga', pos: ['PE','PD'], ovr: 81 },
+    ]},
+  { id: 'botafogo2023', club: 'Botafogo', year: 2023, label: 'Botafogo 2023 (Deixou escapar)', coach: 'Luis Castro',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Lucas Perri', pos: ['GOL'], ovr: 85 },
-      { name: 'Saravia', pos: ['LD'], ovr: 82 },
+      { name: 'Di Plácido', pos: ['LD'], ovr: 81 },
       { name: 'Adryelson', pos: ['ZAG'], ovr: 83 },
       { name: 'Victor Cuesta', pos: ['ZAG'], ovr: 82 },
       { name: 'Marcal', pos: ['LE'], ovr: 80 },
-      { name: 'Eduardo', pos: ['VOL'], ovr: 83 },
+      { name: 'Eduardo', pos: ['MEI','VOL'], ovr: 83 },
       { name: 'Marlon Freitas', pos: ['VOL'], ovr: 84 },
-      { name: 'Tche Tche', pos: ['MEI', 'VOL'], ovr: 83 },
+      { name: 'Tche Tche', pos: ['MEI','VOL'], ovr: 83 },
       { name: 'Gustavo Sauer', pos: ['PD'], ovr: 83 },
       { name: 'Tiquinho Soares', pos: ['ATA'], ovr: 89 },
-      { name: 'Jeffinho', pos: ['PE', 'ATA'], ovr: 84 },
+      { name: 'Jeffinho', pos: ['PE','ATA'], ovr: 84 },
       { name: 'Diego Hernandez', pos: ['MEI'], ovr: 80 },
-      { name: 'Hugo', pos: ['GOL'], ovr: 78 },
+      { name: 'Hugo', pos: ['LE'], ovr: 78 },
       { name: 'Rafael', pos: ['LD'], ovr: 79 },
       { name: 'Kayque', pos: ['VOL'], ovr: 80 },
-      { name: 'Oscar Romero', pos: ['MEI'], ovr: 82 },
+      { name: 'Júnior Santos', pos: ['PD','ATA'], ovr: 83 },
       { name: 'Diego Costa', pos: ['ATA'], ovr: 79 },
       { name: 'Patrick de Paula', pos: ['VOL'], ovr: 82 },
       { name: 'Victor Sa', pos: ['ATA'], ovr: 82 },
-      { name: 'Niko Kuhnel', pos: ['MEI'], ovr: 76 },
-    ]
-  },
+      { name: 'Gatito Fernández', pos: ['GOL'], ovr: 82 },
+    ]},
 ];
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 // ============================================================
@@ -1907,10 +1577,17 @@ function buildPitchSlots(formationKey) {
   const hasMEI = !!counts.MEI;
   const hasWide = !!counts.MD || !!counts.ME;
   const wideJoinsMei = !hasMC && hasMEI && hasWide;
+  // Sem MC nem MEI, MD/ME entram na linha do VOL (ex: 4-4-2 em linha) — e
+  // como MD/ME ficam bem abertos (mesmo x de LD/LE), essa linha precisa de
+  // mais distância vertical da zaga, senão os círculos se tocam/cruzam.
+  const volJoinsWide = !hasMC && !hasMEI && hasWide;
 
-  const mcRowY = mergeVolMc ? 58 : 54;
-  const volRowY = mergeVolMc ? 58 : 62;
-  const meiRowY = 46;
+  // Linhas mais espaçadas verticalmente — os círculos do campo de draft têm
+  // 44px, então uma diferença pequena de y (como 54 pra 62) fica quase
+  // encostando um no outro. Aqui dá mais respiro entre VOL / MC / MEI.
+  const mcRowY = mergeVolMc ? 58 : 52;
+  const volRowY = mergeVolMc ? 58 : volJoinsWide ? 52 : 68;
+  const meiRowY = 36;
   const wideRowY = hasMC ? mcRowY : hasMEI ? meiRowY : volRowY;
 
   const ROW_ORDER = { ME: 0, VOL: 1, MC: 2, MEI: 2, MD: 3 };
@@ -1934,6 +1611,10 @@ function buildPitchSlots(formationKey) {
   Object.entries(counts).forEach(([pos, qty]) => {
     if (groupedPos.has(pos)) return; // tratado abaixo via `rows`
     const base = BASE_COORDS[pos];
+    // MEI sozinho (sem se juntar à linha do MD/ME) usava o y antigo de
+    // BASE_COORDS (46), que fica colado na linha do MC (52) — quase
+    // encostando/cruzando visualmente. Usa a linha própria do MEI (36).
+    const y = pos === 'MEI' ? meiRowY : base.y;
     for (let i = 0; i < qty; i++) {
       const key = qty === 1 ? pos : `${pos}${i + 1}`;
       let x = base.x;
@@ -1942,7 +1623,7 @@ function buildPitchSlots(formationKey) {
         const offset = (i - (qty - 1) / 2) * (spread * 2 / Math.max(qty - 1, 1));
         x = Math.max(8, Math.min(92, base.x + offset));
       }
-      slots.push({ key, label: pos, realPos: pos, x, y: base.y });
+      slots.push({ key, label: pos, realPos: pos, x, y });
     }
   });
 
@@ -1950,7 +1631,10 @@ function buildPitchSlots(formationKey) {
   for (const [y, items] of rows.entries()) {
     items.sort((a, b) => a.order - b.order);
     const n = items.length;
-    const spread = n <= 1 ? 0 : n === 2 ? 16 : n === 3 ? 22 : 12;
+    // Espalha mais largo que o normal (usado pra multiplicar 1 posição só,
+    // como 2 ATA) porque aqui são posições DIFERENTES lado a lado — precisa
+    // de mais distância pros círculos de 44px não ficarem colados.
+    const spread = n <= 1 ? 0 : n === 2 ? 18 : n === 3 ? 26 : 36;
     items.forEach((item, i) => {
       const offset = n <= 1 ? 0 : (i - (n - 1) / 2) * (spread * 2 / Math.max(n - 1, 1));
       const x = Math.max(8, Math.min(92, 50 + offset));
@@ -1981,41 +1665,17 @@ function shuffle2(arr) {
   return a;
 }
 
-// ============================================================
-// ENTROSAMENTO
-// ============================================================
-// Por par de jogadores:
-//   mesmo clube + mesmo ano  → +5  (= +2 clube + +3 extra)
-//   mesmo clube (anos dif.)  → +2
-//   mesmo país               → +1
-// Baseline: 11 jogadores, todos de países distintos → 0 pares com bônus
-const CHEM_MAX_OVR = 5; // bônus máximo de OVR concedido pelo entrosamento
-
-function calcChemistry(players) {
-  let score = 0;
-  const breakdown = { epoca: 0, clube: 0, pais: 0 };
-
-  for (let i = 0; i < players.length; i++) {
-    for (let j = i + 1; j < players.length; j++) {
-      const a = players[i], b = players[j];
-      const sameClub = a.club && b.club && a.club === b.club;
-      const sameYear = sameClub && a.year != null && a.year === b.year;
-      const sameNat = (a.nat || 'BRA') === (b.nat || 'BRA');
-
-      if (sameYear) { score += 5; breakdown.epoca++; }
-      else if (sameClub) { score += 2; breakdown.clube++; }
-      else if (sameNat) { score += 1; breakdown.pais++; }
-    }
-  }
-
-  const n = players.length;
-  const totalPairs = n * (n - 1) / 2;
-  // teórico: se todos sem nada em comum → 0; se todos mesmo clube ≠ ano → 2*totalPairs
-  const maxScore = totalPairs * 5; // todos mesmo ano+clube
-  const pct = maxScore > 0 ? Math.round(score / maxScore * 100) : 0;
-  const ovrBonus = maxScore > 0 ? (score / maxScore) * CHEM_MAX_OVR : 0;
-
-  return { score, breakdown, pct, ovrBonus: Math.round(ovrBonus * 10) / 10 };
+// Código de sala: 6 caracteres, letras maiúsculas e números sempre mesclados
+// (garante pelo menos 1 letra e 1 número, não só um pedaço aleatório de um UUID).
+const ROOM_CODE_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+const ROOM_CODE_DIGITS = '0123456789';
+function generateRoomCode() {
+  const pool = ROOM_CODE_LETTERS + ROOM_CODE_DIGITS;
+  let code;
+  do {
+    code = Array.from({ length: 6 }, () => pool[Math.floor(Math.random() * pool.length)]).join('');
+  } while (!/[A-Z]/.test(code) || !/[0-9]/.test(code));
+  return code;
 }
 
 // ============================================================
@@ -2025,8 +1685,7 @@ function teamStrength(xi) {
   const vals = Object.values(xi).filter(p => !p.isBench);
   if (vals.length === 0) return 50;
   const baseOvr = vals.reduce((s, p) => s + p.ovr, 0) / vals.length;
-  const { ovrBonus } = calcChemistry(vals);
-  return Math.round((baseOvr + ovrBonus) * 10) / 10;
+  return Math.round(baseOvr * 10) / 10;
 }
 
 // Simulação de disputa de pênaltis (5 cobranças + morte súbita)
@@ -2074,8 +1733,8 @@ function poissonSample(lambda, rand = Math.random) {
 // ============================================================
 const MY_TEAM_ID = '__myteam__';
 
-function narrateGoal(scorer, isMyGoal) {
-  if (!('speechSynthesis' in window)) return;
+function narrateGoal(scorer, isMyGoal, onEnd) {
+  if (!('speechSynthesis' in window)) { onEnd?.(); return; }
   window.speechSynthesis.cancel();
   const u = new SpeechSynthesisUtterance();
   u.lang = 'pt-BR';
@@ -2089,6 +1748,14 @@ function narrateGoal(scorer, isMyGoal) {
     u.pitch = 0.85;
     u.rate = 0.85;
     u.volume = 0.75;
+  }
+  if (onEnd) {
+    let done = false;
+    const finish = () => { if (done) return; done = true; onEnd(); };
+    u.onend = finish;
+    u.onerror = finish;
+    // Rede de seguranca: alguns navegadores nao disparam onend de forma confiavel.
+    setTimeout(finish, 4500);
   }
   window.speechSynthesis.speak(u);
 }
@@ -2137,6 +1804,15 @@ function pickGoalScorer(players, rand = Math.random) {
   return pool[Math.floor(rand() * pool.length)].name;
 }
 
+const OWN_GOAL_CHANCE = 0.045;
+const ASSIST_CHANCE = 0.72;
+
+function pickAssister(players, scorerName, rand = Math.random) {
+  const pool = players.filter(p => !p.pos.includes('GOL') && p.name !== scorerName);
+  if (pool.length === 0) return null;
+  return pool[Math.floor(rand() * pool.length)].name;
+}
+
 // Gera lista de eventos de gol para uma partida com minutos únicos
 function generateMatchGoals(homeTeam, awayTeam, rand = Math.random) {
   const diff = homeTeam.ovr - awayTeam.ovr;
@@ -2153,11 +1829,26 @@ function generateMatchGoals(homeTeam, awayTeam, rand = Math.random) {
     return m;
   };
 
+  const makeGoalEvent = (scoringTeam, concedingTeam) => {
+    const isOwnGoal = rand() < OWN_GOAL_CHANCE;
+    const scorer = isOwnGoal ? pickGoalScorer(concedingTeam.players, rand) : pickGoalScorer(scoringTeam.players, rand);
+    const hasAssist = !isOwnGoal && rand() < ASSIST_CHANCE;
+    return {
+      minute: randMin(),
+      teamId: scoringTeam.id,
+      teamLabel: scoringTeam.label,
+      scorer,
+      isOwnGoal,
+      ownGoalTeamLabel: isOwnGoal ? concedingTeam.label : undefined,
+      assist: hasAssist ? pickAssister(scoringTeam.players, scorer, rand) : null,
+    };
+  };
+
   const events = [];
   for (let i = 0; i < homeGoals; i++)
-    events.push({ minute: randMin(), teamId: homeTeam.id, teamLabel: homeTeam.label, scorer: pickGoalScorer(homeTeam.players, rand) });
+    events.push(makeGoalEvent(homeTeam, awayTeam));
   for (let i = 0; i < awayGoals; i++)
-    events.push({ minute: randMin(), teamId: awayTeam.id, teamLabel: awayTeam.label, scorer: pickGoalScorer(awayTeam.players, rand) });
+    events.push(makeGoalEvent(awayTeam, homeTeam));
 
   return events.sort((a, b) => a.minute - b.minute);
 }
@@ -2222,6 +1913,41 @@ const CLUB_LOGOS = {
   'Avai': 'https://r2.thesportsdb.com/images/media/team/badge/bblkat1766506007.png',
   'Atletico-GO': 'https://r2.thesportsdb.com/images/media/team/badge/l7382k1766505911.png',
 };
+
+// Áudios de gol reais por clube (public/gol/*.mp3). Botafogo tem 2 variantes
+// que alternam aleatoriamente; clubes sem arquivo proprio ficam sem som.
+const GOAL_AUDIO_FILES = {
+  'Fluminense': ['/gol/Fluminense.mp3'],
+  'Atletico-MG': ['/gol/Atletico-MG.mp3'],
+  'Santos': ['/gol/Santos.mp3'],
+  'Athletico-PR': ['/gol/Athletico-PR.mp3'],
+  'Bahia': ['/gol/Bahia.mp3'],
+  'Botafogo': ['/gol/Botafogo-1.mp3', '/gol/Botafogo-2.mp3'],
+  'Corinthians': ['/gol/Corinthians.mp3'],
+  'Coritiba': ['/gol/Coritiba.mp3'],
+  'Cruzeiro': ['/gol/Cruzeiro.mp3'],
+  'Gremio': ['/gol/Gremio.mp3'],
+  'Guarani': ['/gol/Guarani.mp3'],
+  'Internacional': ['/gol/Internacional.mp3'],
+  'Palmeiras': ['/gol/Palmeiras.mp3'],
+  'Sao Paulo': ['/gol/Sao-Paulo.mp3'],
+  'Sport': ['/gol/Sport.mp3'],
+  'Vasco': ['/gol/Vasco.mp3'],
+};
+
+function playGoalAudio(club, customUrl) {
+  let src = customUrl;
+  if (!src) {
+    const files = GOAL_AUDIO_FILES[club];
+    if (!files || files.length === 0) return;
+    src = files[Math.floor(Math.random() * files.length)];
+  }
+  try {
+    const audio = new Audio(src);
+    audio.volume = 0.85;
+    audio.play().catch(() => {});
+  } catch { /* ignore */ }
+}
 
 // IDs YouTube dos hinos oficiais — tocam na tela de campeão
 const CLUB_ANTHEMS = {
@@ -2316,6 +2042,79 @@ export default function App() {
   const [myTeamCoach, setMyTeamCoach] = useState(_sv?.myTeamCoach ?? '');
   const [myTeamCity, setMyTeamCity] = useState(_sv?.myTeamCity ?? '');
 
+  // ── Conta (login opcional) ──────────────────────────────────
+  const [authToken, setAuthToken] = useState(() => api.getToken());
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authLoading, setAuthLoading] = useState(() => !!api.getToken());
+  const [authError, setAuthError] = useState('');
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [showAccountPanel, setShowAccountPanel] = useState(false);
+
+  // Se já tem token salvo, valida e restaura a sessão ao carregar.
+  useEffect(() => {
+    if (!authToken) { setAuthLoading(false); return; }
+    let cancelled = false;
+    setAuthLoading(true);
+    api.fetchMe()
+      .then(({ user }) => { if (!cancelled) setCurrentUser(user); })
+      .catch(() => { if (!cancelled) { api.clearToken(); setAuthToken(null); } })
+      .finally(() => { if (!cancelled) setAuthLoading(false); });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Primeira visita: sem sessão e sem escolha prévia de "convidado" → mostra o modal.
+  useEffect(() => {
+    if (authLoading) return;
+    if (!authToken && localStorage.getItem('brl_guest_ack') !== '1') {
+      setShowAccountModal(true);
+    }
+  }, [authLoading, authToken]);
+
+  // Ao logar/cadastrar/restaurar sessão, o time do usuário passa a vir da conta.
+  useEffect(() => {
+    if (!currentUser) return;
+    setMyTeamName(currentUser.team_name || 'Meu Time');
+    setMyTeamColor(currentUser.team_color || '#d4a23c');
+    setMyTeamLogo(currentUser.team_logo || null);
+    setMyTeamCoach(currentUser.team_coach || '');
+    setMyTeamCity(currentUser.team_city || '');
+  }, [currentUser]);
+
+  const handleAuthSuccess = ({ token, user }) => {
+    api.setToken(token);
+    setAuthToken(token);
+    setCurrentUser(user);
+    setAuthError('');
+    try { localStorage.setItem('brl_guest_ack', '1'); } catch { /* ignore */ }
+    setShowAccountModal(false);
+  };
+
+  const handleGuestChoice = () => {
+    try { localStorage.setItem('brl_guest_ack', '1'); } catch { /* ignore */ }
+    setShowAccountModal(false);
+  };
+
+  const handleLogout = () => {
+    api.clearToken();
+    setAuthToken(null);
+    setCurrentUser(null);
+    setShowAccountPanel(false);
+  };
+
+  // Atualiza um subconjunto de campos: no servidor (se logado) + no state local
+  // (pra refletir na hora, sem esperar round-trip).
+  const updateAccountFields = async (fields) => {
+    if (!currentUser) return;
+    const { user } = await api.updateMe(fields);
+    setCurrentUser(user);
+  };
+
+  const handleDeleteAccount = async () => {
+    await api.deleteMe();
+    handleLogout();
+  };
+
   // Modo de jogo
   const [gameMode, setGameMode] = useState(_sv?.gameMode ?? 'brasileirao'); // 'brasileirao' | 'copa' | 'multi'
 
@@ -2334,7 +2133,7 @@ export default function App() {
   const leaderConnRef = useRef(null); // guest: conexão com o líder
 
   // Logo do time
-  const [myTeamLogo, setMyTeamLogo] = useState(null);
+  const [myTeamLogo, setMyTeamLogo] = useState(_sv?.myTeamLogo ?? null);
   const [cropSrc, setCropSrc] = useState(null);
 
   // Liga
@@ -2358,6 +2157,7 @@ export default function App() {
   // Histórico e artilheiros
   const [matchHistory, setMatchHistory] = useState(_sv?.matchHistory ?? []);
   const [scorers, setScorers] = useState(_sv?.scorers ?? {});
+  const [assisters, setAssisters] = useState(_sv?.assisters ?? {});
   const [viewingTeam, setViewingTeam] = useState(null);
 
   // Partida ao vivo
@@ -2604,7 +2404,7 @@ export default function App() {
     let pool = [];
     while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
     const opps = pool.slice(0, neededAI).map((t, idx) => {
-      // Adiciona club/year/nat para que o entrosamento seja calculado corretamente
+      // Adiciona club/year/nat — usados no hino do clube, no áudio de gol e na visualização de elenco
       const playersWithMeta = t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' }));
       return {
         id: `${t.id}_${idx}`,
@@ -2704,6 +2504,7 @@ export default function App() {
 
     const tick = () => {
       minute++;
+      let lastGoalThisTick = null;
 
       while (evIdx < events.length && events[evIdx].minute <= minute) {
         const ev = events[evIdx];
@@ -2711,12 +2512,24 @@ export default function App() {
         else as_++;
         shown.push({ ...ev, homeScore: hs, awayScore: as_ });
         evIdx++;
-        // Record scorer
-        setScorers(prev => ({
-          ...prev,
-          [ev.scorer]: { goals: (prev[ev.scorer]?.goals || 0) + 1, teamLabel: ev.teamLabel }
-        }));
-        narrateGoal(ev.scorer, ev.teamId === myTeamId);
+        playGoalAudio(
+          ev.teamId === homeTeam.id ? homeTeam.club : awayTeam.club,
+          ev.teamId === myTeamId ? currentUser?.goal_audio : null
+        );
+        // Record scorer (gols contra nao contam pro artilheiro)
+        if (!ev.isOwnGoal) {
+          setScorers(prev => ({
+            ...prev,
+            [ev.scorer]: { goals: (prev[ev.scorer]?.goals || 0) + 1, teamLabel: ev.teamLabel }
+          }));
+        }
+        if (ev.assist) {
+          setAssisters(prev => ({
+            ...prev,
+            [ev.assist]: { assists: (prev[ev.assist]?.assists || 0) + 1, teamLabel: ev.teamLabel }
+          }));
+        }
+        lastGoalThisTick = { scorer: ev.scorer, isMyGoal: ev.teamId === myTeamId };
       }
 
       setClockMinute(minute);
@@ -2847,6 +2660,12 @@ export default function App() {
             return baseUpdated;
           });
         }
+      } else if (lastGoalThisTick) {
+        // Pausa o relogio ate a narracao do gol terminar antes de seguir a partida.
+        narrateGoal(lastGoalThisTick.scorer, lastGoalThisTick.isMyGoal, () => {
+          if (isPausedRef.current) return;
+          clockRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
+        });
       } else {
         clockRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
       }
@@ -2954,10 +2773,10 @@ export default function App() {
     try {
       const save = {
         phase, formationKey, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
-        gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity,
+        gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo,
         leagueTeams, leagueTable, fixtures, currentRound,
         cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
-        matchHistory, scorers,
+        matchHistory, scorers, assisters,
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
@@ -3214,7 +3033,26 @@ export default function App() {
   const multiLeaderStart = () => {
     setRoomSnap(prev => {
       if (!prev) return prev;
-      const next = { ...prev, phase: 'team-setup', startedAt: Date.now() };
+      const maxSlots = prev.gameMode === 'copa' ? 32 : 20;
+      const humanCount = Object.keys(prev.players).length;
+      const needed = Math.max(0, maxSlots - humanCount);
+      const aiPlayers = {};
+      if (needed > 0) {
+        const shuffled = shuffle2(TEAMS).slice(0, needed);
+        shuffled.forEach((t, i) => {
+          const pp = t.players.map((pl, j) => ({ ...pl, club: t.club, year: t.year, nat: pl.nat || 'BRA', isBench: j >= 11 }));
+          aiPlayers[`ai_${i}`] = {
+            name: t.label, color: (t.colors && t.colors.p) || '#888', logo: CLUB_LOGOS[t.club] || null,
+            coach: t.coach || '', city: '', ready: true, isAI: true, club: t.club,
+            pitch: Object.fromEntries(pp.map((p, j) => [j, p])),
+            ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))),
+          };
+        });
+      }
+      const next = {
+        ...prev, phase: 'team-setup', startedAt: Date.now(),
+        players: { ...prev.players, ...aiPlayers },
+      };
       leaderBroadcast({ type: 'snap', snap: next });
       return next;
     });
@@ -3230,12 +3068,13 @@ export default function App() {
     });
   };
 
-  const multiCreateRoom = async () => {
+  const multiCreateRoom = async (attemptsLeft = 5) => {
     setMultiConnecting(true);
     setMultiError('');
+    const code = generateRoomCode();
     let peer;
     try {
-      peer = new Peer(undefined, { debug: 1 });
+      peer = new Peer(code, { debug: 1 });
       peerRef.current = peer;
     } catch (e) {
       setMultiConnecting(false);
@@ -3253,7 +3092,7 @@ export default function App() {
       clearTimeout(timeout);
       setMultiConnecting(false);
       setIsLeader(true);
-      setRoomCode(id.slice(0, 6).toUpperCase());
+      setRoomCode(id.toUpperCase());
       const initialSnap = {
         gameMode: multiGameMode,
         phase: 'lobby',
@@ -3315,6 +3154,12 @@ export default function App() {
     });
 
     peer.on('error', (e) => {
+      if (e.type === 'unavailable-id' && attemptsLeft > 0) {
+        clearTimeout(timeout);
+        try { peer.destroy(); } catch { }
+        multiCreateRoom(attemptsLeft - 1);
+        return;
+      }
       clearTimeout(timeout);
       setMultiConnecting(false);
       setMultiError('Erro: ' + (e.message || e.type));
@@ -3323,14 +3168,13 @@ export default function App() {
   };
 
   const multiJoinRoom = async (code) => {
+    const normalizedCode = code.trim().toUpperCase();
     const peer = new Peer(undefined, { debug: 1 });
     peerRef.current = peer;
     peer.on('open', (myPeerId) => {
-      // o código da sala é o prefixo do peerId do líder — precisamos do peerId completo
-      // mas sem servidor não temos como descobrir o peerId completo só pelo código de 6 chars
-      // Solução: o líder usa o peerId completo como código (mostramos os primeiros 6 chars para reconhecimento visual,
-      // mas o usuário digita o código completo ou o líder compartilha o link)
-      const conn = peer.connect(code, { reliable: true });
+      // O codigo de 6 caracteres digitado pelo jogador É o peerId completo do lider
+      // (o lider cria sua sala com esse mesmo codigo como ID via generateRoomCode()).
+      const conn = peer.connect(normalizedCode, { reliable: true });
       leaderConnRef.current = conn;
       conn.on('open', () => {
         conn.send({ type: 'join', pid: MY_PID, name: myTeamName || 'Meu Time', color: myTeamColor, logo: myTeamLogo || null, coach: myTeamCoach || '', city: myTeamCity || '' });
@@ -3341,7 +3185,7 @@ export default function App() {
       });
       conn.on('close', () => alert('Conexão com o líder perdida.'));
       setIsLeader(false);
-      setRoomCode(code.slice(0, 6).toUpperCase());
+      setRoomCode(normalizedCode);
       setMultiPhase('room');
     });
     peer.on('error', (e) => {
@@ -3487,6 +3331,34 @@ export default function App() {
             >BRASILEIRÃO LENDÁRIO</div>
             <div style={styles.subtitle}>monte · escale · seja campeão</div>
           </div>
+          {currentUser ? (
+            <button
+              onClick={() => setShowAccountPanel(true)}
+              style={{
+                marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6,
+                background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: 999, padding: '6px 12px', cursor: 'pointer',
+                color: '#F4F1EA', fontSize: 12, fontFamily: "'Space Mono', monospace",
+                maxWidth: 180,
+              }}
+              title="Minha Conta"
+            >
+              <span>👤</span>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{currentUser.username}</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowAccountModal(true)}
+              style={{
+                marginLeft: 'auto',
+                background: 'none', border: '1px solid rgba(212,162,60,0.35)',
+                borderRadius: 999, padding: '6px 14px', cursor: 'pointer',
+                color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 600,
+              }}
+            >
+              Entrar / Criar conta
+            </button>
+          )}
         </div>
       </header>
 
@@ -3527,11 +3399,7 @@ export default function App() {
           <Intro
             onStart={goToFormationPicker}
             gameMode={gameMode} onSetGameMode={setGameMode}
-            myTeamName={myTeamName} myTeamBadge={myTeamBadge} myTeamColor={myTeamColor}
-            myTeamCoach={myTeamCoach} myTeamCity={myTeamCity} myTeamLogo={myTeamLogo}
-            onSetName={setMyTeamName} onSetBadge={setMyTeamBadge} onSetColor={setMyTeamColor}
-            onSetCoach={setMyTeamCoach} onSetCity={setMyTeamCity}
-            onSetLogo={setMyTeamLogo} cropSrc={cropSrc} onSetCropSrc={setCropSrc}
+            myTeamColor={myTeamColor}
             onMultiPlayer={() => setMultiPhase('lobby')}
           />
         )}
@@ -3604,6 +3472,7 @@ export default function App() {
             onNextRound={goNextRound}
             matchHistory={matchHistory}
             scorers={scorers}
+            assisters={assisters}
             viewingTeam={viewingTeam}
             onViewTeam={setViewingTeam}
             onSimulateAll={simulateAllCupa}
@@ -3618,7 +3487,7 @@ export default function App() {
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} onNewSeason={newSeason} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} onNewSeason={newSeason} />
         )}
         {viewingTeam && <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} />}
         {penaltyPhase && (
@@ -3629,6 +3498,25 @@ export default function App() {
           />
         )}
       </main>
+      {showAccountModal && (
+        <AccountModal
+          onGuestChoice={handleGuestChoice}
+          onAuthSuccess={handleAuthSuccess}
+          onClose={() => setShowAccountModal(false)}
+          allowClose={localStorage.getItem('brl_guest_ack') === '1' || !!currentUser}
+        />
+      )}
+      {showAccountPanel && currentUser && (
+        <AccountPanel
+          user={currentUser}
+          myTeamColor={myTeamColor}
+          myTeamLogo={myTeamLogo}
+          onUpdateFields={updateAccountFields}
+          onClose={() => setShowAccountPanel(false)}
+          onLogout={handleLogout}
+          onDeleteAccount={handleDeleteAccount}
+        />
+      )}
     </div>
   );
 }
@@ -3730,6 +3618,597 @@ function ImageCropModal({ src, onConfirm, onCancel }) {
   );
 }
 
+// ============================================================
+// CONTA — modal de entrada (cadastro / login / convidado)
+// ============================================================
+function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSuccess, onClose, allowClose }) {
+  const [mode, setMode] = useState(initialMode);
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const submit = async () => {
+    setError('');
+    if (mode === 'signup' && !username.trim()) { setError('Escolha um nome de usuário.'); return; }
+    if (!email.trim() || !password) { setError('Preencha email e senha.'); return; }
+    setLoading(true);
+    try {
+      const result = mode === 'signup' ? await api.signup(username, email, password) : await api.login(email, password);
+      onAuthSuccess(result);
+    } catch (err) {
+      setError(err.message || 'Algo deu errado. Tente de novo.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div style={{ width: '100%', maxWidth: 380, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative' }}>
+        {allowClose && (
+          <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+        )}
+
+        {mode === 'choice' && (
+          <>
+            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>Bem-vindo!</div>
+            <p style={{ fontSize: 13, opacity: 0.6, textAlign: 'center', marginBottom: 24, lineHeight: 1.5 }}>
+              Crie uma conta pra salvar seu time e acessar de qualquer lugar, ou jogue como convidado sem compromisso.
+            </p>
+            <button onClick={() => setMode('signup')} style={{ ...styles.btnIntro, width: '100%', background: '#d4a23c', color: '#0B1A12', marginBottom: 10 }}>Criar conta</button>
+            <button onClick={() => setMode('login')} style={{ ...styles.btnGhost, marginTop: 0, marginBottom: 10 }}>Já tenho conta</button>
+            <button onClick={onGuestChoice} style={{ width: '100%', background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 13, padding: '8px 0', cursor: 'pointer' }}>
+              Jogar como convidado →
+            </button>
+          </>
+        )}
+
+        {(mode === 'signup' || mode === 'login') && (
+          <>
+            <button onClick={() => setMode('choice')} style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 14px 0' }}>&#8592; Voltar</button>
+            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 18 }}>
+              {mode === 'signup' ? 'Criar conta' : 'Entrar'}
+            </div>
+            {mode === 'signup' && (
+              <input
+                value={username} onChange={e => setUsername(e.target.value)} placeholder="Nome de usuário"
+                autoFocus maxLength={20} style={{ ...styles.teamInput, marginBottom: 10 }}
+              />
+            )}
+            <input
+              value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email"
+              autoFocus={mode !== 'signup'} style={{ ...styles.teamInput, marginBottom: 10 }}
+            />
+            <input
+              value={password} onChange={e => setPassword(e.target.value)} placeholder="Senha (mín. 6 caracteres)" type="password"
+              onKeyDown={e => e.key === 'Enter' && submit()}
+              style={{ ...styles.teamInput, marginBottom: 14 }}
+            />
+            {error && <div style={{ color: '#e05050', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+            <button onClick={submit} disabled={loading} style={{ ...styles.btnIntro, width: '100%', background: '#d4a23c', color: '#0B1A12', opacity: loading ? 0.6 : 1 }}>
+              {loading ? 'Aguarde…' : mode === 'signup' ? 'Criar conta' : 'Entrar'}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Barrinhas de equalizador — indicador de "tocando agora" reaproveitável.
+function EqBars({ color = '#d4a23c', height = 12 }) {
+  return (
+    <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height, flexShrink: 0 }}>
+      {[6, 10, 7, 12, 5, 9, 7, 11, 6].map((h, i) => (
+        <div key={i} style={{ width: 3, height: h * (height / 12), borderRadius: 2, background: color, animation: `pulse ${0.5 + i * 0.1}s ease-in-out infinite alternate`, opacity: 0.7 }} />
+      ))}
+    </div>
+  );
+}
+
+// ============================================================
+// CONTA — painel de edição (time, email/senha, excluir conta)
+// ============================================================
+function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, onLogout, onDeleteAccount }) {
+  const mc = myTeamColor || '#d4a23c';
+  const fileInputRef = useRef(null);
+  const [cropSrc, setCropSrc] = useState(null);
+  const [name, setName] = useState(user.team_name || '');
+  const [city, setCity] = useState(user.team_city || '');
+  const [coach, setCoach] = useState(user.team_coach || '');
+  const [username, setUsername] = useState(user.username);
+  const [email, setEmail] = useState(user.email);
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [credError, setCredError] = useState('');
+  const [savingCred, setSavingCred] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const [audioMode, setAudioMode] = useState('default'); // 'off' | 'default' | 'hino' | 'youtube'
+  const [ytInput, setYtInput] = useState('');
+  const [ytId, setYtId] = useState(null);
+
+  const [goalAudioMode, setGoalAudioMode] = useState('idle'); // 'idle' | 'record' | 'link'
+  const [goalAudioLinkInput, setGoalAudioLinkInput] = useState('');
+  const [isRecordingGoal, setIsRecordingGoal] = useState(false);
+  const [recordedGoalPreviewUrl, setRecordedGoalPreviewUrl] = useState(null);
+  const [recordedGoalDataUrl, setRecordedGoalDataUrl] = useState(null);
+  const [goalAudioError, setGoalAudioError] = useState('');
+  const goalMediaRecorderRef = useRef(null);
+  const goalRecordTimeoutRef = useRef(null);
+  const goalAudioFileInputRef = useRef(null);
+
+  const anthemClub = Object.entries(CLUB_LOGOS).find(([, url]) => url === myTeamLogo)?.[0];
+  const anthemId = anthemClub && CLUB_ANTHEMS[anthemClub];
+
+  useEffect(() => {
+    setName(user.team_name || '');
+    setCity(user.team_city || '');
+    setCoach(user.team_coach || '');
+    setUsername(user.username);
+    setEmail(user.email);
+  }, [user]);
+
+  const applyYoutube = () => {
+    const id = parseYouTubeId(ytInput);
+    if (id) setYtId(id);
+  };
+
+  const startGoalRecording = async () => {
+    setGoalAudioError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = e => chunks.push(e.data);
+      mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onload = () => {
+          setRecordedGoalDataUrl(reader.result);
+          setRecordedGoalPreviewUrl(URL.createObjectURL(blob));
+        };
+        reader.readAsDataURL(blob);
+        setIsRecordingGoal(false);
+      };
+      goalMediaRecorderRef.current = mr;
+      mr.start();
+      setIsRecordingGoal(true);
+      goalRecordTimeoutRef.current = setTimeout(() => { if (mr.state === 'recording') mr.stop(); }, 5000);
+    } catch {
+      setGoalAudioError('Não foi possível acessar o microfone.');
+    }
+  };
+  const stopGoalRecording = () => {
+    clearTimeout(goalRecordTimeoutRef.current);
+    if (goalMediaRecorderRef.current?.state === 'recording') goalMediaRecorderRef.current.stop();
+  };
+  const saveGoalRecording = async () => {
+    if (!recordedGoalDataUrl) return;
+    await commitField('goal_audio', recordedGoalDataUrl);
+    setRecordedGoalDataUrl(null);
+    setRecordedGoalPreviewUrl(null);
+    setGoalAudioMode('idle');
+  };
+  const discardGoalRecording = () => {
+    setRecordedGoalDataUrl(null);
+    setRecordedGoalPreviewUrl(null);
+  };
+  const applyGoalAudioLink = () => {
+    const url = goalAudioLinkInput.trim();
+    if (!url) return;
+    commitField('goal_audio', url);
+    setGoalAudioMode('idle');
+    setGoalAudioLinkInput('');
+  };
+  const handleGoalAudioFile = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => commitField('goal_audio', reader.result);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+  const removeGoalAudio = () => commitField('goal_audio', null);
+
+  const commitField = async (field, value) => {
+    setError('');
+    try { await onUpdateFields({ [field]: value }); }
+    catch (err) { setError(err.message || 'Erro ao salvar.'); }
+  };
+
+  const handleFileChange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setCropSrc(url);
+    e.target.value = '';
+  };
+
+  const saveCredentials = async () => {
+    setCredError('');
+    const fields = {};
+    const normalizedUsername = username.trim();
+    if (normalizedUsername && normalizedUsername !== user.username) fields.username = normalizedUsername;
+    const normalizedEmail = email.trim().toLowerCase();
+    if (normalizedEmail && normalizedEmail !== user.email) fields.email = normalizedEmail;
+    if (password) fields.password = password;
+    if (Object.keys(fields).length === 0) return;
+    setSavingCred(true);
+    try {
+      await onUpdateFields(fields);
+      setPassword('');
+    } catch (err) {
+      setCredError(err.message || 'Erro ao salvar.');
+    } finally {
+      setSavingCred(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!confirmDelete) { setConfirmDelete(true); return; }
+    setDeleting(true);
+    try { await onDeleteAccount(); }
+    catch (err) { setError(err.message || 'Erro ao excluir conta.'); setDeleting(false); }
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
+      {cropSrc && (
+        <ImageCropModal
+          src={cropSrc}
+          onConfirm={dataUrl => { setCropSrc(null); commitField('team_logo', dataUrl); }}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
+      <div style={{ width: '100%', maxWidth: 460, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+        <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{user.username}</div>
+        <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 20 }}>{user.email}</div>
+
+        <div style={styles.teamEditCard}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+              <div
+                onClick={() => fileInputRef.current?.click()}
+                style={{
+                  width: 76, height: 76, borderRadius: 16,
+                  background: hexToRgba(mc, 0.15),
+                  border: `2px dashed ${hexToRgba(mc, 0.6)}`,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', overflow: 'hidden', position: 'relative',
+                }}
+              >
+                {myTeamLogo
+                  ? <img src={myTeamLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  : <span style={{ fontSize: 32, opacity: 0.4 }}>📷</span>
+                }
+              </div>
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                style={{ fontSize: 11, fontWeight: 600, color: mc, background: hexToRgba(mc, 0.12), border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}
+              >
+                📷 Upload logo
+              </button>
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+            {myTeamLogo && (
+              <button onClick={() => commitField('team_logo', null)} style={{ fontSize: 11, color: '#e05050', background: 'none', border: '1px solid rgba(224,80,80,0.3)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer' }}>
+                Remover logo
+              </button>
+            )}
+          </div>
+
+          <div style={styles.teamEditSep} />
+
+          <div style={styles.teamEditSection}>
+            <div style={styles.teamEditLabel}>Emblema do clube</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+              {Object.entries(CLUB_LOGOS).map(([club, url]) => (
+                <button
+                  key={club}
+                  onClick={() => commitField('team_logo', myTeamLogo === url ? null : url)}
+                  title={club}
+                  style={{
+                    width: 44, height: 44, borderRadius: 10, padding: 5,
+                    border: `2px solid ${myTeamLogo === url ? mc : 'rgba(255,255,255,0.08)'}`,
+                    background: myTeamLogo === url ? hexToRgba(mc, 0.15) : 'rgba(255,255,255,0.03)',
+                    cursor: 'pointer', transition: 'all 0.12s',
+                  }}
+                >
+                  <img src={url} alt={club} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div style={styles.teamEditSection}>
+            <div style={styles.teamEditLabel}>Cor principal</div>
+            <div style={styles.colorGrid}>
+              {TEAM_COLORS.map(c => (
+                <button key={c} onClick={() => commitField('team_color', c)} style={{
+                  width: 30, height: 30, borderRadius: '50%',
+                  background: c,
+                  border: `3px solid ${mc === c ? '#fff' : 'transparent'}`,
+                  outline: mc === c ? `2px solid ${c}` : 'none',
+                  outlineOffset: 2,
+                  cursor: 'pointer', transition: 'all 0.12s', padding: 0,
+                }} />
+              ))}
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label style={styles.teamEditLabel}>Nome do time</label>
+              <input
+                value={name} onChange={e => setName(e.target.value)}
+                onBlur={() => name !== (user.team_name || '') && commitField('team_name', name)}
+                placeholder="Meu Time" maxLength={24} style={styles.teamInput}
+              />
+            </div>
+            <div>
+              <label style={styles.teamEditLabel}>Cidade</label>
+              <input
+                value={city} onChange={e => setCity(e.target.value)}
+                onBlur={() => city !== (user.team_city || '') && commitField('team_city', city)}
+                placeholder="Ex: São Paulo" maxLength={20} style={styles.teamInput}
+              />
+            </div>
+            <div style={{ gridColumn: '1 / -1' }}>
+              <label style={styles.teamEditLabel}>Técnico</label>
+              <input
+                value={coach} onChange={e => setCoach(e.target.value)}
+                onBlur={() => coach !== (user.team_coach || '') && commitField('team_coach', coach)}
+                placeholder="Seu nome" maxLength={24} style={styles.teamInput}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Áudio ambiente — trilha padrão, hino do clube ou link próprio */}
+        <div style={{
+          background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
+          border: `1px solid ${hexToRgba(mc, 0.3)}`,
+          borderRadius: 16, padding: '18px 20px', marginBottom: 24, position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 1px, transparent 40px)', pointerEvents: 'none' }} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, position: 'relative' }}>
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎙️</div>
+            <div>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Transmissão</div>
+              <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>Áudio ambiente</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gap: 8, position: 'relative' }}>
+            <button
+              onClick={() => setAudioMode(m => m === 'default' ? 'off' : 'default')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                border: `1px solid ${audioMode === 'default' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
+                background: audioMode === 'default' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🎵</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>Trilha padrão</div>
+                <div style={{ fontSize: 11, opacity: 0.55 }}>Som ambiente clássico do jogo</div>
+              </div>
+              {audioMode === 'default' && <EqBars color={mc} />}
+            </button>
+
+            <button
+              onClick={() => anthemId && setAudioMode(m => m === 'hino' ? 'off' : 'hino')}
+              disabled={!anthemId}
+              title={!anthemId ? 'Escolha um emblema de clube oficial acima pra liberar o hino' : ''}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                padding: '10px 14px', borderRadius: 10, cursor: anthemId ? 'pointer' : 'not-allowed',
+                border: `1px solid ${audioMode === 'hino' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
+                background: audioMode === 'hino' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s', opacity: anthemId ? 1 : 0.45,
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🏆</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>Hino {anthemClub ? `do ${anthemClub.replace(/-/g, ' ')}` : 'do seu time'}</div>
+                <div style={{ fontSize: 11, opacity: 0.55 }}>{anthemId ? 'Hino oficial do clube' : 'Escolha um emblema oficial acima pra liberar'}</div>
+              </div>
+              {audioMode === 'hino' && anthemId && <EqBars color={mc} />}
+            </button>
+
+            <button
+              onClick={() => setAudioMode(m => m === 'youtube' ? 'off' : 'youtube')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                border: `1px solid ${audioMode === 'youtube' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
+                background: audioMode === 'youtube' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🔗</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>Link personalizado</div>
+                <div style={{ fontSize: 11, opacity: 0.55 }}>Cole um link do YouTube</div>
+              </div>
+              {audioMode === 'youtube' && ytId && <EqBars color={mc} />}
+            </button>
+          </div>
+
+          {audioMode === 'youtube' && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10, position: 'relative' }}>
+              <input
+                value={ytInput} onChange={e => setYtInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && applyYoutube()}
+                placeholder="Link do YouTube…" style={{ ...styles.teamInput, flex: 1, margin: 0 }}
+              />
+              <button onClick={applyYoutube} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                Tocar
+              </button>
+            </div>
+          )}
+          {audioMode === 'youtube' && !ytId && ytInput && (
+            <div style={{ fontSize: 11, color: '#e05050', marginTop: 6, position: 'relative' }}>Link inválido — cole um link do YouTube ou ID de 11 caracteres.</div>
+          )}
+
+          {audioMode === 'default' && (
+            <audio key="acc-default-bg" src="/audio.mp3" autoPlay loop style={{ display: 'none' }} />
+          )}
+          {audioMode === 'hino' && anthemId && (
+            <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+              <iframe key={anthemId} width="1" height="1" src={`https://www.youtube.com/embed/${anthemId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title={`Hino ${anthemClub}`} />
+            </div>
+          )}
+          {audioMode === 'youtube' && ytId && (
+            <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+              <iframe key={ytId} width="1" height="1" src={`https://www.youtube.com/embed/${ytId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title="Áudio ambiente" />
+            </div>
+          )}
+        </div>
+
+        {/* Áudio de gol do meu time — grava, cola link ou envia arquivo */}
+        <div style={{
+          background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
+          border: `1px solid ${hexToRgba(mc, 0.3)}`,
+          borderRadius: 16, padding: '18px 20px', marginBottom: 24, position: 'relative', overflow: 'hidden',
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>⚽</div>
+            <div>
+              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Comemoração</div>
+              <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>Áudio de gol do meu time</div>
+            </div>
+          </div>
+
+          {user.goal_audio ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+              <span style={{ fontSize: 12, opacity: 0.7, flex: 1 }}>Áudio personalizado configurado</span>
+              <button onClick={() => { const a = new Audio(user.goal_audio); a.play().catch(() => {}); }} style={{ fontSize: 11, color: mc, background: 'none', border: `1px solid ${hexToRgba(mc, 0.4)}`, borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>▶ Testar</button>
+              <button onClick={removeGoalAudio} style={{ fontSize: 11, color: '#e05050', background: 'none', border: '1px solid rgba(224,80,80,0.3)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>Remover</button>
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 12 }}>Sem áudio personalizado — toca o som padrão do clube (quando disponível) ao marcar gol.</div>
+          )}
+
+          <div style={{ display: 'grid', gap: 8 }}>
+            <button
+              onClick={() => setGoalAudioMode(m => m === 'record' ? 'idle' : 'record')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                border: `1px solid ${goalAudioMode === 'record' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
+                background: goalAudioMode === 'record' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🎙️</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>Gravar</div>
+                <div style={{ fontSize: 11, opacity: 0.55 }}>Grave até 5 segundos pelo microfone</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setGoalAudioMode(m => m === 'link' ? 'idle' : 'link')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                border: `1px solid ${goalAudioMode === 'link' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
+                background: goalAudioMode === 'link' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>🔗</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>Link de áudio</div>
+                <div style={{ fontSize: 11, opacity: 0.55 }}>Cole a URL direta de um arquivo de áudio</div>
+              </div>
+            </button>
+
+            <button
+              onClick={() => goalAudioFileInputRef.current?.click()}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
+                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+              }}
+            >
+              <span style={{ fontSize: 18 }}>📁</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>Enviar arquivo</div>
+                <div style={{ fontSize: 11, opacity: 0.55 }}>Escolha um arquivo de áudio do seu dispositivo</div>
+              </div>
+            </button>
+            <input ref={goalAudioFileInputRef} type="file" accept="audio/*" onChange={handleGoalAudioFile} style={{ display: 'none' }} />
+          </div>
+
+          {goalAudioMode === 'record' && (
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              {!isRecordingGoal && !recordedGoalPreviewUrl && (
+                <button onClick={startGoalRecording} style={{ ...styles.btnSmall, margin: 0 }}>● Iniciar gravação</button>
+              )}
+              {isRecordingGoal && (
+                <button onClick={stopGoalRecording} style={{ ...styles.btnSmall, margin: 0, color: '#e05050', borderColor: 'rgba(224,80,80,0.4)' }}>■ Parar (gravando…)</button>
+              )}
+              {recordedGoalPreviewUrl && (
+                <>
+                  <audio src={recordedGoalPreviewUrl} controls style={{ height: 32 }} />
+                  <button onClick={saveGoalRecording} style={{ ...styles.btnSmall, margin: 0 }}>Salvar</button>
+                  <button onClick={discardGoalRecording} style={{ ...styles.btnSmall, margin: 0, color: '#e05050', borderColor: 'rgba(224,80,80,0.4)' }}>Descartar</button>
+                </>
+              )}
+            </div>
+          )}
+          {goalAudioMode === 'link' && (
+            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+              <input
+                value={goalAudioLinkInput} onChange={e => setGoalAudioLinkInput(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && applyGoalAudioLink()}
+                placeholder="https://…/gol.mp3" style={{ ...styles.teamInput, flex: 1, margin: 0 }}
+              />
+              <button onClick={applyGoalAudioLink} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                Aplicar
+              </button>
+            </div>
+          )}
+          {goalAudioError && <div style={{ color: '#e05050', fontSize: 11, marginTop: 8 }}>{goalAudioError}</div>}
+        </div>
+
+        <div style={styles.teamEditSep} />
+
+        <div style={styles.teamEditSection}>
+          <div style={styles.teamEditLabel}>Usuário, email e senha</div>
+          <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Nome de usuário" maxLength={20} style={styles.teamInput} />
+          <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" style={{ ...styles.teamInput, marginTop: 8 }} />
+          <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Nova senha (opcional)" style={{ ...styles.teamInput, marginTop: 8 }} />
+          {credError && <div style={{ color: '#e05050', fontSize: 12, marginTop: 6 }}>{credError}</div>}
+          <button onClick={saveCredentials} disabled={savingCred} style={{ ...styles.btnSmall, marginTop: 10 }}>
+            {savingCred ? 'Salvando…' : 'Salvar'}
+          </button>
+        </div>
+
+        {error && <div style={{ color: '#e05050', fontSize: 12, marginTop: 10 }}>{error}</div>}
+
+        <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+          <button onClick={onLogout} style={{ ...styles.btnGhost, marginTop: 0, flex: 1 }}>Sair</button>
+          <button onClick={handleDelete} disabled={deleting} style={{ ...styles.btnGhost, marginTop: 0, flex: 1, borderColor: 'rgba(224,80,80,0.4)', color: '#e05050' }}>
+            {confirmDelete ? (deleting ? 'Excluindo…' : 'Confirmar exclusão?') : 'Excluir conta'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const TEAM_BADGES = ['⭐', '🔥', '🦅', '🐯', '🦁', '💎', '⚡', '🏆', '🌊', '🎯', '🛡️', '🌟'];
 const TEAM_COLORS = ['#d4a23c', '#e05050', '#4a90d9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#e91e8c'];
 
@@ -3750,36 +4229,14 @@ function parseYouTubeId(input) {
   return null;
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo, onSetName, onSetBadge, onSetColor, onSetCoach, onSetCity, onSetLogo, cropSrc, onSetCropSrc, onMultiPlayer }) {
-  const displayName = myTeamName || 'Meu Time';
-  const fileInputRef = useRef(null);
-  const [musicOn, setMusicOn] = React.useState(false);
-  const [musicInput, setMusicInput] = React.useState('');
-  const [musicId, setMusicId] = React.useState(null);
-
-  const applyMusic = () => {
-    const id = parseYouTubeId(musicInput);
-    if (id) setMusicId(id);
-  };
-
-  const handleFileChange = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    onSetCropSrc(url);
-    e.target.value = '';
-  };
+function Intro({ onStart, gameMode, onSetGameMode, myTeamColor, onMultiPlayer }) {
+  const mc = myTeamColor || '#d4a23c';
+  const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
 
   return (
     <>
-      {cropSrc && (
-        <ImageCropModal
-          src={cropSrc}
-          onConfirm={dataUrl => { onSetLogo(dataUrl); onSetCropSrc(null); }}
-          onCancel={() => onSetCropSrc(null)}
-        />
-      )}
       <div style={styles.introCard} className="intro-card-mob">
+        <div style={{ ...styles.introTopBar, background: `linear-gradient(90deg, transparent, ${mc}, transparent)` }} />
         <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2026</div>
         <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
         <p style={styles.introLead}>
@@ -3788,235 +4245,38 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
         </p>
 
         <div style={styles.featGrid} className="feat-grid-3">
-          <div style={styles.featCard}>
-            <div style={styles.featIcon}>🎲</div>
+          <div style={styles.featCard} className="feat-card-hover">
+            <span style={styles.featIndex}>01</span>
+            <div style={{ ...styles.featIconWrap, background: hexToRgba(mc, 0.14), border: `1px solid ${hexToRgba(mc, 0.35)}` }}>🎲</div>
             <div style={styles.featTitle}>Role o dado</div>
             <div style={styles.featDesc}>Sorteie times campeões lendários. Recuse até 3 que não te interessar.</div>
           </div>
-          <div style={styles.featCard}>
-            <div style={styles.featIcon}>🏟️</div>
+          <div style={styles.featCard} className="feat-card-hover">
+            <span style={styles.featIndex}>02</span>
+            <div style={{ ...styles.featIconWrap, background: hexToRgba(mc, 0.14), border: `1px solid ${hexToRgba(mc, 0.35)}` }}>🏟️</div>
             <div style={styles.featTitle}>Monte o Plantel</div>
             <div style={styles.featDesc}>Escolha 11 titulares e 5 reservas entre os maiores craques de cada era.</div>
           </div>
-          <div style={styles.featCard}>
-            <div style={styles.featIcon}>🏆</div>
+          <div style={styles.featCard} className="feat-card-hover">
+            <span style={styles.featIndex}>03</span>
+            <div style={{ ...styles.featIconWrap, background: hexToRgba(mc, 0.14), border: `1px solid ${hexToRgba(mc, 0.35)}` }}>🏆</div>
             <div style={styles.featTitle}>Dispute o título</div>
             <div style={styles.featDesc}>Liga com 20 times, 38 rodadas e gols aparecendo minuto a minuto.</div>
           </div>
         </div>
 
-        {/* Editor do time */}
-        <div style={styles.teamEditCard}>
-          {/* Preview + Upload */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  width: 76, height: 76, borderRadius: 16,
-                  background: hexToRgba(myTeamColor, 0.15),
-                  border: `2px dashed ${hexToRgba(myTeamColor, 0.6)}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', overflow: 'hidden', position: 'relative',
-                }}
-              >
-                {myTeamLogo
-                  ? <img src={myTeamLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ fontSize: 32, opacity: 0.4 }}>📷</span>
-                }
-                {myTeamLogo && (
-                  <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', opacity: 0, transition: 'opacity 0.15s' }}
-                    onMouseEnter={e => e.currentTarget.style.opacity = 1}
-                    onMouseLeave={e => e.currentTarget.style.opacity = 0}
-                  >
-                    <span style={{ fontSize: 20 }}>📷</span>
-                  </div>
+        <div style={styles.introSectionLabel}>{TEAMS.length} times lendários no elenco</div>
+        <div style={styles.introMarqueeWrap}>
+          <div style={styles.introMarqueeTrack} className="marquee-track">
+            {carouselTeams.map((t, i) => (
+              <div key={`${t.id}-${i}`} style={styles.introTeamChip}>
+                {CLUB_LOGOS[t.club] && (
+                  <img src={CLUB_LOGOS[t.club]} alt="" style={styles.introTeamChipCrest} onError={e => { e.currentTarget.style.display = 'none'; }} />
                 )}
+                {t.label}
               </div>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                style={{ fontSize: 11, fontWeight: 600, color: myTeamColor, background: hexToRgba(myTeamColor, 0.12), border: `1px solid ${hexToRgba(myTeamColor, 0.3)}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}
-              >
-                📷 Upload logo
-              </button>
-            </div>
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
-            <div style={{ textAlign: 'left', flex: 1 }}>
-              <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, color: myTeamColor, lineHeight: 1.2 }}>
-                {displayName}
-              </div>
-              {(myTeamCity || myTeamCoach) && (
-                <div style={{ fontSize: 12, opacity: 0.5, marginTop: 3 }}>
-                  {myTeamCity && <span>{myTeamCity}</span>}
-                  {myTeamCity && myTeamCoach && <span> · </span>}
-                  {myTeamCoach && <span>Téc: {myTeamCoach}</span>}
-                </div>
-              )}
-              {myTeamLogo && (
-                <button onClick={() => onSetLogo(null)} style={{ marginTop: 6, fontSize: 11, color: '#e05050', background: 'none', border: '1px solid rgba(224,80,80,0.3)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer' }}>
-                  Remover logo
-                </button>
-              )}
-            </div>
+            ))}
           </div>
-
-          <div style={styles.teamEditSep} />
-
-          {/* Emblema do clube (logos rápidos) */}
-          <div style={styles.teamEditSection}>
-            <div style={styles.teamEditLabel}>Emblema do clube</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {Object.entries(CLUB_LOGOS).map(([club, url]) => (
-                <button
-                  key={club}
-                  onClick={() => onSetLogo(myTeamLogo === url ? null : url)}
-                  title={club}
-                  style={{
-                    width: 44, height: 44, borderRadius: 10, padding: 5,
-                    border: `2px solid ${myTeamLogo === url ? myTeamColor : 'rgba(255,255,255,0.08)'}`,
-                    background: myTeamLogo === url ? hexToRgba(myTeamColor, 0.15) : 'rgba(255,255,255,0.03)',
-                    cursor: 'pointer', transition: 'all 0.12s',
-                  }}
-                >
-                  <img src={url} alt={club} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Cor principal */}
-          <div style={styles.teamEditSection}>
-            <div style={styles.teamEditLabel}>Cor principal</div>
-            <div style={styles.colorGrid}>
-              {TEAM_COLORS.map(c => (
-                <button key={c} onClick={() => onSetColor(c)} style={{
-                  width: 30, height: 30, borderRadius: '50%',
-                  background: c,
-                  border: `3px solid ${myTeamColor === c ? '#fff' : 'transparent'}`,
-                  outline: myTeamColor === c ? `2px solid ${c}` : 'none',
-                  outlineOffset: 2,
-                  cursor: 'pointer', transition: 'all 0.12s', padding: 0,
-                }} />
-              ))}
-            </div>
-          </div>
-
-          {/* Inputs */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={styles.teamEditLabel}>Nome do time</label>
-              <input
-                value={myTeamName}
-                onChange={e => onSetName(e.target.value)}
-                placeholder="Meu Time"
-                maxLength={24}
-                style={styles.teamInput}
-              />
-            </div>
-            <div>
-              <label style={styles.teamEditLabel}>Cidade</label>
-              <input
-                value={myTeamCity}
-                onChange={e => onSetCity(e.target.value)}
-                placeholder="Ex: São Paulo"
-                maxLength={20}
-                style={styles.teamInput}
-              />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={styles.teamEditLabel}>Técnico</label>
-              <input
-                value={myTeamCoach}
-                onChange={e => onSetCoach(e.target.value)}
-                placeholder="Seu nome"
-                maxLength={24}
-                style={styles.teamInput}
-              />
-            </div>
-          </div>
-
-          <div style={styles.teamEditSep} />
-
-          {/* Música de fundo */}
-          <div>
-            <button
-              onClick={() => setMusicOn(v => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8, width: '100%',
-                background: musicOn ? hexToRgba(myTeamColor, 0.1) : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${musicOn ? hexToRgba(myTeamColor, 0.35) : 'rgba(255,255,255,0.1)'}`,
-                borderRadius: 10, padding: '9px 14px', cursor: 'pointer',
-                color: musicOn ? myTeamColor : 'rgba(255,255,255,0.5)',
-                fontSize: 13, fontWeight: 600, transition: 'all 0.15s',
-              }}
-            >
-              <span>🎵</span>
-              Música de fundo
-              <span style={{ marginLeft: 'auto', fontSize: 11, opacity: 0.6 }}>{musicOn ? 'ativada' : 'opcional'}</span>
-            </button>
-            {musicOn && (
-              <div style={{ marginTop: 8, background: 'rgba(0,0,0,0.25)', borderRadius: 10, padding: 12, border: '1px solid rgba(255,255,255,0.07)' }}>
-                {/* Áudio padrão — toca sempre que não há YouTube definido */}
-                {!musicId && (
-                  <audio key="default-bg" src="/audio.mp3" autoPlay loop style={{ display: 'none' }} />
-                )}
-                {/* Indicador: tocando áudio padrão */}
-                {!musicId && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
-                    <span style={{ fontSize: 18 }}>🎵</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, opacity: 0.6 }}>Tocando áudio padrão</div>
-                      <div style={{ display: 'flex', gap: 2, marginTop: 4, alignItems: 'flex-end', height: 12 }}>
-                        {[6, 10, 7, 12, 5, 9, 7, 11, 6].map((h, i) => (
-                          <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: myTeamColor || '#d4a23c', animation: `pulse ${0.5 + i * 0.1}s ease-in-out infinite alternate`, opacity: 0.7 }} />
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div style={{ display: 'flex', gap: 8, marginBottom: musicId ? 10 : 0 }}>
-                  <input
-                    value={musicInput}
-                    onChange={e => setMusicInput(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && applyMusic()}
-                    placeholder="Substituir por link do YouTube…"
-                    style={{ ...styles.teamInput, flex: 1, margin: 0 }}
-                  />
-                  <button onClick={applyMusic} style={{ background: myTeamColor, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 14px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                    Tocar
-                  </button>
-                </div>
-                {musicId && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4, padding: '8px 10px', background: 'rgba(255,255,255,0.04)', borderRadius: 8, border: '1px solid rgba(255,255,255,0.07)' }}>
-                    {/* iframe escondido — só áudio */}
-                    <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
-                      <iframe key={musicId} width="1" height="1" src={`https://www.youtube.com/embed/${musicId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title="Música de fundo" />
-                    </div>
-                    <span style={{ fontSize: 18 }}>🎵</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 11, opacity: 0.6 }}>Tocando YouTube</div>
-                      <div style={{ display: 'flex', gap: 2, marginTop: 4, alignItems: 'flex-end', height: 12 }}>
-                        {[6, 10, 7, 12, 5, 9, 7, 11, 6].map((h, i) => (
-                          <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: myTeamColor || '#d4a23c', animation: `pulse ${0.5 + i * 0.1}s ease-in-out infinite alternate`, opacity: 0.7 }} />
-                        ))}
-                      </div>
-                    </div>
-                    <button onClick={() => { setMusicId(null); setMusicInput(''); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 16, padding: 0 }}>✕</button>
-                  </div>
-                )}
-                {!musicId && musicInput && (
-                  <div style={{ fontSize: 11, color: '#e05050', marginTop: 6 }}>Link inválido — cole um link do YouTube ou ID de 11 caracteres.</div>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-
-        <div style={styles.introTeamStrip}>
-          {['Santos 1961', 'Flamengo 1981', 'São Paulo 1991', 'Vasco 1997', 'Corinthians 2005'].map(t => (
-            <div key={t} style={styles.introTeamChip}>{t}</div>
-          ))}
-          <div style={styles.introTeamChip}>+ 22 times</div>
         </div>
 
         {/* Modo de jogo */}
@@ -4038,18 +4298,22 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
               },
             ].map(m => (
               <button key={m.id} onClick={() => onSetGameMode(m.id)} style={{
-                padding: '14px 12px', borderRadius: 12, border: '2px solid',
-                borderColor: gameMode === m.id ? myTeamColor : 'rgba(255,255,255,0.1)',
-                background: gameMode === m.id ? hexToRgba(myTeamColor, 0.1) : 'rgba(255,255,255,0.03)',
+                padding: '14px 12px', borderRadius: 12, border: '2px solid', position: 'relative',
+                borderColor: gameMode === m.id ? mc : 'rgba(255,255,255,0.1)',
+                background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
                 color: '#F4F1EA', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s',
+                boxShadow: gameMode === m.id ? `0 0 0 1px ${hexToRgba(mc, 0.15)} inset` : 'none',
               }}>
+                {gameMode === m.id && (
+                  <div style={{ position: 'absolute', top: 10, right: 10, width: 18, height: 18, borderRadius: '50%', background: mc, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, color: '#0B1A12' }}>✓</div>
+                )}
                 <img
                   src={m.trophy}
                   alt={m.title}
                   style={{ height: 40, objectFit: 'contain', marginBottom: 8, display: 'block' }}
                   onError={e => { e.currentTarget.style.display = 'none'; }}
                 />
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3, color: gameMode === m.id ? myTeamColor : '#F4F1EA' }}>{m.title}</div>
+                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3, color: gameMode === m.id ? mc : '#F4F1EA' }}>{m.title}</div>
                 <div style={{ fontSize: 11, opacity: 0.5, lineHeight: 1.4 }}>{m.sub}</div>
               </button>
             ))}
@@ -4075,7 +4339,7 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamName, myTeamBadge, myTe
           <span style={{ marginLeft: 'auto', fontSize: 18, opacity: 0.5 }}>→</span>
         </button>
 
-        <button style={{ ...styles.btnIntro, background: myTeamColor, color: '#0B1A12' }} onClick={onStart}>
+        <button style={{ ...styles.btnIntro, background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: '#0B1A12', boxShadow: `0 8px 24px ${hexToRgba(mc, 0.35)}` }} onClick={onStart}>
           {gameMode === 'copa' ? 'Escolher formação — Copa →' : 'Escolher formação — Brasileirão →'}
         </button>
       </div>
@@ -4158,6 +4422,35 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
   const myData = roomData.players?.[myId] || {};
   const isSetupPhase = roomData.phase === 'team-setup';
   const timerMinutes = roomData.timerMinutes || 3;
+  const maxSlots = roomData.gameMode === 'copa' ? 32 : 20;
+  const emptySlots = Math.max(0, maxSlots - players.length);
+
+  // Revelação sequencial dos times fictícios sorteados ao iniciar
+  const [revealNames, setRevealNames] = React.useState({});
+  const seenAiIds = React.useRef(new Set());
+  React.useEffect(() => {
+    const aiIds = players.filter(([, p]) => p.isAI).map(([pid]) => pid);
+    const freshIds = aiIds.filter(pid => !seenAiIds.current.has(pid));
+    if (freshIds.length === 0) return;
+    freshIds.forEach((pid, idx) => {
+      seenAiIds.current.add(pid);
+      const startDelay = idx * 130;
+      setTimeout(() => {
+        let step = 0;
+        const totalSteps = 5;
+        const iv = setInterval(() => {
+          step++;
+          if (step >= totalSteps) {
+            clearInterval(iv);
+            setRevealNames(prev => { const next = { ...prev }; delete next[pid]; return next; });
+          } else {
+            const decoy = TEAMS[Math.floor(Math.random() * TEAMS.length)].label;
+            setRevealNames(prev => ({ ...prev, [pid]: decoy }));
+          }
+        }, 90);
+      }, startDelay);
+    });
+  }, [players.map(([pid]) => pid).join(',')]);
 
   const [copied, setCopied] = React.useState(false);
   const copyCode = () => {
@@ -4281,24 +4574,47 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
         </div>
       )}
 
-      {/* Lista de jogadores */}
+      {/* Grid de vagas — jogadores reais + vagas aguardando + times fictícios sorteados */}
       <div style={{ marginBottom: 16 }}>
-        <div style={styles.sectionLabel}>Jogadores ({players.length})</div>
-        {players.map(([pid, p]) => (
-          <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-            {p.logo
-              ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)' }} />
-              : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚽</div>
-            }
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: p.color || '#F4F1EA' }}>{p.name || 'Jogador'}</div>
-              {p.city && <div style={{ fontSize: 11, opacity: 0.4 }}>{p.city}</div>}
+        <div style={styles.sectionLabel}>Vagas ({players.length}/{maxSlots})</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 8 }}>
+          {players.map(([pid, p]) => {
+            const isRevealing = pid in revealNames;
+            const displayName = isRevealing ? revealNames[pid] : (p.name || 'Jogador');
+            return (
+              <div key={pid} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 10,
+                border: `1px solid ${p.isAI ? 'rgba(255,255,255,0.1)' : hexToRgba(mc, 0.25)}`,
+                background: p.isAI ? 'rgba(255,255,255,0.03)' : hexToRgba(mc, 0.06),
+              }}>
+                {p.logo
+                  ? <img src={p.logo} alt="" style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'contain', background: 'rgba(255,255,255,0.05)', flexShrink: 0 }} />
+                  : <div style={{ width: 28, height: 28, borderRadius: 7, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>⚽</div>
+                }
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{
+                    fontSize: 12, fontWeight: 600, color: p.color || '#F4F1EA',
+                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    opacity: isRevealing ? 0.55 : 1, transition: 'opacity 0.08s',
+                  }}>
+                    {displayName}
+                  </div>
+                  {p.isAI && !isRevealing && <div style={{ fontSize: 9.5, opacity: 0.4, letterSpacing: 0.5 }}>TIME SORTEADO</div>}
+                  {pid === roomData.leaderId && !p.isAI && <div style={{ fontSize: 9.5, color: '#d4a23c' }}>LÍDER</div>}
+                </div>
+                {!isRevealing && <span style={{ fontSize: 13, flexShrink: 0 }}>{p.ready ? '✅' : '⏳'}</span>}
+              </div>
+            );
+          })}
+          {Array.from({ length: emptySlots }).map((_, i) => (
+            <div key={`empty-${i}`} style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 10px',
+              borderRadius: 10, border: '1px dashed rgba(255,255,255,0.15)', minHeight: 44,
+            }}>
+              <span style={{ fontSize: 11.5, opacity: 0.35 }}>Aguardando…</span>
             </div>
-            {pid === roomData.leaderId && <span style={{ fontSize: 10, color: '#d4a23c', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 4, padding: '1px 6px' }}>LÍDER</span>}
-            {pid === myId && <span style={{ fontSize: 10, color: '#aaa', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, padding: '1px 6px' }}>VOCÊ</span>}
-            <span style={{ fontSize: 14 }}>{p.ready ? '✅' : '⏳'}</span>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
       {/* Ações do líder */}
@@ -4308,7 +4624,11 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
           disabled={players.length < 2}
           style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12', opacity: players.length < 2 ? 0.5 : 1 }}
         >
-          {players.length < 2 ? 'Aguardando mais jogadores...' : `▶ Iniciar — ${timerMinutes} min para criar o time`}
+          {players.length < 2
+            ? 'Aguardando mais jogadores... (mín. 2)'
+            : emptySlots > 0
+              ? `▶ Iniciar — sorteia ${emptySlots} time${emptySlots !== 1 ? 's' : ''} pras vagas restantes`
+              : `▶ Iniciar — ${timerMinutes} min para criar o time`}
         </button>
       )}
       {!isLeader && !isSetupPhase && (
@@ -4375,30 +4695,93 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
 // ============================================================
 // FIM DAS TELAS MULTIPLAYER
 // ============================================================
+const FORMATION_GROUPS = [
+  { prefix: '4', title: 'Linha de 4 zagueiros', icon: '🛡️', hint: 'Equilíbrio clássico entre defesa e ataque' },
+  { prefix: '3', title: 'Linha de 3 zagueiros', icon: '⚔️', hint: 'Mais volume ofensivo, alas cobrindo as laterais' },
+  { prefix: '5', title: 'Linha de 5 zagueiros', icon: '🔒', hint: 'Retranca — prioriza solidez defensiva' },
+];
+
 function FormationPicker({ onChoose, onBack }) {
+  const groups = useMemo(() => (
+    FORMATION_GROUPS
+      .map(g => ({ ...g, items: Object.entries(FORMATIONS).filter(([key]) => key.split('-')[0] === g.prefix) }))
+      .filter(g => g.items.length > 0)
+  ), []);
+  const total = Object.keys(FORMATIONS).length;
+
   return (
     <div style={styles.card} className="card-mob">
       {onBack && <button onClick={onBack} style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 10px 0' }}>&#8592; Voltar</button>}
       <div style={styles.eyebrow}>Passo 1 de 2</div>
       <h2 style={styles.h2}>Escolha o esquema tático</h2>
-      <div style={styles.formationGrid}>
-        {Object.entries(FORMATIONS).map(([key, f]) => (
-          <button key={key} style={styles.formationCard} onClick={() => onChoose(key)}>
-            <div style={styles.formationName}>{f.label}</div>
-            <MiniPitchPreview formationKey={key} />
-          </button>
-        ))}
-      </div>
+      <p style={styles.formationIntro}>
+        {total} esquemas táticos à sua escolha, organizados pela linha de defesa. Cada posição no campinho
+        já mostra a cor da função — goleiro, zaga, meio ou ataque.
+      </p>
+
+      {groups.map(g => (
+        <div key={g.prefix} style={{ marginBottom: 28 }}>
+          <div style={styles.formationSectionHead}>
+            <span style={styles.formationSectionTitle}><span>{g.icon}</span>{g.title}</span>
+            <span style={styles.formationSectionHint}>{g.hint}</span>
+          </div>
+          <div style={styles.formationGrid} className="formation-grid">
+            {g.items.map(([key, f]) => {
+              const m = f.label.match(/^([\d-]+)\s*(.*)$/);
+              const shape = m ? m[1] : f.label;
+              const desc = m ? m[2] : '';
+              return (
+                <button key={key} className="formation-card" style={styles.formationCard} onClick={() => onChoose(key)}>
+                  <div style={styles.formationShapeNum}>{shape}</div>
+                  <div style={styles.formationShapeDesc}>{desc}</div>
+                  <MiniPitchPreview formationKey={key} />
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
+
+// Cores por função tática — a mesma lógica usada no campo cheio (Pitch), pra
+// ficar consistente do início (escolha do esquema) ao fim (escalação).
+const POS_GROUP_COLOR = {
+  GOL: '#F4F1EA',
+  LD: '#4a90d9', ZAG: '#4a90d9', LE: '#4a90d9',
+  // VOL (volante, mais recuado/destruidor) ganha um tom mais escuro que o
+  // resto do meio — senão, colado perto do MC/MEI, fica impossível
+  // diferenciar um do outro só pela cor.
+  VOL: '#a67a2e',
+  MC: '#d4a23c', MEI: '#d4a23c', MD: '#d4a23c', ME: '#d4a23c',
+  PD: '#e05050', PE: '#e05050', ATA: '#e05050',
+};
+
+// Ordem fixa de exibição por posição primária (lista de jogadores no Draft).
+const POS_ORDER = ['GOL', 'LD', 'ZAG', 'LE', 'VOL', 'MC', 'MD', 'ME', 'MEI', 'PD', 'ATA', 'PE'];
+const posOrderIndex = (pos) => {
+  const i = POS_ORDER.indexOf(pos);
+  return i === -1 ? POS_ORDER.length : i;
+};
 
 function MiniPitchPreview({ formationKey }) {
   const slots = useMemo(() => buildPitchSlots(formationKey), [formationKey]);
   return (
     <div style={styles.miniPitch}>
+      <div style={styles.miniPitchHalfLine} />
+      <div style={styles.miniPitchCircle} />
+      <div style={styles.miniPitchCenterDot} />
+      <div style={styles.miniPitchArcTop} />
+      <div style={styles.miniPitchArcBottom} />
       {slots.map((s, i) => (
-        <div key={i} style={{ ...styles.miniDot, left: `${s.x}%`, top: `${s.y}%` }} />
+        <div
+          key={i}
+          title={s.realPos}
+          style={{ ...styles.miniDot, left: `${s.x}%`, top: `${s.y}%`, background: POS_GROUP_COLOR[s.realPos] || '#d4a23c' }}
+        >
+          <span style={styles.miniDotLabel}>{s.realPos}</span>
+        </div>
       ))}
     </div>
   );
@@ -4673,7 +5056,7 @@ function getZoneInfo(pos, total) {
   return null;
 }
 
-function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, pitch, onBack }) {
+function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack }) {
   const pct = total > 0 ? (filled / total) * 100 : 0;
   const canSkip = skipsLeft > 0;
   return (
@@ -4704,11 +5087,6 @@ function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, pitch, 
       <div style={styles.progressBar}>
         <div style={{ ...styles.progressFill, width: `${pct}%` }} />
       </div>
-      {filled > 1 && (
-        <div style={{ marginTop: 8 }}>
-          <ChemistryDisplay pitch={pitch} compact />
-        </div>
-      )}
     </div>
   );
 }
@@ -4727,6 +5105,10 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   const isMobile = useIsMobile();
   const filledCount = Object.keys(pitch).length;
   const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
+  const sortedPlayers = useMemo(() => {
+    if (!rolledTeam) return [];
+    return [...rolledTeam.players].sort((a, b) => posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]));
+  }, [rolledTeam]);
 
   const mobileLayoutStyle = { display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 };
   const playersPanelStyle = isMobile
@@ -4747,7 +5129,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
     );
     return (
       <div style={styles.card} className="card-mob">
-        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} pitch={pitch} />
+        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} />
         <div style={isMobile ? mobileLayoutStyle : styles.draftLayout} className="draft-layout-grid">
           {isMobile ? <>{pitchEl}{rollingEl}</> : <>{rollingEl}{pitchEl}</>}
         </div>
@@ -4767,7 +5149,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
 
   return (
     <div style={styles.card} className="card-mob">
-      <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} pitch={pitch} />
+      <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} />
 
       {selectedPlayer && (
         <div style={styles.selectedPlayerBanner}>
@@ -4808,7 +5190,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
           </div>
 
           <div style={styles.playersList}>
-            {rolledTeam.players.map((p, i) => {
+            {sortedPlayers.map((p, i) => {
               const slots = eligibleSlotsForPlayer(p);
               const canPick = slots.length > 0;
               const isSelected = selectedPlayer?.name === p.name;
@@ -4840,28 +5222,36 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                   }}
                 >
                   <div style={{
-                    width: 40, height: 40, borderRadius: 8,
+                    width: 40, height: 40, borderRadius: 8, flexShrink: 0,
                     background: isSelected ? 'rgba(127,217,154,0.2)' : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${POS_GROUP_COLOR[p.pos[0]] || 'rgba(255,255,255,0.15)'}55`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 14,
-                    color: ovrColor(p.ovr), flexShrink: 0,
+                    color: ovrColor(p.ovr),
                   }}>
                     {p.ovr}
                   </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    <div style={{
+                      fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden',
+                      textOverflow: 'ellipsis', lineHeight: 1.2,
+                    }}>
                       {p.name}
                     </div>
-                    <div style={{ marginTop: 4, display: 'flex', gap: 3, flexWrap: 'wrap' }}>
-                      {p.pos.map((pos) => (
-                        <span key={pos} style={{
-                          fontFamily: "'Space Mono', monospace", fontSize: 9,
-                          padding: '2px 5px', borderRadius: 4,
-                          background: isSelected ? 'rgba(127,217,154,0.2)' : 'rgba(255,255,255,0.1)',
-                          color: isSelected ? '#7fd99a' : 'rgba(255,255,255,0.65)',
-                          letterSpacing: 0.3,
-                        }}>{pos}</span>
-                      ))}
+                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', minHeight: 16 }}>
+                      {p.pos.map((pos, pi) => {
+                        const c = POS_GROUP_COLOR[pos] || '#d4a23c';
+                        const isPrimary = pi === 0;
+                        return (
+                          <span key={pos} style={{
+                            fontFamily: "'Space Mono', monospace", fontSize: 9, fontWeight: 800,
+                            padding: '2px 6px', borderRadius: 4, letterSpacing: 0.4, lineHeight: 1.4,
+                            background: isPrimary ? c : `${c}22`,
+                            color: isPrimary ? '#0B1A12' : c,
+                            border: isPrimary ? 'none' : `1px solid ${c}88`,
+                          }}>{pos}</span>
+                        );
+                      })}
                     </div>
                   </div>
                   {isSelected && <span style={{ flexShrink: 0, fontSize: 16, color: '#7fd99a' }}>→</span>}
@@ -4898,70 +5288,17 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   );
 }
 
-function ChemistryDisplay({ pitch, compact = false }) {
-  const xi = Object.values(pitch).filter(p => p && p.club);
-  const { score, breakdown, pct, ovrBonus } = calcChemistry(xi);
-  const chemColor = pct >= 66 ? '#7fd99a' : pct >= 33 ? '#d4a23c' : '#e05939';
-
-  if (compact) {
-    return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>ENTR.</span>
-        <div style={{ flex: 1, height: 5, background: 'rgba(255,255,255,0.1)', borderRadius: 999 }}>
-          <div style={{ height: '100%', width: `${pct}%`, background: chemColor, borderRadius: 999, transition: 'width 0.4s' }} />
-        </div>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: chemColor, minWidth: 30, textAlign: 'right' }}>{pct}%</span>
-        {ovrBonus > 0 && <span style={{ fontSize: 11, color: chemColor }}>+{ovrBonus} OVR</span>}
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: '14px 16px', margin: '14px 0' }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 15 }}>Entrosamento</span>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 18, color: chemColor }}>{pct}%</span>
-      </div>
-      <div style={{ height: 7, background: 'rgba(255,255,255,0.1)', borderRadius: 999, marginBottom: 12 }}>
-        <div style={{ height: '100%', width: `${pct}%`, background: chemColor, borderRadius: 999, transition: 'width 0.4s' }} />
-      </div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 10 }}>
-        {breakdown.epoca > 0 && (
-          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(127,217,154,0.15)', color: '#7fd99a', fontFamily: "'Space Mono', monospace" }}>
-            ⚡ {breakdown.epoca} par{breakdown.epoca > 1 ? 'es' : ''} mesma época (+5)
-          </span>
-        )}
-        {breakdown.clube > 0 && (
-          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(212,162,60,0.15)', color: '#d4a23c', fontFamily: "'Space Mono', monospace" }}>
-            🤝 {breakdown.clube} par{breakdown.clube > 1 ? 'es' : ''} mesmo clube (+2)
-          </span>
-        )}
-        {breakdown.pais > 0 && (
-          <span style={{ fontSize: 11, padding: '3px 8px', borderRadius: 6, background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.55)', fontFamily: "'Space Mono', monospace" }}>
-            🌎 {breakdown.pais} par{breakdown.pais > 1 ? 'es' : ''} mesmo país (+1)
-          </span>
-        )}
-      </div>
-      <div style={{ fontSize: 12, opacity: 0.5 }}>
-        Bônus de OVR: <span style={{ color: chemColor, fontWeight: 700 }}>+{ovrBonus}</span> aplicado na simulação
-      </div>
-    </div>
-  );
-}
-
 function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor }) {
   const starters = Object.values(pitch).filter(p => !p.isBench);
   const avgOvr = starters.length ? Math.round(starters.reduce((s, p) => s + p.ovr, 0) / starters.length) : 0;
-  const { ovrBonus } = calcChemistry(starters.filter(p => p.club));
-  const effectiveOvr = Math.round((avgOvr + ovrBonus + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
-  const starterSlots = pitchSlots.filter(s => !s.isBench);
+  const effectiveOvr = Math.round((avgOvr + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
+  const starterSlots = pitchSlots.filter(s => !s.isBench).sort((a, b) => posOrderIndex(a.realPos) - posOrderIndex(b.realPos));
   const benchSlots = pitchSlots.filter(s => s.isBench);
 
   return (
     <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>{formationLabel}</div>
       <h2 style={styles.h2}>OVR base: {avgOvr} · Efetivo: {effectiveOvr} (11 titulares)</h2>
-      <ChemistryDisplay pitch={pitch} />
 
       {/* Instrução capitão */}
       <div style={{
@@ -5044,216 +5381,6 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
     </div>
   );
 }
-
-// ============================================================
-// CAMPINHO ANIMADO
-// ============================================================
-const _PPOS = {
-  GOL: { x: 5.5, y: 30 },
-  LD: { x: 20, y: 45 },
-  LE: { x: 20, y: 15 },
-  ZAG: { x: 23, y: 30 },
-  VOL: { x: 35, y: 30 },
-  MC: { x: 37, y: 22 },
-  MEI: { x: 41, y: 30 },
-  MD: { x: 37, y: 41 },
-  ME: { x: 37, y: 19 },
-  PD: { x: 44, y: 45 },
-  PE: { x: 44, y: 15 },
-  ATA: { x: 46.5, y: 30 },
-};
-
-function _buildLineup(team, isHome) {
-  const starters = (team?.players || []).slice(0, 11);
-  const cnt = {};
-  return starters.map((p, i) => {
-    const pos = p.pos?.[0] || 'MEI';
-    cnt[pos] = (cnt[pos] || 0);
-    const nth = cnt[pos]++;
-    const base = _PPOS[pos] || { x: 30, y: 30 };
-    // spread same-pos players vertically: 0→0, 1→+12, 2→-12, 3→+24…
-    const yOff = nth === 0 ? 0 : nth % 2 === 1 ? Math.ceil(nth / 2) * 13 : -Math.ceil(nth / 2) * 13;
-    const bx = isHome ? base.x : 100 - base.x;
-    const by = Math.max(4, Math.min(56, base.y + yOff));
-    const shortN = (p.name || '').split(' ').slice(-1)[0].slice(0, 8);
-    return { key: `${isHome ? 'h' : 'a'}-${i}`, name: p.name, shortN, pos, bx, by, idx: i };
-  });
-}
-
-function AnimatedPitch({ homeTeam, awayTeam, myTeamId, mc, liveEvents, isSimulating, liveLineup }) {
-  const [jitter, setJitter] = useState({});
-  const [ball, setBall] = useState({ x: 50, y: 30 });
-  const [flash, setFlash] = useState({ side: null, on: false });
-  const evLenRef = useRef(0);
-  const tRef = useRef(0);
-
-  // Player jitter
-  useEffect(() => {
-    if (!isSimulating) { setJitter({}); return; }
-    const id = setInterval(() => {
-      const j = {};
-      for (let i = 0; i < 22; i++) j[i] = { dx: (Math.random() - 0.5) * 3.2, dy: (Math.random() - 0.5) * 3.2 };
-      setJitter(j);
-    }, 550);
-    return () => clearInterval(id);
-  }, [isSimulating]);
-
-  // Ball wander
-  useEffect(() => {
-    if (!isSimulating) return;
-    const id = setInterval(() => {
-      tRef.current += 0.3;
-      const t = tRef.current;
-      setBall({
-        x: Math.max(6, Math.min(94, 50 + Math.sin(t) * 30)),
-        y: Math.max(5, Math.min(55, 30 + Math.sin(t * 0.71 + 1.3) * 20)),
-      });
-    }, 350);
-    return () => clearInterval(id);
-  }, [isSimulating]);
-
-  // Goal flash + ball snap
-  useEffect(() => {
-    if (liveEvents.length > evLenRef.current) {
-      const ev = liveEvents[liveEvents.length - 1];
-      const scoredByHome = ev.teamId === homeTeam?.id;
-      setFlash({ side: scoredByHome ? 'right' : 'left', on: true });
-      setBall({ x: scoredByHome ? 97 : 3, y: 30 });
-      setTimeout(() => setFlash(f => ({ ...f, on: false })), 1300);
-    }
-    evLenRef.current = liveEvents.length;
-  }, [liveEvents, homeTeam]);
-
-  const effectiveHome = useMemo(() => {
-    if (homeTeam?.id === myTeamId && liveLineup) {
-      const lp = Object.values(liveLineup).filter(p => !p.isBench);
-      return { ...homeTeam, players: lp };
-    }
-    return homeTeam;
-  }, [homeTeam, myTeamId, liveLineup]);
-  const effectiveAway = useMemo(() => {
-    if (awayTeam?.id === myTeamId && liveLineup) {
-      const lp = Object.values(liveLineup).filter(p => !p.isBench);
-      return { ...awayTeam, players: lp };
-    }
-    return awayTeam;
-  }, [awayTeam, myTeamId, liveLineup]);
-  const homePlayers = useMemo(() => _buildLineup(effectiveHome, true), [effectiveHome]);
-  const awayPlayers = useMemo(() => _buildLineup(effectiveAway, false), [effectiveAway]);
-
-  const hColor = homeTeam?.id === myTeamId ? mc : (homeTeam?.colors?.p || homeTeam?.color || '#3a85d9');
-  const aColor = awayTeam?.id === myTeamId ? mc : (awayTeam?.colors?.p || awayTeam?.color || '#c94040');
-
-  const dot = (p, i, color, isHome) => {
-    const off = jitter[isHome ? i : 11 + i] || { dx: 0, dy: 0 };
-    const left = `${Math.max(2, Math.min(96, p.bx + off.dx))}%`;
-    const top = `${Math.max(2, Math.min(94, p.by / 60 * 100 + off.dy / 60 * 100))}%`;
-    return (
-      <div key={p.key} title={p.name} style={{
-        position: 'absolute', left, top,
-        transform: 'translate(-50%,-50%)',
-        transition: 'left 0.42s ease, top 0.42s ease',
-        display: 'flex', flexDirection: 'column', alignItems: 'center',
-        zIndex: 2, pointerEvents: 'none', userSelect: 'none',
-      }}>
-        <div style={{
-          width: 20, height: 20, borderRadius: '50%',
-          background: color, border: '2px solid rgba(255,255,255,0.85)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 8, fontWeight: 800, color: '#fff',
-          boxShadow: '0 1px 5px rgba(0,0,0,0.55)',
-          lineHeight: 1,
-        }}>{i + 1}</div>
-        <div style={{
-          fontSize: 7, color: '#fff', fontWeight: 700, marginTop: 1,
-          textShadow: '0 1px 2px rgba(0,0,0,0.9)',
-          background: 'rgba(0,0,0,0.42)', borderRadius: 2,
-          padding: '1px 2px', whiteSpace: 'nowrap', lineHeight: 1,
-        }}>{p.shortN}</div>
-      </div>
-    );
-  };
-
-  return (
-    <div style={{ position: 'relative', width: '100%', paddingBottom: '60%', borderRadius: 10, overflow: 'hidden', marginBottom: 8 }}>
-      {/* Pitch SVG */}
-      <svg viewBox="0 0 100 60" preserveAspectRatio="xMidYMid slice"
-        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', display: 'block' }}>
-        {/* Grass stripes */}
-        {[...Array(10)].map((_, i) => (
-          <rect key={i} x={i * 10} y={0} width={10} height={60} fill={i % 2 === 0 ? '#2a5416' : '#2e5e1a'} />
-        ))}
-        {/* Outer border */}
-        <rect x={2} y={2} width={96} height={56} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Center line */}
-        <line x1={50} y1={2} x2={50} y2={58} stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Center circle */}
-        <circle cx={50} cy={30} r={9} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        <circle cx={50} cy={30} r={0.7} fill="rgba(255,255,255,0.75)" />
-        {/* Left penalty area */}
-        <rect x={2} y={13} width={17} height={34} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Left 6-yard */}
-        <rect x={2} y={20} width={5.5} height={20} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Left goal */}
-        <rect x={0} y={23} width={2} height={14} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Left penalty spot */}
-        <circle cx={13} cy={30} r={0.7} fill="rgba(255,255,255,0.75)" />
-        {/* Right penalty area */}
-        <rect x={81} y={13} width={17} height={34} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Right 6-yard */}
-        <rect x={92.5} y={20} width={5.5} height={20} fill="none" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Right goal */}
-        <rect x={98} y={23} width={2} height={14} fill="rgba(255,255,255,0.1)" stroke="rgba(255,255,255,0.65)" strokeWidth={0.5} />
-        {/* Right penalty spot */}
-        <circle cx={87} cy={30} r={0.7} fill="rgba(255,255,255,0.75)" />
-        {/* Goal flash overlay */}
-        {flash.on && flash.side === 'right' && (
-          <rect x={75} y={0} width={25} height={60} fill="rgba(255,210,0,0.28)" style={{ transition: 'opacity 0.3s' }} />
-        )}
-        {flash.on && flash.side === 'left' && (
-          <rect x={0} y={0} width={25} height={60} fill="rgba(255,210,0,0.28)" style={{ transition: 'opacity 0.3s' }} />
-        )}
-        {/* Team color band at top */}
-        <rect x={2} y={2} width={48} height={3} fill={hColor} opacity={0.55} />
-        <rect x={50} y={2} width={48} height={3} fill={aColor} opacity={0.55} />
-      </svg>
-
-      {/* Team name chips */}
-      <div style={{
-        position: 'absolute', top: 6, left: 6, fontSize: 8, fontWeight: 700, color: '#fff',
-        background: hColor + 'cc', borderRadius: 3, padding: '1px 4px', zIndex: 4, maxWidth: '40%',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.6)'
-      }}>
-        {homeTeam?.label}
-      </div>
-      <div style={{
-        position: 'absolute', top: 6, right: 6, fontSize: 8, fontWeight: 700, color: '#fff',
-        background: aColor + 'cc', borderRadius: 3, padding: '1px 4px', zIndex: 4, maxWidth: '40%',
-        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textShadow: '0 1px 2px rgba(0,0,0,0.6)',
-        textAlign: 'right'
-      }}>
-        {awayTeam?.label}
-      </div>
-
-      {/* Players */}
-      {homePlayers.map((p, i) => dot(p, i, hColor, true))}
-      {awayPlayers.map((p, i) => dot(p, i, aColor, false))}
-
-      {/* Ball */}
-      <div style={{
-        position: 'absolute',
-        left: `${ball.x}%`,
-        top: `${ball.y / 60 * 100}%`,
-        transform: 'translate(-50%,-50%)',
-        transition: 'left 0.3s ease, top 0.3s ease',
-        fontSize: 11, zIndex: 3, lineHeight: 1,
-        filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.8))',
-        pointerEvents: 'none',
-      }}>⚽</div>
-    </div>
-  );
-}
-
 
 // ============================================================
 // COMPONENTE: Modal de Pênaltis Interativo
@@ -5501,14 +5628,10 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
 function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
+  const hColor = homeTeam.id === myTeamId ? mc : (homeTeam.colors?.p || homeTeam.color || '#3a85d9');
+  const aColor = awayTeam.id === myTeamId ? mc : (awayTeam.colors?.p || awayTeam.color || '#c94040');
   return (
     <div style={styles.liveMatchBox} className="card-mob">
-      <AnimatedPitch
-        homeTeam={homeTeam} awayTeam={awayTeam}
-        myTeamId={myTeamId} mc={mc}
-        liveEvents={liveEvents} isSimulating={isSimulating}
-        liveLineup={liveLineup}
-      />
       <div style={styles.liveTeamsRow} className="live-teams-row">
         <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} className="live-team-n">
           <span>{homeTeam.label}</span>
@@ -5567,18 +5690,27 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
       )}
 
       {liveEvents.length > 0 && (
-        <div style={styles.goalTimeline}>
+        <div style={styles.matchCenter}>
           {liveEvents.map((ev, i) => {
-            const isMyGoal = ev.teamId === myTeamId;
-            return (
-              <div key={i} style={{ ...styles.goalEvent, background: isMyGoal ? 'rgba(127,217,154,0.1)' : 'rgba(224,89,63,0.08)', borderLeft: isMyGoal ? '3px solid #7fd99a' : '3px solid rgba(224,89,63,0.5)' }}>
-                <span style={styles.goalMinute}>{ev.minute}'</span>
-                <span style={styles.goalBall}>⚽</span>
-                <div style={styles.goalInfo}>
-                  <span style={styles.goalScorer}>{ev.scorer}</span>
-                  <span style={styles.goalTeam}>{ev.teamLabel}</span>
+            const isHomeSide = ev.teamId === homeTeam.id;
+            const sideColor = isHomeSide ? hColor : aColor;
+            const content = (
+              <div style={{ ...styles.matchCenterCard, borderColor: `${sideColor}55`, background: `${sideColor}14`, flexDirection: isHomeSide ? 'row' : 'row-reverse' }}>
+                <span style={{ fontSize: 15 }}>{ev.isOwnGoal ? '⚽🔴' : '⚽'}</span>
+                <div style={{ ...styles.matchCenterInfo, textAlign: isHomeSide ? 'left' : 'right' }}>
+                  <span style={styles.goalScorer}>{ev.scorer}{ev.isOwnGoal ? ' (contra)' : ''}</span>
+                  <span style={styles.goalTeam}>{ev.isOwnGoal ? `contra, ${ev.ownGoalTeamLabel}` : ev.assist ? `assist: ${ev.assist}` : ev.teamLabel}</span>
                 </div>
-                <span style={styles.goalScore}>({ev.homeScore}–{ev.awayScore})</span>
+              </div>
+            );
+            return (
+              <div key={i} style={styles.matchCenterRow}>
+                <div style={{ ...styles.matchCenterSide, justifyContent: 'flex-end' }}>{isHomeSide && content}</div>
+                <div style={styles.matchCenterMinuteCol}>
+                  <span style={styles.goalMinute}>{ev.minute}'</span>
+                  <span style={styles.goalScore}>{ev.homeScore}–{ev.awayScore}</span>
+                </div>
+                <div style={{ ...styles.matchCenterSide, justifyContent: 'flex-start' }}>{!isHomeSide && content}</div>
               </div>
             );
           })}
@@ -5663,7 +5795,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub }) {
+function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -6067,6 +6199,24 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         </div>
       )}
 
+      {assisters && Object.keys(assisters).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={styles.sectionLabel}>Lideres de Assistencia</div>
+          {Object.entries(assisters)
+            .sort((a, b) => b[1].assists - a[1].assists)
+            .slice(0, 5)
+            .map(([name, d], i) => (
+              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
+                <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ fontSize: 11, opacity: 0.5 }}>{d.teamLabel}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
+              </div>
+            ))
+          }
+        </div>
+      )}
+
       {/* Historico de partidas */}
       {matchHistory && matchHistory.length > 0 && (
         <div style={{ marginTop: 12 }}>
@@ -6143,9 +6293,10 @@ function AnthemPlayer({ club }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, onNewSeason }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, onNewSeason }) {
   const mc = myTeamColor || '#d4a23c';
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
+  const topAssisters = assisters ? Object.entries(assisters).sort((a, b) => b[1].assists - a[1].assists).slice(0, 3) : [];
 
   // ── COPA ────────────────────────────────────────────────────
   if (gameMode === 'copa') {
@@ -6179,6 +6330,18 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
                 <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
                 <span style={{ flex: 1 }}>{name}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {topAssisters.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={styles.sectionLabel}>Lider de Assistencia da Copa</div>
+            {topAssisters.map(([name, d], i) => (
+              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+                <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
               </div>
             ))}
           </div>
@@ -6235,6 +6398,19 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
               <span style={{ flex: 1 }}>{name}</span>
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {topAssisters.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={styles.sectionLabel}>Lideres de Assistencia</div>
+          {topAssisters.map(([name, d], i) => (
+            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+              <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+              <span style={{ flex: 1 }}>{name}</span>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
             </div>
           ))}
         </div>
@@ -6314,6 +6490,10 @@ const globalCss = `
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
   @keyframes fadeSlideIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
+  @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  .marquee-track { animation: marquee 48s linear infinite; }
+  .marquee-track:hover { animation-play-state: paused; }
+  .feat-card-hover:hover { border-color: rgba(212,162,60,0.4) !important; transform: translateY(-2px); }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
@@ -6340,6 +6520,7 @@ const globalCss = `
     .h1-mob { font-size: 24px !important; }
     .h2-mob { font-size: 18px !important; }
     .intro-card-mob { padding: 28px 16px 24px !important; }
+    .formation-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
   }
   input::placeholder { color: rgba(255,255,255,0.2); }
   input:focus { border-color: rgba(212,162,60,0.5) !important; outline: none; }
@@ -6348,6 +6529,8 @@ const globalCss = `
   .draft-left::-webkit-scrollbar-track { background: transparent; }
   .draft-left::-webkit-scrollbar-thumb { background: rgba(212,162,60,0.35); border-radius: 999px; }
   .draft-left::-webkit-scrollbar-thumb:hover { background: rgba(212,162,60,0.65); }
+  .formation-card:hover { background: rgba(212,162,60,0.09) !important; border-color: rgba(212,162,60,0.45) !important; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
+  .formation-card:active { transform: translateY(0); }
 `;
 
 const styles = {
@@ -6373,11 +6556,36 @@ const styles = {
   btnRow: { display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' },
   emptyState: { background: 'rgba(224,89,63,0.1)', border: '1px solid rgba(224,89,63,0.4)', borderRadius: 10, padding: '16px 18px', fontSize: 14, lineHeight: 1.5 },
 
-  formationGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 },
-  formationCard: { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '14px 12px', color: '#F4F1EA', textAlign: 'center' },
+  formationIntro: { fontSize: 13, opacity: 0.6, lineHeight: 1.5, marginBottom: 24, maxWidth: 520 },
+  formationGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 },
+  formationCard: {
+    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 16,
+    padding: '18px 16px', color: '#F4F1EA', textAlign: 'center', cursor: 'pointer',
+    transition: 'background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s',
+  },
   formationName: { fontSize: 13, fontWeight: 700, marginBottom: 10, fontFamily: "'Space Mono', monospace" },
-  miniPitch: { position: 'relative', width: '100%', aspectRatio: '0.7', background: 'linear-gradient(180deg,#0f3d22,#145c30)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.2)' },
-  miniDot: { position: 'absolute', width: 8, height: 8, borderRadius: '50%', background: '#d4a23c', transform: 'translate(-50%,-50%)' },
+  formationShapeNum: { fontSize: 23, fontWeight: 800, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, color: '#F4F1EA' },
+  formationShapeDesc: { fontSize: 11.5, opacity: 0.55, marginTop: 4, marginBottom: 14, lineHeight: 1.4, minHeight: 32 },
+  formationSectionHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' },
+  formationSectionTitle: { display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Space Mono', monospace", fontSize: 12.5, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', color: '#d4a23c' },
+  formationSectionHint: { fontSize: 11.5, opacity: 0.45, fontStyle: 'italic' },
+  miniPitch: {
+    position: 'relative', width: '100%', aspectRatio: '0.66',
+    background: 'linear-gradient(180deg,#0f3d22,#145c30)', borderRadius: 10,
+    border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden',
+    boxShadow: 'inset 0 0 18px rgba(0,0,0,0.35)',
+  },
+  miniPitchHalfLine: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' },
+  miniPitchCircle: { position: 'absolute', left: '50%', top: '50%', width: 30, height: 30, marginLeft: -15, marginTop: -15, border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', pointerEvents: 'none' },
+  miniPitchCenterDot: { position: 'absolute', left: '50%', top: '50%', width: 3, height: 3, marginLeft: -1.5, marginTop: -1.5, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', pointerEvents: 'none' },
+  miniPitchArcTop: { position: 'absolute', left: '50%', top: 0, width: 46, height: 22, marginLeft: -23, border: '1px solid rgba(255,255,255,0.16)', borderTop: 'none', borderRadius: '0 0 50% 50% / 0 0 100% 100%', pointerEvents: 'none' },
+  miniPitchArcBottom: { position: 'absolute', left: '50%', bottom: 0, width: 46, height: 22, marginLeft: -23, border: '1px solid rgba(255,255,255,0.16)', borderBottom: 'none', borderRadius: '50% 50% 0 0 / 100% 100% 0 0', pointerEvents: 'none' },
+  miniDot: {
+    position: 'absolute', width: 22, height: 22, borderRadius: '50%', transform: 'translate(-50%,-50%)',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    border: '1px solid rgba(0,0,0,0.45)', boxShadow: '0 1px 4px rgba(0,0,0,0.5)', zIndex: 2,
+  },
+  miniDotLabel: { fontSize: 7.5, fontWeight: 800, color: '#0B1A12', fontFamily: "'Space Mono', monospace", lineHeight: 1, letterSpacing: -0.2 },
 
   pitchWrap: { margin: '20px 0', display: 'flex', justifyContent: 'center' },
   pitchField: { position: 'relative', width: '100%', maxWidth: 380, aspectRatio: '0.68', background: 'linear-gradient(180deg,#0f3d22 0%,#145c30 50%,#0f3d22 100%)', border: '2px solid rgba(255,255,255,0.3)', borderRadius: 8, overflow: 'hidden' },
@@ -6419,14 +6627,16 @@ const styles = {
   clock: { fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700 },
   clockPulse: { width: 8, height: 8, borderRadius: '50%', background: '#7fd99a', animation: 'pulse 1s ease-in-out infinite' },
   clockFull: { fontSize: 12, opacity: 0.5, fontFamily: "'Space Mono', monospace" },
-  goalTimeline: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 220, overflowY: 'auto' },
-  goalEvent: { display: 'grid', gridTemplateColumns: '36px 20px 1fr auto', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8 },
+  matchCenter: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto', marginTop: 4 },
+  matchCenterRow: { display: 'grid', gridTemplateColumns: '1fr 52px 1fr', alignItems: 'center', gap: 6 },
+  matchCenterSide: { display: 'flex' },
+  matchCenterCard: { display: 'flex', alignItems: 'center', gap: 7, padding: '6px 9px', borderRadius: 8, border: '1px solid', maxWidth: '100%' },
+  matchCenterInfo: { display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 },
+  matchCenterMinuteCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 },
   goalMinute: { fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, color: '#d4a23c' },
-  goalBall: { fontSize: 14 },
-  goalInfo: { display: 'flex', flexDirection: 'column', gap: 1 },
-  goalScorer: { fontSize: 13, fontWeight: 600 },
-  goalTeam: { fontSize: 11, opacity: 0.55 },
-  goalScore: { fontFamily: "'Space Mono', monospace", fontSize: 12, opacity: 0.7, whiteSpace: 'nowrap' },
+  goalScorer: { fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  goalTeam: { fontSize: 11, opacity: 0.55, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
+  goalScore: { fontFamily: "'Space Mono', monospace", fontSize: 11, opacity: 0.6, whiteSpace: 'nowrap' },
   noGoalsMsg: { textAlign: 'center', opacity: 0.5, fontSize: 13, padding: '12px 0' },
 
   // Outros jogos da rodada
@@ -6464,17 +6674,27 @@ const styles = {
   teamInput: { width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '9px 12px', color: '#F4F1EA', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' },
 
   // Intro screen
-  introCard: { textAlign: 'center', padding: '48px 28px 36px' },
+  introCard: { textAlign: 'center', padding: '40px 28px 36px', position: 'relative', overflow: 'hidden' },
+  introTopBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
   introBadge: { display: 'inline-block', fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: '#d4a23c', background: 'rgba(212,162,60,0.12)', border: '1px solid rgba(212,162,60,0.35)', borderRadius: 999, padding: '5px 14px', marginBottom: 20 },
   introTitle: { fontFamily: "'Fraunces', Georgia, serif", fontSize: 38, fontWeight: 700, lineHeight: 1.1, margin: '0 0 16px' },
   introLead: { fontSize: 16, lineHeight: 1.65, opacity: 0.75, maxWidth: 460, margin: '0 auto 36px' },
   featGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 },
-  featCard: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '18px 12px' },
+  featCard: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '20px 14px', position: 'relative', transition: 'border-color 0.15s, transform 0.15s' },
+  featIconWrap: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: 20 },
+  featIndex: { position: 'absolute', top: 10, right: 12, fontFamily: "'Space Mono', monospace", fontSize: 10, opacity: 0.25, fontWeight: 700 },
   featIcon: { fontSize: 24, marginBottom: 8 },
   featTitle: { fontWeight: 700, fontSize: 13, marginBottom: 6 },
   featDesc: { fontSize: 12, opacity: 0.6, lineHeight: 1.5 },
-  introTeamStrip: { display: 'flex', justifyContent: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 32 },
-  introTeamChip: { fontSize: 11, opacity: 0.55, background: 'rgba(255,255,255,0.06)', borderRadius: 999, padding: '4px 10px' },
+  introSectionLabel: { fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', opacity: 0.4, marginBottom: 12, textAlign: 'center' },
+  introMarqueeWrap: {
+    overflow: 'hidden', marginBottom: 32,
+    maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
+    WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
+  },
+  introMarqueeTrack: { display: 'flex', gap: 10, width: 'max-content' },
+  introTeamChip: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap', opacity: 0.75, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, padding: '5px 14px 5px 8px' },
+  introTeamChipCrest: { width: 16, height: 16, objectFit: 'contain', borderRadius: '50%', flexShrink: 0 },
   btnIntro: { background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 12, padding: '16px 40px', fontSize: 17, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3 },
 
   // Draft side-by-side layout

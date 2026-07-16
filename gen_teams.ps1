@@ -35,7 +35,7 @@ foreach ($line in $playerLines) {
     $allQuoted = [regex]::Matches($afterName, "'([A-Z]{2,4})'")
     foreach ($m in $allQuoted) {
         $val = $m.Groups[1].Value
-        if ($VALID_POS -contains $val) { $posArr.Add($val); if ($posArr.Count -ge 2) { break } }
+        if ($VALID_POS -contains $val) { $posArr.Add($val); if ($posArr.Count -ge 4) { break } }
     }
     $ovrMatch = [regex]::Matches($afterName, '\b(\d{2,3})\b')
     $ovr = 75
