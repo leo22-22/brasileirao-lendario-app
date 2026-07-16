@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "concurrently -n vite,api -c blue,green \"vite\" \"npm run dev --prefix server\"",
     "dev:client": "vite",
-    "build": "vite build",
+    "build": "vite build && npm install --prefix server && npm run build --prefix server",
+    "start": "node server/dist/index.js",
     "preview": "vite preview"
   },
   "dependencies": {
