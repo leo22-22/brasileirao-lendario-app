@@ -595,26 +595,26 @@ const TEAMS = [
   { id: 'vasco2000', club: 'Vasco', year: 2000, label: 'Vasco 2000 (Brasileiro + Mercosul)', coach: 'Oswaldo de Oliveira',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Carlos Germano', pos: ['GOL'], ovr: 82 },
-      { name: 'Valber', pos: ['LD'], ovr: 77 },
-      { name: 'Anderson Polga', pos: ['ZAG'], ovr: 80 },
-      { name: 'Odvan', pos: ['ZAG'], ovr: 78 },
-      { name: 'Felipe', pos: ['LE'], ovr: 79 },
-      { name: 'Ramon', pos: ['MEI','MD'], ovr: 82 },
-      { name: 'Juninho Paulista', pos: ['MEI','MC'], ovr: 84 },
-      { name: 'Pedrinho', pos: ['MEI','MC'], ovr: 80 },
-      { name: 'Luizao', pos: ['ATA'], ovr: 86 },
-      { name: 'Donizete', pos: ['ATA'], ovr: 84 },
-      { name: 'Romario', pos: ['ATA'], ovr: 91 },
-      { name: 'Sandro', pos: ['GOL','MC'], ovr: 71 },
-      { name: 'Valdir', pos: ['LD'], ovr: 73 },
-      { name: 'Mauro Galvao', pos: ['ZAG'], ovr: 79 },
-      { name: 'Everton', pos: ['ATA'], ovr: 73 },
-      { name: 'Nasa', pos: ['VOL'], ovr: 77 },
-      { name: 'Nilton', pos: ['VOL','MC'], ovr: 76 },
-      { name: 'Paulo Victor', pos: ['MEI','MC'], ovr: 74 },
-      { name: 'Alexandre Pires', pos: ['ATA'], ovr: 75 },
-      { name: 'Fabio Augusto', pos: ['LD'], ovr: 72 },
+      { name: 'Carlos Germano', pos: ['GOL'], ovr: 85 },
+      { name: 'Valber', pos: ['LD'], ovr: 80 },
+      { name: 'Anderson Polga', pos: ['ZAG'], ovr: 83 },
+      { name: 'Odvan', pos: ['ZAG'], ovr: 81 },
+      { name: 'Felipe', pos: ['LE'], ovr: 82 },
+      { name: 'Ramon', pos: ['MEI','MD'], ovr: 85 },
+      { name: 'Juninho Paulista', pos: ['MEI','MC'], ovr: 87 },
+      { name: 'Pedrinho', pos: ['MEI','MC'], ovr: 83 },
+      { name: 'Luizao', pos: ['ATA'], ovr: 89 },
+      { name: 'Donizete', pos: ['ATA'], ovr: 87 },
+      { name: 'Romario', pos: ['ATA'], ovr: 94 },
+      { name: 'Sandro', pos: ['GOL','MC'], ovr: 74 },
+      { name: 'Valdir', pos: ['LD'], ovr: 76 },
+      { name: 'Mauro Galvao', pos: ['ZAG'], ovr: 82 },
+      { name: 'Everton', pos: ['ATA'], ovr: 76 },
+      { name: 'Nasa', pos: ['VOL'], ovr: 80 },
+      { name: 'Nilton', pos: ['VOL','MC'], ovr: 79 },
+      { name: 'Paulo Victor', pos: ['MEI','MC'], ovr: 77 },
+      { name: 'Alexandre Pires', pos: ['ATA'], ovr: 78 },
+      { name: 'Fabio Augusto', pos: ['LD'], ovr: 75 },
     ]},
   { id: 'athletico-pr2001', club: 'Athletico-PR', year: 2001, label: 'Athletico-PR 2001', coach: 'Geninho',
     colors: { p: '#c8102e', s: '#000000' },
@@ -1130,7 +1130,7 @@ const TEAMS = [
       { name: 'Leo Pereira', pos: ['LE'], ovr: 80 },
       { name: 'Christian', pos: ['VOL','MC'], ovr: 83 },
       { name: 'Matheus Fernandes', pos: ['VOL','MC'], ovr: 82 },
-      { name: 'Bruno Guimaraes', pos: ['VOL','MEI'], ovr: 86 },
+      { name: 'Bruno Guimaraes', pos: ['VOL','MC','MEI'], ovr: 86 },
       { name: 'Nikao', pos: ['MEI','MD'], ovr: 88 },
       { name: 'Rony', pos: ['PD','ME'], ovr: 86 },
       { name: 'Marco Ruben', pos: ['ATA'], ovr: 81 },
@@ -1385,6 +1385,8 @@ const TEAMS = [
       { name: 'Gatito Fernández', pos: ['GOL'], ovr: 82 },
     ]},
 ];
+
+
 
 
 
@@ -1791,6 +1793,7 @@ const INJURY_WEIGHT_BY_POS = {
 };
 
 function weightedPick(players, weightMap, rand) {
+  if (!players || players.length === 0) return null;
   const weights = players.map(p => (weightMap[p.pos[0]] ?? 1) * (0.5 + (p.ovr || 70) / 100));
   const total = weights.reduce((s, w) => s + w, 0);
   let roll = rand() * total;
@@ -1801,10 +1804,13 @@ function weightedPick(players, weightMap, rand) {
   return players[players.length - 1];
 }
 
+// Times com XI muito reduzido (vários suspensos/lesionados de uma vez e banco
+// curto) podem, em teoria, ficar sem nenhum jogador de linha — sem essa rede
+// de segurança, weightedPick devolvia null e o `.name` explodia a simulação.
 function pickGoalScorer(players, rand = Math.random) {
   const field = players.filter(p => !p.pos.includes('GOL'));
   const pool = field.length > 0 ? field : players;
-  return weightedPick(pool, SCORE_WEIGHT_BY_POS, rand).name;
+  return weightedPick(pool, SCORE_WEIGHT_BY_POS, rand)?.name ?? 'Jogador';
 }
 
 const OWN_GOAL_CHANCE = 0.045;
@@ -1813,14 +1819,24 @@ const ASSIST_CHANCE = 0.72;
 function pickAssister(players, scorerName, rand = Math.random) {
   const pool = players.filter(p => !p.pos.includes('GOL') && p.name !== scorerName);
   if (pool.length === 0) return null;
-  return weightedPick(pool, ASSIST_WEIGHT_BY_POS, rand).name;
+  return weightedPick(pool, ASSIST_WEIGHT_BY_POS, rand)?.name ?? null;
 }
 
 // ── Cartões, expulsões e lesões ─────────────────────────────────────────
-const RED_CARD_CHANCE_PER_TEAM = 0.035;   // ~1 expulsão a cada ~28 jogos por time
-const YELLOWS_PER_MATCH_AVG = 3.4;        // total combinado (Poisson) por partida
+const RED_CARD_CHANCE_PER_TEAM = 0.018;   // ~1 expulsão direta a cada ~55 jogos por time
+const YELLOWS_PER_MATCH_AVG = 2.2;        // total combinado (Poisson) por partida
 const INJURY_CHANCE_PER_TEAM = 0.05;      // ~1 lesao a cada ~20 jogos por time
 const YELLOWS_FOR_SUSPENSION = 3;         // 3 amarelos acumulados = 1 jogo de suspensao
+
+// Muitos nomes de jogadores se repetem entre times históricos diferentes
+// (ex.: "Danilo" existe em 7 elencos distintos) — cartão/suspensão/lesão
+// precisam ser identificados por time+nome, senão um jogador suspenso num
+// time "contamina" um homônimo completamente saudável de outro clube.
+function playerKey(teamId, name) { return `${teamId}::${name}`; }
+function splitPlayerKey(key) {
+  const sep = key.indexOf('::');
+  return { teamId: key.slice(0, sep), name: key.slice(sep + 2) };
+}
 const RED_SUSPENSION_ROUNDS = 1;
 const INJURY_MIN_ROUNDS = 1;
 const INJURY_MAX_ROUNDS = 3;
@@ -1863,12 +1879,13 @@ function partitionStartersFirst(players) {
 function getEligibleRoster(team, unavailableNames) {
   const all = team?.players || [];
   if (!unavailableNames || unavailableNames.size === 0) return { players: all.slice(0, 11), changes: [] };
+  const isUnavailable = p => unavailableNames.has(playerKey(team.id, p.name));
   const starters = all.slice(0, 11);
-  const bench = all.slice(11).filter(p => !unavailableNames.has(p.name));
+  const bench = all.slice(11).filter(p => !isUnavailable(p));
   const changes = [];
   const result = [];
   starters.forEach(p => {
-    if (!unavailableNames.has(p.name)) { result.push(p); return; }
+    if (!isUnavailable(p)) { result.push(p); return; }
     const idx = bench.findIndex(b => b.pos?.[0] === p.pos?.[0]);
     const sub = idx !== -1 ? bench.splice(idx, 1)[0] : (bench.length ? bench.splice(0, 1)[0] : null);
     if (sub) { result.push({ ...sub, isBench: false }); changes.push({ out: p.name, in: sub.name }); }
@@ -2074,10 +2091,10 @@ function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   if (isRivalryMatch(homeTeam.club, awayTeam.club)) { homeExp *= RIVALRY_BOOST; awayExp *= RIVALRY_BOOST; }
   [homeExp, awayExp] = applyRedCardEffect(homeExp, awayExp, homeRedCount, awayRedCount);
 
-  [homeXI, awayXI].forEach(xi => {
+  [[homeTeam, homeXI], [awayTeam, awayXI]].forEach(([team, xi]) => {
     if (xi.length === 0 || rand() >= INJURY_CHANCE_PER_TEAM) return;
     const rounds = INJURY_MIN_ROUNDS + Math.floor(rand() * (INJURY_MAX_ROUNDS - INJURY_MIN_ROUNDS + 1));
-    discipline.push({ type: 'injury', player: weightedPick(xi, INJURY_WEIGHT_BY_POS, rand).name, rounds });
+    discipline.push({ type: 'injury', teamId: team.id, player: weightedPick(xi, INJURY_WEIGHT_BY_POS, rand).name, rounds });
   });
 
   return {
@@ -2087,7 +2104,7 @@ function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   };
 }
 
-// Conjunto de nomes indisponíveis nesta rodada (suspensos ou lesionados).
+// Conjunto de chaves time+nome indisponíveis nesta rodada (suspensos ou lesionados).
 function unavailableNamesFrom(suspensions, injuries) {
   const s = new Set();
   Object.entries(suspensions || {}).forEach(([name, left]) => { if (left > 0) s.add(name); });
@@ -2145,19 +2162,20 @@ function applyRoundDiscipline(prevCards, prevSuspensions, prevInjuries, occurren
   const cards = { ...prevCards };
   const suspensions = {};
   const injuries = {};
-  Object.entries(prevSuspensions || {}).forEach(([n, left]) => { if (left - 1 > 0) suspensions[n] = left - 1; });
-  Object.entries(prevInjuries || {}).forEach(([n, left]) => { if (left - 1 > 0) injuries[n] = left - 1; });
+  Object.entries(prevSuspensions || {}).forEach(([k, left]) => { if (left - 1 > 0) suspensions[k] = left - 1; });
+  Object.entries(prevInjuries || {}).forEach(([k, left]) => { if (left - 1 > 0) injuries[k] = left - 1; });
   (occurrences || []).forEach(o => {
+    const key = playerKey(o.teamId, o.player);
     if (o.type === 'yellow') {
-      const cur = (cards[o.player] || 0) + 1;
-      cards[o.player] = cur;
-      if (cur % YELLOWS_FOR_SUSPENSION === 0) suspensions[o.player] = Math.max(suspensions[o.player] || 0, RED_SUSPENSION_ROUNDS);
+      const cur = (cards[key] || 0) + 1;
+      cards[key] = cur;
+      if (cur % YELLOWS_FOR_SUSPENSION === 0) suspensions[key] = Math.max(suspensions[key] || 0, RED_SUSPENSION_ROUNDS);
     } else if (o.type === 'red') {
       // Segundo amarelo também conta como amarelo pro total da temporada, além da expulsão.
-      if (o.secondYellow) cards[o.player] = (cards[o.player] || 0) + 1;
-      suspensions[o.player] = Math.max(suspensions[o.player] || 0, RED_SUSPENSION_ROUNDS);
+      if (o.secondYellow) cards[key] = (cards[key] || 0) + 1;
+      suspensions[key] = Math.max(suspensions[key] || 0, RED_SUSPENSION_ROUNDS);
     } else if (o.type === 'injury') {
-      injuries[o.player] = Math.max(injuries[o.player] || 0, o.rounds || INJURY_MIN_ROUNDS);
+      injuries[key] = Math.max(injuries[key] || 0, o.rounds || INJURY_MIN_ROUNDS);
     }
   });
   return { cards, suspensions, injuries };
@@ -2668,9 +2686,14 @@ export default function App() {
       const playerCanGoToTarget = targetMeta.isBench || player.pos.includes(targetMeta.realPos);
       if (!playerCanGoToTarget) return;
       const occupant = pitch[slotKey];
+      // A braçadeira é por slot — se o capitão foi um dos jogadores movidos,
+      // ela acompanha ele pro novo slot (null se ele saiu de campo: foi pro
+      // banco ou foi deslocado de volta pro grupo por não caber na origem).
+      let nextCaptainSlot = captainSlot;
       if (!occupant) {
         // Empty target – just place
-        setPitch(prev => ({ ...prev, [slotKey]: { ...player, slotKey } }));
+        setPitch(prev => ({ ...prev, [slotKey]: { ...player, slotKey, isBench: !!targetMeta.isBench } }));
+        if (repositioningSlot === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : slotKey;
       } else {
         // Occupied target – try swap
         const srcMeta = pitchSlots.find(s => s.key === repositioningSlot);
@@ -2678,19 +2701,24 @@ export default function App() {
         if (occupantCanGoToSrc) {
           setPitch(prev => ({
             ...prev,
-            [slotKey]: { ...player, slotKey },
-            [repositioningSlot]: { ...occupant, slotKey: repositioningSlot },
+            [slotKey]: { ...player, slotKey, isBench: !!targetMeta.isBench },
+            [repositioningSlot]: { ...occupant, slotKey: repositioningSlot, isBench: !!srcMeta?.isBench },
           }));
+          if (repositioningSlot === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : slotKey;
+          else if (slotKey === captainSlot) nextCaptainSlot = srcMeta?.isBench ? null : repositioningSlot;
         } else {
           // Occupant can't go to source slot – displace (remove) occupant
           setPitch(prev => {
             const next = { ...prev };
             delete next[repositioningSlot];
-            next[slotKey] = { ...player, slotKey };
+            next[slotKey] = { ...player, slotKey, isBench: !!targetMeta.isBench };
             return next;
           });
+          if (repositioningSlot === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : slotKey;
+          else if (slotKey === captainSlot) nextCaptainSlot = null; // ocupante foi removido do time, não tem pra onde a braçadeira ir
         }
       }
+      if (nextCaptainSlot !== captainSlot) setCaptainSlot(nextCaptainSlot);
       setSelectedPlayer(null);
       setRepositioningSlot(null);
       return;
@@ -2740,6 +2768,15 @@ export default function App() {
       next[starterKey] = { ...benchPlayer, slotKey: starterKey, isBench: false };
       if (benchKey) next[benchKey] = { ...starter, slotKey: benchKey, isBench: true };
       liveLineupRef.current = next;
+      return next;
+    });
+    // Persiste no elenco da temporada — sem isso, a troca desaparecia assim
+    // que a próxima rodada reconstruía o time do zero a partir do `pitch`.
+    setPitch(prev => {
+      const next = { ...prev };
+      const benchKey = Object.keys(next).find(k => next[k].name === benchPlayer.name);
+      next[starterKey] = { ...benchPlayer, slotKey: starterKey, isBench: false };
+      if (benchKey) next[benchKey] = { ...starter, slotKey: benchKey, isBench: true };
       return next;
     });
     setSubSelectStarter(null);
@@ -2873,7 +2910,7 @@ export default function App() {
       setCardCounts(cards); setSuspensions(susp); setInjuries(inj);
       setRedCards(prev => {
         const next = { ...prev };
-        occurrences.forEach(o => { if (o.type === 'red') next[o.player] = (next[o.player] || 0) + 1; });
+        occurrences.forEach(o => { if (o.type === 'red') { const k = playerKey(o.teamId, o.player); next[k] = (next[k] || 0) + 1; } });
         return next;
       });
       return;
@@ -2972,7 +3009,7 @@ export default function App() {
         }]);
 
         // Simular todos os jogos da rodada
-        const occurrences = events.filter(ev => ev.type !== 'goal').map(ev => ({ type: ev.type, player: ev.player, rounds: ev.rounds, secondYellow: ev.secondYellow }));
+        const occurrences = events.filter(ev => ev.type !== 'goal').map(ev => ({ type: ev.type, teamId: ev.teamId, player: ev.player, rounds: ev.rounds, secondYellow: ev.secondYellow }));
         const results = round.map(m => {
           if (m.homeId === um.homeId && m.awayId === um.awayId)
             return { homeId: m.homeId, awayId: m.awayId, homeGoals: finalHs, awayGoals: finalAs };
@@ -2989,7 +3026,7 @@ export default function App() {
         setCardCounts(cards); setSuspensions(susp); setInjuries(inj);
         setRedCards(prev => {
           const next = { ...prev };
-          occurrences.forEach(o => { if (o.type === 'red') next[o.player] = (next[o.player] || 0) + 1; });
+          occurrences.forEach(o => { if (o.type === 'red') { const k = playerKey(o.teamId, o.player); next[k] = (next[k] || 0) + 1; } });
           return next;
         });
         setLastRoundDiscipline(occurrences.length > 0 ? occurrences : null);
@@ -3978,6 +4015,11 @@ export default function App() {
             onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : startSeason}
             onRedo={() => { setPhase('formation'); setCaptainSlot(null); }}
             myTeamColor={myTeamColor}
+            selectedPlayer={selectedPlayer}
+            repositioningSlot={repositioningSlot}
+            eligibleSlotsForPlayer={eligibleSlotsForPlayer}
+            onClickPitchSlot={clickPitchSlot}
+            onUnplacePlayer={startReposition}
           />
         )}
         {phase === 'multi-waiting' && roomSnap && (
@@ -5863,32 +5905,48 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   );
 }
 
-function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor }) {
+function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPitchSlot, onUnplacePlayer }) {
   const starters = Object.values(pitch).filter(p => !p.isBench);
   const avgOvr = starters.length ? Math.round(starters.reduce((s, p) => s + p.ovr, 0) / starters.length) : 0;
   const effectiveOvr = Math.round((avgOvr + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
   const starterSlots = pitchSlots.filter(s => !s.isBench).sort((a, b) => posOrderIndex(a.realPos) - posOrderIndex(b.realPos));
   const benchSlots = pitchSlots.filter(s => s.isBench);
+  const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
 
   return (
     <div style={styles.card} className="card-mob">
       <div style={styles.eyebrow}>{formationLabel}</div>
       <h2 style={styles.h2}>OVR base: {avgOvr} · Efetivo: {effectiveOvr} (11 titulares)</h2>
 
-      {/* Instrução capitão */}
-      <div style={{
-        textAlign: 'center', fontSize: 12, padding: '8px 12px',
-        background: captainSlot ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.04)',
-        border: `1px solid ${captainSlot ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.08)'}`,
-        borderRadius: 8, marginBottom: 10, color: captainSlot ? '#d4a23c' : 'rgba(255,255,255,0.5)',
-      }}>
-        {captainSlot
-          ? `Capitao: ${pitch[captainSlot]?.name} — +2 OVR`
-          : 'Toque em um titular para definir o capitao (bracadeira +2 OVR)'}
-      </div>
+      {selectedPlayer ? (
+        <div style={styles.selectedPlayerBanner}>
+          Mova <b>{selectedPlayer.name}</b> para outra posição — ou clique num jogador do campo/banco para cancelar
+        </div>
+      ) : (
+        <div style={{
+          textAlign: 'center', fontSize: 12, padding: '8px 12px',
+          background: captainSlot ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.04)',
+          border: `1px solid ${captainSlot ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.08)'}`,
+          borderRadius: 8, marginBottom: 10, color: captainSlot ? '#d4a23c' : 'rgba(255,255,255,0.5)',
+        }}>
+          {captainSlot
+            ? `Capitao: ${pitch[captainSlot]?.name} — +2 OVR`
+            : 'Toque em um titular para definir o capitao (bracadeira +2 OVR). Clique num jogador do campo/banco pra trocar de posição.'}
+        </div>
+      )}
 
-      <Pitch pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot} />
-      <BenchDisplay pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} />
+      <Pitch
+        pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot}
+        highlightSlots={highlightSlots}
+        onClickSlot={onClickPitchSlot}
+        onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
+      />
+      <BenchDisplay
+        pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor}
+        highlightSlots={highlightSlots}
+        onClickSlot={onClickPitchSlot}
+        onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
+      />
 
       <div style={styles.squadList}>
         {/* Titulares */}
@@ -6065,10 +6123,16 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
 
   const startKickersName = () => {
     if (inner.phase !== 'pick') return null;
+    // Quem já cobrou não pode cobrar de novo até todo mundo ter cobrado pelo
+    // menos uma vez (só aí a lista reabre, como na disputa de verdade).
+    const usedNames = new Set(myKickResults.map(r => r.name));
+    const availablePlayers = usedNames.size >= (myPlayers || []).length
+      ? (myPlayers || [])
+      : (myPlayers || []).filter(p => !usedNames.has(p.name));
     return (
       <div style={{ maxHeight: 220, overflowY: 'auto' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: mc, marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>Escolha o cobrador</div>
-        {(myPlayers || []).map((p, i) => (
+        {availablePlayers.map((p, i) => (
           <button key={i} onClick={() => startCountdown(p.name)} style={{
             display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px',
             background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
@@ -6958,24 +7022,28 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           {Object.entries(cardCounts)
             .sort((a, b) => b[1] - a[1])
             .slice(0, 5)
-            .map(([name, yellows], i) => (
-              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
-                <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: 1 }}>{name}</span>
-                {redCards?.[name] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[name]}</span>}
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
-              </div>
-            ))
+            .map(([key, yellows], i) => {
+              const { teamId, name } = splitPlayerKey(key);
+              const teamLabel = leagueTeams.find(t => t.id === teamId)?.label;
+              return (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
+                  <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+                  <span style={{ flex: 1 }}>{name}</span>
+                  {teamLabel && <span style={{ fontSize: 11, opacity: 0.5 }}>{teamLabel}</span>}
+                  {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
+                </div>
+              );
+            })
           }
         </div>
       )}
 
       {(() => {
-        const myTeam = leagueTeams.find(t => t.id === myTeamId);
-        const myNames = new Set((myTeam?.players || []).map(p => p.name));
+        const prefix = `${myTeamId}::`;
         const desfalques = [
-          ...Object.entries(suspensions || {}).filter(([n, left]) => left > 0 && myNames.has(n)).map(([n]) => ({ name: n, reason: 'suspenso' })),
-          ...Object.entries(injuries || {}).filter(([n, left]) => left > 0 && myNames.has(n)).map(([n]) => ({ name: n, reason: 'lesionado' })),
+          ...Object.entries(suspensions || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => ({ name: k.slice(prefix.length), reason: 'suspenso' })),
+          ...Object.entries(injuries || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => ({ name: k.slice(prefix.length), reason: 'lesionado' })),
         ];
         if (desfalques.length === 0) return null;
         const hasInjury = desfalques.some(d => d.reason === 'lesionado');
@@ -7251,14 +7319,17 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         {topCards.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={styles.sectionLabel}>Cartões da Copa</div>
-            {topCards.map(([name, yellows], i) => (
-              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-                <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: 1 }}>{name}</span>
-                {redCards?.[name] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[name]}</span>}
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
-              </div>
-            ))}
+            {topCards.map(([key, yellows], i) => {
+              const { name } = splitPlayerKey(key);
+              return (
+                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+                  <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+                  <span style={{ flex: 1 }}>{name}</span>
+                  {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
+                </div>
+              );
+            })}
           </div>
         )}
         {seasonAwards?.length > 0 && (
@@ -7351,14 +7422,17 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       {topCards.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={styles.sectionLabel}>Cartões</div>
-          {topCards.map(([name, yellows], i) => (
-            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+          {topCards.map(([key, yellows], i) => {
+            const { name } = splitPlayerKey(key);
+            return (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
               <span style={{ flex: 1 }}>{name}</span>
-              {redCards?.[name] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[name]}</span>}
+              {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
