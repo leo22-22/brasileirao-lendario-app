@@ -19,9 +19,27 @@ db.exec(`
     team_coach TEXT,
     team_city TEXT,
     goal_audio TEXT,
+    titles_brasileirao INTEGER NOT NULL DEFAULT 0,
+    titles_copa INTEGER NOT NULL DEFAULT 0,
+    seasons_played INTEGER NOT NULL DEFAULT 0,
+    best_position INTEGER,
+    ranking_points INTEGER NOT NULL DEFAULT 0,
+    achievements TEXT NOT NULL DEFAULT '[]',
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )
 `);
+
+// Bancos criados antes dessas colunas existirem (CREATE TABLE IF NOT EXISTS não
+// altera tabela já existente) — adiciona uma a uma, ignorando erro de coluna duplicada.
+function ensureColumn(ddl: string) {
+  try { db.exec(`ALTER TABLE users ADD COLUMN ${ddl}`); } catch { /* já existe */ }
+}
+ensureColumn('titles_brasileirao INTEGER NOT NULL DEFAULT 0');
+ensureColumn('titles_copa INTEGER NOT NULL DEFAULT 0');
+ensureColumn('seasons_played INTEGER NOT NULL DEFAULT 0');
+ensureColumn('best_position INTEGER');
+ensureColumn('ranking_points INTEGER NOT NULL DEFAULT 0');
+ensureColumn("achievements TEXT NOT NULL DEFAULT '[]'");
 
 export interface UserRow {
   id: number;
@@ -34,6 +52,12 @@ export interface UserRow {
   team_coach: string | null;
   team_city: string | null;
   goal_audio: string | null;
+  titles_brasileirao: number;
+  titles_copa: number;
+  seasons_played: number;
+  best_position: number | null;
+  ranking_points: number;
+  achievements: string;
   created_at: string;
 }
 
@@ -47,6 +71,12 @@ export interface PublicUser {
   team_coach: string | null;
   team_city: string | null;
   goal_audio: string | null;
+  titles_brasileirao: number;
+  titles_copa: number;
+  seasons_played: number;
+  best_position: number | null;
+  ranking_points: number;
+  achievements: string[];
   created_at: string;
 }
 
@@ -61,6 +91,12 @@ export function toPublicUser(row: UserRow): PublicUser {
     team_coach: row.team_coach,
     team_city: row.team_city,
     goal_audio: row.goal_audio,
+    titles_brasileirao: row.titles_brasileirao,
+    titles_copa: row.titles_copa,
+    seasons_played: row.seasons_played,
+    best_position: row.best_position,
+    ranking_points: row.ranking_points,
+    achievements: JSON.parse(row.achievements || '[]'),
     created_at: row.created_at,
   };
 }

@@ -5,6 +5,7 @@ import express from 'express';
 import cors from 'cors';
 import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
+import leaderboardRoutes from './routes/leaderboard.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -18,6 +19,7 @@ app.use(express.json({ limit: '2mb' }));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/me', meRoutes);
+app.use('/api/leaderboard', leaderboardRoutes);
 
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Rota não encontrada.' });

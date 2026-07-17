@@ -63,3 +63,11 @@ export function updateMe(fields) {
 export function deleteMe() {
   return request('/me', { method: 'DELETE', auth: true });
 }
+
+export function submitSeasonResult(payload) {
+  return request('/me/season-result', { method: 'POST', body: payload, auth: true });
+}
+
+export function fetchLeaderboard(limit = 20) {
+  return request(`/leaderboard?limit=${limit}`);
+}

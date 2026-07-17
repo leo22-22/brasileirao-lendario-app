@@ -102,6 +102,62 @@ router.put('/', async (req, res) => {
   }
 });
 
+// Registra o resultado de uma temporada encerrada (Brasileirão ou Copa) e
+// atualiza títulos/pontos de ranking/conquistas da conta. Chamado pelo cliente
+// ao chegar na tela de resultado, só quando o usuário está logado.
+router.post('/season-result', (req, res) => {
+  try {
+    const userId = req.userId!;
+    const current = getUserOr404(userId, res);
+    if (!current) return;
+
+    const body = req.body ?? {};
+    const gameMode = body.gameMode === 'copa' ? 'copa' : 'brasileirao';
+    const champion = !!body.champion;
+    const position = Number.isFinite(body.position) ? Number(body.position) : null;
+    const losses = Number.isFinite(body.losses) ? Number(body.losses) : null;
+    const gotTopScorerAward = !!body.gotTopScorerAward;
+
+    let titlesBr = current.titles_brasileirao;
+    let titlesCopa = current.titles_copa;
+    let bestPosition = current.best_position;
+    const seasonsPlayed = current.seasons_played + 1;
+
+    if (champion) {
+      if (gameMode === 'brasileirao') titlesBr += 1; else titlesCopa += 1;
+    }
+    if (gameMode === 'brasileirao' && position != null) {
+      bestPosition = bestPosition == null ? position : Math.min(bestPosition, position);
+    }
+
+    let pointsEarned = 5; // participação
+    if (champion) pointsEarned = gameMode === 'brasileirao' ? 50 : 40;
+    else if (gameMode === 'brasileirao' && position != null) pointsEarned = Math.max(5, 21 - position);
+    const rankingPoints = current.ranking_points + pointsEarned;
+
+    const before = new Set(JSON.parse(current.achievements || '[]'));
+    const after = new Set(before);
+    const totalTitles = titlesBr + titlesCopa;
+    if (totalTitles >= 1) after.add('first_title');
+    if (totalTitles >= 3) after.add('dynasty');
+    if (seasonsPlayed >= 10) after.add('veteran');
+    if (bestPosition != null && bestPosition <= 3) after.add('podium_finish');
+    if (gameMode === 'brasileirao' && losses === 0) after.add('unbeaten_season');
+    if (gotTopScorerAward) after.add('golden_boot');
+    const newlyUnlocked = [...after].filter(a => !before.has(a));
+
+    db.prepare(
+      `UPDATE users SET titles_brasileirao=?, titles_copa=?, seasons_played=?, best_position=?, ranking_points=?, achievements=? WHERE id=?`
+    ).run(titlesBr, titlesCopa, seasonsPlayed, bestPosition, rankingPoints, JSON.stringify([...after]), userId);
+
+    const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as UserRow;
+    return res.json({ user: toPublicUser(updated), newlyUnlocked });
+  } catch (err) {
+    console.error('[season-result]', err);
+    return res.status(500).json({ error: 'Erro interno ao registrar o resultado da temporada.' });
+  }
+});
+
 router.delete('/', (req, res) => {
   try {
     const userId = req.userId!;
