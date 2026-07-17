@@ -1291,26 +1291,26 @@ const TEAMS = [
   { id: 'botafogo2024', club: 'Botafogo', year: 2024, label: 'Botafogo 2024 (Brasileirao + Libertadores)', coach: 'Artur Jorge',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'John', pos: ['GOL'], ovr: 83 },
-      { name: 'Vitinho', pos: ['LD'], ovr: 79 },
-      { name: 'Alexander Barboza', pos: ['ZAG'], ovr: 82 },
-      { name: 'Bastos', pos: ['ZAG'], ovr: 81 },
-      { name: 'Cuiabano', pos: ['LE'], ovr: 80 },
-      { name: 'Marlon Freitas', pos: ['MC','VOL'], ovr: 82 },
-      { name: 'Gregore', pos: ['VOL','MC'], ovr: 81 },
-      { name: 'Thiago Almada', pos: ['MEI','ME'], ovr: 85 },
-      { name: 'Igor Jesus', pos: ['ATA'], ovr: 87 },
-      { name: 'Jefferson Savarino', pos: ['PE','ME'], ovr: 81 },
-      { name: 'Luiz Henrique', pos: ['PD','MD'], ovr: 86 },
-      { name: 'Gatito Fernandez', pos: ['GOL'], ovr: 76 },
-      { name: 'Adryelson', pos: ['ZAG'], ovr: 78 },
-      { name: 'Tiquinho Soares', pos: ['ATA'], ovr: 79 },
-      { name: 'Danilo Barbosa', pos: ['VOL','MC'], ovr: 78 },
-      { name: 'Tche Tche', pos: ['MC','VOL'], ovr: 78 },
-      { name: 'Marcal', pos: ['LE'], ovr: 76 },
-      { name: 'Mateo Ponte', pos: ['LD'], ovr: 77 },
-      { name: 'Junior Santos', pos: ['PD','ATA'], ovr: 76 },
-      { name: 'Carlos Alberto', pos: ['PE','MC'], ovr: 74 },
+      { name: 'John', pos: ['GOL'], ovr: 87 },
+      { name: 'Vitinho', pos: ['LD'], ovr: 83 },
+      { name: 'Alexander Barboza', pos: ['ZAG'], ovr: 86 },
+      { name: 'Bastos', pos: ['ZAG'], ovr: 85 },
+      { name: 'Cuiabano', pos: ['LE'], ovr: 84 },
+      { name: 'Marlon Freitas', pos: ['MC','VOL'], ovr: 86 },
+      { name: 'Gregore', pos: ['VOL','MC'], ovr: 85 },
+      { name: 'Thiago Almada', pos: ['MEI','ME'], ovr: 89 },
+      { name: 'Igor Jesus', pos: ['ATA'], ovr: 91 },
+      { name: 'Jefferson Savarino', pos: ['PE','ME'], ovr: 85 },
+      { name: 'Luiz Henrique', pos: ['PD','MD'], ovr: 90 },
+      { name: 'Gatito Fernandez', pos: ['GOL'], ovr: 78 },
+      { name: 'Adryelson', pos: ['ZAG'], ovr: 80 },
+      { name: 'Tiquinho Soares', pos: ['ATA'], ovr: 81 },
+      { name: 'Danilo Barbosa', pos: ['VOL','MC'], ovr: 80 },
+      { name: 'Tche Tche', pos: ['MC','VOL'], ovr: 80 },
+      { name: 'Marcal', pos: ['LE'], ovr: 78 },
+      { name: 'Mateo Ponte', pos: ['LD'], ovr: 79 },
+      { name: 'Junior Santos', pos: ['PD','ATA'], ovr: 78 },
+      { name: 'Carlos Alberto', pos: ['PE','MC'], ovr: 76 },
     ]},
   { id: 'santos2015', club: 'Santos', year: 2015, label: 'Santos 2015 (Paulistao + Vice Copa BR)', coach: 'Dorival Junior',
     colors: { p: '#000000', s: '#ffffff' },
@@ -1385,6 +1385,7 @@ const TEAMS = [
       { name: 'Gatito Fernández', pos: ['GOL'], ovr: 82 },
     ]},
 ];
+
 
 
 
@@ -1506,11 +1507,11 @@ const FORMATIONS = {
   // --- Variações do 3-5-2 ---
   '3-5-2-equilibrio': {
     label: '3-5-2 (1 VOL, 1 MC, 1 MEI)',
-    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 1, MEI: 1, ATA: 2 }
+    counts: { GOL: 1, ZAG: 3, MD: 1, VOL: 1, MC: 1, MEI: 1, ME: 1, ATA: 2 }
   },
   '3-5-2-pesado': {
     label: '3-5-2 Pesado (2 VOL, 1 MEI)',
-    counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 2, MEI: 1, ATA: 2 }
+    counts: { GOL: 1, ZAG: 3, MD: 1, VOL: 2, MEI: 1, ME: 1, ATA: 2 }
   },
 
   // --- Variação do 3-4-3 (sem alas — 3 zagueiros puros, 4 no meio, 3 na frente) ---
@@ -2261,6 +2262,7 @@ const CLUB_LOGOS = {
 // Áudios de gol reais por clube (public/gol/*.mp3). Botafogo tem 2 variantes
 // que alternam aleatoriamente; clubes sem arquivo proprio ficam sem som.
 const GOAL_AUDIO_FILES = {
+  'Flamengo': ['/gol/Flamengo.mp3'],
   'Fluminense': ['/gol/Fluminense.mp3'],
   'Atletico-MG': ['/gol/Atletico-MG.mp3'],
   'Santos': ['/gol/Santos.mp3'],
@@ -2298,80 +2300,6 @@ function playGoalAudio(club, customUrl, onEnd) {
     setTimeout(finish, 4500);
     audio.play().catch(finish);
   } catch { finish(); }
-}
-
-// ── Ambientação sonora (torcida + apito) ────────────────────────────────
-// Sintetizada via Web Audio API (osciladores + ruído filtrado), sem depender
-// de nenhum arquivo de áudio novo. Precisa de um AudioContext criado a partir
-// de um gesto do usuário (clique em "Iniciar rodada" já serve).
-let _audioCtx = null;
-function getAudioCtx() {
-  if (!_audioCtx) {
-    const Ctx = window.AudioContext || window.webkitAudioContext;
-    if (!Ctx) return null;
-    _audioCtx = new Ctx();
-  }
-  if (_audioCtx.state === 'suspended') _audioCtx.resume().catch(() => { });
-  return _audioCtx;
-}
-
-function playWhistle() {
-  const ctx = getAudioCtx();
-  if (!ctx) return;
-  const blast = (startOffset, duration) => {
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'square';
-    osc.frequency.value = 2200;
-    const t0 = ctx.currentTime + startOffset;
-    gain.gain.setValueAtTime(0.0001, t0);
-    gain.gain.linearRampToValueAtTime(0.18, t0 + 0.02);
-    gain.gain.linearRampToValueAtTime(0.0001, t0 + duration);
-    osc.connect(gain).connect(ctx.destination);
-    osc.start(t0);
-    osc.stop(t0 + duration + 0.03);
-  };
-  blast(0, 0.16);
-  blast(0.22, 0.16);
-  blast(0.46, 0.32);
-}
-
-let _crowdNodes = null;
-function startCrowdAmbience() {
-  const ctx = getAudioCtx();
-  if (!ctx || _crowdNodes) return;
-  const bufferSize = 2 * ctx.sampleRate;
-  const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
-  const data = buffer.getChannelData(0);
-  for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-  const noise = ctx.createBufferSource();
-  noise.buffer = buffer;
-  noise.loop = true;
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.value = 500;
-  filter.Q.value = 0.5;
-  const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-  gain.gain.linearRampToValueAtTime(0.045, ctx.currentTime + 1.2);
-  noise.connect(filter).connect(gain).connect(ctx.destination);
-  noise.start();
-  _crowdNodes = { noise, gain };
-}
-function stopCrowdAmbience() {
-  if (!_crowdNodes) return;
-  const ctx = getAudioCtx();
-  const { noise, gain } = _crowdNodes;
-  _crowdNodes = null;
-  try {
-    gain.gain.linearRampToValueAtTime(0.0001, ctx.currentTime + 0.4);
-    setTimeout(() => { try { noise.stop(); } catch { } }, 500);
-  } catch { try { noise.stop(); } catch { } }
-}
-function setCrowdVolume(v) {
-  if (!_crowdNodes) return;
-  const ctx = getAudioCtx();
-  try { _crowdNodes.gain.gain.linearRampToValueAtTime(v, ctx.currentTime + 0.3); } catch { }
 }
 
 // IDs YouTube dos hinos oficiais — tocam na tela de campeão
@@ -2609,14 +2537,6 @@ export default function App() {
   // Conquistas desbloqueadas nesta submissão (toast) + ranking global
   const [newAchievements, setNewAchievements] = useState([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
-  // Ambientação sonora (torcida + apito, sintetizada) — liga/desliga persistido
-  const [ambientSoundOn, setAmbientSoundOn] = useState(() => {
-    try { return localStorage.getItem('brl_ambient_sound') !== '0'; } catch { return true; }
-  });
-  useEffect(() => {
-    try { localStorage.setItem('brl_ambient_sound', ambientSoundOn ? '1' : '0'); } catch { }
-    if (!ambientSoundOn) stopCrowdAmbience();
-  }, [ambientSoundOn]);
   const suspensionsRef = useRef(suspensions);
   const injuriesRef = useRef(injuries);
   useEffect(() => { suspensionsRef.current = suspensions; }, [suspensions]);
@@ -2661,7 +2581,6 @@ export default function App() {
   useEffect(() => () => {
     if (timerRef.current) clearTimeout(timerRef.current);
     if (clockRef.current) clearTimeout(clockRef.current);
-    stopCrowdAmbience();
   }, []);
 
   const filledSlots = Object.keys(pitch);
@@ -2797,7 +2716,6 @@ export default function App() {
     isPausedRef.current = true;
     setIsPaused(true);
     setShowSubPanel(true);
-    setCrowdVolume(0);
   };
 
   const resumeSim = () => {
@@ -2805,7 +2723,6 @@ export default function App() {
     setIsPaused(false);
     setShowSubPanel(false);
     setSubSelectStarter(null);
-    if (ambientSoundOn) setCrowdVolume(0.045);
     if (tickFnRef.current) {
       const MS = { 1: 250, 1.5: 125, 2: 55 };
       clockRef.current = setTimeout(tickFnRef.current, MS[speedRef.current] ?? 250);
@@ -2976,7 +2893,6 @@ export default function App() {
     setRoundResults(null);
     setLastMatchRatings(null);
     setIsSimulating(true);
-    if (ambientSoundOn) { playWhistle(); startCrowdAmbience(); }
     setIsPaused(false);
     isPausedRef.current = false;
     setShowSubPanel(false);
@@ -3035,8 +2951,6 @@ export default function App() {
 
       if (minute >= 90) {
         setIsSimulating(false);
-        stopCrowdAmbience();
-        if (ambientSoundOn) playWhistle();
 
         const finalHs = hs;
         const finalAs = as_;
@@ -3186,7 +3100,7 @@ export default function App() {
 
     tickFnRef.current = tick;
     clockRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
-  }, [fixtures, currentRound, leagueTeams, isSimulating, gameMode, cupRoundIdx, myTeamId, roomSnap?.seed, cardCounts, suspensions, injuries, teamForm, ambientSoundOn]);
+  }, [fixtures, currentRound, leagueTeams, isSimulating, gameMode, cupRoundIdx, myTeamId, roomSnap?.seed, cardCounts, suspensions, injuries, teamForm]);
 
   // Calcula e aplica os prêmios de fim de temporada — só o elenco do próprio
   // usuário recebe o bônus permanente (é o único que atravessa pra próxima
@@ -3425,7 +3339,6 @@ export default function App() {
     setSeasonAwards([]);
     setChatMessages([]);
     setViewingTeam(null);
-    stopCrowdAmbience();
   };
 
   // Nova temporada com o mesmo elenco
@@ -3950,15 +3863,6 @@ export default function App() {
             <div style={styles.subtitle}>monte · escale · seja campeão</div>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <button
-              onClick={() => setAmbientSoundOn(v => !v)}
-              title={ambientSoundOn ? 'Som ambiente ligado' : 'Som ambiente desligado'}
-              style={{
-                background: 'none', border: '1px solid rgba(212,162,60,0.35)',
-                borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
-                color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
-              }}
-            >{ambientSoundOn ? '🔊' : '🔇'}</button>
             <button
               onClick={() => setShowLeaderboard(true)}
               title="Ranking global"

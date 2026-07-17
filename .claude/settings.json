@@ -115,7 +115,9 @@
       "Bash(node \"C:/Users/ueer/AppData/Local/Temp/claude/c--Users-ueer-Downloads-brasileirao-lendario-app/7ba68663-85b2-4d35-b208-1eea85f59811/scratchpad/check_auth_fix.js\")",
       "Bash(curl -s -o /dev/null -w \"Frontend HTML: %{http_code}\\\\n\" http://localhost:4000/)",
       "Bash(curl -s -X POST http://localhost:4000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"naoexiste@test.com\",\"password\":\"123456\"}' -w \"\\\\nAPI status: %{http_code}\\\\n\")",
-      "PowerShell(Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force })"
+      "PowerShell(Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force })",
+      "Bash(node bump_overall_by_starter.js 63 4 2)",
+      "PowerShell(cd \"c:\\\\Users\\\\ueer\\\\Downloads\\\\brasileirao-lendario-app\"; powershell -ExecutionPolicy Bypass -File gen_teams.ps1)"
     ],
     "additionalDirectories": [
       "c:\\Users\\ueer\\Downloads\\brasileirao-lendario-app\\server"
