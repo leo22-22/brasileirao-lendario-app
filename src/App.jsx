@@ -2653,11 +2653,27 @@ export default function App() {
   // Estado de reposicionamento (mover jogador já escalado para outro slot)
   const [repositioningSlot, setRepositioningSlot] = useState(null); // slotKey original
 
+  // Posições que existem de verdade nesse esquema (ex.: 4-4-2 em linha não
+  // tem PD/PE/MEI). Um jogador cujas posições não batem com NENHUMA delas não
+  // tem pra onde ir — nem titular, nem banco, já que na hora de substituir ele
+  // também não teria vaga compatível pra entrar.
+  const formationPosSet = useMemo(
+    () => new Set(formationKey ? Object.keys(FORMATIONS[formationKey].counts) : []),
+    [formationKey]
+  );
+  const isPlayerBlockedByFormation = (player) => !player.pos.some(p => formationPosSet.has(p));
+
   const eligibleSlotsForPlayer = (player) => {
-    if (pickedPlayerNames.has(player.name)) return [];
+    if (repositioningSlot === null && pickedPlayerNames.has(player.name)) return [];
+    if (isPlayerBlockedByFormation(player)) return [];
     // Expande as posições do próprio jogador (Pelé ['ATA','MEI'] → cobre PE, PD, VOL, MC…)
     const canPlayAt = new Set(player.pos);
-    return remainingSlots.filter(slot => {
+    // Escalando da pool: só vaga vazia conta. Reposicionando (jogador já em
+    // campo/banco, pego pra mover): TODA vaga compatível conta, mesmo ocupada
+    // — é isso que permite trocar de lugar com quem já está lá (ex.: Ceni no
+    // lugar do Cássio), não só cair numa vaga livre.
+    const candidateSlots = repositioningSlot !== null ? pitchSlots : remainingSlots;
+    return candidateSlots.filter(slot => {
       if (slot.isBench) return true;
       return canPlayAt.has(slot.realPos);
     });
@@ -3100,7 +3116,10 @@ export default function App() {
                     const myPlayers = liveLineupRef.current
                       ? Object.values(liveLineupRef.current)
                       : (myT?.players || []).slice(0, 16);
-                    const oppGk = (opT?.players || [])[0]?.name || 'Goleiro';
+                    // Busca por posição, não por índice fixo — o elenco do usuário não
+                    // garante o goleiro na posição 0 (só titulares-antes-de-reservas).
+                    const myGk = (myPlayers || []).find(p => p.pos?.[0] === 'GOL')?.name || 'Goleiro';
+                    const oppGk = (opT?.players || []).find(p => p.pos?.[0] === 'GOL')?.name || 'Goleiro';
                     setPenaltyPhase({
                       kicks: userPen.kicks,
                       winner: userPen.winner,
@@ -3109,6 +3128,7 @@ export default function App() {
                       myIsHome: isHome,
                       myTeamLabel: myT?.label || 'Meu Time',
                       oppTeamLabel: opT?.label || 'Adversario',
+                      myGkName: myGk,
                       oppGkName: oppGk,
                       myPlayers,
                     });
@@ -3999,6 +4019,7 @@ export default function App() {
             selectedPlayer={selectedPlayer}
             repositioningSlot={repositioningSlot}
             eligibleSlotsForPlayer={eligibleSlotsForPlayer}
+            isPlayerBlockedByFormation={isPlayerBlockedByFormation}
             onClickPlayer={clickPlayer}
             onClickPitchSlot={clickPitchSlot}
             onUnplacePlayer={startReposition}
@@ -5454,7 +5475,11 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
         {pitchSlots.filter(slot => !slot.isBench).map(slot => {
           const occupant = pitch[slot.key];
           const isHighlighted = highlightKeys.has(slot.key);
-          const canPlace = isHighlighted && !occupant && onClickSlot;
+          // Vaga ocupada TAMBÉM entra em canPlace quando destacada — é o que
+          // permite trocar de lugar com quem já está lá durante reposição
+          // (fora da reposição, isHighlighted nunca inclui vaga ocupada, então
+          // isso não muda nada do fluxo normal de escalar da pool).
+          const canPlace = isHighlighted && !!onClickSlot;
           const canUnplace = !!occupant && !!onUnplace;
           const clickable = canPlace || canUnplace;
           const isCap = captainSlot && slot.key === captainSlot;
@@ -5560,14 +5585,14 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], onC
         {benchSlots.map(slot => {
           const p = pitch[slot.key];
           const isHighlighted = highlightKeys.has(slot.key);
-          const canPlace = isHighlighted && !p && !!onClickSlot;
+          const canPlace = isHighlighted && !!onClickSlot;
           const canUnplace = !!p && !!onUnplace;
           const clickable = canPlace || canUnplace;
           return (
             <div
               key={slot.key}
               onClick={clickable ? () => canPlace ? onClickSlot(slot.key) : onUnplace(slot.key) : undefined}
-              title={p ? `${p.name} — clique para remover` : canPlace ? 'Colocar no banco' : slot.label}
+              title={p ? (canPlace ? `Trocar de lugar com ${p.name}` : `${p.name} — clique para remover`) : canPlace ? 'Colocar no banco' : slot.label}
               style={{
                 padding: '6px 10px', borderRadius: 8, fontSize: 12, minWidth: 80, textAlign: 'center',
                 background: canPlace ? 'rgba(127,217,154,0.12)' : p ? `${mc}22` : 'rgba(255,255,255,0.04)',
@@ -5718,7 +5743,7 @@ function useIsMobile(bp = 768) {
   return mob;
 }
 
-function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, myTeamColor, captainSlot }) {
+function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, isPlayerBlockedByFormation, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, myTeamColor, captainSlot }) {
   const isMobile = useIsMobile();
   const filledCount = Object.keys(pitch).length;
   const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
@@ -5810,12 +5835,14 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
             {sortedPlayers.map((p, i) => {
               const slots = eligibleSlotsForPlayer(p);
               const canPick = slots.length > 0;
+              const blockedByFormation = !canPick && isPlayerBlockedByFormation(p);
               const isSelected = selectedPlayer?.name === p.name;
               return (
                 <button
                   key={i}
                   onClick={() => canPick && onClickPlayer(p)}
                   disabled={!canPick}
+                  title={blockedByFormation ? 'Sem posição compatível nesse esquema — nem titular, nem banco' : undefined}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -5869,6 +5896,13 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                           }}>{pos}</span>
                         );
                       })}
+                      {blockedByFormation && (
+                        <span style={{
+                          fontFamily: "'Space Mono', monospace", fontSize: 9, fontWeight: 800,
+                          padding: '2px 6px', borderRadius: 4, letterSpacing: 0.4, lineHeight: 1.4,
+                          background: 'rgba(224,80,80,0.15)', color: '#e05050', border: '1px solid rgba(224,80,80,0.4)',
+                        }}>🔒 FORA DO ESQUEMA</span>
+                      )}
                     </div>
                   </div>
                   {isSelected && <span style={{ flexShrink: 0, fontSize: 16, color: '#7fd99a' }}>→</span>}
@@ -6020,9 +6054,12 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
 // ============================================================
 function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
   const mc = myTeamColor || '#d4a23c';
-  const [inner, setInner] = React.useState({
+  const [inner, setInner] = React.useState(() => ({
     kickNum: 0,     // 0,1,...: even=home, odd=away
-    phase: 'pick',  // 'pick' | 'countdown' | 'result' | 'done'
+    // A cobrança 0 é sempre do time da casa — se eu sou o visitante, quem
+    // bate primeiro é o adversário (antes isso vinha fixo em 'pick', me
+    // deixando escolher cobrador pra uma cobrança que não era minha).
+    phase: penaltyPhase?.myIsHome === false ? 'auto_kick' : 'pick',
     countdown: null,
     takerName: null,
     lastResult: null,
@@ -6030,11 +6067,11 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
     opGoals: 0,
     myKickResults: [],
     opKickResults: [],
-  });
+  }));
   const tiRef = React.useRef(null);
 
   if (!penaltyPhase) return null;
-  const { kicks, winner, myIsHome, myTeamLabel, oppTeamLabel, oppGkName, myPlayers } = penaltyPhase;
+  const { kicks, winner, myIsHome, myTeamLabel, oppTeamLabel, myGkName, oppGkName, myPlayers } = penaltyPhase;
 
   const { kickNum, phase, countdown, takerName, lastResult, myGoals, opGoals, myKickResults, opKickResults } = inner;
 
@@ -6044,26 +6081,23 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
   const isMyKick = myIsHome ? isHomeKick : !isHomeKick;
 
   const currentKickPair = kicks[pairIdx];
-  const isLastKick = pairIdx >= kicks.length - 1 && (myIsHome ? !isHomeKick : isHomeKick);
-
-  const totalKicks = kicks.length * 2;
-  const done = inner.phase === 'done';
 
   const clearT = () => { if (tiRef.current) clearTimeout(tiRef.current); };
 
   const getResultText = (scored, isMine) => {
     if (scored) return isMine ? 'GOOOOOL! ⚽' : 'GOL ⚽';
     const r = Math.random();
-    if (r < 0.35 && !isMine) return `DEFENDE O ${oppGkName}! 🧤`;
+    // Quem defende é sempre o goleiro do OUTRO lado de quem está cobrando —
+    // se sou eu cobrando, quem pode ter defendido é o goleiro adversário, e
+    // vice-versa (antes o goleiro citado era sempre o mesmo, do lado errado).
+    if (r < 0.35) return `DEFENDE O ${isMine ? oppGkName : myGkName}! 🧤`;
     if (r < 0.65) return isMine ? 'ISOLOOOOU! 😩' : 'ISOLOU';
     return isMine ? 'ERROOOOU! 😱' : 'ERROU';
   };
 
   const resolveKick = (taker) => {
     if (!currentKickPair) { advanceKick(null); return; }
-    const scored = isMyKick
-      ? (isHomeKick ? currentKickPair.a : currentKickPair.b)
-      : (isHomeKick ? currentKickPair.a : currentKickPair.b);
+    const scored = isHomeKick ? currentKickPair.a : currentKickPair.b;
     const resultText = getResultText(scored, isMyKick);
     const newMy = isMyKick ? myGoals + (scored ? 1 : 0) : myGoals;
     const newOp = !isMyKick ? opGoals + (scored ? 1 : 0) : opGoals;
@@ -6393,7 +6427,7 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
   );
 }
 
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
   const hColor = homeTeam.id === myTeamId ? mc : (homeTeam.colors?.p || homeTeam.color || '#3a85d9');
@@ -6412,7 +6446,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
         <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} className="live-team-n">
           <span>{homeTeam.label}</span>
           {homeTeam.id === myTeamId
-            ? (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>)
+            ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" /> : (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>))
             : (homeTeam.clubLogo && <img src={homeTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />)
           }
         </div>
@@ -6423,7 +6457,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, mc, liveS
         </div>
         <div style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6 }} className="live-team-n">
           {awayTeam.id === myTeamId
-            ? (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>)
+            ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" /> : (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>))
             : (awayTeam.clubLogo && <img src={awayTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />)
           }
           <span>{awayTeam.label}</span>
@@ -6745,7 +6779,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
 
         <LiveMatchBox
           um={um} homeTeam={homeTeam} awayTeam={awayTeam}
-          myTeamId={myTeamId} myTeamBadge={myTeamBadge} mc={mc}
+          myTeamId={myTeamId} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} mc={mc}
           liveScore={liveScore} clockDisplay={clockDisplay}
           isSimulating={isSimulating} roundDone={roundDone}
           liveEvents={liveEvents} simSpeed={simSpeed}
@@ -6877,7 +6911,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
 
       <LiveMatchBox
         um={um} homeTeam={homeTeam} awayTeam={awayTeam}
-        myTeamId={myTeamId} myTeamBadge={myTeamBadge} mc={mc}
+        myTeamId={myTeamId} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} mc={mc}
         liveScore={liveScore} clockDisplay={clockDisplay}
         isSimulating={isSimulating} roundDone={roundDone}
         liveEvents={liveEvents} simSpeed={simSpeed}
@@ -6940,7 +6974,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
                 style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, cursor: isMe ? 'default' : 'pointer' }}
               >
                 {isMe
-                  ? (myTeamBadge && <span>{myTeamBadge}</span>)
+                  ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} alt="" /> : (myTeamBadge && <span>{myTeamBadge}</span>))
                   : (row.clubLogo && <img src={row.clubLogo} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} alt="" />)
                 }
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</span>
@@ -7475,7 +7509,10 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             }}>
               <span style={styles.tablePos}>{i + 1}</span>
               <span style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13 }}>
-                {isMe && myTeamBadge && <span style={{ marginRight: 4 }}>{myTeamBadge}</span>}
+                {isMe && (myTeamLogo
+                  ? <img src={myTeamLogo} style={{ width: 16, height: 16, objectFit: 'contain', marginRight: 4, verticalAlign: 'middle' }} alt="" />
+                  : (myTeamBadge && <span style={{ marginRight: 4 }}>{myTeamBadge}</span>))
+                }
                 {row.label}
               </span>
               <span style={styles.tableCell}>{row.pj}</span>
