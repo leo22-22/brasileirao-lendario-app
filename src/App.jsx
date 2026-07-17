@@ -2575,6 +2575,9 @@ export default function App() {
   const [showSubPanel, setShowSubPanel] = useState(false);
   const [subSelectStarter, setSubSelectStarter] = useState(null);
   const [liveLineup, setLiveLineup] = useState(null);
+  // Jogadores que já saíram do jogo por substituição nesta partida — na vida
+  // real quem sai não pode voltar, então ficam bloqueados na lista de reservas.
+  const [subbedOutNames, setSubbedOutNames] = useState([]);
   const [penaltyPhase, setPenaltyPhase] = useState(null);
 
   const timerRef = useRef(null);
@@ -2776,6 +2779,8 @@ export default function App() {
   const applyLiveSub = (starterKey, benchPlayer) => {
     const starter = liveLineupRef.current?.[starterKey];
     if (!starter || !benchPlayer) return;
+    // Quem já saiu do jogo nesta partida não pode voltar (igual na vida real).
+    if (subbedOutNames.includes(benchPlayer.name)) return;
     const starterMeta = pitchSlots.find(s => s.key === starterKey);
     if (starterMeta && !benchPlayer.pos.includes(starterMeta.realPos) && !starterMeta.isBench) return;
     setLiveLineup(prev => {
@@ -2795,6 +2800,7 @@ export default function App() {
       if (benchKey) next[benchKey] = { ...starter, slotKey: benchKey, isBench: true };
       return next;
     });
+    setSubbedOutNames(prev => [...prev, starter.name]);
     setSubSelectStarter(null);
   };
 
@@ -2951,6 +2957,7 @@ export default function App() {
     setShowSubPanel(false);
     setSubSelectStarter(null);
     setPenaltyPhase(null);
+    setSubbedOutNames([]);
     // Init live lineup from current pitch
     const initLL = { ...pitch };
     setLiveLineup(initLL);
@@ -3234,7 +3241,12 @@ export default function App() {
         setCupLeg(2);
         setCurrentRound(next);
         reset();
-        return prev.map((r, i) => i === cupRoundIdx ? { ...r, leg1Results: leg1Res } : r);
+        // `results` ainda guarda o resultado do jogo de ida (o tick() grava ali
+        // toda vez que uma rodada termina, ida ou volta) — sem limpar aqui, o
+        // chaveamento tratava esse resultado antigo como se já fosse o jogo de
+        // volta enquanto ele ainda estava rolando, e como agregado = ida+ida
+        // (soma comutativa), o placar sempre dava empate por matemática.
+        return prev.map((r, i) => i === cupRoundIdx ? { ...r, leg1Results: leg1Res, results: [] } : r);
       }
 
       // Leg 2 — calcular vencedores por agregado
@@ -4099,6 +4111,7 @@ export default function App() {
             subSelectStarter={subSelectStarter}
             onSelectSubStarter={setSubSelectStarter}
             onApplySub={applyLiveSub}
+            subbedOutNames={subbedOutNames}
           />
         )}
         {phase === 'results' && (
@@ -6427,7 +6440,7 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
   );
 }
 
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, myTeamColor }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
   const hColor = homeTeam.id === myTeamId ? mc : (homeTeam.colors?.p || homeTeam.color || '#3a85d9');
@@ -6551,7 +6564,10 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Titulares</div>
-              {Object.entries(liveLineup).filter(([k, p]) => !p.isBench).map(([k, p]) => (
+              {Object.entries(liveLineup)
+                .filter(([k, p]) => !p.isBench)
+                .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
+                .map(([k, p]) => (
                 <button key={k} onClick={() => !subSelectStarter ? onSelectSubStarter(k) : null}
                   style={{
                     display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
@@ -6568,18 +6584,30 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
             {subSelectStarter && (
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Reservas</div>
-                {Object.entries(liveLineup).filter(([k, p]) => p.isBench).map(([k, p]) => (
-                  <button key={k} onClick={() => onApplySub(subSelectStarter, p)}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 6, color: '#F4F1EA',
-                      fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
-                    }}
-                  >
-                    {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
-                  </button>
-                ))}
+                {Object.entries(liveLineup)
+                  .filter(([k, p]) => p.isBench)
+                  .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
+                  .map(([k, p]) => {
+                    const blocked = (subbedOutNames || []).includes(p.name);
+                    return (
+                      <button
+                        key={k}
+                        onClick={() => !blocked && onApplySub(subSelectStarter, p)}
+                        disabled={blocked}
+                        title={blocked ? 'Já saiu do jogo nesta partida — não pode voltar' : undefined}
+                        style={{
+                          display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                          background: blocked ? 'rgba(224,80,80,0.06)' : 'rgba(255,255,255,0.04)',
+                          border: blocked ? '1px solid rgba(224,80,80,0.25)' : '1px solid rgba(255,255,255,0.08)',
+                          borderRadius: 6, color: blocked ? 'rgba(244,241,234,0.35)' : '#F4F1EA',
+                          fontFamily: "'Space Mono',monospace", fontSize: 10,
+                          cursor: blocked ? 'not-allowed' : 'pointer', marginBottom: 3, opacity: blocked ? 0.6 : 1,
+                        }}
+                      >
+                        {blocked ? '🔒 ' : ''}{p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
+                      </button>
+                    );
+                  })}
               </div>
             )}
           </div>
@@ -6617,7 +6645,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub }) {
+function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -6790,7 +6818,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           showSubPanel={showSubPanel} liveLineup={liveLineup}
           subSelectStarter={subSelectStarter}
           onSelectSubStarter={onSelectSubStarter}
-          onApplySub={onApplySub} myTeamColor={myTeamColor}
+          onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor}
         />
 
         {/* Placar agregado após jogo de volta */}
@@ -6922,7 +6950,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         showSubPanel={showSubPanel} liveLineup={liveLineup}
         subSelectStarter={subSelectStarter}
         onSelectSubStarter={onSelectSubStarter}
-        onApplySub={onApplySub} myTeamColor={myTeamColor}
+        onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor}
       />
 
       {roundDone && (
@@ -7708,7 +7736,7 @@ const styles = {
   clock: { fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700 },
   clockPulse: { width: 8, height: 8, borderRadius: '50%', background: '#7fd99a', animation: 'pulse 1s ease-in-out infinite' },
   clockFull: { fontSize: 12, opacity: 0.5, fontFamily: "'Space Mono', monospace" },
-  matchCenter: { display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto', marginTop: 4 },
+  matchCenter: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 },
   matchCenterRow: { display: 'grid', gridTemplateColumns: '1fr 52px 1fr', alignItems: 'center', gap: 6 },
   matchCenterSide: { display: 'flex' },
   matchCenterCard: { display: 'flex', alignItems: 'center', gap: 7, padding: '6px 9px', borderRadius: 8, border: '1px solid', maxWidth: '100%' },
