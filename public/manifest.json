@@ -1,0 +1,14 @@
+{
+  "name": "Brasileirão Lendário",
+  "short_name": "B. Lendário",
+  "description": "Monte seu time com lendas do futebol brasileiro, escale a formação e dispute o Brasileirão ou a Copa do Brasil sozinho ou com amigos.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0B1A12",
+  "theme_color": "#0B1A12",
+  "lang": "pt-BR",
+  "icons": [
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
