@@ -1766,6 +1766,32 @@ function generateDoubleRoundRobin(teamIds) {
 // Copa do Brasil — tabela de eliminatórias
 const CUP_ROUND_NAMES = ['16 Avos de Final', 'Oitavas de Final', 'Quartas de Final', 'Semifinal', 'Final'];
 
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+const FAST_SIM_ROUND_DELAY_MS = 450;
+
+// Texto que aparece durante a "simulação direta" — sem isso a espera fica
+// morta na tela; com uma frase que muda a cada rodada dá a sensação de
+// acompanhar o campeonato de verdade acontecendo, não só uma barra de espera.
+function fastSimStatusText({ gameMode, round, totalRounds, table, myTeamId }) {
+  if (gameMode === 'copa') {
+    const roundName = CUP_ROUND_NAMES[Math.min(round, CUP_ROUND_NAMES.length - 1)] || 'Copa do Brasil';
+    return `Simulando ${roundName}...`;
+  }
+  const roundNum = round + 1;
+  const half = Math.ceil(totalRounds / 2);
+  if (roundNum === half) return 'Fim do primeiro turno!';
+  if (roundNum === half + 1) return 'Começando o returno...';
+  if (roundNum >= totalRounds - 2) return 'Reta final do campeonato...';
+  if (table && table.length >= 2) {
+    const top2Gap = Math.abs((table[0]?.pts ?? 0) - (table[1]?.pts ?? 0));
+    if (top2Gap <= 2 && roundNum > 5) return 'Briga acirrada pela liderança!';
+    const myPos = myTeamId ? table.findIndex(t => t.id === myTeamId) : -1;
+    if (myPos === 0 && roundNum > 5) return 'Seu time na ponta da tabela!';
+    if (myPos >= table.length - 4 && myPos !== -1 && roundNum > 10) return 'Seu time brigando contra o rebaixamento!';
+  }
+  return `Simulando ${roundNum}ª rodada...`;
+}
+
 function generateCupFirstRound(teamIds) {
   const shuffled = shuffle2([...teamIds]);
   const matches = [];
@@ -2578,6 +2604,12 @@ export default function App() {
   // Jogadores que já saíram do jogo por substituição nesta partida — na vida
   // real quem sai não pode voltar, então ficam bloqueados na lista de reservas.
   const [subbedOutNames, setSubbedOutNames] = useState([]);
+  // Simulação direta — avança a temporada inteira (inclusive as próprias
+  // partidas) rodada a rodada, com texto animado, sem precisar clicar em cada
+  // rodada nem assistir o jogo minuto a minuto.
+  const [fastSimActive, setFastSimActive] = useState(false);
+  const [fastSimStatusMsg, setFastSimStatusMsg] = useState('');
+  const fastSimCancelRef = useRef(false);
   const [penaltyPhase, setPenaltyPhase] = useState(null);
 
   const timerRef = useRef(null);
@@ -2802,6 +2834,17 @@ export default function App() {
     });
     setSubbedOutNames(prev => [...prev, starter.name]);
     setSubSelectStarter(null);
+    // Mostra a troca no feed da partida, igual gol/cartão/lesão.
+    setLiveEvents(prev => [...prev, {
+      type: 'substitution',
+      minute: clockMinute,
+      teamId: myTeamId,
+      teamLabel: myTeamName || 'Meu Time',
+      playerOut: starter.name,
+      playerIn: benchPlayer.name,
+      homeScore: liveScore.home,
+      awayScore: liveScore.away,
+    }]);
   };
 
   const pickPlayerForSlot = (player, slotKey) => {
@@ -3120,9 +3163,12 @@ export default function App() {
                     // Buscar direto pelo id evita trocar "meu time" pelo adversário quando o mando de campo inverte.
                     const myT = leagueTeams.find(t => t.id === myTeamId);
                     const opT = leagueTeams.find(t => t.id === (isHome ? match.awayId : match.homeId));
+                    // Só quem termina em campo pode cobrar — 11 titulares (já
+                    // considerando substituições feitas ao longo do jogo), nunca
+                    // o banco inteiro de 16.
                     const myPlayers = liveLineupRef.current
-                      ? Object.values(liveLineupRef.current)
-                      : (myT?.players || []).slice(0, 16);
+                      ? Object.values(liveLineupRef.current).filter(p => !p.isBench)
+                      : (myT?.players || []).slice(0, 11);
                     // Busca por posição, não por índice fixo — o elenco do usuário não
                     // garante o goleiro na posição 0 (só titulares-antes-de-reservas).
                     const myGk = (myPlayers || []).find(p => p.pos?.[0] === 'GOL')?.name || 'Goleiro';
@@ -3169,9 +3215,9 @@ export default function App() {
   // Calcula e aplica os prêmios de fim de temporada — só o elenco do próprio
   // usuário recebe o bônus permanente (é o único que atravessa pra próxima
   // temporada; os adversários são sorteados de novo em "newSeason").
-  const applySeasonAwards = (copaChampionId) => {
+  const applySeasonAwards = (copaChampionId, tableOverride) => {
     const myTeam = leagueTeams.find(t => t.id === myTeamId);
-    const awards = computeSeasonAwards({ myTeamId, myPlayers: myTeam?.players, leagueTable, scorers, assisters, gameMode });
+    const awards = computeSeasonAwards({ myTeamId, myPlayers: myTeam?.players, leagueTable: tableOverride || leagueTable, scorers, assisters, gameMode });
     setSeasonAwards(awards);
     if (awards.length > 0) {
       setPitch(prev => {
@@ -3189,9 +3235,10 @@ export default function App() {
     // conta persiste entre sessões — convidado joga normal, sem entrar no ranking).
     if (!currentUser) return;
     const isCopa = gameMode === 'copa';
-    const champion = isCopa ? copaChampionId === myTeamId : leagueTable[0]?.id === myTeamId;
-    const myRow = isCopa ? null : leagueTable.find(t => t.id === myTeamId);
-    const position = isCopa ? null : (leagueTable.findIndex(t => t.id === myTeamId) + 1 || null);
+    const finalTable = tableOverride || leagueTable;
+    const champion = isCopa ? copaChampionId === myTeamId : finalTable[0]?.id === myTeamId;
+    const myRow = isCopa ? null : finalTable.find(t => t.id === myTeamId);
+    const position = isCopa ? null : (finalTable.findIndex(t => t.id === myTeamId) + 1 || null);
     const losses = isCopa ? null : (myRow?.d ?? null);
     const gotTopScorerAward = awards.some(a => a.reason === 'Artilheiro da temporada');
     api.submitSeasonResult({ gameMode, champion, position, losses, gotTopScorerAward })
@@ -3201,6 +3248,215 @@ export default function App() {
       })
       .catch(() => { /* ranking é bônus — falha aqui não deve travar a tela de resultado */ });
   };
+
+  // Simulação direta do Brasileirão: avança todas as rodadas restantes —
+  // inclusive as do próprio usuário, que passam a ser resolvidas por
+  // simAiMatch como qualquer outro jogo (sem tela de partida ao vivo) — uma
+  // rodada por vez, com uma pausa curta e texto animado entre elas.
+  const fastForwardBrasileirao = async () => {
+    if (fastSimActive || isSimulating) return;
+    setFastSimActive(true);
+    fastSimCancelRef.current = false;
+    setShowSubPanel(false);
+    setSubSelectStarter(null);
+
+    let round = currentRound;
+    let table = leagueTable.map(r => ({ ...r }));
+    let cards = { ...cardCounts };
+    let susp = { ...suspensions };
+    let inj = { ...injuries };
+    let form = { ...teamForm };
+    let history = [...matchHistory];
+
+    while (round < fixtures.length && !fastSimCancelRef.current) {
+      setFastSimStatusMsg(fastSimStatusText({ gameMode: 'brasileirao', round, totalRounds: fixtures.length, table, myTeamId }));
+
+      const unavailable = unavailableNamesFrom(susp, inj);
+      const roundTeams = teamsForRound(leagueTeams, unavailable, form);
+      const occurrences = [];
+      const results = fixtures[round].map(m => {
+        const h = roundTeams.find(t => t.id === m.homeId);
+        const a = roundTeams.find(t => t.id === m.awayId);
+        if (!h || !a) return { homeId: m.homeId, awayId: m.awayId, homeGoals: 0, awayGoals: 0 };
+        const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, round, m.homeId, m.awayId));
+        occurrences.push(...(sim.discipline || []));
+        if (m.homeId === myTeamId || m.awayId === myTeamId) {
+          history.push({
+            round: round + 1, homeLabel: h.label, awayLabel: a.label,
+            hg: sim.homeGoals, ag: sim.awayGoals, isUser: true, gameMode: 'brasileirao',
+          });
+        }
+        return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
+      });
+
+      results.forEach(res => {
+        const h = table.find(t => t.id === res.homeId);
+        const a = table.find(t => t.id === res.awayId);
+        if (!h || !a) return;
+        h.pj++; a.pj++;
+        h.gp += res.homeGoals; h.gc += res.awayGoals;
+        a.gp += res.awayGoals; a.gc += res.homeGoals;
+        if (res.homeGoals > res.awayGoals) { h.v++; h.pts += 3; a.d++; }
+        else if (res.homeGoals < res.awayGoals) { a.v++; a.pts += 3; h.d++; }
+        else { h.e++; h.pts++; a.e++; a.pts++; }
+      });
+      table = [...table].sort((a, b) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp);
+
+      const disc = applyRoundDiscipline(cards, susp, inj, occurrences);
+      cards = disc.cards; susp = disc.suspensions; inj = disc.injuries;
+      form = updateFormFromResults(form, results);
+      round++;
+
+      setLeagueTable(table);
+      setCardCounts(cards);
+      setSuspensions(susp);
+      setInjuries(inj);
+      setTeamForm(form);
+      setMatchHistory(history);
+      setCurrentRound(round);
+      setRoundResults(results);
+
+      await delay(FAST_SIM_ROUND_DELAY_MS);
+    }
+
+    setFastSimActive(false);
+    setFastSimStatusMsg('');
+    if (!fastSimCancelRef.current) {
+      applySeasonAwards(undefined, table);
+      setPhase('results');
+    }
+  };
+
+  // Simulação direta da Copa — mesma ideia, mas navegando o chaveamento
+  // (ida/volta, pênaltis automáticos) até sair um campeão, respeitando as
+  // suspensões/lesões/forma acumuladas (a versão antiga só rodava depois do
+  // usuário já ter sido eliminado, e nem olhava pra isso).
+  const fastForwardCopa = async () => {
+    if (fastSimActive || isSimulating) return;
+    setFastSimActive(true);
+    fastSimCancelRef.current = false;
+    setShowSubPanel(false);
+    setSubSelectStarter(null);
+
+    let currCupRounds = cupRounds.map(r => ({ ...r }));
+    let currCupRoundIdx = cupRoundIdx;
+    let currCupLeg = cupLeg;
+    let currFixtures = [...fixtures];
+    let currRound = currentRound;
+    let cards = { ...cardCounts };
+    let susp = { ...suspensions };
+    let inj = { ...injuries };
+    let form = { ...teamForm };
+    let history = [...matchHistory];
+    let stillInCup = userInCup;
+    let elimName = eliminationRoundName;
+    let winnerId = null;
+
+    let iters = 0;
+    while (iters++ < 20 && !fastSimCancelRef.current) {
+      const round = currFixtures[currRound];
+      const cupRoundData = currCupRounds[currCupRoundIdx];
+      if (!round || !cupRoundData) break;
+
+      setFastSimStatusMsg(fastSimStatusText({ gameMode: 'copa', round: currCupRoundIdx, totalRounds: CUP_ROUND_NAMES.length }) + (currCupLeg === 1 ? ' (ida)' : ' (volta)'));
+
+      const unavailable = unavailableNamesFrom(susp, inj);
+      const roundTeams = teamsForRound(leagueTeams, unavailable, form);
+      const occurrences = [];
+      const results = round.map(m => {
+        const h = roundTeams.find(t => t.id === m.homeId);
+        const a = roundTeams.find(t => t.id === m.awayId);
+        if (!h || !a) return { homeId: m.homeId, awayId: m.awayId, homeGoals: 0, awayGoals: 0 };
+        const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, currRound, m.homeId, m.awayId));
+        occurrences.push(...(sim.discipline || []));
+        if (m.homeId === myTeamId || m.awayId === myTeamId) {
+          history.push({
+            round: currRound + 1, homeLabel: h.label, awayLabel: a.label,
+            hg: sim.homeGoals, ag: sim.awayGoals, isUser: true, gameMode: 'copa',
+            legLabel: currCupLeg === 1 ? 'Ida' : 'Volta',
+          });
+        }
+        return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
+      });
+
+      const disc = applyRoundDiscipline(cards, susp, inj, occurrences);
+      cards = disc.cards; susp = disc.suspensions; inj = disc.injuries;
+      form = updateFormFromResults(form, results);
+
+      if (currCupLeg === 1) {
+        currCupRounds = currCupRounds.map((r, i) => i === currCupRoundIdx ? { ...r, leg1Results: results } : r);
+        const leg2Matches = cupRoundData.matches.map(m => ({ homeId: m.awayId, awayId: m.homeId }));
+        currFixtures = [...currFixtures, leg2Matches];
+        currRound++;
+        currCupLeg = 2;
+      } else {
+        const leg1Res = currCupRounds[currCupRoundIdx].leg1Results || [];
+        const userMatchIdx = cupRoundData.matches.findIndex(m => m.homeId === myTeamId || m.awayId === myTeamId);
+        const aggregateWinners = cupRoundData.matches.map((match, i) => {
+          const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
+          const l2 = results[i] || { homeGoals: 0, awayGoals: 0 };
+          const aggA = l1.homeGoals + l2.awayGoals;
+          const aggB = l1.awayGoals + l2.homeGoals;
+          if (aggA !== aggB) return aggA > aggB ? match.homeId : match.awayId;
+          const penRand = matchPrng(roomSnap?.seed, `${currCupRoundIdx}-pen`, match.homeId, match.awayId);
+          const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams, penRand);
+          return pen.winner;
+        });
+
+        if (stillInCup && userMatchIdx >= 0 && aggregateWinners[userMatchIdx] !== myTeamId) {
+          stillInCup = false;
+          elimName = cupRoundData.name || CUP_ROUND_NAMES[currCupRoundIdx] || 'Copa';
+        }
+
+        const nextMatches = [];
+        for (let i = 0; i + 1 < aggregateWinners.length; i += 2)
+          nextMatches.push({ homeId: aggregateWinners[i], awayId: aggregateWinners[i + 1] });
+
+        currCupRounds = currCupRounds.map((r, i) => i === currCupRoundIdx ? { ...r, results } : r);
+
+        if (nextMatches.length === 0) {
+          winnerId = aggregateWinners[0] || null;
+          currRound++;
+          setCupRounds(currCupRounds);
+          setCupRoundIdx(currCupRoundIdx);
+          break;
+        }
+
+        const nextRoundName = CUP_ROUND_NAMES[currCupRoundIdx + 1] || 'Final';
+        const newRound = { name: nextRoundName, matches: nextMatches, leg1Results: [], results: [] };
+        currCupRounds = [...currCupRounds, newRound];
+        currFixtures = [...currFixtures, nextMatches];
+        currRound++;
+        currCupRoundIdx++;
+        currCupLeg = 1;
+      }
+
+      setCupRounds(currCupRounds);
+      setCupRoundIdx(currCupRoundIdx);
+      setCupLeg(currCupLeg);
+      setFixtures(currFixtures);
+      setCurrentRound(currRound);
+      setCardCounts(cards);
+      setSuspensions(susp);
+      setInjuries(inj);
+      setTeamForm(form);
+      setMatchHistory(history);
+      setUserInCup(stillInCup);
+      setEliminationRoundName(elimName);
+
+      await delay(FAST_SIM_ROUND_DELAY_MS);
+    }
+
+    setFastSimActive(false);
+    setFastSimStatusMsg('');
+    if (!fastSimCancelRef.current) {
+      setCupWinnerId(winnerId);
+      applySeasonAwards(winnerId);
+      setPhase('results');
+    }
+  };
+
+  const cancelFastSim = () => { fastSimCancelRef.current = true; };
 
   const goNextRound = useCallback(() => {
     const next = currentRound + 1;
@@ -3481,73 +3737,6 @@ export default function App() {
   }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo]);
 
   // Simula todas as fases restantes da Copa até o campeão (usuário eliminado)
-  const simulateAllCupa = useCallback(() => {
-    let currCupRounds = cupRounds.map(r => ({ ...r }));
-    let currCupRoundIdx = cupRoundIdx;
-    let currCupLeg = cupLeg;
-    let currFixtures = [...fixtures];
-    let currRound = currentRound;
-    let winnerId = null;
-
-    let iters = 0;
-    while (iters++ < 20) {
-      const round = currFixtures[currRound];
-      if (!round) break;
-      const results = round.map(m => {
-        const h = leagueTeams.find(t => t.id === m.homeId);
-        const a = leagueTeams.find(t => t.id === m.awayId);
-        if (!h || !a) return { homeId: m.homeId, awayId: m.awayId, homeGoals: 0, awayGoals: 0 };
-        return { homeId: m.homeId, awayId: m.awayId, ...simAiMatch(h, a, matchPrng(roomSnap?.seed, currRound, m.homeId, m.awayId)) };
-      });
-
-      const cupRoundData = currCupRounds[currCupRoundIdx];
-      if (!cupRoundData) break;
-
-      if (currCupLeg === 1) {
-        currCupRounds = currCupRounds.map((r, i) => i === currCupRoundIdx ? { ...r, leg1Results: results } : r);
-        const leg2Matches = cupRoundData.matches.map(m => ({ homeId: m.awayId, awayId: m.homeId }));
-        currFixtures = [...currFixtures, leg2Matches];
-        currRound++;
-        currCupLeg = 2;
-      } else {
-        const leg1Res = currCupRounds[currCupRoundIdx].leg1Results || [];
-        const aggregateWinners = cupRoundData.matches.map((match, i) => {
-          const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
-          const l2 = results[i] || { homeGoals: 0, awayGoals: 0 };
-          const aggA = l1.homeGoals + l2.awayGoals;
-          const aggB = l1.awayGoals + l2.homeGoals;
-          if (aggA !== aggB) return aggA > aggB ? match.homeId : match.awayId;
-          // Empate no agregado (regra do gol fora foi extinta) — decide nos pênaltis
-          const penRand = matchPrng(roomSnap?.seed, `${currCupRoundIdx}-pen`, match.homeId, match.awayId);
-          const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams, penRand);
-          return pen.winner;
-        });
-
-        const nextMatches = [];
-        for (let i = 0; i + 1 < aggregateWinners.length; i += 2)
-          nextMatches.push({ homeId: aggregateWinners[i], awayId: aggregateWinners[i + 1] });
-
-        if (nextMatches.length === 0) {
-          winnerId = aggregateWinners[0] || null;
-          break;
-        }
-
-        const nextRoundName = CUP_ROUND_NAMES[currCupRoundIdx + 1] || 'Final';
-        const newRound = { name: nextRoundName, matches: nextMatches, leg1Results: [], results: [] };
-        currCupRounds = [...currCupRounds, newRound];
-        currFixtures = [...currFixtures, nextMatches];
-        currRound++;
-        currCupRoundIdx++;
-        currCupLeg = 1;
-      }
-    }
-
-    setCupRounds(currCupRounds);
-    setCupRoundIdx(currCupRoundIdx);
-    setCupWinnerId(winnerId);
-    setPhase('results');
-  }, [cupRounds, cupRoundIdx, cupLeg, fixtures, currentRound, leagueTeams, roomSnap?.seed]);
-
   // ── MULTIPLAYER (PeerJS) ──────────────────────────────────────────────────
   // Helpers para broadcast / envio de mensagem
   const leaderBroadcast = (msg) => {
@@ -4064,6 +4253,7 @@ export default function App() {
         {phase === 'playing' && (
           <Playing
             myTeamId={myTeamId}
+            pitchSlots={pitchSlots}
             fixtures={fixtures}
             currentRound={currentRound}
             leagueTeams={leagueTeams}
@@ -4102,7 +4292,10 @@ export default function App() {
             teamForm={teamForm}
             viewingTeam={viewingTeam}
             onViewTeam={setViewingTeam}
-            onSimulateAll={simulateAllCupa}
+            onSimulateAll={gameMode === 'copa' ? fastForwardCopa : fastForwardBrasileirao}
+            fastSimActive={fastSimActive}
+            fastSimStatusMsg={fastSimStatusMsg}
+            onCancelFastSim={cancelFastSim}
             isPaused={isPaused}
             onPause={pauseSim}
             onResume={resumeSim}
@@ -5635,13 +5828,21 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], onC
 }
 
 // Chaveamento visual da Copa
-function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor, onViewTeam }) {
+function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo, myTeamBadge, onViewTeam }) {
   const mc = myTeamColor || '#d4a23c';
+  const crestOf = (team, id) => {
+    if (id === myTeamId) {
+      if (myTeamLogo) return <img src={myTeamLogo} style={styles.bracketCrestImg} alt="" />;
+      if (myTeamBadge) return <span style={styles.bracketCrestEmoji}>{myTeamBadge}</span>;
+      return null;
+    }
+    return team?.clubLogo ? <img src={team.clubLogo} style={styles.bracketCrestImg} alt="" /> : null;
+  };
   return (
     <div style={{ overflowX: 'auto', marginTop: 12 }}>
       <div style={{ display: 'flex', gap: 12, minWidth: 'max-content', paddingBottom: 8 }}>
         {cupRounds.map((round, rIdx) => (
-          <div key={rIdx} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 120 }}>
+          <div key={rIdx} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 150 }}>
             <div style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace", marginBottom: 6, textAlign: 'center', textTransform: 'uppercase' }}>{round.name}</div>
             {round.matches.map((m, mIdx) => {
               const h = leagueTeams.find(t => t.id === m.homeId);
@@ -5653,13 +5854,13 @@ function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor, onViewTeam 
               const hWon = aggH !== null && aggH > aggA;
               const aWon = aggA !== null && aggA > aggH;
               return (
-                <div key={mIdx} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden', fontSize: 11 }}>
+                <div key={mIdx} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden', fontSize: 11.5 }}>
                   {[{ team: h, id: m.homeId, won: hWon }, { team: a, id: m.awayId, won: aWon }].map(({ team, id, won }, ti) => (
-                    <div key={ti} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', background: won ? 'rgba(127,217,154,0.1)' : id === myTeamId ? `${mc}15` : 'transparent', borderBottom: ti === 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                      {team?.clubLogo && <img src={team.clubLogo} style={{ width: 12, height: 12, objectFit: 'contain' }} alt="" />}
+                    <div key={ti} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', background: won ? 'rgba(127,217,154,0.1)' : id === myTeamId ? `${mc}18` : 'transparent', borderBottom: ti === 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
+                      <span style={styles.bracketCrestSlot}>{crestOf(team, id)}</span>
                       <span
                         onClick={() => id !== myTeamId && onViewTeam && team && onViewTeam(team)}
-                        style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: id === myTeamId ? mc : won ? '#7fd99a' : '#F4F1EA', fontWeight: won ? 700 : 400, cursor: id === myTeamId ? 'default' : 'pointer' }}
+                        style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: id === myTeamId ? mc : won ? '#7fd99a' : '#F4F1EA', fontWeight: id === myTeamId || won ? 700 : 400, cursor: id === myTeamId ? 'default' : 'pointer' }}
                       >{team?.label || '?'}</span>
                       {aggH !== null && <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700 }}>{ti === 0 ? aggH : aggA}</span>}
                     </div>
@@ -6173,9 +6374,10 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
     // Quem já cobrou não pode cobrar de novo até todo mundo ter cobrado pelo
     // menos uma vez (só aí a lista reabre, como na disputa de verdade).
     const usedNames = new Set(myKickResults.map(r => r.name));
-    const availablePlayers = usedNames.size >= (myPlayers || []).length
+    const availablePlayers = (usedNames.size >= (myPlayers || []).length
       ? (myPlayers || [])
-      : (myPlayers || []).filter(p => !usedNames.has(p.name));
+      : (myPlayers || []).filter(p => !usedNames.has(p.name))
+    ).slice().sort((a, b) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]));
     return (
       <div style={{ maxHeight: 220, overflowY: 'auto' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: mc, marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>Escolha o cobrador</div>
@@ -6440,7 +6642,7 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
   );
 }
 
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
   const hColor = homeTeam.id === myTeamId ? mc : (homeTeam.colors?.p || homeTeam.color || '#3a85d9');
@@ -6517,12 +6719,15 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           {liveEvents.map((ev, i) => {
             const isHomeSide = ev.teamId === homeTeam.id;
             const sideColor = isHomeSide ? hColor : aColor;
-            const icon = ev.type === 'yellow' ? '🟨' : ev.type === 'red' ? (ev.secondYellow ? '🟨🟥' : '🟥') : ev.type === 'injury' ? '🩹' : (ev.isOwnGoal ? '⚽🔴' : '⚽');
-            const mainText = ev.type === 'goal' ? `${ev.scorer}${ev.isOwnGoal ? ' (contra)' : ''}` : ev.player;
+            const icon = ev.type === 'yellow' ? '🟨' : ev.type === 'red' ? (ev.secondYellow ? '🟨🟥' : '🟥') : ev.type === 'injury' ? '🩹' : ev.type === 'substitution' ? '🔄' : (ev.isOwnGoal ? '⚽🔴' : '⚽');
+            const mainText = ev.type === 'goal' ? `${ev.scorer}${ev.isOwnGoal ? ' (contra)' : ''}`
+              : ev.type === 'substitution' ? `Entrando: ${ev.playerIn}`
+              : ev.player;
             const subText = ev.type === 'goal'
               ? (ev.isOwnGoal ? `contra, ${ev.ownGoalTeamLabel}` : ev.assist ? `assist: ${ev.assist}` : ev.teamLabel)
               : ev.type === 'yellow' ? `cartão amarelo · ${ev.teamLabel}`
               : ev.type === 'red' ? (ev.secondYellow ? `segundo amarelo, expulso · ${ev.teamLabel}` : `expulso · ${ev.teamLabel}`)
+              : ev.type === 'substitution' ? `Saindo: ${ev.playerOut} · ${ev.teamLabel}`
               : `lesionado, sai de campo · ${ev.teamLabel}`;
             const content = (
               <div style={{ ...styles.matchCenterCard, borderColor: `${sideColor}55`, background: `${sideColor}14`, flexDirection: isHomeSide ? 'row' : 'row-reverse' }}>
@@ -6568,7 +6773,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
                 .filter(([k, p]) => !p.isBench)
                 .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
                 .map(([k, p]) => (
-                <button key={k} onClick={() => !subSelectStarter ? onSelectSubStarter(k) : null}
+                <button key={k} onClick={() => onSelectSubStarter(subSelectStarter === k ? null : k)}
                   style={{
                     display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
                     background: subSelectStarter === k ? 'rgba(127,217,154,0.15)' : 'rgba(255,255,255,0.04)',
@@ -6581,20 +6786,25 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
                 </button>
               ))}
             </div>
-            {subSelectStarter && (
+            {subSelectStarter && (() => {
+              const starterMeta = pitchSlots?.find(s => s.key === subSelectStarter);
+              return (
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Reservas</div>
                 {Object.entries(liveLineup)
                   .filter(([k, p]) => p.isBench)
                   .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
                   .map(([k, p]) => {
-                    const blocked = (subbedOutNames || []).includes(p.name);
+                    const alreadyOut = (subbedOutNames || []).includes(p.name);
+                    const positionOk = !starterMeta || starterMeta.isBench || (p.pos || []).includes(starterMeta.realPos);
+                    const blocked = alreadyOut || !positionOk;
+                    const reason = alreadyOut ? 'Já saiu do jogo nesta partida — não pode voltar' : !positionOk ? 'Não joga na posição desse titular' : undefined;
                     return (
                       <button
                         key={k}
                         onClick={() => !blocked && onApplySub(subSelectStarter, p)}
                         disabled={blocked}
-                        title={blocked ? 'Já saiu do jogo nesta partida — não pode voltar' : undefined}
+                        title={reason}
                         style={{
                           display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
                           background: blocked ? 'rgba(224,80,80,0.06)' : 'rgba(255,255,255,0.04)',
@@ -6609,7 +6819,8 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
                     );
                   })}
               </div>
-            )}
+              );
+            })()}
           </div>
         </div>
       )}
@@ -6641,11 +6852,24 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           </div>
         )}
       </div>
+      {!isSimulating && !roundDone && onSimulateAll && (
+        <button
+          onClick={onSimulateAll}
+          title="Avança todas as rodadas restantes (inclusive as suas) sem parar pra jogar cada uma"
+          style={{
+            width: '100%', marginTop: 8, background: 'none', border: '1px solid rgba(212,162,60,0.35)',
+            borderRadius: 8, padding: '7px 10px', color: '#d4a23c', fontFamily: "'Space Mono', monospace",
+            fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          ⏭ Simulação direta — ir até o fim
+        </button>
+      )}
     </div>
   );
 }
 
-function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -6655,6 +6879,28 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
   const clockDisplay = `${clockMinute}'`;
   const [showHistory, setShowHistory] = useState(false);
   const [showRatings, setShowRatings] = useState(false);
+
+  // Simulação direta em andamento — sobrepõe qualquer outra tela (Copa ou
+  // Brasileirão, eliminado ou não) até chegar no fim ou o usuário cancelar.
+  if (fastSimActive) {
+    return (
+      <div style={styles.card} className="card-mob">
+        <div style={{ textAlign: 'center', padding: '54px 20px' }}>
+          <div style={{ fontSize: 42, marginBottom: 16 }}>⏭️</div>
+          <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 19, fontWeight: 700, color: mc, marginBottom: 10, minHeight: 26 }}>
+            {fastSimStatusMsg || 'Simulando...'}
+          </div>
+          <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 26 }}>
+            Rodada {currentRound + 1}{gameMode === 'brasileirao' ? ` de ${fixtures.length}` : ''}
+          </div>
+          <div style={{ ...styles.clockPulse, margin: '0 auto' }} />
+          {onCancelFastSim && (
+            <button style={{ ...styles.btnGhost, marginTop: 28 }} onClick={onCancelFastSim}>Cancelar</button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   // ── COPA DO BRASIL ──────────────────────────────────────────
   if (gameMode === 'copa') {
@@ -6694,7 +6940,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
             {cupRounds.length > 0 && (
               <div style={{ marginTop: 12 }}>
                 <div style={styles.sectionLabel}>Chaveamento</div>
-                <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} onViewTeam={onViewTeam} />
+                <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam} />
               </div>
             )}
           </div>
@@ -6756,7 +7002,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           {cupRounds.length > 0 && (
             <div style={{ marginTop: 12 }}>
               <div style={styles.sectionLabel}>Chaveamento</div>
-              <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} onViewTeam={onViewTeam} />
+              <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam} />
             </div>
           )}
         </div>
@@ -6818,7 +7064,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
           showSubPanel={showSubPanel} liveLineup={liveLineup}
           subSelectStarter={subSelectStarter}
           onSelectSubStarter={onSelectSubStarter}
-          onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor}
+          onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
         />
 
         {/* Placar agregado após jogo de volta */}
@@ -6907,7 +7153,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         {cupRounds.length > 0 && (
           <div style={{ marginTop: 12 }}>
             <div style={styles.sectionLabel}>Chaveamento</div>
-            <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} onViewTeam={onViewTeam} />
+            <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam} />
           </div>
         )}
       </div>
@@ -6950,7 +7196,7 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
         showSubPanel={showSubPanel} liveLineup={liveLineup}
         subSelectStarter={subSelectStarter}
         onSelectSubStarter={onSelectSubStarter}
-        onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor}
+        onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
       />
 
       {roundDone && (
@@ -7002,8 +7248,8 @@ function Playing({ myTeamId, fixtures, currentRound, leagueTeams, leagueTable, c
                 style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, cursor: isMe ? 'default' : 'pointer' }}
               >
                 {isMe
-                  ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} alt="" /> : (myTeamBadge && <span>{myTeamBadge}</span>))
-                  : (row.clubLogo && <img src={row.clubLogo} style={{ width: 16, height: 16, objectFit: 'contain', flexShrink: 0 }} alt="" />)
+                  ? (myTeamLogo ? <img src={myTeamLogo} style={styles.tableCrestImg} alt="" /> : (myTeamBadge && <span style={styles.tableCrestEmoji}>{myTeamBadge}</span>))
+                  : (row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />)
                 }
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</span>
                 {teamForm?.[row.id]?.length > 0 && (
@@ -7536,12 +7782,14 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
             }}>
               <span style={styles.tablePos}>{i + 1}</span>
-              <span style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13 }}>
-                {isMe && (myTeamLogo
-                  ? <img src={myTeamLogo} style={{ width: 16, height: 16, objectFit: 'contain', marginRight: 4, verticalAlign: 'middle' }} alt="" />
-                  : (myTeamBadge && <span style={{ marginRight: 4 }}>{myTeamBadge}</span>))
+              <span style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {isMe
+                  ? (myTeamLogo
+                    ? <img src={myTeamLogo} style={styles.tableCrestImg} alt="" />
+                    : (myTeamBadge && <span style={styles.tableCrestEmoji}>{myTeamBadge}</span>))
+                  : (row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />)
                 }
-                {row.label}
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</span>
               </span>
               <span style={styles.tableCell}>{row.pj}</span>
               <span style={styles.tableCell}>{row.v}</span>
@@ -7727,6 +7975,11 @@ const styles = {
 
   // Jogo ao vivo
   liveMatchBox: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '20px 16px', marginBottom: 20 },
+  bracketCrestSlot: { width: 20, height: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
+  bracketCrestImg: { width: 20, height: 20, objectFit: 'contain', flexShrink: 0, borderRadius: 4, background: 'rgba(255,255,255,0.9)', padding: 1 },
+  bracketCrestEmoji: { fontSize: 16, lineHeight: 1 },
+  tableCrestImg: { width: 20, height: 20, objectFit: 'contain', flexShrink: 0, borderRadius: 4, background: 'rgba(255,255,255,0.9)', padding: 1 },
+  tableCrestEmoji: { fontSize: 17, lineHeight: 1, flexShrink: 0 },
   liveTeamsRow: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, marginBottom: 12 },
   liveTeamName: { fontSize: 14, lineHeight: 1.3 },
   liveScoreBlock: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.35)', borderRadius: 10, padding: '8px 16px' },
