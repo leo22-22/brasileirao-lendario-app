@@ -2621,6 +2621,12 @@ export default function App() {
   const isPausedRef = useRef(false);
   const tickFnRef = useRef(null);
   const liveLineupRef = useRef(null);
+  // Eventos já mostrados no feed da partida atual — precisa ser um ref (não só
+  // a variável local `shown` dentro do tick()) porque uma substituição feita
+  // com o jogo pausado é adicionada de fora do tick(); sem compartilhar o
+  // mesmo array, o próximo tick sobrescrevia liveEvents com a lista antiga e
+  // a troca sumia do feed assim que o jogo era retomado.
+  const shownEventsRef = useRef([]);
 
   // No multiplayer, cada jogador é identificado pelo seu peerId (MY_PID) — não
   // pelo id fixo '__myteam__' usado no solo. Sem isso, o cliente nunca encontra
@@ -2834,8 +2840,10 @@ export default function App() {
     });
     setSubbedOutNames(prev => [...prev, starter.name]);
     setSubSelectStarter(null);
-    // Mostra a troca no feed da partida, igual gol/cartão/lesão.
-    setLiveEvents(prev => [...prev, {
+    // Mostra a troca no feed da partida, igual gol/cartão/lesão — empurra no
+    // MESMO array que o tick() usa (shownEventsRef), senão o próximo tick
+    // sobrescrevia liveEvents com a lista antiga e a troca sumia do feed.
+    shownEventsRef.current.push({
       type: 'substitution',
       minute: clockMinute,
       teamId: myTeamId,
@@ -2844,7 +2852,8 @@ export default function App() {
       playerIn: benchPlayer.name,
       homeScore: liveScore.home,
       awayScore: liveScore.away,
-    }]);
+    });
+    setLiveEvents([...shownEventsRef.current]);
   };
 
   const pickPlayerForSlot = (player, slotKey) => {
@@ -3012,7 +3021,7 @@ export default function App() {
     let evIdx = 0;
     let hs = 0;
     let as_ = 0;
-    const shown = [];
+    shownEventsRef.current = [];
 
     const tick = () => {
       minute++;
@@ -3023,12 +3032,12 @@ export default function App() {
         evIdx++;
         if (ev.type !== 'goal') {
           // Cartão/lesão: entra no feed mas não mexe no placar nem toca áudio de gol.
-          shown.push({ ...ev, homeScore: hs, awayScore: as_ });
+          shownEventsRef.current.push({ ...ev, homeScore: hs, awayScore: as_ });
           continue;
         }
         if (ev.teamId === um.homeId) hs++;
         else as_++;
-        shown.push({ ...ev, homeScore: hs, awayScore: as_ });
+        shownEventsRef.current.push({ ...ev, homeScore: hs, awayScore: as_ });
         // Record scorer (gols contra nao contam pro artilheiro)
         if (!ev.isOwnGoal) {
           setScorers(prev => ({
@@ -3050,7 +3059,7 @@ export default function App() {
 
       setClockMinute(minute);
       setLiveScore({ home: hs, away: as_ });
-      if (shown.length > 0) setLiveEvents([...shown]);
+      if (shownEventsRef.current.length > 0) setLiveEvents([...shownEventsRef.current]);
 
       if (minute >= 90) {
         setIsSimulating(false);
