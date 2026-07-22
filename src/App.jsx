@@ -380,7 +380,7 @@ const TEAMS = [
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Júnior', pos: ['MC','LE'], ovr: 93 },
-      { name: 'Gilmar', pos: ['GOL','MC'], ovr: 88 },
+      { name: 'Gilmar', pos: ['GOL'], ovr: 88 },
       { name: 'Zinho', pos: ['ME','MC'], ovr: 88 },
       { name: 'Gaúcho', pos: ['ATA','MC'], ovr: 87 },
       { name: 'Wilson Gottardo', pos: ['ZAG'], ovr: 87 },
@@ -397,7 +397,7 @@ const TEAMS = [
       { name: 'Fabinho', pos: ['VOL','MC'], ovr: 82 },
       { name: 'Totó', pos: ['ATA'], ovr: 81 },
       { name: 'Gelson', pos: ['ZAG'], ovr: 80 },
-      { name: 'Adriano', pos: ['GOL','MC'], ovr: 79 },
+      { name: 'Adriano', pos: ['GOL'], ovr: 79 },
       { name: 'Luís Antônio', pos: ['LE','MC'], ovr: 78 },
     ]},
   { id: 'palmeiras1993', club: 'Palmeiras', year: 1993, label: 'Palmeiras 1993 (Campeão Brasileiro)', coach: 'Vanderlei Luxemburgo',
@@ -451,7 +451,7 @@ const TEAMS = [
   { id: 'botafogo1995', club: 'Botafogo', year: 1995, label: 'Botafogo 1995', coach: 'Paulo Autuori',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
-      { name: 'Wagner', pos: ['GOL','MC'], ovr: 81 },
+      { name: 'Wagner', pos: ['GOL'], ovr: 81 },
       { name: 'Wilson Goiano', pos: ['LD'], ovr: 77 },
       { name: 'Wilson Gottardo', pos: ['ZAG'], ovr: 80 },
       { name: 'Goncalves', pos: ['ZAG'], ovr: 79 },
@@ -2041,6 +2041,24 @@ function pickReplacementName(team, injuredPos) {
   return (samePos || bench[0]).name;
 }
 
+// Sorteia quem fez o gol (e a assistência) — usado tanto no jogo detalhado
+// do usuário quanto na simulação leve dos outros jogos da rodada, pra que
+// artilheiros/assistências também contem os gols de partidas que não têm
+// minuto a minuto (senão a simulação direta nunca alimentava esses rankings).
+function pickGoalOutcome(scoringTeam, scoringXI, concedingTeam, concedingXI, rand) {
+  const isOwnGoal = rand() < OWN_GOAL_CHANCE;
+  const scorer = isOwnGoal ? pickGoalScorer(concedingXI, rand) : pickGoalScorer(scoringXI, rand);
+  const hasAssist = !isOwnGoal && rand() < ASSIST_CHANCE;
+  return {
+    teamId: scoringTeam.id,
+    teamLabel: scoringTeam.label,
+    scorer,
+    isOwnGoal,
+    ownGoalTeamLabel: isOwnGoal ? concedingTeam.label : undefined,
+    assist: hasAssist ? pickAssister(scoringXI, scorer, rand) : null,
+  };
+}
+
 function generateMatchEvents(homeTeam, awayTeam, rand = Math.random) {
   const homeXI = getStarters(homeTeam);
   const awayXI = getStarters(awayTeam);
@@ -2065,21 +2083,11 @@ function generateMatchEvents(homeTeam, awayTeam, rand = Math.random) {
 
   // Usa sempre o XI efetivo (já considera suspensão/lesão) — nunca o banco,
   // senão um jogador suspenso podia "marcar" mesmo fora de campo.
-  const makeGoalEvent = (scoringTeam, scoringXI, concedingTeam, concedingXI) => {
-    const isOwnGoal = rand() < OWN_GOAL_CHANCE;
-    const scorer = isOwnGoal ? pickGoalScorer(concedingXI, rand) : pickGoalScorer(scoringXI, rand);
-    const hasAssist = !isOwnGoal && rand() < ASSIST_CHANCE;
-    return {
-      type: 'goal',
-      minute: randMin(),
-      teamId: scoringTeam.id,
-      teamLabel: scoringTeam.label,
-      scorer,
-      isOwnGoal,
-      ownGoalTeamLabel: isOwnGoal ? concedingTeam.label : undefined,
-      assist: hasAssist ? pickAssister(scoringXI, scorer, rand) : null,
-    };
-  };
+  const makeGoalEvent = (scoringTeam, scoringXI, concedingTeam, concedingXI) => ({
+    type: 'goal',
+    minute: randMin(),
+    ...pickGoalOutcome(scoringTeam, scoringXI, concedingTeam, concedingXI, rand),
+  });
 
   for (let i = 0; i < homeGoals; i++) events.push(makeGoalEvent(homeTeam, homeXI, awayTeam, awayXI));
   for (let i = 0; i < awayGoals; i++) events.push(makeGoalEvent(awayTeam, awayXI, homeTeam, homeXI));
@@ -2151,11 +2159,37 @@ function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
     discipline.push({ type: 'injury', teamId: team.id, player: weightedPick(xi, INJURY_WEIGHT_BY_POS, rand).name, rounds });
   });
 
-  return {
-    homeGoals: poissonSample(homeExp, rand),
-    awayGoals: poissonSample(awayExp, rand),
-    discipline,
-  };
+  const homeGoals = poissonSample(homeExp, rand);
+  const awayGoals = poissonSample(awayExp, rand);
+  // Sorteia autor (e assistência) de cada gol mesmo aqui — sem isso a
+  // simulação direta (que só passa por esta função pra TODOS os jogos,
+  // incluindo o do usuário) nunca alimentava artilheiros/assistências.
+  const goals = [];
+  for (let i = 0; i < homeGoals; i++) goals.push(pickGoalOutcome(homeTeam, homeXI, awayTeam, awayXI, rand));
+  for (let i = 0; i < awayGoals; i++) goals.push(pickGoalOutcome(awayTeam, awayXI, homeTeam, homeXI, rand));
+
+  return { homeGoals, awayGoals, discipline, goals };
+}
+
+// Funde os gols de simAiMatch (jogos simulados em segundo plano, sem
+// minuto a minuto) nos rankings de artilheiros/assistências — sem isso esses
+// rankings só contavam os gols do próprio jogo do usuário, ficando vazios
+// depois de uma simulação direta (ou incompletos mesmo no modo normal).
+function applyGoalsToScorers(scorers, goals) {
+  const next = { ...scorers };
+  goals.forEach(g => {
+    if (g.isOwnGoal) return;
+    next[g.scorer] = { goals: (next[g.scorer]?.goals || 0) + 1, teamLabel: g.teamLabel };
+  });
+  return next;
+}
+function applyGoalsToAssisters(assisters, goals) {
+  const next = { ...assisters };
+  goals.forEach(g => {
+    if (!g.assist) return;
+    next[g.assist] = { assists: (next[g.assist]?.assists || 0) + 1, teamLabel: g.teamLabel };
+  });
+  return next;
 }
 
 // Conjunto de chaves time+nome indisponíveis nesta rodada (suspensos ou lesionados).
@@ -3030,17 +3064,21 @@ export default function App() {
       // Copa: user already eliminated — fast-simulate this AI-only round
       if (gameMode !== 'copa' || userInCupRef.current) return;
       const occurrences = [];
+      const allGoals = [];
       const allResults = round.map(m => {
         const h = roundTeams.find(t => t.id === m.homeId);
         const a = roundTeams.find(t => t.id === m.awayId);
         if (!h || !a) return { homeId: m.homeId, awayId: m.awayId, homeGoals: 0, awayGoals: 0 };
         const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, currentRound, m.homeId, m.awayId));
         occurrences.push(...(sim.discipline || []));
+        allGoals.push(...(sim.goals || []));
         return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
       });
       setRoundResults(allResults);
       setCupRounds(prev => prev.map((r, i) => i === cupRoundIdx ? { ...r, results: allResults } : r));
       setTeamForm(prev => updateFormFromResults(prev, allResults));
+      setScorers(prev => applyGoalsToScorers(prev, allGoals));
+      setAssisters(prev => applyGoalsToAssisters(prev, allGoals));
       const { cards, suspensions: susp, injuries: inj } = applyRoundDiscipline(cardCounts, suspensions, injuries, occurrences);
       setCardCounts(cards); setSuspensions(susp); setInjuries(inj);
       setRedCards(prev => {
@@ -3165,6 +3203,7 @@ export default function App() {
 
         // Simular todos os jogos da rodada
         const occurrences = events.filter(ev => ev.type !== 'goal').map(ev => ({ type: ev.type, teamId: ev.teamId, player: ev.player, rounds: ev.rounds, secondYellow: ev.secondYellow }));
+        const otherMatchGoals = [];
         const results = round.map(m => {
           if (m.homeId === um.homeId && m.awayId === um.awayId)
             return { homeId: m.homeId, awayId: m.awayId, homeGoals: finalHs, awayGoals: finalAs };
@@ -3172,11 +3211,16 @@ export default function App() {
           const a = roundTeams.find(t => t.id === m.awayId);
           const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, currentRound, m.homeId, m.awayId));
           occurrences.push(...(sim.discipline || []));
+          otherMatchGoals.push(...(sim.goals || []));
           return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
         });
 
         setRoundResults(results);
         setTeamForm(prev => updateFormFromResults(prev, results));
+        if (otherMatchGoals.length > 0) {
+          setScorers(prev => applyGoalsToScorers(prev, otherMatchGoals));
+          setAssisters(prev => applyGoalsToAssisters(prev, otherMatchGoals));
+        }
         const { cards, suspensions: susp, injuries: inj } = applyRoundDiscipline(cardCounts, suspensions, injuries, occurrences);
         setCardCounts(cards); setSuspensions(susp); setInjuries(inj);
         setRedCards(prev => {
@@ -3321,9 +3365,16 @@ export default function App() {
   // Calcula e aplica os prêmios de fim de temporada — só o elenco do próprio
   // usuário recebe o bônus permanente (é o único que atravessa pra próxima
   // temporada; os adversários são sorteados de novo em "newSeason").
-  const applySeasonAwards = (copaChampionId, tableOverride) => {
+  const applySeasonAwards = (copaChampionId, tableOverride, scorersOverride, assistersOverride) => {
     const myTeam = leagueTeams.find(t => t.id === myTeamId);
-    const awards = computeSeasonAwards({ myTeamId, myPlayers: myTeam?.players, leagueTable: tableOverride || leagueTable, scorers, assisters, gameMode });
+    // Overrides evitam closure velha quando chamado de dentro da simulação
+    // direta (fastForward*): o estado real (scorers/assisters/leagueTable) só
+    // é atualizado no próximo render, mas essa função já roda com os totais
+    // acumulados localmente durante o loop assíncrono.
+    const awards = computeSeasonAwards({
+      myTeamId, myPlayers: myTeam?.players, leagueTable: tableOverride || leagueTable,
+      scorers: scorersOverride || scorers, assisters: assistersOverride || assisters, gameMode,
+    });
     setSeasonAwards(awards);
     if (awards.length > 0) {
       setPitch(prev => {
@@ -3374,6 +3425,8 @@ export default function App() {
     let inj = { ...injuries };
     let form = { ...teamForm };
     let history = [...matchHistory];
+    let scorersAcc = { ...scorers };
+    let assistersAcc = { ...assisters };
 
     while (round < fixtures.length && !fastSimCancelRef.current) {
       setFastSimStatusMsg(fastSimStatusText({ gameMode: 'brasileirao', round, totalRounds: fixtures.length, table, myTeamId }));
@@ -3381,12 +3434,14 @@ export default function App() {
       const unavailable = unavailableNamesFrom(susp, inj);
       const roundTeams = teamsForRound(leagueTeams, unavailable, form);
       const occurrences = [];
+      const roundGoals = [];
       const results = fixtures[round].map(m => {
         const h = roundTeams.find(t => t.id === m.homeId);
         const a = roundTeams.find(t => t.id === m.awayId);
         if (!h || !a) return { homeId: m.homeId, awayId: m.awayId, homeGoals: 0, awayGoals: 0 };
         const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, round, m.homeId, m.awayId));
         occurrences.push(...(sim.discipline || []));
+        roundGoals.push(...(sim.goals || []));
         if (m.homeId === myTeamId || m.awayId === myTeamId) {
           history.push({
             round: round + 1, homeLabel: h.label, awayLabel: a.label,
@@ -3395,6 +3450,8 @@ export default function App() {
         }
         return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
       });
+      scorersAcc = applyGoalsToScorers(scorersAcc, roundGoals);
+      assistersAcc = applyGoalsToAssisters(assistersAcc, roundGoals);
 
       results.forEach(res => {
         const h = table.find(t => t.id === res.homeId);
@@ -3420,6 +3477,8 @@ export default function App() {
       setInjuries(inj);
       setTeamForm(form);
       setMatchHistory(history);
+      setScorers(scorersAcc);
+      setAssisters(assistersAcc);
       setCurrentRound(round);
       setRoundResults(results);
 
@@ -3429,7 +3488,7 @@ export default function App() {
     setFastSimActive(false);
     setFastSimStatusMsg('');
     if (!fastSimCancelRef.current) {
-      applySeasonAwards(undefined, table);
+      applySeasonAwards(undefined, table, scorersAcc, assistersAcc);
       setPhase('results');
     }
   };
@@ -3459,6 +3518,8 @@ export default function App() {
     let stillInCup = userInCup;
     let elimName = eliminationRoundName;
     let winnerId = null;
+    let scorersAcc = { ...scorers };
+    let assistersAcc = { ...assisters };
 
     let iters = 0;
     while (iters++ < 20 && !fastSimCancelRef.current) {
@@ -3471,12 +3532,14 @@ export default function App() {
       const unavailable = unavailableNamesFrom(susp, inj);
       const roundTeams = teamsForRound(leagueTeams, unavailable, form);
       const occurrences = [];
+      const roundGoals = [];
       const results = round.map(m => {
         const h = roundTeams.find(t => t.id === m.homeId);
         const a = roundTeams.find(t => t.id === m.awayId);
         if (!h || !a) return { homeId: m.homeId, awayId: m.awayId, homeGoals: 0, awayGoals: 0 };
         const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, currRound, m.homeId, m.awayId));
         occurrences.push(...(sim.discipline || []));
+        roundGoals.push(...(sim.goals || []));
         if (m.homeId === myTeamId || m.awayId === myTeamId) {
           history.push({
             round: currRound + 1, homeLabel: h.label, awayLabel: a.label,
@@ -3486,6 +3549,8 @@ export default function App() {
         }
         return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
       });
+      scorersAcc = applyGoalsToScorers(scorersAcc, roundGoals);
+      assistersAcc = applyGoalsToAssisters(assistersAcc, roundGoals);
 
       const disc = applyRoundDiscipline(cards, susp, inj, occurrences);
       cards = disc.cards; susp = disc.suspensions; inj = disc.injuries;
@@ -3551,6 +3616,8 @@ export default function App() {
       setMatchHistory(history);
       setUserInCup(stillInCup);
       setEliminationRoundName(elimName);
+      setScorers(scorersAcc);
+      setAssisters(assistersAcc);
 
       await delay(FAST_SIM_ROUND_DELAY_MS);
     }
@@ -3559,7 +3626,7 @@ export default function App() {
     setFastSimStatusMsg('');
     if (!fastSimCancelRef.current) {
       setCupWinnerId(winnerId);
-      applySeasonAwards(winnerId);
+      applySeasonAwards(winnerId, undefined, scorersAcc, assistersAcc);
       setPhase('results');
     }
   };
