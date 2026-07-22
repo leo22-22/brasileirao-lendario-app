@@ -1708,9 +1708,13 @@ function simulatePenalties(teamAId, teamBId, leagueTeams, rand = Math.random) {
     if (a) goalsA++;
     if (b) goalsB++;
     kicks.push({ a, b, goalsA, goalsB });
-    // Early termination: one team can't catch up
+    // Encerramento antecipado: um time não alcança mais o outro mesmo
+    // acertando tudo que falta (e o outro errando tudo) — ex.: 3x0 depois
+    // de 3 cobranças com 2 restantes pra cada, o time de trás no máximo
+    // empata 3x3 acertando as duas, nunca ultrapassa. Tinha um +1 sobrando
+    // aqui que fazia a disputa continuar uma cobrança além da hora.
     const remaining = 4 - i;
-    if (goalsA - goalsB > remaining + 1 || goalsB - goalsA > remaining + 1) break;
+    if (goalsA - goalsB > remaining || goalsB - goalsA > remaining) break;
   }
   // Sudden death if still tied
   let sdGuard = 0;
@@ -1858,6 +1862,15 @@ const YELLOWS_FOR_SUSPENSION = 3;         // 3 amarelos acumulados = 1 jogo de s
 // (ex.: "Danilo" existe em 7 elencos distintos) — cartão/suspensão/lesão
 // precisam ser identificados por time+nome, senão um jogador suspenso num
 // time "contamina" um homônimo completamente saudável de outro clube.
+// Normaliza nome de jogador pra comparação (remove acento, ignora
+// maiúsculas/espaços nas pontas) — a base tem o mesmo jogador grafado de
+// formas diferentes em cartas de anos/times distintos (ex.: "Rogerio Ceni"
+// vs "Rogério Ceni"), e sem normalizar isso o bloqueio de "mesmo jogador em
+// duas épocas" falha silenciosamente pra esses casos.
+function normalizePlayerName(name) {
+  return (name || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim();
+}
+
 function playerKey(teamId, name) { return `${teamId}::${name}`; }
 function splitPlayerKey(key) {
   const sep = key.indexOf('::');
@@ -2016,6 +2029,18 @@ function pickMatchCards(homeTeam, homeXI, awayTeam, awayXI, rand, randMin) {
 }
 
 // Gera lista de eventos de gol/cartão/lesão para uma partida com minutos únicos
+// Nome de um reserva pra cobrir a lesão de um titular — mesma posição
+// primeiro, senão o primeiro do banco disponível. Só usado pra dar nome ao
+// evento cosmético de substituição do time adversário (não mexe na força do
+// time nem no restante da simulação, que já é decidida em bloco na geração
+// dos eventos).
+function pickReplacementName(team, injuredPos) {
+  const bench = (team?.players || []).slice(11);
+  if (bench.length === 0) return null;
+  const samePos = bench.find(p => p.pos?.[0] === injuredPos);
+  return (samePos || bench[0]).name;
+}
+
 function generateMatchEvents(homeTeam, awayTeam, rand = Math.random) {
   const homeXI = getStarters(homeTeam);
   const awayXI = getStarters(awayTeam);
@@ -2064,7 +2089,10 @@ function generateMatchEvents(homeTeam, awayTeam, rand = Math.random) {
     if (xi.length === 0 || rand() >= INJURY_CHANCE_PER_TEAM) return;
     const player = weightedPick(xi, INJURY_WEIGHT_BY_POS, rand);
     const rounds = INJURY_MIN_ROUNDS + Math.floor(rand() * (INJURY_MAX_ROUNDS - INJURY_MIN_ROUNDS + 1));
-    events.push({ type: 'injury', minute: randMin(), teamId: team.id, teamLabel: team.label, player: player.name, rounds, medicalQuote: medicalQuote(rand) });
+    events.push({
+      type: 'injury', minute: randMin(), teamId: team.id, teamLabel: team.label, player: player.name, rounds,
+      medicalQuote: medicalQuote(rand), replacementName: pickReplacementName(team, player.pos?.[0]),
+    });
   });
 
   return events.sort((a, b) => a.minute - b.minute);
@@ -2325,9 +2353,21 @@ const GOAL_AUDIO_FILES = {
   'Vasco': ['/gol/Vasco.mp3'],
 };
 
+// Silenciar o áudio de gol — flag em módulo (não em state) porque
+// playGoalAudio é chamado de dentro do tick(), fora do ciclo de render.
+let _goalAudioMuted = (() => {
+  try { return localStorage.getItem('brl_goal_audio_muted') === '1'; } catch { return false; }
+})();
+function setGoalAudioMuted(muted) {
+  _goalAudioMuted = muted;
+  try { localStorage.setItem('brl_goal_audio_muted', muted ? '1' : '0'); } catch { }
+}
+function isGoalAudioMuted() { return _goalAudioMuted; }
+
 function playGoalAudio(club, customUrl, onEnd) {
   let done = false;
   const finish = () => { if (done) return; done = true; onEnd?.(); };
+  if (_goalAudioMuted) { finish(); return; }
 
   let src = customUrl;
   if (!src) {
@@ -2581,6 +2621,13 @@ export default function App() {
   // Conquistas desbloqueadas nesta submissão (toast) + ranking global
   const [newAchievements, setNewAchievements] = useState([]);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  // Silenciar áudio de gol — o estado React só existe pra atualizar o ícone;
+  // quem realmente controla se toca ou não é a flag de módulo em playGoalAudio.
+  const [goalAudioMuted, setGoalAudioMutedUi] = useState(() => isGoalAudioMuted());
+  const toggleGoalAudioMuted = () => {
+    setGoalAudioMuted(!goalAudioMuted);
+    setGoalAudioMutedUi(!goalAudioMuted);
+  };
   const suspensionsRef = useRef(suspensions);
   const injuriesRef = useRef(injuries);
   useEffect(() => { suspensionsRef.current = suspensions; }, [suspensions]);
@@ -2599,6 +2646,9 @@ export default function App() {
   const [autoCountdown, setAutoCountdown] = useState(null); // null | 1-3
   const [isPaused, setIsPaused] = useState(false);
   const [showSubPanel, setShowSubPanel] = useState(false);
+  // Nome do jogador lesionado quando a pausa foi forçada por lesão (em vez de
+  // uma pausa manual do usuário) — usado só pra avisar na UI o motivo da pausa.
+  const [forcedSubReason, setForcedSubReason] = useState(null);
   const [subSelectStarter, setSubSelectStarter] = useState(null);
   const [liveLineup, setLiveLineup] = useState(null);
   // Jogadores que já saíram do jogo por substituição nesta partida — na vida
@@ -2611,6 +2661,12 @@ export default function App() {
   const [fastSimStatusMsg, setFastSimStatusMsg] = useState('');
   const fastSimCancelRef = useRef(false);
   const [penaltyPhase, setPenaltyPhase] = useState(null);
+  // Ref sincrono do penaltyPhase — goNextRound precisa checar "tem pênalti
+  // rolando agora" sem depender do closure (que só atualiza no próximo
+  // render), senão o avanço automático de rodada corre e declara campeão
+  // antes mesmo do usuário terminar de ver as cobranças no modal.
+  const penaltyPhaseRef = useRef(null);
+  useEffect(() => { penaltyPhaseRef.current = penaltyPhase; }, [penaltyPhase]);
 
   const timerRef = useRef(null);
   const clockRef = useRef(null);
@@ -2685,9 +2741,13 @@ export default function App() {
     rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
   };
 
-  // Nomes já escalados (para bloquear o mesmo jogador de duas épocas diferentes)
+  // Nomes já escalados (para bloquear o mesmo jogador de duas épocas diferentes).
+  // Normaliza acento/maiúsculas antes de comparar — a base tem o mesmo jogador
+  // grafado de formas diferentes em cartas de anos/times distintos (ex.:
+  // "Rogerio Ceni" numa carta e "Rogério Ceni" noutra), e sem isso dava pra
+  // escalar as duas cartas como se fossem jogadores diferentes.
   const pickedPlayerNames = useMemo(
-    () => new Set(Object.values(pitch).map(p => p.name)),
+    () => new Set(Object.values(pitch).map(p => normalizePlayerName(p.name))),
     [pitch]
   );
 
@@ -2705,7 +2765,7 @@ export default function App() {
   const isPlayerBlockedByFormation = (player) => !player.pos.some(p => formationPosSet.has(p));
 
   const eligibleSlotsForPlayer = (player) => {
-    if (repositioningSlot === null && pickedPlayerNames.has(player.name)) return [];
+    if (repositioningSlot === null && pickedPlayerNames.has(normalizePlayerName(player.name))) return [];
     if (isPlayerBlockedByFormation(player)) return [];
     // Expande as posições do próprio jogador (Pelé ['ATA','MEI'] → cobre PE, PD, VOL, MC…)
     const canPlayAt = new Set(player.pos);
@@ -2808,6 +2868,7 @@ export default function App() {
     setIsPaused(false);
     setShowSubPanel(false);
     setSubSelectStarter(null);
+    setForcedSubReason(null);
     if (tickFnRef.current) {
       const MS = { 1: 250, 1.5: 125, 2: 55 };
       clockRef.current = setTimeout(tickFnRef.current, MS[speedRef.current] ?? 250);
@@ -3008,6 +3069,7 @@ export default function App() {
     isPausedRef.current = false;
     setShowSubPanel(false);
     setSubSelectStarter(null);
+    setForcedSubReason(null);
     setPenaltyPhase(null);
     setSubbedOutNames([]);
     // Init live lineup from current pitch
@@ -3026,6 +3088,7 @@ export default function App() {
     const tick = () => {
       minute++;
       let lastGoalThisTick = null;
+      let injuredMyPlayerEvent = null;
 
       while (evIdx < events.length && events[evIdx].minute <= minute) {
         const ev = events[evIdx];
@@ -3033,6 +3096,23 @@ export default function App() {
         if (ev.type !== 'goal') {
           // Cartão/lesão: entra no feed mas não mexe no placar nem toca áudio de gol.
           shownEventsRef.current.push({ ...ev, homeScore: hs, awayScore: as_ });
+          if (ev.type === 'injury') {
+            if (ev.teamId === myTeamId) {
+              // Lesão do meu jogador: para o jogo aqui — o resto dos eventos
+              // deste minuto (se houver) só é processado depois que o usuário
+              // escolher o substituto e retomar.
+              injuredMyPlayerEvent = ev;
+              break;
+            } else if (ev.replacementName) {
+              // Lesão do adversário: substituição automática só cosmética no
+              // feed (o resultado do jogo já foi decidido inteiro na geração
+              // dos eventos, então isso não muda a força do time adversário).
+              shownEventsRef.current.push({
+                type: 'substitution', minute: ev.minute, teamId: ev.teamId, teamLabel: ev.teamLabel,
+                playerOut: ev.player, playerIn: ev.replacementName, homeScore: hs, awayScore: as_,
+              });
+            }
+          }
           continue;
         }
         if (ev.teamId === um.homeId) hs++;
@@ -3206,6 +3286,23 @@ export default function App() {
             return baseUpdated;
           });
         }
+      } else if (injuredMyPlayerEvent) {
+        // Meu jogador se machucou: para o jogo e abre o painel de troca com
+        // ele já pré-selecionado, igual uma pausa manual — só falta o usuário
+        // escolher o reserva (ou seguir com um a menos, se não houver um
+        // compatível) e clicar em retomar.
+        const doForcedPause = () => {
+          isPausedRef.current = true;
+          setIsPaused(true);
+          setShowSubPanel(true);
+          setForcedSubReason(injuredMyPlayerEvent.player);
+          const hurtSlotKey = Object.keys(liveLineupRef.current || {}).find(
+            k => liveLineupRef.current[k]?.name === injuredMyPlayerEvent.player && !liveLineupRef.current[k]?.isBench
+          );
+          if (hurtSlotKey) setSubSelectStarter(hurtSlotKey);
+        };
+        if (lastGoalThisTick) playGoalAudio(lastGoalThisTick.club, lastGoalThisTick.customUrl, doForcedPause);
+        else doForcedPause();
       } else if (lastGoalThisTick) {
         // Pausa o relogio ate o audio de gol (arquivo real, nao narracao por voz) terminar.
         playGoalAudio(lastGoalThisTick.club, lastGoalThisTick.customUrl, () => {
@@ -3268,6 +3365,7 @@ export default function App() {
     fastSimCancelRef.current = false;
     setShowSubPanel(false);
     setSubSelectStarter(null);
+    setForcedSubReason(null);
 
     let round = currentRound;
     let table = leagueTable.map(r => ({ ...r }));
@@ -3346,6 +3444,7 @@ export default function App() {
     fastSimCancelRef.current = false;
     setShowSubPanel(false);
     setSubSelectStarter(null);
+    setForcedSubReason(null);
 
     let currCupRounds = cupRounds.map(r => ({ ...r }));
     let currCupRoundIdx = cupRoundIdx;
@@ -3468,6 +3567,11 @@ export default function App() {
   const cancelFastSim = () => { fastSimCancelRef.current = true; };
 
   const goNextRound = useCallback(() => {
+    // Pênaltis ainda sendo exibidos (usuário assistindo/clicando as cobranças
+    // no modal) — não avança rodada nem declara campeão até ele fechar. Sem
+    // isso, o auto-advance (modo automático) ou o clique em "Ver campeão"
+    // corriam por cima do modal e mostravam o resultado final antes da hora.
+    if (penaltyPhaseRef.current) return;
     const next = currentRound + 1;
 
     if (gameMode === 'brasileirao') {
@@ -3586,6 +3690,9 @@ export default function App() {
     setAutoCountdown(null);
     autoActionRef.current = null;
     if (simMode !== 'auto' || phase !== 'playing') return;
+    // Pênaltis abertos: não inicia o avanço automático (senão ele conta 3s e
+    // declara campeão por cima do modal que o usuário ainda está vendo).
+    if (penaltyPhase) return;
     if (roundResults !== null && !isSimulating) {
       autoActionRef.current = 'nextRound';
       setAutoCountdown(3);
@@ -3593,7 +3700,7 @@ export default function App() {
       autoActionRef.current = 'startRound';
       setAutoCountdown(3);
     }
-  }, [simMode, phase, roundResults, isSimulating]);
+  }, [simMode, phase, roundResults, isSimulating, penaltyPhase]);
 
   // Tique do contador regressivo
   useEffect(() => {
@@ -3639,6 +3746,7 @@ export default function App() {
     setIsPaused(false);
     setShowSubPanel(false);
     setSubSelectStarter(null);
+    setForcedSubReason(null);
     setLiveLineup(null);
     setPenaltyPhase(null);
     isPausedRef.current = false;
@@ -4131,6 +4239,24 @@ export default function App() {
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
             <button
+              onClick={toggleGoalAudioMuted}
+              title={goalAudioMuted ? 'Áudio de gol desativado — clique pra reativar' : 'Desativar áudio de gol'}
+              style={{
+                position: 'relative',
+                background: 'none', border: '1px solid rgba(212,162,60,0.35)',
+                borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
+                color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
+              }}
+            >
+              🎙️
+              {goalAudioMuted && (
+                <span style={{
+                  position: 'absolute', top: -2, right: -2, fontSize: 12, color: '#e05050',
+                  textShadow: '0 0 2px rgba(0,0,0,0.9)',
+                }}>✕</span>
+              )}
+            </button>
+            <button
               onClick={() => setShowLeaderboard(true)}
               title="Ranking global"
               style={{
@@ -4309,6 +4435,7 @@ export default function App() {
             onPause={pauseSim}
             onResume={resumeSim}
             showSubPanel={showSubPanel}
+            forcedSubReason={forcedSubReason}
             liveLineup={liveLineup}
             subSelectStarter={subSelectStarter}
             onSelectSubStarter={setSubSelectStarter}
@@ -4317,14 +4444,21 @@ export default function App() {
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} matchHistory={matchHistory} />
         )}
         {viewingTeam && <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} />}
         {penaltyPhase && (
           <PenaltyModal
             penaltyPhase={penaltyPhase}
             myTeamColor={myTeamColor}
-            onDismiss={() => setPenaltyPhase(null)}
+            onDismiss={() => {
+              // Zera o ref ANTES de chamar goNextRound — setPenaltyPhase(null)
+              // só reflete no próximo render, e goNextRound (closure velho)
+              // ainda leria o penaltyPhase antigo se dependesse só do state.
+              penaltyPhaseRef.current = null;
+              setPenaltyPhase(null);
+              goNextRound();
+            }}
           />
         )}
       </main>
@@ -6651,7 +6785,7 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
   );
 }
 
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
   const hColor = homeTeam.id === myTeamId ? mc : (homeTeam.colors?.p || homeTeam.color || '#3a85d9');
@@ -6770,6 +6904,11 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
       {/* Sub panel */}
       {showSubPanel && liveLineup && (
         <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 12px' }}>
+          {forcedSubReason && (
+            <div style={{ fontSize: 12, color: '#e0593f', marginBottom: 8, fontWeight: 700 }}>
+              🩹 {forcedSubReason} se machucou! Escolha um substituto (ou retome jogando com um a menos).
+            </div>
+          )}
           <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || '#d4a23c', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>
             ↕ Substituição
             {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o reserva</span>}
@@ -6878,7 +7017,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -7070,7 +7209,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           autoCountdown={autoCountdown} onStartRound={onStartRound}
           roundLabel={`Jogar — ${roundName} (${legLabel})`}
           isPaused={isPaused} onPause={onPause} onResume={onResume}
-          showSubPanel={showSubPanel} liveLineup={liveLineup}
+          showSubPanel={showSubPanel} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
           subSelectStarter={subSelectStarter}
           onSelectSubStarter={onSelectSubStarter}
           onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
@@ -7202,7 +7341,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         autoCountdown={autoCountdown} onStartRound={onStartRound}
         roundLabel={`Jogar Rodada ${currentRound + 1}`}
         isPaused={isPaused} onPause={onPause} onResume={onResume}
-        showSubPanel={showSubPanel} liveLineup={liveLineup}
+        showSubPanel={showSubPanel} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
         subSelectStarter={subSelectStarter}
         onSelectSubStarter={onSelectSubStarter}
         onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
@@ -7434,76 +7573,123 @@ function getMostCommonClub(players = []) {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 }
 
-// Gera a imagem (canvas) do card de resultado pra compartilhar — só emoji de
-// escudo (sem logo enviado pelo usuário) pra não depender de carregar imagem
-// assíncrona/CORS dentro do canvas.
-function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamColor, stats, awards }) {
-  const canvas = document.createElement('canvas');
-  canvas.width = 900; canvas.height = 900;
-  const ctx = canvas.getContext('2d');
-  const mc = teamColor || '#d4a23c';
+// Gera a imagem (canvas) do card de resultado pra compartilhar. Quando o
+// usuário tem um emblema próprio (teamLogo, data URL do upload/crop), ele é
+// desenhado de verdade no canvas — é um data: URL local, então carrega na
+// hora e não esbarra em CORS. Sem logo, cai no emoji (teamBadge) como antes.
+// A altura do canvas cresce dinamicamente pra caber a campanha completa
+// (todas as partidas da temporada/copa) quando ela é informada.
+function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamColor, stats, awards, campaign }) {
+  return new Promise((resolve) => {
+    const rowH = 26;
+    const height = 900 + (campaign?.length ? 60 + campaign.length * rowH : 0);
+    const canvas = document.createElement('canvas');
+    canvas.width = 900; canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    const mc = teamColor || '#d4a23c';
 
-  const grad = ctx.createLinearGradient(0, 0, 900, 900);
-  grad.addColorStop(0, '#0B1A12');
-  grad.addColorStop(1, '#132a1c');
-  ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, 900, 900);
+    const grad = ctx.createLinearGradient(0, 0, 900, height);
+    grad.addColorStop(0, '#0B1A12');
+    grad.addColorStop(1, '#132a1c');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, 900, height);
 
-  ctx.strokeStyle = hexToRgba(mc, 0.6);
-  ctx.lineWidth = 6;
-  ctx.strokeRect(24, 24, 852, 852);
+    ctx.strokeStyle = hexToRgba(mc, 0.6);
+    ctx.lineWidth = 6;
+    ctx.strokeRect(24, 24, 852, height - 48);
 
-  ctx.textAlign = 'center';
+    ctx.textAlign = 'center';
 
-  ctx.fillStyle = 'rgba(255,255,255,0.5)';
-  ctx.font = '600 22px "Space Mono", monospace';
-  ctx.fillText('BRASILEIRÃO LENDÁRIO', 450, 90);
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '600 22px "Space Mono", monospace';
+    ctx.fillText('BRASILEIRÃO LENDÁRIO', 450, 90);
 
-  ctx.font = '140px sans-serif';
-  ctx.fillText(teamBadge || '⚽', 450, 260);
+    if (!teamLogo) {
+      ctx.font = '140px sans-serif';
+      ctx.fillText(teamBadge || '⚽', 450, 260);
+    }
 
-  ctx.fillStyle = '#F4F1EA';
-  ctx.font = '700 40px Georgia, serif';
-  ctx.fillText(teamLabel || 'Meu Time', 450, 330);
-
-  ctx.fillStyle = mc;
-  ctx.font = '700 62px Georgia, serif';
-  ctx.fillText(title, 450, 420);
-
-  if (subtitle) {
-    ctx.fillStyle = 'rgba(255,255,255,0.7)';
-    ctx.font = '400 26px "Space Mono", monospace';
-    ctx.fillText(subtitle, 450, 465);
-  }
-
-  if (stats?.length) {
-    const statY = 560;
-    const spacing = 780 / stats.length;
-    stats.forEach((s, i) => {
-      const x = 60 + spacing * i + spacing / 2;
-      ctx.fillStyle = mc;
-      ctx.font = '700 44px "Space Mono", monospace';
-      ctx.fillText(String(s.value), x, statY);
-      ctx.fillStyle = 'rgba(255,255,255,0.55)';
-      ctx.font = '400 18px "Space Mono", monospace';
-      ctx.fillText(s.label, x, statY + 30);
-    });
-  }
-
-  if (awards?.length) {
-    ctx.fillStyle = 'rgba(212,162,60,0.9)';
-    ctx.font = '700 22px Georgia, serif';
-    ctx.fillText('🏅 Prêmios da Temporada', 450, 660);
     ctx.fillStyle = '#F4F1EA';
-    ctx.font = '400 20px "Space Mono", monospace';
-    awards.slice(0, 4).forEach((a, i) => ctx.fillText(a, 450, 700 + i * 32));
-  }
+    ctx.font = '700 40px Georgia, serif';
+    ctx.fillText(teamLabel || 'Meu Time', 450, 330);
 
-  ctx.fillStyle = 'rgba(255,255,255,0.35)';
-  ctx.font = '400 16px "Space Mono", monospace';
-  ctx.fillText('monte · escale · seja campeão', 450, 860);
+    ctx.fillStyle = mc;
+    ctx.font = '700 62px Georgia, serif';
+    ctx.fillText(title, 450, 420);
 
-  return canvas;
+    if (subtitle) {
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
+      ctx.font = '400 26px "Space Mono", monospace';
+      ctx.fillText(subtitle, 450, 465);
+    }
+
+    if (stats?.length) {
+      const statY = 560;
+      const spacing = 780 / stats.length;
+      stats.forEach((s, i) => {
+        const x = 60 + spacing * i + spacing / 2;
+        ctx.fillStyle = mc;
+        ctx.font = '700 44px "Space Mono", monospace';
+        ctx.fillText(String(s.value), x, statY);
+        ctx.fillStyle = 'rgba(255,255,255,0.55)';
+        ctx.font = '400 18px "Space Mono", monospace';
+        ctx.fillText(s.label, x, statY + 30);
+      });
+    }
+
+    let y = 660;
+    if (awards?.length) {
+      ctx.fillStyle = 'rgba(212,162,60,0.9)';
+      ctx.font = '700 22px Georgia, serif';
+      ctx.fillText('🏅 Prêmios da Temporada', 450, y);
+      ctx.fillStyle = '#F4F1EA';
+      ctx.font = '400 20px "Space Mono", monospace';
+      const shownAwards = awards.slice(0, 4);
+      shownAwards.forEach((a, i) => ctx.fillText(a, 450, y + 40 + i * 32));
+      y += 40 + shownAwards.length * 32 + 30;
+    }
+
+    if (campaign?.length) {
+      ctx.fillStyle = 'rgba(212,162,60,0.9)';
+      ctx.font = '700 22px Georgia, serif';
+      ctx.fillText('📋 Campanha Completa', 450, y);
+      y += 36;
+      ctx.font = '400 18px "Space Mono", monospace';
+      campaign.forEach(line => {
+        ctx.fillStyle = line.result === 'v' ? '#7fd99a' : line.result === 'd' ? '#e0593f' : 'rgba(255,255,255,0.75)';
+        ctx.fillText(line.text, 450, y);
+        y += rowH;
+      });
+    }
+
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.font = '400 16px "Space Mono", monospace';
+    ctx.fillText('monte · escale · seja campeão', 450, height - 40);
+
+    const finish = () => resolve(canvas);
+
+    if (teamLogo) {
+      const img = new Image();
+      img.onload = () => {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(450, 220, 88, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, 362, 132, 176, 176);
+        ctx.restore();
+        finish();
+      };
+      img.onerror = () => {
+        ctx.font = '140px sans-serif';
+        ctx.fillText(teamBadge || '⚽', 450, 260);
+        finish();
+      };
+      img.src = teamLogo;
+    } else {
+      finish();
+    }
+  });
 }
 
 // Botão de compartilhar o card de resultado — usa Web Share API com arquivo
@@ -7513,7 +7699,7 @@ function ShareResultButton({ cardData }) {
   const share = async () => {
     setBusy(true);
     try {
-      const canvas = drawResultCard(cardData);
+      const canvas = await drawResultCard(cardData);
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
       if (!blob) return;
       const file = new File([blob], 'brasileirao-lendario-resultado.png', { type: 'image/png' });
@@ -7579,11 +7765,29 @@ function AnthemPlayer({ club }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cardCounts, redCards, seasonAwards, onNewSeason }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cardCounts, redCards, seasonAwards, onNewSeason, matchHistory }) {
   const mc = myTeamColor || '#d4a23c';
+  const [showCampaign, setShowCampaign] = useState(false);
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
   const topAssisters = assisters ? Object.entries(assisters).sort((a, b) => b[1].assists - a[1].assists).slice(0, 3) : [];
   const topCards = cardCounts ? Object.entries(cardCounts).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
+
+  // Campanha completa (todas as partidas do usuario nesta temporada/copa, na ordem) —
+  // usada tanto na tela de resultado quanto no card compartilhavel.
+  const myLabel = leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time';
+  const campaignLines = (matchHistory || [])
+    .filter(m => m.gameMode === gameMode)
+    .map(m => {
+      const isHome = m.homeLabel === myLabel;
+      const my = isHome ? m.hg : m.ag;
+      const opp = isHome ? m.ag : m.hg;
+      const result = my > opp ? 'v' : my < opp ? 'd' : 'e';
+      const oppLabel = isHome ? m.awayLabel : m.homeLabel;
+      const roundLabel = gameMode === 'copa'
+        ? `${CUP_ROUND_NAMES[Math.min((m.round || 1) - 1, CUP_ROUND_NAMES.length - 1)]}${m.legLabel ? ` (${m.legLabel})` : ''}`
+        : `Rodada ${m.round}`;
+      return { result, text: `${roundLabel}: ${isHome ? 'vs' : '@'} ${oppLabel} ${my}-${opp}` };
+    });
 
   // ── COPA ────────────────────────────────────────────────────
   if (gameMode === 'copa') {
@@ -7659,13 +7863,24 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             ))}
           </div>
         )}
+        {campaignLines.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <button onClick={() => setShowCampaign(s => !s)} style={{ background: 'none', border: 'none', color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+              {showCampaign ? 'v' : '>'} 📋 Campanha Completa ({campaignLines.length} partida{campaignLines.length !== 1 ? 's' : ''})
+            </button>
+            {showCampaign && campaignLines.map((l, i) => (
+              <div key={i} style={{ fontSize: 13, padding: '3px 0', color: l.result === 'v' ? '#7fd99a' : l.result === 'd' ? '#e0593f' : '#F4F1EA' }}>{l.text}</div>
+            ))}
+          </div>
+        )}
         <AnthemPlayer club={champClub} />
         <ShareResultButton cardData={{
           title: userWon ? 'CAMPEÃO!' : 'Eliminado',
           subtitle: userWon ? 'Copa do Brasil' : `Copa do Brasil · Campeão: ${winner?.label ?? '-'}`,
           teamLabel: leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time',
-          teamBadge: myTeamBadge, teamColor: myTeamColor,
+          teamBadge: myTeamBadge, teamLogo: myTeamLogo, teamColor: myTeamColor,
           awards: seasonAwards?.map(a => `${a.name} — ${a.reason}`),
+          campaign: campaignLines,
         }} />
         {onNewSeason && <button style={{ ...styles.btnGhost, marginTop: 10, width: '100%' }} onClick={onNewSeason}>Nova temporada com mesmo elenco</button>}
         <button style={{ ...styles.btnPrimary, marginTop: 10, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
@@ -7813,11 +8028,23 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         })}
       </div>{/* /table-scroll */}
 
+      {campaignLines.length > 0 && (
+        <div style={{ marginTop: 16, marginBottom: 16 }}>
+          <button onClick={() => setShowCampaign(s => !s)} style={{ background: 'none', border: 'none', color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+            {showCampaign ? 'v' : '>'} 📋 Campanha Completa ({campaignLines.length} partida{campaignLines.length !== 1 ? 's' : ''})
+          </button>
+          {showCampaign && campaignLines.map((l, i) => (
+            <div key={i} style={{ fontSize: 13, padding: '3px 0', color: l.result === 'v' ? '#7fd99a' : l.result === 'd' ? '#e0593f' : '#F4F1EA' }}>{l.text}</div>
+          ))}
+        </div>
+      )}
+
       <ShareResultButton cardData={{
         title: isChampion ? 'CAMPEÃO!' : `${pos}º lugar`,
         subtitle: 'Brasileirão · Série A',
         teamLabel: leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time',
-        teamBadge: myTeamBadge, teamColor: myTeamColor,
+        teamBadge: myTeamBadge, teamLogo: myTeamLogo, teamColor: myTeamColor,
+        campaign: campaignLines,
         stats: [
           { label: 'PTS', value: myRow.pts ?? 0 },
           { label: 'V', value: myRow.v ?? 0 },
