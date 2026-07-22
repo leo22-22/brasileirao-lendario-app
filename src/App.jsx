@@ -2141,6 +2141,10 @@ function computeMatchRatings(homeTeam, homeXI, awayTeam, awayXI, events, homeGoa
 // Versão leve pra jogos que não estão sendo assistidos (resto da rodada) — sem
 // minuto a minuto, mas com os mesmos cartões/lesões pra manter suspensões e
 // desfalques consistentes na liga inteira, não só no jogo do usuário.
+function pickGkName(xi) {
+  return (xi || []).find(p => p.pos?.[0] === 'GOL')?.name || null;
+}
+
 function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   const homeXI = getStarters(homeTeam);
   const awayXI = getStarters(awayTeam);
@@ -2168,7 +2172,10 @@ function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   for (let i = 0; i < homeGoals; i++) goals.push(pickGoalOutcome(homeTeam, homeXI, awayTeam, awayXI, rand));
   for (let i = 0; i < awayGoals; i++) goals.push(pickGoalOutcome(awayTeam, awayXI, homeTeam, homeXI, rand));
 
-  return { homeGoals, awayGoals, discipline, goals };
+  return {
+    homeGoals, awayGoals, discipline, goals,
+    homeGkName: pickGkName(homeXI), awayGkName: pickGkName(awayXI),
+  };
 }
 
 // Funde os gols de simAiMatch (jogos simulados em segundo plano, sem
@@ -2194,6 +2201,24 @@ function applyGoalsToAssisters(assisters, goals) {
     if (!g.assist) return;
     const key = playerKey(g.teamId, g.assist);
     next[key] = { assists: (next[key]?.assists || 0) + 1, teamLabel: g.teamLabel };
+  });
+  return next;
+}
+
+// Ranking de goleiros por jogos sem sofrer gol (clean sheets) — cada entrada
+// é {teamId, teamLabel, gkName, conceded} pra UM time num jogo; conta como
+// "sem sofrer" quando conceded === 0. Mesma chave time+nome dos demais
+// rankings, pelo mesmo motivo (nomes reais se repetem em elencos diferentes).
+function applyCleanSheets(cleanSheets, entries) {
+  const next = { ...cleanSheets };
+  entries.forEach(e => {
+    if (!e.gkName) return;
+    const key = playerKey(e.teamId, e.gkName);
+    const prev = next[key];
+    next[key] = {
+      clean: (prev?.clean || 0) + (e.conceded === 0 ? 1 : 0),
+      teamLabel: e.teamLabel,
+    };
   });
   return next;
 }
@@ -2649,6 +2674,7 @@ export default function App() {
   const [matchHistory, setMatchHistory] = useState(_sv?.matchHistory ?? []);
   const [scorers, setScorers] = useState(_sv?.scorers ?? {});
   const [assisters, setAssisters] = useState(_sv?.assisters ?? {});
+  const [cleanSheets, setCleanSheets] = useState(_sv?.cleanSheets ?? {});
   const [viewingTeam, setViewingTeam] = useState(null);
 
   // Cartões, suspensões e lesões — { nome: contagem/rodadas restantes }
@@ -3027,6 +3053,7 @@ export default function App() {
     setMatchHistory([]);
     setScorers({});
     setAssisters({});
+    setCleanSheets({});
     setCardCounts({});
     setRedCards({});
     setSuspensions({});
@@ -3075,6 +3102,7 @@ export default function App() {
       if (gameMode !== 'copa' || userInCupRef.current) return;
       const occurrences = [];
       const allGoals = [];
+      const cleanSheetEntries = [];
       const allResults = round.map(m => {
         const h = roundTeams.find(t => t.id === m.homeId);
         const a = roundTeams.find(t => t.id === m.awayId);
@@ -3082,6 +3110,10 @@ export default function App() {
         const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, currentRound, m.homeId, m.awayId));
         occurrences.push(...(sim.discipline || []));
         allGoals.push(...(sim.goals || []));
+        cleanSheetEntries.push(
+          { teamId: h.id, teamLabel: h.label, gkName: sim.homeGkName, conceded: sim.awayGoals },
+          { teamId: a.id, teamLabel: a.label, gkName: sim.awayGkName, conceded: sim.homeGoals },
+        );
         return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
       });
       setRoundResults(allResults);
@@ -3089,6 +3121,7 @@ export default function App() {
       setTeamForm(prev => updateFormFromResults(prev, allResults));
       setScorers(prev => applyGoalsToScorers(prev, allGoals));
       setAssisters(prev => applyGoalsToAssisters(prev, allGoals));
+      setCleanSheets(prev => applyCleanSheets(prev, cleanSheetEntries));
       const { cards, suspensions: susp, injuries: inj } = applyRoundDiscipline(cardCounts, suspensions, injuries, occurrences);
       setCardCounts(cards); setSuspensions(susp); setInjuries(inj);
       setRedCards(prev => {
@@ -3219,6 +3252,10 @@ export default function App() {
         // Simular todos os jogos da rodada
         const occurrences = events.filter(ev => ev.type !== 'goal').map(ev => ({ type: ev.type, teamId: ev.teamId, player: ev.player, rounds: ev.rounds, secondYellow: ev.secondYellow }));
         const otherMatchGoals = [];
+        const cleanSheetEntries = [
+          { teamId: homeTeam.id, teamLabel: homeTeam.label, gkName: pickGkName(homeXI), conceded: finalAs },
+          { teamId: awayTeam.id, teamLabel: awayTeam.label, gkName: pickGkName(awayXI), conceded: finalHs },
+        ];
         const results = round.map(m => {
           if (m.homeId === um.homeId && m.awayId === um.awayId)
             return { homeId: m.homeId, awayId: m.awayId, homeGoals: finalHs, awayGoals: finalAs };
@@ -3227,6 +3264,10 @@ export default function App() {
           const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, currentRound, m.homeId, m.awayId));
           occurrences.push(...(sim.discipline || []));
           otherMatchGoals.push(...(sim.goals || []));
+          cleanSheetEntries.push(
+            { teamId: h.id, teamLabel: h.label, gkName: sim.homeGkName, conceded: sim.awayGoals },
+            { teamId: a.id, teamLabel: a.label, gkName: sim.awayGkName, conceded: sim.homeGoals },
+          );
           return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
         });
 
@@ -3236,6 +3277,7 @@ export default function App() {
           setScorers(prev => applyGoalsToScorers(prev, otherMatchGoals));
           setAssisters(prev => applyGoalsToAssisters(prev, otherMatchGoals));
         }
+        setCleanSheets(prev => applyCleanSheets(prev, cleanSheetEntries));
         const { cards, suspensions: susp, injuries: inj } = applyRoundDiscipline(cardCounts, suspensions, injuries, occurrences);
         setCardCounts(cards); setSuspensions(susp); setInjuries(inj);
         setRedCards(prev => {
@@ -3267,18 +3309,26 @@ export default function App() {
           // Copa: registrar resultado da rodada
           setCupRounds(prev => {
             const baseUpdated = prev.map((r, i) => i === cupRoundIdx ? { ...r, results } : r);
-            // Leg 2: calcular pênaltis e verificar eliminação por agregado
-            if (cupLegRef.current === 2) {
+            const cupRoundDataPeek = baseUpdated[cupRoundIdx];
+            // Final é jogo único (2 times = 1 partida) — decide tudo na hora,
+            // sem esperar um jogo de volta que nunca vai existir.
+            const isFinal = (cupRoundDataPeek?.matches?.length || 0) === 1;
+            // Leg 2 (ou a final de jogo único, que nunca sai da leg 1): calcular pênaltis e verificar eliminação por agregado
+            if (cupLegRef.current === 2 || (cupLegRef.current === 1 && isFinal)) {
               const cupRoundData = baseUpdated[cupRoundIdx];
-              const leg1Res = cupRoundData?.leg1Results || [];
+              const leg1Res = isFinal ? [] : (cupRoundData?.leg1Results || []);
               const penaltyResults = [];
 
               // Compute penalties for all tied matches (regra do gol fora foi extinta — empate no agregado já vai para os pênaltis)
               cupRoundData?.matches?.forEach((match, i) => {
-                const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
                 const l2 = results[i] || { homeGoals: 0, awayGoals: 0 };
-                const aggA = l1.homeGoals + l2.awayGoals;
-                const aggB = l1.awayGoals + l2.homeGoals;
+                let aggA, aggB;
+                if (isFinal) { aggA = l2.homeGoals; aggB = l2.awayGoals; }
+                else {
+                  const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
+                  aggA = l1.homeGoals + l2.awayGoals;
+                  aggB = l1.awayGoals + l2.homeGoals;
+                }
                 if (aggA === aggB) {
                   const penRand = matchPrng(roomSnap?.seed, `${cupRoundIdx}-${cupLegRef.current}-pen`, match.homeId, match.awayId);
                   const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams, penRand);
@@ -3290,11 +3340,17 @@ export default function App() {
               const userMatchIdx = cupRoundData?.matches?.findIndex(m => m.homeId === myTeamId || m.awayId === myTeamId) ?? -1;
               if (userMatchIdx >= 0) {
                 const match = cupRoundData.matches[userMatchIdx];
-                const l1 = leg1Res[userMatchIdx] || { homeGoals: 0, awayGoals: 0 };
                 const l2 = results[userMatchIdx] || { homeGoals: 0, awayGoals: 0 };
                 const isHome = match.homeId === myTeamId;
-                const userAgg = isHome ? (l1.homeGoals + l2.awayGoals) : (l1.awayGoals + l2.homeGoals);
-                const oppAgg = isHome ? (l1.awayGoals + l2.homeGoals) : (l1.homeGoals + l2.awayGoals);
+                let userAgg, oppAgg;
+                if (isFinal) {
+                  userAgg = isHome ? l2.homeGoals : l2.awayGoals;
+                  oppAgg = isHome ? l2.awayGoals : l2.homeGoals;
+                } else {
+                  const l1 = leg1Res[userMatchIdx] || { homeGoals: 0, awayGoals: 0 };
+                  userAgg = isHome ? (l1.homeGoals + l2.awayGoals) : (l1.awayGoals + l2.homeGoals);
+                  oppAgg = isHome ? (l1.awayGoals + l2.homeGoals) : (l1.homeGoals + l2.awayGoals);
+                }
                 if (userAgg < oppAgg) {
                   setUserInCup(false);
                   setEliminationRoundName(cupRoundData?.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa');
@@ -3442,6 +3498,8 @@ export default function App() {
     let history = [...matchHistory];
     let scorersAcc = { ...scorers };
     let assistersAcc = { ...assisters };
+    let cleanSheetsAcc = { ...cleanSheets };
+    let redCardsAcc = { ...redCards };
 
     while (round < fixtures.length && !fastSimCancelRef.current) {
       setFastSimStatusMsg(fastSimStatusText({ gameMode: 'brasileirao', round, totalRounds: fixtures.length, table, myTeamId }));
@@ -3450,6 +3508,7 @@ export default function App() {
       const roundTeams = teamsForRound(leagueTeams, unavailable, form);
       const occurrences = [];
       const roundGoals = [];
+      const cleanSheetEntries = [];
       const results = fixtures[round].map(m => {
         const h = roundTeams.find(t => t.id === m.homeId);
         const a = roundTeams.find(t => t.id === m.awayId);
@@ -3457,6 +3516,10 @@ export default function App() {
         const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, round, m.homeId, m.awayId));
         occurrences.push(...(sim.discipline || []));
         roundGoals.push(...(sim.goals || []));
+        cleanSheetEntries.push(
+          { teamId: h.id, teamLabel: h.label, gkName: sim.homeGkName, conceded: sim.awayGoals },
+          { teamId: a.id, teamLabel: a.label, gkName: sim.awayGkName, conceded: sim.homeGoals },
+        );
         if (m.homeId === myTeamId || m.awayId === myTeamId) {
           history.push({
             round: round + 1, homeLabel: h.label, awayLabel: a.label,
@@ -3467,6 +3530,7 @@ export default function App() {
       });
       scorersAcc = applyGoalsToScorers(scorersAcc, roundGoals);
       assistersAcc = applyGoalsToAssisters(assistersAcc, roundGoals);
+      cleanSheetsAcc = applyCleanSheets(cleanSheetsAcc, cleanSheetEntries);
 
       results.forEach(res => {
         const h = table.find(t => t.id === res.homeId);
@@ -3483,6 +3547,12 @@ export default function App() {
 
       const disc = applyRoundDiscipline(cards, susp, inj, occurrences);
       cards = disc.cards; susp = disc.suspensions; inj = disc.injuries;
+      // Sempre um objeto novo (nunca muta redCardsAcc em cima) — o setRedCards
+      // de cada rodada precisa de uma referência diferente da anterior, senão
+      // o React vê Object.is(mesmaRef, mesmaRef) e pula o re-render daquela
+      // chamada, deixando o placar de vermelhos "preso" na 1ª rodada da leva.
+      redCardsAcc = { ...redCardsAcc };
+      occurrences.forEach(o => { if (o.type === 'red') { const k = playerKey(o.teamId, o.player); redCardsAcc[k] = (redCardsAcc[k] || 0) + 1; } });
       form = updateFormFromResults(form, results);
       round++;
 
@@ -3494,6 +3564,8 @@ export default function App() {
       setMatchHistory(history);
       setScorers(scorersAcc);
       setAssisters(assistersAcc);
+      setCleanSheets(cleanSheetsAcc);
+      setRedCards(redCardsAcc);
       setCurrentRound(round);
       setRoundResults(results);
 
@@ -3543,6 +3615,8 @@ export default function App() {
     let winnerId = null;
     let scorersAcc = { ...scorers };
     let assistersAcc = { ...assisters };
+    let cleanSheetsAcc = { ...cleanSheets };
+    let redCardsAcc = { ...redCards };
 
     let iters = 0;
     while (iters++ < 20 && !fastSimCancelRef.current) {
@@ -3550,12 +3624,14 @@ export default function App() {
       const cupRoundData = currCupRounds[currCupRoundIdx];
       if (!round || !cupRoundData) break;
 
-      setFastSimStatusMsg(fastSimStatusText({ gameMode: 'copa', round: currCupRoundIdx, totalRounds: CUP_ROUND_NAMES.length }) + (currCupLeg === 1 ? ' (ida)' : ' (volta)'));
+      const legSuffix = cupRoundData.matches.length === 1 ? ' (jogo único)' : (currCupLeg === 1 ? ' (ida)' : ' (volta)');
+      setFastSimStatusMsg(fastSimStatusText({ gameMode: 'copa', round: currCupRoundIdx, totalRounds: CUP_ROUND_NAMES.length }) + legSuffix);
 
       const unavailable = unavailableNamesFrom(susp, inj);
       const roundTeams = teamsForRound(leagueTeams, unavailable, form);
       const occurrences = [];
       const roundGoals = [];
+      const cleanSheetEntries = [];
       const results = round.map(m => {
         const h = roundTeams.find(t => t.id === m.homeId);
         const a = roundTeams.find(t => t.id === m.awayId);
@@ -3563,6 +3639,10 @@ export default function App() {
         const sim = simAiMatch(h, a, matchPrng(roomSnap?.seed, currRound, m.homeId, m.awayId));
         occurrences.push(...(sim.discipline || []));
         roundGoals.push(...(sim.goals || []));
+        cleanSheetEntries.push(
+          { teamId: h.id, teamLabel: h.label, gkName: sim.homeGkName, conceded: sim.awayGoals },
+          { teamId: a.id, teamLabel: a.label, gkName: sim.awayGkName, conceded: sim.homeGoals },
+        );
         if (m.homeId === myTeamId || m.awayId === myTeamId) {
           history.push({
             round: currRound + 1, homeLabel: h.label, awayLabel: a.label,
@@ -3574,25 +3654,35 @@ export default function App() {
       });
       scorersAcc = applyGoalsToScorers(scorersAcc, roundGoals);
       assistersAcc = applyGoalsToAssisters(assistersAcc, roundGoals);
+      cleanSheetsAcc = applyCleanSheets(cleanSheetsAcc, cleanSheetEntries);
 
       const disc = applyRoundDiscipline(cards, susp, inj, occurrences);
       cards = disc.cards; susp = disc.suspensions; inj = disc.injuries;
+      redCardsAcc = { ...redCardsAcc };
+      occurrences.forEach(o => { if (o.type === 'red') { const k = playerKey(o.teamId, o.player); redCardsAcc[k] = (redCardsAcc[k] || 0) + 1; } });
       form = updateFormFromResults(form, results);
 
-      if (currCupLeg === 1) {
+      // Final é jogo único (2 times = 1 partida) — sem jogo de volta.
+      const isFinal = cupRoundData.matches.length === 1;
+
+      if (currCupLeg === 1 && !isFinal) {
         currCupRounds = currCupRounds.map((r, i) => i === currCupRoundIdx ? { ...r, leg1Results: results } : r);
         const leg2Matches = cupRoundData.matches.map(m => ({ homeId: m.awayId, awayId: m.homeId }));
         currFixtures = [...currFixtures, leg2Matches];
         currRound++;
         currCupLeg = 2;
       } else {
-        const leg1Res = currCupRounds[currCupRoundIdx].leg1Results || [];
+        const leg1Res = isFinal ? [] : (currCupRounds[currCupRoundIdx].leg1Results || []);
         const userMatchIdx = cupRoundData.matches.findIndex(m => m.homeId === myTeamId || m.awayId === myTeamId);
         const aggregateWinners = cupRoundData.matches.map((match, i) => {
-          const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
           const l2 = results[i] || { homeGoals: 0, awayGoals: 0 };
-          const aggA = l1.homeGoals + l2.awayGoals;
-          const aggB = l1.awayGoals + l2.homeGoals;
+          let aggA, aggB;
+          if (isFinal) { aggA = l2.homeGoals; aggB = l2.awayGoals; }
+          else {
+            const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
+            aggA = l1.homeGoals + l2.awayGoals;
+            aggB = l1.awayGoals + l2.homeGoals;
+          }
           if (aggA !== aggB) return aggA > aggB ? match.homeId : match.awayId;
           const penRand = matchPrng(roomSnap?.seed, `${currCupRoundIdx}-pen`, match.homeId, match.awayId);
           const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams, penRand);
@@ -3641,6 +3731,8 @@ export default function App() {
       setEliminationRoundName(elimName);
       setScorers(scorersAcc);
       setAssisters(assistersAcc);
+      setCleanSheets(cleanSheetsAcc);
+      setRedCards(redCardsAcc);
 
       await delay(FAST_SIM_ROUND_DELAY_MS);
     }
@@ -3700,7 +3792,11 @@ export default function App() {
         setActiveUserMatch(null);
       };
 
-      if (cupLeg === 1) {
+      // Final é jogo único (2 times = 1 partida só) — sem jogo de volta, a
+      // própria "ida" já decide tudo (no empate, pênaltis na hora).
+      const isFinal = currentCupRound.matches.length === 1;
+
+      if (cupLeg === 1 && !isFinal) {
         // Salvar resultados do jogo de ida e preparar jogo de volta
         const leg1Res = roundResults || [];
         const leg2Matches = currentCupRound.matches.map(m => ({ homeId: m.awayId, awayId: m.homeId }));
@@ -3716,18 +3812,26 @@ export default function App() {
         return prev.map((r, i) => i === cupRoundIdx ? { ...r, leg1Results: leg1Res, results: [] } : r);
       }
 
-      // Leg 2 — calcular vencedores por agregado
-      const leg1Res = currentCupRound.leg1Results || [];
+      // Leg 2 (ou a final de jogo único, que nunca sai do cupLeg 1) — calcular vencedores
+      const leg1Res = isFinal ? [] : (currentCupRound.leg1Results || []);
       const leg2Res = roundResults || [];
       // Use pre-computed penalty results from tick if available
       const preComputedPenalties = currentCupRound.penaltyResults || [];
 
       const aggregateWinners = currentCupRound.matches.map((match, i) => {
-        const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
         const l2 = leg2Res[i] || { homeGoals: 0, awayGoals: 0 };
-        // leg1 home = match.homeId, leg2 home = match.awayId (invertido)
-        const aggA = l1.homeGoals + l2.awayGoals;
-        const aggB = l1.awayGoals + l2.homeGoals;
+        let aggA, aggB;
+        if (isFinal) {
+          // Jogo único: o placar da própria partida já é o agregado (sem
+          // inversão de mando, já que não existe volta pra somar).
+          aggA = l2.homeGoals;
+          aggB = l2.awayGoals;
+        } else {
+          const l1 = leg1Res[i] || { homeGoals: 0, awayGoals: 0 };
+          // leg1 home = match.homeId, leg2 home = match.awayId (invertido)
+          aggA = l1.homeGoals + l2.awayGoals;
+          aggB = l1.awayGoals + l2.homeGoals;
+        }
         if (aggA !== aggB) return aggA > aggB ? match.homeId : match.awayId;
         // Empate no agregado (regra do gol fora foi extinta) — pênaltis
         // usar resultado pré-computado (já calculado no tick com a mesma seed) ou simular como fallback
@@ -3777,7 +3881,7 @@ export default function App() {
         gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo,
         leagueTeams, leagueTable, fixtures, currentRound,
         cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
-        matchHistory, scorers, assisters, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards,
+        matchHistory, scorers, assisters, cleanSheets, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards,
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
@@ -3869,6 +3973,7 @@ export default function App() {
     setMatchHistory([]);
     setScorers({});
     setAssisters({});
+    setCleanSheets({});
     setCardCounts({});
     setRedCards({});
     setSuspensions({});
@@ -3904,6 +4009,7 @@ export default function App() {
     setMatchHistory([]);
     setScorers({});
     setAssisters({});
+    setCleanSheets({});
     setCardCounts({});
     setRedCards({});
     setSuspensions({});
@@ -4245,6 +4351,7 @@ export default function App() {
     if (phase === 'playing' || phase === 'results') return;
     setScorers({});
     setAssisters({});
+    setCleanSheets({});
     setCardCounts({});
     setRedCards({});
     setSuspensions({});
@@ -4516,6 +4623,7 @@ export default function App() {
             matchHistory={matchHistory}
             scorers={scorers}
             assisters={assisters}
+            cleanSheets={cleanSheets}
             cardCounts={cardCounts}
             redCards={redCards}
             suspensions={suspensions}
@@ -4542,7 +4650,7 @@ export default function App() {
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} matchHistory={matchHistory} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} matchHistory={matchHistory} />
         )}
         {viewingTeam && <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} />}
         {penaltyPhase && (
@@ -6085,13 +6193,16 @@ function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo,
         {cupRounds.map((round, rIdx) => (
           <div key={rIdx} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 150 }}>
             <div style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace", marginBottom: 6, textAlign: 'center', textTransform: 'uppercase' }}>{round.name}</div>
+            {/* Final é jogo único (2 times = 1 partida): não existe leg1Results
+                pra somar, o placar da própria partida já é o final. */}
             {round.matches.map((m, mIdx) => {
               const h = leagueTeams.find(t => t.id === m.homeId);
               const a = leagueTeams.find(t => t.id === m.awayId);
+              const isFinalMatch = round.matches.length === 1;
               const leg1 = round.leg1Results?.[mIdx];
               const leg2 = round.results?.[mIdx];
-              const aggH = leg1 && leg2 ? leg1.homeGoals + leg2.awayGoals : null;
-              const aggA = leg1 && leg2 ? leg1.awayGoals + leg2.homeGoals : null;
+              const aggH = isFinalMatch ? (leg2 ? leg2.homeGoals : null) : (leg1 && leg2 ? leg1.homeGoals + leg2.awayGoals : null);
+              const aggA = isFinalMatch ? (leg2 ? leg2.awayGoals : null) : (leg1 && leg2 ? leg1.awayGoals + leg2.homeGoals : null);
               const hWon = aggH !== null && aggH > aggA;
               const aWon = aggA !== null && aggA > aggH;
               return (
@@ -7115,7 +7226,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -7136,9 +7247,11 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 19, fontWeight: 700, color: mc, marginBottom: 10, minHeight: 26 }}>
             {fastSimStatusMsg || 'Simulando...'}
           </div>
-          <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 26 }}>
-            Rodada {currentRound + 1}{gameMode === 'brasileirao' ? ` de ${fixtures.length}` : ''}
-          </div>
+          {gameMode === 'brasileirao' && (
+            <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 26 }}>
+              Rodada {currentRound + 1} de {fixtures.length}
+            </div>
+          )}
           <div style={{ ...styles.clockPulse, margin: '0 auto' }} />
           {onCancelFastSim && (
             <button style={{ ...styles.btnGhost, marginTop: 28 }} onClick={onCancelFastSim}>Cancelar</button>
@@ -7152,8 +7265,10 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   if (gameMode === 'copa') {
     const cupRound = cupRounds[cupRoundIdx] || {};
     const roundName = cupRound.name || CUP_ROUND_NAMES[cupRoundIdx] || 'Copa';
+    // Final é jogo único (2 times = 1 partida) — sem jogo de volta.
+    const isFinal = (cupRound.matches?.length || 0) === 1;
     const isLastCupRound = cupRoundIdx >= CUP_ROUND_NAMES.length - 1;
-    const legLabel = cupLeg === 1 ? 'Jogo de Ida' : 'Jogo de Volta';
+    const legLabel = isFinal ? 'Jogo Único' : (cupLeg === 1 ? 'Jogo de Ida' : 'Jogo de Volta');
 
     // Contexto do jogo de ida para exibir no leg 2
     const leg1Results = cupLeg === 2 ? (cupRound.leg1Results || []) : null;
@@ -7264,7 +7379,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           </div>
           {roundDone && userInCup && simMode === 'manual' && (
             <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12' }} onClick={onNextRound}>
-              {isLastCupRound && cupLeg === 2 ? '🏆 Ver campeão →' : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →'}
+              {isFinal ? '🏆 Ver campeão →' : (isLastCupRound && cupLeg === 2 ? '🏆 Ver campeão →' : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →')}
             </button>
           )}
           {roundDone && userInCup && simMode === 'auto' && autoCountdown !== null && (
@@ -7576,6 +7691,28 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         </div>
       )}
 
+      {cleanSheets && Object.keys(cleanSheets).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={styles.sectionLabel}>Goleiros — Jogos sem sofrer gol</div>
+          {Object.entries(cleanSheets)
+            .filter(([, d]) => d.clean > 0)
+            .sort((a, b) => b[1].clean - a[1].clean)
+            .slice(0, 5)
+            .map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
+                <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ fontSize: 11, opacity: 0.5 }}>{d.teamLabel}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
+              </div>
+              );
+            })
+          }
+        </div>
+      )}
+
       {cardCounts && Object.keys(cardCounts).length > 0 && (
         <div style={{ marginTop: 14 }}>
           <div style={styles.sectionLabel}>Cartões</div>
@@ -7869,11 +8006,52 @@ function AnthemPlayer({ club }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cardCounts, redCards, seasonAwards, onNewSeason, matchHistory }) {
+// Faixa de comemoração do campeão — segura um instante em suspense (tipo
+// abertura de envelope) antes de soltar a frase em loop tipo painel de
+// estádio, pra dar um clímax maior que só cravar o texto na tela de cara.
+function ChampionMarquee({ teamLabel, color }) {
+  const [revealed, setRevealed] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => setRevealed(true), 1800);
+    return () => clearTimeout(t);
+  }, []);
+  const mc = color || '#d4a23c';
+  const phrase = `PUTA QUE PARIU, É O MELHOR TIME DO BRASIL: ${(teamLabel || '').toUpperCase()}!`;
+
+  if (!revealed) {
+    return (
+      <div className="champion-suspense" style={{ textAlign: 'center', padding: '10px 0 18px', fontFamily: "'Space Mono', monospace", fontSize: 13, letterSpacing: 3, color: mc, textTransform: 'uppercase' }}>
+        🏆 revelando o campeão...
+      </div>
+    );
+  }
+
+  return (
+    <div style={{
+      overflow: 'hidden', margin: '4px 0 18px', padding: '10px 0',
+      background: hexToRgba(mc, 0.08), border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 10,
+      maskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
+      WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
+    }}>
+      <div className="champion-marquee-track" style={{ display: 'flex', width: 'max-content' }}>
+        {[0, 1].map(i => (
+          <span key={i} style={{ whiteSpace: 'nowrap', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 800, fontSize: 18, color: mc, paddingRight: 48 }}>
+            {phrase} &nbsp;🏆&nbsp; {phrase} &nbsp;🏆&nbsp;
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cleanSheets, cardCounts, redCards, seasonAwards, onNewSeason, matchHistory }) {
   const mc = myTeamColor || '#d4a23c';
   const [showCampaign, setShowCampaign] = useState(false);
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
   const topAssisters = assisters ? Object.entries(assisters).sort((a, b) => b[1].assists - a[1].assists).slice(0, 3) : [];
+  const topCleanSheets = cleanSheets
+    ? Object.entries(cleanSheets).filter(([, d]) => d.clean > 0).sort((a, b) => b[1].clean - a[1].clean).slice(0, 3)
+    : [];
   const topCards = cardCounts ? Object.entries(cardCounts).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
 
   // Campanha completa (todas as partidas do usuario nesta temporada/copa, na ordem) —
@@ -7917,6 +8095,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           )}
           {userWon && <div style={styles.badge}>Copa do Brasil conquistada! Time lendario!</div>}
         </div>
+        <ChampionMarquee teamLabel={winner?.label} color={mc} />
         {topScorers.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={styles.sectionLabel}>Artilheiro da Copa</div>
@@ -7942,6 +8121,21 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
                 <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
                 <span style={{ flex: 1 }}>{name}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
+              </div>
+              );
+            })}
+          </div>
+        )}
+        {topCleanSheets.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={styles.sectionLabel}>Goleiro Menos Vazado da Copa</div>
+            {topCleanSheets.map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+                <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
               </div>
               );
             })}
@@ -8016,6 +8210,8 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         {isChampion ? 'CAMPEAO!' : podium ? `${pos}o lugar — podio!` : `${pos}o lugar`}
       </h1>
 
+      <ChampionMarquee teamLabel={champion?.label} color={mc} />
+
       {!isChampion && (
         <div style={styles.championBox}>
           Campeao: <b>{champion?.label}</b> — {champion?.pts} pts
@@ -8061,6 +8257,22 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
               <span style={{ flex: 1 }}>{name}</span>
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
+            </div>
+            );
+          })}
+        </div>
+      )}
+
+      {topCleanSheets.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={styles.sectionLabel}>Goleiro Menos Vazado</div>
+          {topCleanSheets.map(([key, d], i) => {
+            const { name } = splitPlayerKey(key);
+            return (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+              <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+              <span style={{ flex: 1 }}>{name}</span>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
             </div>
             );
           })}
@@ -8202,6 +8414,12 @@ const globalCss = `
   @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
   .marquee-track { animation: marquee 48s linear infinite; }
   .marquee-track:hover { animation-play-state: paused; }
+  .champion-marquee-track { animation: marquee 10s linear infinite; }
+  @keyframes suspensePulse {
+    0%, 100% { opacity: 0.55; transform: scale(0.97); text-shadow: 0 0 0 rgba(212,162,60,0); }
+    50% { opacity: 1; transform: scale(1.04); text-shadow: 0 0 20px rgba(212,162,60,0.65); }
+  }
+  .champion-suspense { animation: suspensePulse 0.65s ease-in-out infinite; }
   .feat-card-hover:hover { border-color: rgba(212,162,60,0.4) !important; transform: translateY(-2px); }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
