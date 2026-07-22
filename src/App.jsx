@@ -2175,11 +2175,16 @@ function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
 // minuto a minuto) nos rankings de artilheiros/assistências — sem isso esses
 // rankings só contavam os gols do próprio jogo do usuário, ficando vazios
 // depois de uma simulação direta (ou incompletos mesmo no modo normal).
+// Chave por time+nome (igual cardCounts/suspensions) — a base tem o mesmo
+// nome real (ex.: "Edmundo") em elencos de times/anos diferentes, e se dois
+// deles caem na mesma liga simulada, uma chave só por nome fundia os gols
+// dos dois num artilheiro só, com o teamLabel de qualquer um dos dois.
 function applyGoalsToScorers(scorers, goals) {
   const next = { ...scorers };
   goals.forEach(g => {
     if (g.isOwnGoal) return;
-    next[g.scorer] = { goals: (next[g.scorer]?.goals || 0) + 1, teamLabel: g.teamLabel };
+    const key = playerKey(g.teamId, g.scorer);
+    next[key] = { goals: (next[key]?.goals || 0) + 1, teamLabel: g.teamLabel };
   });
   return next;
 }
@@ -2187,7 +2192,8 @@ function applyGoalsToAssisters(assisters, goals) {
   const next = { ...assisters };
   goals.forEach(g => {
     if (!g.assist) return;
-    next[g.assist] = { assists: (next[g.assist]?.assists || 0) + 1, teamLabel: g.teamLabel };
+    const key = playerKey(g.teamId, g.assist);
+    next[key] = { assists: (next[key]?.assists || 0) + 1, teamLabel: g.teamLabel };
   });
   return next;
 }
@@ -2279,16 +2285,20 @@ function applyRoundDiscipline(prevCards, prevSuspensions, prevInjuries, occurren
 const SEASON_AWARD_BONUS = 2;
 function computeSeasonAwards({ myTeamId, myPlayers, leagueTable, scorers, assisters, gameMode }) {
   const awards = [];
-  const myNames = new Set((myPlayers || []).map(p => p.name));
 
+  // scorers/assisters são chaveados por time+nome (playerKey) — comparar o
+  // teamId extraído com myTeamId é mais preciso que comparar só pelo nome,
+  // já que nomes reais se repetem em elencos de times diferentes.
   const topScorer = scorers && Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals)[0];
-  if (topScorer && myNames.has(topScorer[0])) {
-    awards.push({ name: topScorer[0], reason: 'Artilheiro da temporada', goals: topScorer[1].goals });
+  const topScorerInfo = topScorer && splitPlayerKey(topScorer[0]);
+  if (topScorerInfo && topScorerInfo.teamId === myTeamId) {
+    awards.push({ name: topScorerInfo.name, reason: 'Artilheiro da temporada', goals: topScorer[1].goals });
   }
 
   const topAssist = assisters && Object.entries(assisters).sort((a, b) => b[1].assists - a[1].assists)[0];
-  if (topAssist && myNames.has(topAssist[0]) && topAssist[0] !== topScorer?.[0]) {
-    awards.push({ name: topAssist[0], reason: 'Líder de assistências', assists: topAssist[1].assists });
+  const topAssistInfo = topAssist && splitPlayerKey(topAssist[0]);
+  if (topAssistInfo && topAssistInfo.teamId === myTeamId && topAssist[0] !== topScorer?.[0]) {
+    awards.push({ name: topAssistInfo.name, reason: 'Líder de assistências', assists: topAssist[1].assists });
   }
 
   if (gameMode === 'brasileirao' && leagueTable?.length) {
@@ -3156,17 +3166,22 @@ export default function App() {
         if (ev.teamId === um.homeId) hs++;
         else as_++;
         shownEventsRef.current.push({ ...ev, homeScore: hs, awayScore: as_ });
-        // Record scorer (gols contra nao contam pro artilheiro)
+        // Record scorer (gols contra nao contam pro artilheiro). Chave por
+        // time+nome — nomes reais se repetem em elencos de times/anos
+        // diferentes (ex.: "Edmundo"), e uma chave só por nome fundia os
+        // gols de dois jogadores distintos caso ambos caíssem na mesma liga.
         if (!ev.isOwnGoal) {
+          const scorerKey = playerKey(ev.teamId, ev.scorer);
           setScorers(prev => ({
             ...prev,
-            [ev.scorer]: { goals: (prev[ev.scorer]?.goals || 0) + 1, teamLabel: ev.teamLabel }
+            [scorerKey]: { goals: (prev[scorerKey]?.goals || 0) + 1, teamLabel: ev.teamLabel }
           }));
         }
         if (ev.assist) {
+          const assistKey = playerKey(ev.teamId, ev.assist);
           setAssisters(prev => ({
             ...prev,
-            [ev.assist]: { assists: (prev[ev.assist]?.assists || 0) + 1, teamLabel: ev.teamLabel }
+            [assistKey]: { assists: (prev[assistKey]?.assists || 0) + 1, teamLabel: ev.teamLabel }
           }));
         }
         lastGoalThisTick = {
@@ -3490,6 +3505,14 @@ export default function App() {
     if (!fastSimCancelRef.current) {
       applySeasonAwards(undefined, table, scorersAcc, assistersAcc);
       setPhase('results');
+    } else {
+      // Cancelado no meio do caminho: roundResults ficou com o resultado da
+      // ÚLTIMA rodada simulada, mas currentRound já aponta pra PRÓXIMA rodada
+      // (ainda não jogada). Sem isso, "Próxima rodada" aparecia disponível
+      // (roundDone = roundResults !== null) pra uma rodada que nunca rolou,
+      // e clicar nela avançava o contador sem nunca atualizar a tabela —
+      // exatamente o desalinhamento "PJ 32 mas Rodada 34" reportado.
+      setRoundResults(null);
     }
   };
 
@@ -3628,6 +3651,14 @@ export default function App() {
       setCupWinnerId(winnerId);
       applySeasonAwards(winnerId, undefined, scorersAcc, assistersAcc);
       setPhase('results');
+    } else {
+      // Mesmo motivo do fastForwardBrasileirao: sem isso, roundResults ficava
+      // com o resultado da última rodada simulada (currCupLeg/currCupRoundIdx
+      // já tinham avançado pra próxima), fazendo "Próxima rodada" aparecer
+      // liberada pra uma rodada não jogada — e pior aqui, o goNextRound da
+      // Copa usa roundResults como leg1Res/leg2Res pra calcular o agregado,
+      // então dados requentados também estragavam esse cálculo.
+      setRoundResults(null);
     }
   };
 
@@ -7509,14 +7540,17 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           {Object.entries(scorers)
             .sort((a, b) => b[1].goals - a[1].goals)
             .slice(0, 5)
-            .map(([name, d], i) => (
-              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
+            .map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
                 <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
                 <span style={{ flex: 1 }}>{name}</span>
                 <span style={{ fontSize: 11, opacity: 0.5 }}>{d.teamLabel}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
               </div>
-            ))
+              );
+            })
           }
         </div>
       )}
@@ -7527,14 +7561,17 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           {Object.entries(assisters)
             .sort((a, b) => b[1].assists - a[1].assists)
             .slice(0, 5)
-            .map(([name, d], i) => (
-              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
+            .map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
                 <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
                 <span style={{ flex: 1 }}>{name}</span>
                 <span style={{ fontSize: 11, opacity: 0.5 }}>{d.teamLabel}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
               </div>
-            ))
+              );
+            })
           }
         </div>
       )}
@@ -7883,25 +7920,31 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         {topScorers.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={styles.sectionLabel}>Artilheiro da Copa</div>
-            {topScorers.map(([name, d], i) => (
-              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+            {topScorers.map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
                 <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
                 <span style={{ flex: 1 }}>{name}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {topAssisters.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={styles.sectionLabel}>Lider de Assistencia da Copa</div>
-            {topAssisters.map(([name, d], i) => (
-              <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+            {topAssisters.map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
                 <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
                 <span style={{ flex: 1 }}>{name}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {topCards.length > 0 && (
@@ -7995,26 +8038,32 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       {topScorers.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={styles.sectionLabel}>Artilheiros</div>
-          {topScorers.map(([name, d], i) => (
-            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+          {topScorers.map(([key, d], i) => {
+            const { name } = splitPlayerKey(key);
+            return (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
               <span style={{ flex: 1 }}>{name}</span>
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {topAssisters.length > 0 && (
         <div style={{ marginBottom: 16 }}>
           <div style={styles.sectionLabel}>Lideres de Assistencia</div>
-          {topAssisters.map(([name, d], i) => (
-            <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+          {topAssisters.map(([key, d], i) => {
+            const { name } = splitPlayerKey(key);
+            return (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
               <span style={{ flex: 1 }}>{name}</span>
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
