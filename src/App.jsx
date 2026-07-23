@@ -1846,6 +1846,17 @@ function pickGoalScorer(players, rand = Math.random) {
 const OWN_GOAL_CHANCE = 0.045;
 const ASSIST_CHANCE = 0.72;
 
+// Pênalti sofrido durante o jogo em si — antes só existia cobrança nas
+// disputas de pênalti (fim de jogo empatado na Copa), nunca dentro dos 90
+// minutos de uma partida normal. Chance por TIME por jogo + taxa de acerto
+// (a mesma taxa base usada nas disputas de shootout, ~65-85% por OVR).
+// Média real de futebol: ~1 pênalti a cada 3-4 partidas (~28.6% de chance
+// por partida). Os dois times rolam independente, então a chance de sair
+// pelo menos um pênalti NA PARTIDA é 1-(1-p)² — não é o mesmo que a chance
+// por time (senão a combinada ficaria quase o dobro do pretendido).
+const PENALTY_AWARD_CHANCE_PER_TEAM = 0.155; // ~28.6% de chance de pênalti por partida (1 a cada ~3.5 jogos)
+function penaltyScoreRate(ovr) { return Math.min(0.85, Math.max(0.5, 0.65 + (ovr - 70) * 0.005)); }
+
 function pickAssister(players, scorerName, rand = Math.random) {
   const pool = players.filter(p => !p.pos.includes('GOL') && p.name !== scorerName);
   if (pool.length === 0) return null;
@@ -2092,6 +2103,22 @@ function generateMatchEvents(homeTeam, awayTeam, rand = Math.random) {
   for (let i = 0; i < homeGoals; i++) events.push(makeGoalEvent(homeTeam, homeXI, awayTeam, awayXI));
   for (let i = 0; i < awayGoals; i++) events.push(makeGoalEvent(awayTeam, awayXI, homeTeam, homeXI));
 
+  // Pênalti sofrido durante o jogo (evento avulso, além dos gols de jogo
+  // corrido sorteados acima) — nem todo pênalti vira gol, o goleiro pode
+  // defender ou o batedor pode desperdiçar, igual na vida real. Quando
+  // convertido, entra como um gol normal (isPenalty:true) e conta pro placar
+  // e pro artilheiro; quando perdido, só aparece no feed, sem mexer no placar.
+  [[homeTeam, homeXI, awayTeam, awayXI], [awayTeam, awayXI, homeTeam, homeXI]].forEach(([team, xi, opp, oppXI]) => {
+    if (xi.length === 0 || rand() >= PENALTY_AWARD_CHANCE_PER_TEAM) return;
+    const taker = pickGoalScorer(xi, rand);
+    const scored = rand() < penaltyScoreRate(team.ovr);
+    if (scored) {
+      events.push({ type: 'goal', minute: randMin(), teamId: team.id, teamLabel: team.label, scorer: taker, isOwnGoal: false, isPenalty: true, assist: null });
+    } else {
+      events.push({ type: 'penalty_miss', minute: randMin(), teamId: team.id, teamLabel: team.label, player: taker, gkName: pickGkName(oppXI) });
+    }
+  });
+
   // Lesões (no máximo 1 por time por jogo)
   [[homeTeam, homeXI], [awayTeam, awayXI]].forEach(([team, xi]) => {
     if (xi.length === 0 || rand() >= INJURY_CHANCE_PER_TEAM) return;
@@ -2163,8 +2190,8 @@ function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
     discipline.push({ type: 'injury', teamId: team.id, player: weightedPick(xi, INJURY_WEIGHT_BY_POS, rand).name, rounds });
   });
 
-  const homeGoals = poissonSample(homeExp, rand);
-  const awayGoals = poissonSample(awayExp, rand);
+  let homeGoals = poissonSample(homeExp, rand);
+  let awayGoals = poissonSample(awayExp, rand);
   // Sorteia autor (e assistência) de cada gol mesmo aqui — sem isso a
   // simulação direta (que só passa por esta função pra TODOS os jogos,
   // incluindo o do usuário) nunca alimentava artilheiros/assistências.
@@ -2172,8 +2199,27 @@ function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   for (let i = 0; i < homeGoals; i++) goals.push(pickGoalOutcome(homeTeam, homeXI, awayTeam, awayXI, rand));
   for (let i = 0; i < awayGoals; i++) goals.push(pickGoalOutcome(awayTeam, awayXI, homeTeam, homeXI, rand));
 
+  // Pênalti durante o jogo (fora das disputas de shootout) — só o desfecho
+  // convertido importa aqui (sem minuto a minuto pra mostrar a cobrança
+  // perdida); quando convertido, soma no placar e entra como gol normal
+  // (isPenalty:true) pro artilheiro contar certo.
+  [[homeTeam, homeXI, true], [awayTeam, awayXI, false]].forEach(([team, xi, isHome]) => {
+    if (xi.length === 0 || rand() >= PENALTY_AWARD_CHANCE_PER_TEAM) return;
+    if (rand() >= penaltyScoreRate(team.ovr)) return;
+    const taker = pickGoalScorer(xi, rand);
+    if (isHome) homeGoals++; else awayGoals++;
+    goals.push({ teamId: team.id, teamLabel: team.label, scorer: taker, isOwnGoal: false, isPenalty: true, assist: null });
+  });
+
+  // Notas de partida pra TODOS os jogos da liga, não só o do usuário — reusa
+  // os mesmos gols/cartões já sorteados aqui (a fórmula de nota só olha
+  // type/scorer/assist/player/secondYellow, não precisa de minuto a minuto)
+  // pra alimentar a média de nota da temporada de qualquer jogador da liga.
+  const ratingEvents = [...discipline, ...goals.map(g => ({ ...g, type: 'goal' }))];
+  const ratings = computeMatchRatings(homeTeam, homeXI, awayTeam, awayXI, ratingEvents, homeGoals, awayGoals, rand);
+
   return {
-    homeGoals, awayGoals, discipline, goals,
+    homeGoals, awayGoals, discipline, goals, ratings,
     homeGkName: pickGkName(homeXI), awayGkName: pickGkName(awayXI),
   };
 }
@@ -2218,6 +2264,25 @@ function applyCleanSheets(cleanSheets, entries) {
     next[key] = {
       clean: (prev?.clean || 0) + (e.conceded === 0 ? 1 : 0),
       teamLabel: e.teamLabel,
+    };
+  });
+  return next;
+}
+
+// Média de nota da temporada — acumula soma+contagem por jogador (chave
+// time+nome) a partir das notas de UMA partida (computeMatchRatings), pra no
+// fim dividir soma/contagem e ranquear quem manteve o nível ao longo de toda
+// a campanha, não só numa partida isolada.
+function applySeasonRatings(seasonRatings, matchRatings) {
+  const next = { ...seasonRatings };
+  (matchRatings || []).forEach(r => {
+    const key = playerKey(r.teamId, r.name);
+    const prev = next[key];
+    next[key] = {
+      sum: (prev?.sum || 0) + r.rating,
+      count: (prev?.count || 0) + 1,
+      teamLabel: r.teamLabel,
+      pos: r.pos,
     };
   });
   return next;
@@ -2675,6 +2740,7 @@ export default function App() {
   const [scorers, setScorers] = useState(_sv?.scorers ?? {});
   const [assisters, setAssisters] = useState(_sv?.assisters ?? {});
   const [cleanSheets, setCleanSheets] = useState(_sv?.cleanSheets ?? {});
+  const [seasonRatings, setSeasonRatings] = useState(_sv?.seasonRatings ?? {});
   const [viewingTeam, setViewingTeam] = useState(null);
 
   // Cartões, suspensões e lesões — { nome: contagem/rodadas restantes }
@@ -2684,6 +2750,11 @@ export default function App() {
   const [injuries, setInjuries] = useState(_sv?.injuries ?? {});
   const [lastRoundDiscipline, setLastRoundDiscipline] = useState(null); // aviso de desfalques da última rodada
   const [lastMatchRatings, setLastMatchRatings] = useState(null); // notas dos jogadores da última partida do usuário
+  // Resumo da partida (placar + notas) abre na hora que o jogo termina — antes
+  // só dava pra ver as notas clicando num link escondido lá embaixo, depois
+  // da tabela inteira e de todas as outras estatísticas da liga.
+  const [showMatchSummary, setShowMatchSummary] = useState(false);
+  useEffect(() => { if (lastMatchRatings?.length > 0) setShowMatchSummary(true); }, [lastMatchRatings]);
   // Forma/momento — últimos resultados de cada time ('V'|'E'|'D'), mais recente por último
   const [teamForm, setTeamForm] = useState(_sv?.teamForm ?? {});
   // Prêmios de fim de temporada (artilheiro/assistência/goleiro menos vazado do próprio time)
@@ -3054,6 +3125,7 @@ export default function App() {
     setScorers({});
     setAssisters({});
     setCleanSheets({});
+    setSeasonRatings({});
     setCardCounts({});
     setRedCards({});
     setSuspensions({});
@@ -3103,6 +3175,7 @@ export default function App() {
       const occurrences = [];
       const allGoals = [];
       const cleanSheetEntries = [];
+      let ratingsAcc = seasonRatings;
       const allResults = round.map(m => {
         const h = roundTeams.find(t => t.id === m.homeId);
         const a = roundTeams.find(t => t.id === m.awayId);
@@ -3114,6 +3187,7 @@ export default function App() {
           { teamId: h.id, teamLabel: h.label, gkName: sim.homeGkName, conceded: sim.awayGoals },
           { teamId: a.id, teamLabel: a.label, gkName: sim.awayGkName, conceded: sim.homeGoals },
         );
+        ratingsAcc = applySeasonRatings(ratingsAcc, sim.ratings);
         return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
       });
       setRoundResults(allResults);
@@ -3122,6 +3196,7 @@ export default function App() {
       setScorers(prev => applyGoalsToScorers(prev, allGoals));
       setAssisters(prev => applyGoalsToAssisters(prev, allGoals));
       setCleanSheets(prev => applyCleanSheets(prev, cleanSheetEntries));
+      setSeasonRatings(ratingsAcc);
       const { cards, suspensions: susp, injuries: inj } = applyRoundDiscipline(cardCounts, suspensions, injuries, occurrences);
       setCardCounts(cards); setSuspensions(susp); setInjuries(inj);
       setRedCards(prev => {
@@ -3235,6 +3310,7 @@ export default function App() {
 
         const ratings = computeMatchRatings(homeTeam, homeXI, awayTeam, awayXI, events, finalHs, finalAs, matchRand);
         setLastMatchRatings(ratings);
+        let ratingsAcc = applySeasonRatings(seasonRatings, ratings);
 
         // Record match in history
         setMatchHistory(prev => [...prev, {
@@ -3268,11 +3344,13 @@ export default function App() {
             { teamId: h.id, teamLabel: h.label, gkName: sim.homeGkName, conceded: sim.awayGoals },
             { teamId: a.id, teamLabel: a.label, gkName: sim.awayGkName, conceded: sim.homeGoals },
           );
+          ratingsAcc = applySeasonRatings(ratingsAcc, sim.ratings);
           return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
         });
 
         setRoundResults(results);
         setTeamForm(prev => updateFormFromResults(prev, results));
+        setSeasonRatings(ratingsAcc);
         if (otherMatchGoals.length > 0) {
           setScorers(prev => applyGoalsToScorers(prev, otherMatchGoals));
           setAssisters(prev => applyGoalsToAssisters(prev, otherMatchGoals));
@@ -3500,6 +3578,7 @@ export default function App() {
     let assistersAcc = { ...assisters };
     let cleanSheetsAcc = { ...cleanSheets };
     let redCardsAcc = { ...redCards };
+    let ratingsAcc = { ...seasonRatings };
 
     while (round < fixtures.length && !fastSimCancelRef.current) {
       setFastSimStatusMsg(fastSimStatusText({ gameMode: 'brasileirao', round, totalRounds: fixtures.length, table, myTeamId }));
@@ -3520,6 +3599,7 @@ export default function App() {
           { teamId: h.id, teamLabel: h.label, gkName: sim.homeGkName, conceded: sim.awayGoals },
           { teamId: a.id, teamLabel: a.label, gkName: sim.awayGkName, conceded: sim.homeGoals },
         );
+        ratingsAcc = applySeasonRatings(ratingsAcc, sim.ratings);
         if (m.homeId === myTeamId || m.awayId === myTeamId) {
           history.push({
             round: round + 1, homeLabel: h.label, awayLabel: a.label,
@@ -3566,6 +3646,7 @@ export default function App() {
       setAssisters(assistersAcc);
       setCleanSheets(cleanSheetsAcc);
       setRedCards(redCardsAcc);
+      setSeasonRatings(ratingsAcc);
       setCurrentRound(round);
       setRoundResults(results);
 
@@ -3617,6 +3698,7 @@ export default function App() {
     let assistersAcc = { ...assisters };
     let cleanSheetsAcc = { ...cleanSheets };
     let redCardsAcc = { ...redCards };
+    let ratingsAcc = { ...seasonRatings };
 
     let iters = 0;
     while (iters++ < 20 && !fastSimCancelRef.current) {
@@ -3643,6 +3725,7 @@ export default function App() {
           { teamId: h.id, teamLabel: h.label, gkName: sim.homeGkName, conceded: sim.awayGoals },
           { teamId: a.id, teamLabel: a.label, gkName: sim.awayGkName, conceded: sim.homeGoals },
         );
+        ratingsAcc = applySeasonRatings(ratingsAcc, sim.ratings);
         if (m.homeId === myTeamId || m.awayId === myTeamId) {
           history.push({
             round: currRound + 1, homeLabel: h.label, awayLabel: a.label,
@@ -3733,6 +3816,7 @@ export default function App() {
       setAssisters(assistersAcc);
       setCleanSheets(cleanSheetsAcc);
       setRedCards(redCardsAcc);
+      setSeasonRatings(ratingsAcc);
 
       await delay(FAST_SIM_ROUND_DELAY_MS);
     }
@@ -3881,7 +3965,7 @@ export default function App() {
         gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo,
         leagueTeams, leagueTable, fixtures, currentRound,
         cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
-        matchHistory, scorers, assisters, cleanSheets, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards,
+        matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards,
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
@@ -3895,6 +3979,10 @@ export default function App() {
     // Pênaltis abertos: não inicia o avanço automático (senão ele conta 3s e
     // declara campeão por cima do modal que o usuário ainda está vendo).
     if (penaltyPhase) return;
+    // Resumo da partida aberto: mesma lógica — não avança sozinho por cima
+    // do resumo/notas que acabou de aparecer, senão a próxima rodada já
+    // começa a rolar com o modal antigo ainda na tela.
+    if (showMatchSummary) return;
     if (roundResults !== null && !isSimulating) {
       autoActionRef.current = 'nextRound';
       setAutoCountdown(3);
@@ -3902,7 +3990,7 @@ export default function App() {
       autoActionRef.current = 'startRound';
       setAutoCountdown(3);
     }
-  }, [simMode, phase, roundResults, isSimulating, penaltyPhase]);
+  }, [simMode, phase, roundResults, isSimulating, penaltyPhase, showMatchSummary]);
 
   // Tique do contador regressivo
   useEffect(() => {
@@ -3974,6 +4062,7 @@ export default function App() {
     setScorers({});
     setAssisters({});
     setCleanSheets({});
+    setSeasonRatings({});
     setCardCounts({});
     setRedCards({});
     setSuspensions({});
@@ -4010,6 +4099,7 @@ export default function App() {
     setScorers({});
     setAssisters({});
     setCleanSheets({});
+    setSeasonRatings({});
     setCardCounts({});
     setRedCards({});
     setSuspensions({});
@@ -4352,6 +4442,7 @@ export default function App() {
     setScorers({});
     setAssisters({});
     setCleanSheets({});
+    setSeasonRatings({});
     setCardCounts({});
     setRedCards({});
     setSuspensions({});
@@ -4624,6 +4715,7 @@ export default function App() {
             scorers={scorers}
             assisters={assisters}
             cleanSheets={cleanSheets}
+            seasonRatings={seasonRatings}
             cardCounts={cardCounts}
             redCards={redCards}
             suspensions={suspensions}
@@ -4650,9 +4742,21 @@ export default function App() {
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} matchHistory={matchHistory} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} matchHistory={matchHistory} />
         )}
         {viewingTeam && <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} />}
+        {showMatchSummary && activeUserMatch && (
+          <MatchSummaryModal
+            ratings={lastMatchRatings}
+            match={activeUserMatch}
+            score={roundResults?.find(r => r.homeId === activeUserMatch.homeId && r.awayId === activeUserMatch.awayId)}
+            homeTeam={leagueTeams.find(t => t.id === activeUserMatch.homeId)}
+            awayTeam={leagueTeams.find(t => t.id === activeUserMatch.awayId)}
+            myTeamId={myTeamId}
+            myTeamColor={myTeamColor}
+            onDismiss={() => setShowMatchSummary(false)}
+          />
+        )}
         {penaltyPhase && (
           <PenaltyModal
             penaltyPhase={penaltyPhase}
@@ -6616,6 +6720,63 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
 }
 
 // ============================================================
+// COMPONENTE: Resumo da partida (placar + notas) — abre sozinho assim que
+// o jogo do usuário termina, em vez de ficar escondido atrás de um link lá
+// embaixo depois de toda a tabela/estatísticas da liga.
+// ============================================================
+function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, myTeamId, myTeamColor, onDismiss }) {
+  const mc = myTeamColor || '#d4a23c';
+  if (!ratings?.length || !match) return null;
+  const homeRatings = [...ratings].filter(r => r.teamId === match.homeId).sort((a, b) => b.rating - a.rating);
+  const awayRatings = [...ratings].filter(r => r.teamId === match.awayId).sort((a, b) => b.rating - a.rating);
+  const motm = [...ratings].sort((a, b) => b.rating - a.rating)[0];
+
+  const col = (list, side) => (
+    <div style={{ flex: 1 }}>
+      {list.map(r => (
+        <div key={r.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12.5, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: side === 'away' ? 'right' : 'left', flex: 1 }}>{r.name}</span>
+          <span style={{
+            fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0,
+            color: r.rating >= 7.5 ? '#7fd99a' : r.rating < 5.5 ? '#e0593f' : '#F4F1EA',
+          }}>{r.rating.toFixed(1)}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: '#0F2318', border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 16, padding: 22, width: '100%', maxWidth: 460, maxHeight: '86vh', overflowY: 'auto' }}>
+        <div style={{ textAlign: 'center', marginBottom: 14 }}>
+          <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Fim de jogo</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 17 }}>
+            <span style={{ flex: 1, textAlign: 'right', color: match.homeId === myTeamId ? mc : '#F4F1EA' }}>{homeTeam?.label || '?'}</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: '4px 12px' }}>{score?.homeGoals ?? 0} - {score?.awayGoals ?? 0}</span>
+            <span style={{ flex: 1, textAlign: 'left', color: match.awayId === myTeamId ? mc : '#F4F1EA' }}>{awayTeam?.label || '?'}</span>
+          </div>
+        </div>
+
+        {motm && (
+          <div style={{ textAlign: 'center', background: hexToRgba(mc, 0.1), border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
+            🌟 Craque da partida: <b style={{ color: mc }}>{motm.name}</b> <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 16 }}>
+          {col(homeRatings, 'home')}
+          {col(awayRatings, 'away')}
+        </div>
+
+        <button onClick={onDismiss} style={{ ...styles.btnPrimary, marginTop: 18, width: '100%', background: mc, color: '#0B1A12' }}>
+          Continuar →
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
 // COMPONENTE: Modal de Pênaltis Interativo
 // ============================================================
 function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
@@ -7071,15 +7232,17 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           {liveEvents.map((ev, i) => {
             const isHomeSide = ev.teamId === homeTeam.id;
             const sideColor = isHomeSide ? hColor : aColor;
-            const icon = ev.type === 'yellow' ? '🟨' : ev.type === 'red' ? (ev.secondYellow ? '🟨🟥' : '🟥') : ev.type === 'injury' ? '🩹' : ev.type === 'substitution' ? '🔄' : (ev.isOwnGoal ? '⚽🔴' : '⚽');
-            const mainText = ev.type === 'goal' ? `${ev.scorer}${ev.isOwnGoal ? ' (contra)' : ''}`
+            const icon = ev.type === 'yellow' ? '🟨' : ev.type === 'red' ? (ev.secondYellow ? '🟨🟥' : '🟥') : ev.type === 'injury' ? '🩹' : ev.type === 'substitution' ? '🔄' : ev.type === 'penalty_miss' ? '❌' : (ev.isOwnGoal ? '⚽🔴' : '⚽');
+            const mainText = ev.type === 'goal' ? `${ev.scorer}${ev.isOwnGoal ? ' (contra)' : ev.isPenalty ? ' (pênalti)' : ''}`
               : ev.type === 'substitution' ? `Entrando: ${ev.playerIn}`
+              : ev.type === 'penalty_miss' ? ev.player
               : ev.player;
             const subText = ev.type === 'goal'
-              ? (ev.isOwnGoal ? `contra, ${ev.ownGoalTeamLabel}` : ev.assist ? `assist: ${ev.assist}` : ev.teamLabel)
+              ? (ev.isOwnGoal ? `contra, ${ev.ownGoalTeamLabel}` : ev.isPenalty ? `pênalti convertido · ${ev.teamLabel}` : ev.assist ? `assist: ${ev.assist}` : ev.teamLabel)
               : ev.type === 'yellow' ? `cartão amarelo · ${ev.teamLabel}`
               : ev.type === 'red' ? (ev.secondYellow ? `segundo amarelo, expulso · ${ev.teamLabel}` : `expulso · ${ev.teamLabel}`)
               : ev.type === 'substitution' ? `Saindo: ${ev.playerOut} · ${ev.teamLabel}`
+              : ev.type === 'penalty_miss' ? `pênalti perdido, defendido por ${ev.gkName || 'goleiro'} · ${ev.teamLabel}`
               : `lesionado, sai de campo · ${ev.teamLabel}`;
             const content = (
               <div style={{ ...styles.matchCenterCard, borderColor: `${sideColor}55`, background: `${sideColor}14`, flexDirection: isHomeSide ? 'row' : 'row-reverse' }}>
@@ -7226,7 +7389,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
   const mc = myTeamColor || '#d4a23c';
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
@@ -7713,6 +7876,32 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         </div>
       )}
 
+      {seasonRatings && Object.keys(seasonRatings).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={styles.sectionLabel}>Nota Média da Temporada</div>
+          {Object.entries(seasonRatings)
+            .filter(([, d]) => d.count >= 3)
+            .sort((a, b) => (b[1].sum / b[1].count) - (a[1].sum / a[1].count))
+            .slice(0, 5)
+            .map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              const avg = d.sum / d.count;
+              return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
+                <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ fontSize: 11, opacity: 0.5 }}>{d.teamLabel} · {d.count}j</span>
+                <span style={{
+                  fontFamily: "'Space Mono', monospace", fontWeight: 700,
+                  color: avg >= 7.5 ? '#7fd99a' : avg < 5.5 ? '#e0593f' : mc,
+                }}>⭐ {avg.toFixed(1)}</span>
+              </div>
+              );
+            })
+          }
+        </div>
+      )}
+
       {cardCounts && Object.keys(cardCounts).length > 0 && (
         <div style={{ marginTop: 14 }}>
           <div style={styles.sectionLabel}>Cartões</div>
@@ -8044,13 +8233,16 @@ function ChampionMarquee({ teamLabel, color }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cleanSheets, cardCounts, redCards, seasonAwards, onNewSeason, matchHistory }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, matchHistory }) {
   const mc = myTeamColor || '#d4a23c';
   const [showCampaign, setShowCampaign] = useState(false);
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
   const topAssisters = assisters ? Object.entries(assisters).sort((a, b) => b[1].assists - a[1].assists).slice(0, 3) : [];
   const topCleanSheets = cleanSheets
     ? Object.entries(cleanSheets).filter(([, d]) => d.clean > 0).sort((a, b) => b[1].clean - a[1].clean).slice(0, 3)
+    : [];
+  const topRatings = seasonRatings
+    ? Object.entries(seasonRatings).filter(([, d]) => d.count >= 3).sort((a, b) => (b[1].sum / b[1].count) - (a[1].sum / a[1].count)).slice(0, 3)
     : [];
   const topCards = cardCounts ? Object.entries(cardCounts).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
 
@@ -8136,6 +8328,22 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
                 <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
                 <span style={{ flex: 1 }}>{name}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
+              </div>
+              );
+            })}
+          </div>
+        )}
+        {topRatings.length > 0 && (
+          <div style={{ marginBottom: 16 }}>
+            <div style={styles.sectionLabel}>Nota Média da Copa</div>
+            {topRatings.map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              const avg = d.sum / d.count;
+              return (
+              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+                <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>⭐ {avg.toFixed(1)}</span>
               </div>
               );
             })}
@@ -8273,6 +8481,23 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
               <span style={{ flex: 1 }}>{name}</span>
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
+            </div>
+            );
+          })}
+        </div>
+      )}
+
+      {topRatings.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={styles.sectionLabel}>Nota Média da Temporada</div>
+          {topRatings.map(([key, d], i) => {
+            const { name } = splitPlayerKey(key);
+            const avg = d.sum / d.count;
+            return (
+            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
+              <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
+              <span style={{ flex: 1 }}>{name}</span>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>⭐ {avg.toFixed(1)}</span>
             </div>
             );
           })}

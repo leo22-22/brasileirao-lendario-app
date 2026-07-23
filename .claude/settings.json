@@ -117,7 +117,10 @@
       "Bash(curl -s -X POST http://localhost:4000/api/auth/login -H \"Content-Type: application/json\" -d '{\"email\":\"naoexiste@test.com\",\"password\":\"123456\"}' -w \"\\\\nAPI status: %{http_code}\\\\n\")",
       "PowerShell(Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue | ForEach-Object { Stop-Process -Id $_.OwningProcess -Force })",
       "Bash(node bump_overall_by_starter.js 63 4 2)",
-      "PowerShell(cd \"c:\\\\Users\\\\ueer\\\\Downloads\\\\brasileirao-lendario-app\"; powershell -ExecutionPolicy Bypass -File gen_teams.ps1)"
+      "PowerShell(cd \"c:\\\\Users\\\\ueer\\\\Downloads\\\\brasileirao-lendario-app\"; powershell -ExecutionPolicy Bypass -File gen_teams.ps1)",
+      "Bash(node test_match_summary.js)",
+      "Bash(node test_penalty.js)",
+      "Bash(node -e \"const p=0.051; console.log\\('chance por time:', p\\); console.log\\('chance por partida \\(>=1 penalti\\):', \\(1-\\(1-p\\)**2\\).toFixed\\(4\\)\\);\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\ueer\\Downloads\\brasileirao-lendario-app\\server"
