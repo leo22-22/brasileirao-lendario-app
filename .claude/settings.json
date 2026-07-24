@@ -120,7 +120,9 @@
       "PowerShell(cd \"c:\\\\Users\\\\ueer\\\\Downloads\\\\brasileirao-lendario-app\"; powershell -ExecutionPolicy Bypass -File gen_teams.ps1)",
       "Bash(node test_match_summary.js)",
       "Bash(node test_penalty.js)",
-      "Bash(node -e \"const p=0.051; console.log\\('chance por time:', p\\); console.log\\('chance por partida \\(>=1 penalti\\):', \\(1-\\(1-p\\)**2\\).toFixed\\(4\\)\\);\")"
+      "Bash(node -e \"const p=0.051; console.log\\('chance por time:', p\\); console.log\\('chance por partida \\(>=1 penalti\\):', \\(1-\\(1-p\\)**2\\).toFixed\\(4\\)\\);\")",
+      "Bash(node test_mobile_audit.js)",
+      "Bash(node test_table_scroll.js)"
     ],
     "additionalDirectories": [
       "c:\\Users\\ueer\\Downloads\\brasileirao-lendario-app\\server"

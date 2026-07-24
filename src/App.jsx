@@ -4528,17 +4528,18 @@ export default function App() {
           <div>
             <div
               style={{ ...styles.title, cursor: 'pointer' }}
+              className="header-title-h"
               title="Voltar ao menu inicial"
               onClick={restart}
             >BRASILEIRÃO LENDÁRIO</div>
-            <div style={styles.subtitle}>monte · escale · seja campeão</div>
+            <div style={styles.subtitle} className="header-subtitle-h">monte · escale · seja campeão</div>
           </div>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} className="header-actions-h">
             <button
               onClick={toggleGoalAudioMuted}
               title={goalAudioMuted ? 'Áudio de gol desativado — clique pra reativar' : 'Desativar áudio de gol'}
               style={{
-                position: 'relative',
+                position: 'relative', flexShrink: 0,
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
@@ -4556,6 +4557,7 @@ export default function App() {
               onClick={() => setShowLeaderboard(true)}
               title="Ranking global"
               style={{
+                flexShrink: 0,
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
@@ -4564,12 +4566,13 @@ export default function App() {
             {currentUser ? (
               <button
                 onClick={() => setShowAccountPanel(true)}
+                className="header-account-btn"
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
+                  display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
                   background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
                   borderRadius: 999, padding: '6px 12px', cursor: 'pointer',
                   color: '#F4F1EA', fontSize: 12, fontFamily: "'Space Mono', monospace",
-                  maxWidth: 180,
+                  maxWidth: 180, whiteSpace: 'nowrap',
                 }}
                 title="Minha Conta"
               >
@@ -4579,7 +4582,9 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setShowAccountModal(true)}
+                className="header-account-btn"
                 style={{
+                  flexShrink: 0, whiteSpace: 'nowrap',
                   background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                   borderRadius: 999, padding: '6px 14px', cursor: 'pointer',
                   color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 600,
@@ -6731,8 +6736,9 @@ function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, myTeamId
   const awayRatings = [...ratings].filter(r => r.teamId === match.awayId).sort((a, b) => b.rating - a.rating);
   const motm = [...ratings].sort((a, b) => b.rating - a.rating)[0];
 
-  const col = (list, side) => (
-    <div style={{ flex: 1 }}>
+  const col = (list, side, teamLabel) => (
+    <div style={{ flex: 1, minWidth: 0 }}>
+      <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: side === 'away' ? 'right' : 'left', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel}</div>
       {list.map(r => (
         <div key={r.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12.5, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: side === 'away' ? 'right' : 'left', flex: 1 }}>{r.name}</span>
@@ -6751,9 +6757,9 @@ function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, myTeamId
         <div style={{ textAlign: 'center', marginBottom: 14 }}>
           <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Fim de jogo</div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 17 }}>
-            <span style={{ flex: 1, textAlign: 'right', color: match.homeId === myTeamId ? mc : '#F4F1EA' }}>{homeTeam?.label || '?'}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: '4px 12px' }}>{score?.homeGoals ?? 0} - {score?.awayGoals ?? 0}</span>
-            <span style={{ flex: 1, textAlign: 'left', color: match.awayId === myTeamId ? mc : '#F4F1EA' }}>{awayTeam?.label || '?'}</span>
+            <span className="match-summary-header-team" style={{ flex: 1, minWidth: 0, textAlign: 'right', color: match.homeId === myTeamId ? mc : '#F4F1EA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeam?.label || '?'}</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: '4px 12px', flexShrink: 0 }}>{score?.homeGoals ?? 0} - {score?.awayGoals ?? 0}</span>
+            <span className="match-summary-header-team" style={{ flex: 1, minWidth: 0, textAlign: 'left', color: match.awayId === myTeamId ? mc : '#F4F1EA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeam?.label || '?'}</span>
           </div>
         </div>
 
@@ -6763,9 +6769,9 @@ function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, myTeamId
           </div>
         )}
 
-        <div style={{ display: 'flex', gap: 16 }}>
-          {col(homeRatings, 'home')}
-          {col(awayRatings, 'away')}
+        <div style={{ display: 'flex', gap: 16 }} className="match-summary-cols">
+          {col(homeRatings, 'home', homeTeam?.label)}
+          {col(awayRatings, 'away', awayTeam?.label)}
         </div>
 
         <button onClick={onDismiss} style={{ ...styles.btnPrimary, marginTop: 18, width: '100%', background: mc, color: '#0B1A12' }}>
@@ -7171,11 +7177,11 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
         </div>
       )}
       <div style={styles.liveTeamsRow} className="live-teams-row">
-        <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }} className="live-team-n">
-          <span>{homeTeam.label}</span>
+        <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0 }} className="live-team-n">
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{homeTeam.label}</span>
           {homeTeam.id === myTeamId
-            ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" /> : (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>))
-            : (homeTeam.clubLogo && <img src={homeTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />)
+            ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} alt="" /> : (myTeamBadge && <span style={{ fontSize: 22, flexShrink: 0 }}>{myTeamBadge}</span>))
+            : (homeTeam.clubLogo && <img src={homeTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} alt="" />)
           }
         </div>
         <div style={styles.liveScoreBlock}>
@@ -7183,12 +7189,12 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           <span style={styles.liveScoreDash}>–</span>
           <span style={styles.liveScoreNum} className="live-score-n">{liveScore.away}</span>
         </div>
-        <div style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6 }} className="live-team-n">
+        <div style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6, minWidth: 0 }} className="live-team-n">
           {awayTeam.id === myTeamId
-            ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" /> : (myTeamBadge && <span style={{ fontSize: 22 }}>{myTeamBadge}</span>))
-            : (awayTeam.clubLogo && <img src={awayTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain' }} alt="" />)
+            ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} alt="" /> : (myTeamBadge && <span style={{ fontSize: 22, flexShrink: 0 }}>{myTeamBadge}</span>))
+            : (awayTeam.clubLogo && <img src={awayTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} alt="" />)
           }
-          <span>{awayTeam.label}</span>
+          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{awayTeam.label}</span>
         </div>
       </div>
 
@@ -7750,11 +7756,11 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           <span style={styles.tableCell}>V</span>
           <span style={styles.tableCell}>E</span>
           <span style={styles.tableCell}>D</span>
-          <span style={styles.tableCell}>GP</span>
-          <span style={styles.tableCell}>GC</span>
+          <span style={styles.tableCell} className="table-col-hide-mobile">GP</span>
+          <span style={styles.tableCell} className="table-col-hide-mobile">GC</span>
           <span style={styles.tableCell}>SG</span>
           <span style={{ ...styles.tableCell, color: '#d4a23c', fontWeight: 700 }}>PTS</span>
-          <span style={{ width: 28 }}></span>
+          <span style={{ width: 28 }} className="table-col-hide-mobile"></span>
         </div>
         {leagueTable.map((row, i) => {
           const isMe = row.id === myTeamId;
@@ -7769,13 +7775,13 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               <span style={styles.tablePos}>{i + 1}</span>
               <span
                 onClick={() => !isMe && onViewTeam && onViewTeam(leagueTeams.find(t => t.id === row.id))}
-                style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, cursor: isMe ? 'default' : 'pointer' }}
+                style={{ flex: 1, minWidth: 0, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, cursor: isMe ? 'default' : 'pointer' }}
               >
                 {isMe
                   ? (myTeamLogo ? <img src={myTeamLogo} style={styles.tableCrestImg} alt="" /> : (myTeamBadge && <span style={styles.tableCrestEmoji}>{myTeamBadge}</span>))
                   : (row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />)
                 }
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
                 {teamForm?.[row.id]?.length > 0 && (
                   <span style={{ display: 'flex', gap: 2, flexShrink: 0 }} title="Forma recente">
                     {teamForm[row.id].map((r, fi) => (
@@ -7791,11 +7797,11 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               <span style={{ ...styles.tableCell, color: row.v > 0 ? '#7fd99a' : undefined }}>{row.v}</span>
               <span style={styles.tableCell}>{row.e}</span>
               <span style={{ ...styles.tableCell, color: row.d > 0 ? '#e0593f' : undefined }}>{row.d}</span>
-              <span style={styles.tableCell}>{row.gp}</span>
-              <span style={styles.tableCell}>{row.gc}</span>
+              <span style={styles.tableCell} className="table-col-hide-mobile">{row.gp}</span>
+              <span style={styles.tableCell} className="table-col-hide-mobile">{row.gc}</span>
               <span style={{ ...styles.tableCell, color: sg > 0 ? '#7fd99a' : sg < 0 ? '#e0593f' : undefined }}>{sg >= 0 ? `+${sg}` : sg}</span>
               <span style={{ ...styles.tableCell, fontWeight: 700, color: '#d4a23c' }}>{row.pts}</span>
-              <span style={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <span style={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="table-col-hide-mobile">
                 {zone && !isMe && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{zone.label}</span>}
               </span>
             </div>
@@ -8543,8 +8549,8 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           <span style={styles.tableCell}>V</span>
           <span style={styles.tableCell}>E</span>
           <span style={styles.tableCell}>D</span>
-          <span style={styles.tableCell}>GP</span>
-          <span style={styles.tableCell}>GC</span>
+          <span style={styles.tableCell} className="table-col-hide-mobile">GP</span>
+          <span style={styles.tableCell} className="table-col-hide-mobile">GC</span>
           <span style={styles.tableCell}>SG</span>
           <span style={{ ...styles.tableCell, color: '#d4a23c', fontWeight: 700 }}>PTS</span>
         </div>
@@ -8559,21 +8565,21 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
             }}>
               <span style={styles.tablePos}>{i + 1}</span>
-              <span style={{ flex: 1, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ flex: 1, minWidth: 0, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {isMe
                   ? (myTeamLogo
                     ? <img src={myTeamLogo} style={styles.tableCrestImg} alt="" />
                     : (myTeamBadge && <span style={styles.tableCrestEmoji}>{myTeamBadge}</span>))
                   : (row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />)
                 }
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</span>
+                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
               </span>
               <span style={styles.tableCell}>{row.pj}</span>
               <span style={styles.tableCell}>{row.v}</span>
               <span style={styles.tableCell}>{row.e}</span>
               <span style={styles.tableCell}>{row.d}</span>
-              <span style={styles.tableCell}>{row.gp}</span>
-              <span style={styles.tableCell}>{row.gc}</span>
+              <span style={styles.tableCell} className="table-col-hide-mobile">{row.gp}</span>
+              <span style={styles.tableCell} className="table-col-hide-mobile">{row.gc}</span>
               <span style={styles.tableCell}>{sg >= 0 ? `+${sg}` : sg}</span>
               <span style={{ ...styles.tableCell, fontWeight: 700, color: '#d4a23c' }}>{row.pts}</span>
             </div>
@@ -8656,12 +8662,23 @@ const globalCss = `
     .draft-left { max-height: 50vh !important; }
     .pitch-field { max-width: 300px !important; margin: 0 auto; }
     .main-pad { padding: 16px 12px 60px !important; }
-    .header-inner-pad { padding: 12px 14px !important; }
+    .header-inner-pad { padding: 12px 14px !important; flex-wrap: wrap !important; row-gap: 8px !important; }
+    .header-title-h { font-size: 15px !important; line-height: 1.2 !important; }
+    .header-subtitle-h { font-size: 9px !important; }
+    /* Título+logo numa "linha" e os botões (áudio/ranking/conta) na linha de
+       baixo, ocupando a largura toda — sem isso eles brigavam pelo mesmo
+       espaço e o botão de login quebrava em 3 linhas espremido num canto. */
+    .header-actions-h { flex-basis: 100% !important; margin-left: 0 !important; justify-content: flex-end !important; }
+    .header-account-btn { padding: 6px 10px !important; font-size: 11px !important; }
     .intro-title-h { font-size: 26px !important; line-height: 1.2 !important; }
     .feat-grid-3 { grid-template-columns: 1fr 1fr !important; }
     .stats-grid-3 { grid-template-columns: 1fr 1fr !important; }
     .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    .table-scroll > * { min-width: 420px; }
+    /* GP/GC somem no mobile (sobra SG, que já resume os dois) — sem isso as
+       tabelas de classificação empurravam o PTS (a coluna mais importante)
+       pra fora da tela, escondido atrás de um scroll horizontal que ninguém
+       descobria sozinho. */
+    .table-col-hide-mobile { display: none !important; }
     .card-mob { padding: 16px 12px !important; }
     .live-score-n { font-size: 20px !important; min-width: 18px !important; }
     .live-teams-row { gap: 6px !important; }
@@ -8672,7 +8689,9 @@ const globalCss = `
     .h1-mob { font-size: 24px !important; }
     .h2-mob { font-size: 18px !important; }
     .intro-card-mob { padding: 28px 16px 24px !important; }
-    .formation-grid { grid-template-columns: 1fr 1fr !important; gap: 10px !important; }
+    .formation-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+    .match-summary-cols { flex-direction: column !important; }
+    .match-summary-header-team { font-size: 13px !important; }
   }
   input::placeholder { color: rgba(255,255,255,0.2); }
   input:focus { border-color: rgba(212,162,60,0.5) !important; outline: none; }
@@ -8775,7 +8794,7 @@ const styles = {
   bracketCrestEmoji: { fontSize: 16, lineHeight: 1 },
   tableCrestImg: { width: 20, height: 20, objectFit: 'contain', flexShrink: 0, borderRadius: 4, background: 'rgba(255,255,255,0.9)', padding: 1 },
   tableCrestEmoji: { fontSize: 17, lineHeight: 1, flexShrink: 0 },
-  liveTeamsRow: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', gap: 12, marginBottom: 12 },
+  liveTeamsRow: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: 12, marginBottom: 12 },
   liveTeamName: { fontSize: 14, lineHeight: 1.3 },
   liveScoreBlock: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.35)', borderRadius: 10, padding: '8px 16px' },
   liveScoreNum: { fontFamily: "'Space Mono', monospace", fontSize: 28, fontWeight: 700, color: '#F4F1EA', minWidth: 24, textAlign: 'center' },
