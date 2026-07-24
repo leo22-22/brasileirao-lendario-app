@@ -122,7 +122,15 @@
       "Bash(node test_penalty.js)",
       "Bash(node -e \"const p=0.051; console.log\\('chance por time:', p\\); console.log\\('chance por partida \\(>=1 penalti\\):', \\(1-\\(1-p\\)**2\\).toFixed\\(4\\)\\);\")",
       "Bash(node test_mobile_audit.js)",
-      "Bash(node test_table_scroll.js)"
+      "Bash(node test_table_scroll.js)",
+      "Bash(grep -n \"overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{row.label}</span>\" src/App.jsx)",
+      "Bash(grep -n \"fontSize: 11, opacity: 0.5 }}>{d.teamLabel}\" src/App.jsx)",
+      "Bash(grep -c \"minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>\" src/App.jsx)",
+      "Bash(grep -n \"fontSize: 11, opacity: 0.5 }}>{teamLabel}\" src/App.jsx)",
+      "Bash(grep -n \"opacity: 0.4, fontFamily.*11 }}>{i + 1}\" src/App.jsx)",
+      "Bash(node test_achievements.js)",
+      "Bash(curl -s -o /dev/null -w \"vite=%{http_code}\\\\n\" http://localhost:5173/)",
+      "Bash(curl -s -o /dev/null -w \"api=%{http_code}\\\\n\" http://localhost:4000/api/leaderboard)"
     ],
     "additionalDirectories": [
       "c:\\Users\\ueer\\Downloads\\brasileirao-lendario-app\\server"

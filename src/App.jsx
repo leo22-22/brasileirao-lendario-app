@@ -2410,6 +2410,32 @@ const ACHIEVEMENT_CATALOG = {
   podium_finish: { icon: '🥉', label: 'Pódio', desc: 'Terminou o Brasileirão entre os 3 primeiros.' },
   unbeaten_season: { icon: '🛡️', label: 'Invencível', desc: 'Terminou uma temporada do Brasileirão sem nenhuma derrota.' },
   golden_boot: { icon: '👟', label: 'Chuteira de Ouro', desc: 'Seu jogador foi o artilheiro da temporada.' },
+  // Marcos de gols marcados (carreira, soma de todas as temporadas/copas)
+  goals_100: { icon: '⚽', label: 'Artilheiro Nato', desc: 'Marcou 100 gols com a conta.' },
+  goals_1000: { icon: '👟', label: 'Máquina de Gols', desc: 'Marcou 1.000 gols com a conta.' },
+  goals_10000: { icon: '🎯', label: 'Gols Não Faltam', desc: 'Marcou 10.000 gols com a conta.' },
+  goals_20000: { icon: '🌟', label: 'Lenda Artilheira', desc: 'Marcou 20.000 gols com a conta.' },
+  // Marcos de assistências (carreira)
+  assists_100: { icon: '🤝', label: 'Garçom', desc: 'Deu 100 assistências com a conta.' },
+  assists_1000: { icon: '🍽️', label: 'Cozinheiro de Jogadas', desc: 'Deu 1.000 assistências com a conta.' },
+  assists_10000: { icon: '🎩', label: 'Maestro', desc: 'Deu 10.000 assistências com a conta.' },
+  assists_20000: { icon: '🪄', label: 'Mágico das Assistências', desc: 'Deu 20.000 assistências com a conta.' },
+  // Marcos de gols sofridos (carreira) — pra rir da própria zaga
+  conceded_100: { icon: '🥅', label: 'Zaga Furada', desc: 'Sofreu 100 gols com a conta.' },
+  conceded_1000: { icon: '😅', label: 'Time Vazado', desc: 'Sofreu 1.000 gols com a conta.' },
+  conceded_10000: { icon: '🧱', label: 'Parede de Queijo Suíço', desc: 'Sofreu 10.000 gols com a conta.' },
+  conceded_20000: { icon: '🏳️', label: 'Sofredor Profissional', desc: 'Sofreu 20.000 gols com a conta.' },
+  // Saldo de gols (melhor campanha)
+  goal_diff_30: { icon: '📈', label: 'Saldo Positivo', desc: 'Fechou uma temporada ou copa com saldo de gols +30.' },
+  goal_diff_50: { icon: '🚀', label: 'Atropelo', desc: 'Fechou uma temporada ou copa com saldo de gols +50.' },
+  goal_diff_80: { icon: '💥', label: 'Show de Bola', desc: 'Fechou uma temporada ou copa com saldo de gols +80.' },
+  // Campanhas invictas
+  unbeaten_league_champion: { icon: '👑🛡️', label: 'Temporada Perfeita', desc: 'Foi campeão invicto do Brasileirão.' },
+  unbeaten_cup_champion: { icon: '🏆🛡️', label: 'Copa Perfeita', desc: 'Foi campeão invicto da Copa do Brasil.' },
+  perfect_double: { icon: '💎', label: 'Dose Dupla Perfeita', desc: 'Foi campeão invicto do Brasileirão e da Copa do Brasil.' },
+  // Multiplayer
+  multiplayer_win: { icon: '🎮', label: 'Rei do Multiplayer', desc: 'Venceu uma temporada jogando com amigos.' },
+  multiplayer_veteran: { icon: '🕹️', label: 'Veterano do Multiplayer', desc: 'Venceu 10 temporadas jogando com amigos.' },
 };
 
 // Compatibilidade entre slot do campinho e posições do jogador.
@@ -3514,7 +3540,7 @@ export default function App() {
   // Calcula e aplica os prêmios de fim de temporada — só o elenco do próprio
   // usuário recebe o bônus permanente (é o único que atravessa pra próxima
   // temporada; os adversários são sorteados de novo em "newSeason").
-  const applySeasonAwards = (copaChampionId, tableOverride, scorersOverride, assistersOverride) => {
+  const applySeasonAwards = (copaChampionId, tableOverride, scorersOverride, assistersOverride, matchHistoryOverride) => {
     const myTeam = leagueTeams.find(t => t.id === myTeamId);
     // Overrides evitam closure velha quando chamado de dentro da simulação
     // direta (fastForward*): o estado real (scorers/assisters/leagueTable) só
@@ -3545,9 +3571,32 @@ export default function App() {
     const champion = isCopa ? copaChampionId === myTeamId : finalTable[0]?.id === myTeamId;
     const myRow = isCopa ? null : finalTable.find(t => t.id === myTeamId);
     const position = isCopa ? null : (finalTable.findIndex(t => t.id === myTeamId) + 1 || null);
-    const losses = isCopa ? null : (myRow?.d ?? null);
+
+    // Campanha completa desta temporada/copa (mesmo cálculo usado no card de
+    // compartilhar) — usada pros marcos de carreira (gols/gols sofridos) e
+    // pra decidir "invicto" também na Copa, que não tem coluna de derrotas
+    // numa tabela geral como o Brasileirão.
+    const myLabel = leagueTeams?.find(t => t.id === myTeamId)?.label || myTeamName || 'Meu Time';
+    let goalsScored = 0, goalsConceded = 0, campaignLosses = 0;
+    (matchHistoryOverride || matchHistory || []).filter(m => m.gameMode === gameMode).forEach(m => {
+      const isHome = m.homeLabel === myLabel;
+      const my = isHome ? m.hg : m.ag;
+      const opp = isHome ? m.ag : m.hg;
+      goalsScored += my;
+      goalsConceded += opp;
+      if (my < opp) campaignLosses++;
+    });
+    const losses = campaignLosses;
+    const unbeaten = campaignLosses === 0;
+    const finalAssisters = assistersOverride || assisters;
+    const assistsMade = Object.entries(finalAssisters)
+      .filter(([k]) => k.startsWith(`${myTeamId}::`))
+      .reduce((sum, [, d]) => sum + (d.assists || 0), 0);
     const gotTopScorerAward = awards.some(a => a.reason === 'Artilheiro da temporada');
-    api.submitSeasonResult({ gameMode, champion, position, losses, gotTopScorerAward })
+    api.submitSeasonResult({
+      gameMode, champion, position, losses, gotTopScorerAward,
+      goalsScored, goalsConceded, assistsMade, unbeaten, multiplayer: !!roomSnap,
+    })
       .then(({ user, newlyUnlocked }) => {
         setCurrentUser(user);
         if (newlyUnlocked?.length > 0) setNewAchievements(newlyUnlocked);
@@ -3656,7 +3705,7 @@ export default function App() {
     setFastSimActive(false);
     setFastSimStatusMsg('');
     if (!fastSimCancelRef.current) {
-      applySeasonAwards(undefined, table, scorersAcc, assistersAcc);
+      applySeasonAwards(undefined, table, scorersAcc, assistersAcc, history);
       setPhase('results');
     } else {
       // Cancelado no meio do caminho: roundResults ficou com o resultado da
@@ -3825,7 +3874,7 @@ export default function App() {
     setFastSimStatusMsg('');
     if (!fastSimCancelRef.current) {
       setCupWinnerId(winnerId);
-      applySeasonAwards(winnerId, undefined, scorersAcc, assistersAcc);
+      applySeasonAwards(winnerId, undefined, scorersAcc, assistersAcc, history);
       setPhase('results');
     } else {
       // Mesmo motivo do fastForwardBrasileirao: sem isso, roundResults ficava
@@ -7781,7 +7830,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                   ? (myTeamLogo ? <img src={myTeamLogo} style={styles.tableCrestImg} alt="" /> : (myTeamBadge && <span style={styles.tableCrestEmoji}>{myTeamBadge}</span>))
                   : (row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />)
                 }
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
+                <span style={{ flex: '1 1 0%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
                 {teamForm?.[row.id]?.length > 0 && (
                   <span style={{ display: 'flex', gap: 2, flexShrink: 0 }} title="Forma recente">
                     {teamForm[row.id].map((r, fi) => (
@@ -7829,8 +7878,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
                 <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: 1 }}>{name}</span>
-                <span style={{ fontSize: 11, opacity: 0.5 }}>{d.teamLabel}</span>
+                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                <span style={{ fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.teamLabel}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
               </div>
               );
@@ -7850,8 +7899,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
                 <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: 1 }}>{name}</span>
-                <span style={{ fontSize: 11, opacity: 0.5 }}>{d.teamLabel}</span>
+                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                <span style={{ fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.teamLabel}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
               </div>
               );
@@ -7872,8 +7921,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
                 <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: 1 }}>{name}</span>
-                <span style={{ fontSize: 11, opacity: 0.5 }}>{d.teamLabel}</span>
+                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                <span style={{ fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.teamLabel}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
               </div>
               );
@@ -7895,8 +7944,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
                 <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: 1 }}>{name}</span>
-                <span style={{ fontSize: 11, opacity: 0.5 }}>{d.teamLabel} · {d.count}j</span>
+                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                <span style={{ fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.teamLabel} · {d.count}j</span>
                 <span style={{
                   fontFamily: "'Space Mono', monospace", fontWeight: 700,
                   color: avg >= 7.5 ? '#7fd99a' : avg < 5.5 ? '#e0593f' : mc,
@@ -7920,8 +7969,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               return (
                 <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
                   <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                  <span style={{ flex: 1 }}>{name}</span>
-                  {teamLabel && <span style={{ fontSize: 11, opacity: 0.5 }}>{teamLabel}</span>}
+                  <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+                  {teamLabel && <span style={{ fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel}</span>}
                   {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
                   <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
                 </div>
@@ -8302,7 +8351,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
                 <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
               </div>
               );
@@ -8317,7 +8366,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
                 <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
               </div>
               );
@@ -8332,7 +8381,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
                 <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
               </div>
               );
@@ -8348,7 +8397,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               return (
               <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
                 <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: 1 }}>{name}</span>
+                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>⭐ {avg.toFixed(1)}</span>
               </div>
               );
@@ -8363,7 +8412,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               return (
                 <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
                   <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                  <span style={{ flex: 1 }}>{name}</span>
+                  <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
                   {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
                   <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
                 </div>
@@ -8453,7 +8502,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             return (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-              <span style={{ flex: 1 }}>{name}</span>
+              <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
             </div>
             );
@@ -8469,7 +8518,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             return (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-              <span style={{ flex: 1 }}>{name}</span>
+              <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
             </div>
             );
@@ -8485,7 +8534,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             return (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-              <span style={{ flex: 1 }}>{name}</span>
+              <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
             </div>
             );
@@ -8502,7 +8551,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             return (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-              <span style={{ flex: 1 }}>{name}</span>
+              <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>⭐ {avg.toFixed(1)}</span>
             </div>
             );
@@ -8518,7 +8567,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             return (
             <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
               <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-              <span style={{ flex: 1 }}>{name}</span>
+              <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
               {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
             </div>
@@ -8572,7 +8621,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
                     : (myTeamBadge && <span style={styles.tableCrestEmoji}>{myTeamBadge}</span>))
                   : (row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />)
                 }
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
+                <span style={{ flex: '1 1 0%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
               </span>
               <span style={styles.tableCell}>{row.pj}</span>
               <span style={styles.tableCell}>{row.v}</span>
@@ -8804,9 +8853,9 @@ const styles = {
   clockPulse: { width: 8, height: 8, borderRadius: '50%', background: '#7fd99a', animation: 'pulse 1s ease-in-out infinite' },
   clockFull: { fontSize: 12, opacity: 0.5, fontFamily: "'Space Mono', monospace" },
   matchCenter: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 },
-  matchCenterRow: { display: 'grid', gridTemplateColumns: '1fr 52px 1fr', alignItems: 'center', gap: 6 },
-  matchCenterSide: { display: 'flex' },
-  matchCenterCard: { display: 'flex', alignItems: 'center', gap: 7, padding: '6px 9px', borderRadius: 8, border: '1px solid', maxWidth: '100%' },
+  matchCenterRow: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 52px minmax(0,1fr)', alignItems: 'center', gap: 6 },
+  matchCenterSide: { display: 'flex', minWidth: 0, overflow: 'hidden' },
+  matchCenterCard: { display: 'flex', alignItems: 'center', gap: 7, padding: '6px 9px', borderRadius: 8, border: '1px solid', maxWidth: '100%', minWidth: 0 },
   matchCenterInfo: { display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 },
   matchCenterMinuteCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 },
   goalMinute: { fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, color: '#d4a23c' },
@@ -8817,9 +8866,9 @@ const styles = {
 
   // Outros jogos da rodada
   otherMatchesBox: { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '16px', marginBottom: 20 },
-  otherMatchRow: { display: 'grid', gridTemplateColumns: '1fr auto 1fr', gap: 8, alignItems: 'center', padding: '6px 4px', fontSize: 13 },
-  otherTeam: { textAlign: 'right', opacity: 0.8 },
-  otherScore: { fontFamily: "'Space Mono', monospace", fontWeight: 700, textAlign: 'center', minWidth: 48, background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: '2px 6px' },
+  otherMatchRow: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', gap: 8, alignItems: 'center', padding: '6px 4px', fontSize: 13 },
+  otherTeam: { textAlign: 'right', opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 },
+  otherScore: { fontFamily: "'Space Mono', monospace", fontWeight: 700, textAlign: 'center', minWidth: 48, flexShrink: 0, background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: '2px 6px' },
 
   // Tabela de classificação
   tableSection: { marginTop: 8 },

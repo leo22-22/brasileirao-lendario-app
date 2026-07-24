@@ -25,6 +25,13 @@ db.exec(`
     best_position INTEGER,
     ranking_points INTEGER NOT NULL DEFAULT 0,
     achievements TEXT NOT NULL DEFAULT '[]',
+    career_goals INTEGER NOT NULL DEFAULT 0,
+    career_assists INTEGER NOT NULL DEFAULT 0,
+    career_conceded INTEGER NOT NULL DEFAULT 0,
+    best_goal_diff INTEGER,
+    unbeaten_titles_brasileirao INTEGER NOT NULL DEFAULT 0,
+    unbeaten_titles_copa INTEGER NOT NULL DEFAULT 0,
+    multiplayer_wins INTEGER NOT NULL DEFAULT 0,
     created_at TEXT NOT NULL DEFAULT (datetime('now'))
   )
 `);
@@ -40,6 +47,13 @@ ensureColumn('seasons_played INTEGER NOT NULL DEFAULT 0');
 ensureColumn('best_position INTEGER');
 ensureColumn('ranking_points INTEGER NOT NULL DEFAULT 0');
 ensureColumn("achievements TEXT NOT NULL DEFAULT '[]'");
+ensureColumn('career_goals INTEGER NOT NULL DEFAULT 0');
+ensureColumn('career_assists INTEGER NOT NULL DEFAULT 0');
+ensureColumn('career_conceded INTEGER NOT NULL DEFAULT 0');
+ensureColumn('best_goal_diff INTEGER');
+ensureColumn('unbeaten_titles_brasileirao INTEGER NOT NULL DEFAULT 0');
+ensureColumn('unbeaten_titles_copa INTEGER NOT NULL DEFAULT 0');
+ensureColumn('multiplayer_wins INTEGER NOT NULL DEFAULT 0');
 
 export interface UserRow {
   id: number;
@@ -58,6 +72,13 @@ export interface UserRow {
   best_position: number | null;
   ranking_points: number;
   achievements: string;
+  career_goals: number;
+  career_assists: number;
+  career_conceded: number;
+  best_goal_diff: number | null;
+  unbeaten_titles_brasileirao: number;
+  unbeaten_titles_copa: number;
+  multiplayer_wins: number;
   created_at: string;
 }
 
@@ -77,6 +98,13 @@ export interface PublicUser {
   best_position: number | null;
   ranking_points: number;
   achievements: string[];
+  career_goals: number;
+  career_assists: number;
+  career_conceded: number;
+  best_goal_diff: number | null;
+  unbeaten_titles_brasileirao: number;
+  unbeaten_titles_copa: number;
+  multiplayer_wins: number;
   created_at: string;
 }
 
@@ -97,6 +125,13 @@ export function toPublicUser(row: UserRow): PublicUser {
     best_position: row.best_position,
     ranking_points: row.ranking_points,
     achievements: JSON.parse(row.achievements || '[]'),
+    career_goals: row.career_goals,
+    career_assists: row.career_assists,
+    career_conceded: row.career_conceded,
+    best_goal_diff: row.best_goal_diff,
+    unbeaten_titles_brasileirao: row.unbeaten_titles_brasileirao,
+    unbeaten_titles_copa: row.unbeaten_titles_copa,
+    multiplayer_wins: row.multiplayer_wins,
     created_at: row.created_at,
   };
 }

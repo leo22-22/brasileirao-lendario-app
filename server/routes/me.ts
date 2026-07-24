@@ -117,18 +117,39 @@ router.post('/season-result', (req, res) => {
     const position = Number.isFinite(body.position) ? Number(body.position) : null;
     const losses = Number.isFinite(body.losses) ? Number(body.losses) : null;
     const gotTopScorerAward = !!body.gotTopScorerAward;
+    // Estatísticas de carreira (acumuladas em todas as temporadas/copas) e
+    // flags desse resultado específico — usadas pras conquistas de marcos
+    // (gols/assistências/gols sofridos/saldo) e de campanha invicta/multiplayer.
+    const goalsScored = Number.isFinite(body.goalsScored) ? Math.max(0, Number(body.goalsScored)) : 0;
+    const goalsConceded = Number.isFinite(body.goalsConceded) ? Math.max(0, Number(body.goalsConceded)) : 0;
+    const assistsMade = Number.isFinite(body.assistsMade) ? Math.max(0, Number(body.assistsMade)) : 0;
+    const unbeaten = !!body.unbeaten;
+    const isMultiplayer = !!body.multiplayer;
 
     let titlesBr = current.titles_brasileirao;
     let titlesCopa = current.titles_copa;
     let bestPosition = current.best_position;
     const seasonsPlayed = current.seasons_played + 1;
+    let unbeatenTitlesBr = current.unbeaten_titles_brasileirao;
+    let unbeatenTitlesCopa = current.unbeaten_titles_copa;
+    let multiplayerWins = current.multiplayer_wins;
 
     if (champion) {
       if (gameMode === 'brasileirao') titlesBr += 1; else titlesCopa += 1;
+      if (unbeaten) {
+        if (gameMode === 'brasileirao') unbeatenTitlesBr += 1; else unbeatenTitlesCopa += 1;
+      }
+      if (isMultiplayer) multiplayerWins += 1;
     }
     if (gameMode === 'brasileirao' && position != null) {
       bestPosition = bestPosition == null ? position : Math.min(bestPosition, position);
     }
+
+    const careerGoals = current.career_goals + goalsScored;
+    const careerAssists = current.career_assists + assistsMade;
+    const careerConceded = current.career_conceded + goalsConceded;
+    const seasonGoalDiff = goalsScored - goalsConceded;
+    const bestGoalDiff = current.best_goal_diff == null ? seasonGoalDiff : Math.max(current.best_goal_diff, seasonGoalDiff);
 
     let pointsEarned = 5; // participação
     if (champion) pointsEarned = gameMode === 'brasileirao' ? 50 : 40;
@@ -144,11 +165,40 @@ router.post('/season-result', (req, res) => {
     if (bestPosition != null && bestPosition <= 3) after.add('podium_finish');
     if (gameMode === 'brasileirao' && losses === 0) after.add('unbeaten_season');
     if (gotTopScorerAward) after.add('golden_boot');
+
+    // Marcos de carreira (gols/assistências/gols sofridos acumulados)
+    const GOAL_TIERS: [number, string][] = [[100, 'goals_100'], [1000, 'goals_1000'], [10000, 'goals_10000'], [20000, 'goals_20000']];
+    GOAL_TIERS.forEach(([n, id]) => { if (careerGoals >= n) after.add(id); });
+    const ASSIST_TIERS: [number, string][] = [[100, 'assists_100'], [1000, 'assists_1000'], [10000, 'assists_10000'], [20000, 'assists_20000']];
+    ASSIST_TIERS.forEach(([n, id]) => { if (careerAssists >= n) after.add(id); });
+    const CONCEDED_TIERS: [number, string][] = [[100, 'conceded_100'], [1000, 'conceded_1000'], [10000, 'conceded_10000'], [20000, 'conceded_20000']];
+    CONCEDED_TIERS.forEach(([n, id]) => { if (careerConceded >= n) after.add(id); });
+
+    // Saldo de gols (melhor campanha individual)
+    if (bestGoalDiff >= 30) after.add('goal_diff_30');
+    if (bestGoalDiff >= 50) after.add('goal_diff_50');
+    if (bestGoalDiff >= 80) after.add('goal_diff_80');
+
+    // Campeão invicto (Brasileirão e/ou Copa do Brasil) e o "dose dupla" das duas
+    if (champion && unbeaten && gameMode === 'brasileirao') after.add('unbeaten_league_champion');
+    if (champion && unbeaten && gameMode === 'copa') after.add('unbeaten_cup_champion');
+    if (unbeatenTitlesBr > 0 && unbeatenTitlesCopa > 0) after.add('perfect_double');
+
+    // Multiplayer
+    if (isMultiplayer && champion) after.add('multiplayer_win');
+    if (multiplayerWins >= 10) after.add('multiplayer_veteran');
+
     const newlyUnlocked = [...after].filter(a => !before.has(a));
 
     db.prepare(
-      `UPDATE users SET titles_brasileirao=?, titles_copa=?, seasons_played=?, best_position=?, ranking_points=?, achievements=? WHERE id=?`
-    ).run(titlesBr, titlesCopa, seasonsPlayed, bestPosition, rankingPoints, JSON.stringify([...after]), userId);
+      `UPDATE users SET titles_brasileirao=?, titles_copa=?, seasons_played=?, best_position=?, ranking_points=?, achievements=?,
+       career_goals=?, career_assists=?, career_conceded=?, best_goal_diff=?, unbeaten_titles_brasileirao=?, unbeaten_titles_copa=?, multiplayer_wins=?
+       WHERE id=?`
+    ).run(
+      titlesBr, titlesCopa, seasonsPlayed, bestPosition, rankingPoints, JSON.stringify([...after]),
+      careerGoals, careerAssists, careerConceded, bestGoalDiff, unbeatenTitlesBr, unbeatenTitlesCopa, multiplayerWins,
+      userId
+    );
 
     const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as UserRow;
     return res.json({ user: toPublicUser(updated), newlyUnlocked });
