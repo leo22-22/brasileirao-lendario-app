@@ -1691,6 +1691,22 @@ function teamStrength(xi) {
   return Math.round(baseOvr * 10) / 10;
 }
 
+// Dificuldade: desloca o OVR de todos os jogadores dos times adversários
+// (não mexe no time do usuário) antes de calcular a força de cada time —
+// como o ajuste vive nos jogadores, ele sobrevive a recomputações de OVR
+// no meio da temporada (troca por lesão/suspensão em teamsForRound).
+const DIFFICULTY_LEVELS = {
+  facil: { label: 'Fácil', short: 'Fácil', desc: 'IA joga abaixo do seu nível de papel.', aiOvrAdjust: -6 },
+  normal: { label: 'Normal', short: 'Normal', desc: 'IA joga com o OVR original dos times sorteados.', aiOvrAdjust: 0 },
+  dificil: { label: 'Difícil', short: 'Difícil', desc: 'IA joga acima do seu nível de papel.', aiOvrAdjust: 5 },
+  lendario: { label: 'Lendário', short: 'Lendário', desc: 'IA bem mais forte — só para quem já domina o jogo.', aiOvrAdjust: 10 },
+};
+function applyDifficultyToPlayers(players, difficultyKey) {
+  const adjust = DIFFICULTY_LEVELS[difficultyKey]?.aiOvrAdjust || 0;
+  if (adjust === 0) return players;
+  return players.map(p => ({ ...p, ovr: Math.max(40, Math.min(99, p.ovr + adjust)) }));
+}
+
 // Simulação de disputa de pênaltis (5 cobranças + morte súbita)
 function simulatePenalties(teamAId, teamBId, leagueTeams, rand = Math.random) {
   const teamA = leagueTeams.find(t => t.id === teamAId);
@@ -2373,8 +2389,19 @@ function applyRoundDiscipline(prevCards, prevSuspensions, prevInjuries, occurren
 // "Líderes de Assistência"; goleiro menos vazado só se aplica ao Brasileirão,
 // que tem tabela com GC — a Copa não tem uma tabela geral pra comparar.
 const SEASON_AWARD_BONUS = 2;
-function computeSeasonAwards({ myTeamId, myPlayers, leagueTable, scorers, assisters, gameMode }) {
+// Nº mínimo de partidas notificadas (computeMatchRatings) pra um jogador
+// concorrer aos prêmios baseados em nota média — sem isso, um jogador que
+// só entrou uma vez e teve sorte levaria o prêmio da temporada inteira.
+const MIN_RATING_APPEARANCES_FOR_AWARD = 5;
+function computeSeasonAwards({ myTeamId, myPlayers, leagueTable, scorers, assisters, seasonRatings, gameMode }) {
   const awards = [];
+  const usedNames = new Set(); // um jogador só leva um prêmio por temporada
+
+  const push = (name, reason, extra) => {
+    if (!name || usedNames.has(name)) return;
+    usedNames.add(name);
+    awards.push({ name, reason, ...extra });
+  };
 
   // scorers/assisters são chaveados por time+nome (playerKey) — comparar o
   // teamId extraído com myTeamId é mais preciso que comparar só pelo nome,
@@ -2382,22 +2409,48 @@ function computeSeasonAwards({ myTeamId, myPlayers, leagueTable, scorers, assist
   const topScorer = scorers && Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals)[0];
   const topScorerInfo = topScorer && splitPlayerKey(topScorer[0]);
   if (topScorerInfo && topScorerInfo.teamId === myTeamId) {
-    awards.push({ name: topScorerInfo.name, reason: 'Artilheiro da temporada', goals: topScorer[1].goals });
+    push(topScorerInfo.name, 'Artilheiro da temporada', { goals: topScorer[1].goals });
   }
 
   const topAssist = assisters && Object.entries(assisters).sort((a, b) => b[1].assists - a[1].assists)[0];
   const topAssistInfo = topAssist && splitPlayerKey(topAssist[0]);
-  if (topAssistInfo && topAssistInfo.teamId === myTeamId && topAssist[0] !== topScorer?.[0]) {
-    awards.push({ name: topAssistInfo.name, reason: 'Líder de assistências', assists: topAssist[1].assists });
+  if (topAssistInfo && topAssistInfo.teamId === myTeamId) {
+    push(topAssistInfo.name, 'Líder de assistências', { assists: topAssist[1].assists });
   }
 
   if (gameMode === 'brasileirao' && leagueTable?.length) {
     const bestDefense = [...leagueTable].sort((a, b) => a.gc - b.gc)[0];
     if (bestDefense?.id === myTeamId) {
       const gk = (myPlayers || []).find(p => p.pos?.[0] === 'GOL');
-      if (gk) awards.push({ name: gk.name, reason: 'Goleiro menos vazado', gc: bestDefense.gc });
+      if (gk) push(gk.name, 'Goleiro menos vazado', { gc: bestDefense.gc });
     }
   }
+
+  // Prêmios baseados em nota média da temporada (seasonRatings) — só do
+  // próprio elenco, com mínimo de partidas pra evitar amostra pequena demais.
+  const myRatingEntries = Object.entries(seasonRatings || {})
+    .map(([key, r]) => ({ ...splitPlayerKey(key), ...r }))
+    .filter(r => r.teamId === myTeamId && r.count >= MIN_RATING_APPEARANCES_FOR_AWARD && !usedNames.has(r.name));
+
+  // Zagueiro do Ano: melhor média entre os zagueiros do elenco.
+  const bestDefender = myRatingEntries
+    .filter(r => r.pos === 'ZAG')
+    .sort((a, b) => (b.sum / b.count) - (a.sum / a.count))[0];
+  if (bestDefender) push(bestDefender.name, 'Zagueiro do Ano', { rating: Math.round((bestDefender.sum / bestDefender.count) * 10) / 10 });
+
+  // Revelação: melhor média entre quem tinha OVR abaixo da média do elenco —
+  // sem dado de idade/ano de estreia, usamos "abaixo do esperado no papel,
+  // acima do esperado em campo" como proxy de jogador revelado na temporada.
+  const avgSquadOvr = myPlayers?.length ? myPlayers.reduce((s, p) => s + (p.ovr || 0), 0) / myPlayers.length : 0;
+  const revelacao = myRatingEntries
+    .filter(r => !usedNames.has(r.name))
+    .filter(r => {
+      const player = myPlayers?.find(p => p.name === r.name);
+      return player && player.ovr < avgSquadOvr;
+    })
+    .sort((a, b) => (b.sum / b.count) - (a.sum / a.count))[0];
+  if (revelacao) push(revelacao.name, 'Revelação da temporada', { rating: Math.round((revelacao.sum / revelacao.count) * 10) / 10 });
+
   return awards;
 }
 
@@ -2437,6 +2490,103 @@ const ACHIEVEMENT_CATALOG = {
   multiplayer_win: { icon: '🎮', label: 'Rei do Multiplayer', desc: 'Venceu uma temporada jogando com amigos.' },
   multiplayer_veteran: { icon: '🕹️', label: 'Veterano do Multiplayer', desc: 'Venceu 10 temporadas jogando com amigos.' },
 };
+
+// Agrupamento por categoria pra galeria completa (AchievementsModal).
+const ACHIEVEMENT_CATEGORIES = [
+  { label: 'Títulos e Carreira', ids: ['first_title', 'dynasty', 'veteran', 'podium_finish', 'unbeaten_season', 'golden_boot'] },
+  { label: 'Gols', ids: ['goals_100', 'goals_1000', 'goals_10000', 'goals_20000'] },
+  { label: 'Assistências', ids: ['assists_100', 'assists_1000', 'assists_10000', 'assists_20000'] },
+  { label: 'Gols Sofridos', ids: ['conceded_100', 'conceded_1000', 'conceded_10000', 'conceded_20000'] },
+  { label: 'Saldo de Gols', ids: ['goal_diff_30', 'goal_diff_50', 'goal_diff_80'] },
+  { label: 'Campanhas Invictas', ids: ['unbeaten_league_champion', 'unbeaten_cup_champion', 'perfect_double'] },
+  { label: 'Multiplayer', ids: ['multiplayer_win', 'multiplayer_veteran'] },
+];
+
+// Progresso numérico das conquistas que têm um contador persistido na conta
+// (server/db.ts) — usado pra desenhar a barra na galeria. Conquistas binárias
+// sem contador de carreira (ex.: invicto, artilheiro da temporada) voltam null.
+function getAchievementProgress(id, user) {
+  const totalTitles = (user.titles_brasileirao || 0) + (user.titles_copa || 0);
+  switch (id) {
+    case 'first_title': return { current: totalTitles, target: 1 };
+    case 'dynasty': return { current: totalTitles, target: 3 };
+    case 'veteran': return { current: user.seasons_played || 0, target: 10 };
+    case 'goals_100': return { current: user.career_goals || 0, target: 100 };
+    case 'goals_1000': return { current: user.career_goals || 0, target: 1000 };
+    case 'goals_10000': return { current: user.career_goals || 0, target: 10000 };
+    case 'goals_20000': return { current: user.career_goals || 0, target: 20000 };
+    case 'assists_100': return { current: user.career_assists || 0, target: 100 };
+    case 'assists_1000': return { current: user.career_assists || 0, target: 1000 };
+    case 'assists_10000': return { current: user.career_assists || 0, target: 10000 };
+    case 'assists_20000': return { current: user.career_assists || 0, target: 20000 };
+    case 'conceded_100': return { current: user.career_conceded || 0, target: 100 };
+    case 'conceded_1000': return { current: user.career_conceded || 0, target: 1000 };
+    case 'conceded_10000': return { current: user.career_conceded || 0, target: 10000 };
+    case 'conceded_20000': return { current: user.career_conceded || 0, target: 20000 };
+    case 'goal_diff_30': return { current: Math.max(0, user.best_goal_diff || 0), target: 30 };
+    case 'goal_diff_50': return { current: Math.max(0, user.best_goal_diff || 0), target: 50 };
+    case 'goal_diff_80': return { current: Math.max(0, user.best_goal_diff || 0), target: 80 };
+    case 'multiplayer_veteran': return { current: user.multiplayer_wins || 0, target: 10 };
+    default: return null;
+  }
+}
+
+// Galeria completa: todas as conquistas do catálogo, desbloqueadas ou não,
+// com barra de progresso quando existe um contador de carreira pra elas.
+function AchievementsModal({ user, onClose }) {
+  const unlocked = new Set(user.achievements || []);
+  const totalCount = Object.keys(ACHIEVEMENT_CATALOG).length;
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+        <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginBottom: 2 }}>Conquistas</div>
+        <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 18, fontFamily: "'Space Mono', monospace" }}>{unlocked.size}/{totalCount} desbloqueadas</div>
+        {ACHIEVEMENT_CATEGORIES.map(group => (
+          <div key={group.label} style={{ marginBottom: 18 }}>
+            <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>{group.label}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {group.ids.map(id => {
+                const a = ACHIEVEMENT_CATALOG[id];
+                if (!a) return null;
+                const isUnlocked = unlocked.has(id);
+                const progress = !isUnlocked ? getAchievementProgress(id, user) : null;
+                const pct = progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : 0;
+                return (
+                  <div key={id} style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10,
+                    background: isUnlocked ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${isUnlocked ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.07)'}`,
+                  }}>
+                    <span style={{ fontSize: 22, flexShrink: 0, filter: isUnlocked ? 'none' : 'grayscale(1)', opacity: isUnlocked ? 1 : 0.4 }}>{a.icon}</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: isUnlocked ? '#F4F1EA' : 'rgba(244,241,234,0.6)' }}>{a.label}</div>
+                      <div style={{ fontSize: 11, opacity: 0.5, lineHeight: 1.3 }}>{a.desc}</div>
+                      {progress && (
+                        <div style={{ marginTop: 6 }}>
+                          <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+                            <div style={{ height: '100%', width: `${pct}%`, background: '#d4a23c', borderRadius: 999, transition: 'width 0.3s' }} />
+                          </div>
+                          <div style={{ fontSize: 9.5, opacity: 0.45, marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+                            {Math.min(progress.current, progress.target).toLocaleString('pt-BR')}/{progress.target.toLocaleString('pt-BR')}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                    {isUnlocked
+                      ? <span style={{ fontSize: 16, flexShrink: 0 }}>✅</span>
+                      : <span style={{ fontSize: 15, flexShrink: 0, opacity: 0.35 }}>🔒</span>
+                    }
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 // Compatibilidade entre slot do campinho e posições do jogador.
 // MD aceita jogadores com PD, MEI ou MD. ME aceita PE, MEI ou ME.
@@ -2523,6 +2673,16 @@ function setGoalAudioMuted(muted) {
   try { localStorage.setItem('brl_goal_audio_muted', muted ? '1' : '0'); } catch { }
 }
 function isGoalAudioMuted() { return _goalAudioMuted; }
+
+// Feedback tátil pra celular — a Vibration API não existe no iOS Safari (a
+// chamada simplesmente não faz nada nesse caso, sem erro) e respeita o mesmo
+// mute do áudio de gol, já que quem desligou o som provavelmente quer o jogo
+// mais discreto de um jeito geral.
+function hapticPulse(pattern) {
+  if (_goalAudioMuted) return;
+  try { navigator.vibrate?.(pattern); } catch { /* sem suporte, ignora */ }
+}
+const HAPTIC = { goal: [40, 60, 90], concede: [120], card: [30], penaltyMiss: [25, 50, 25] };
 
 function playGoalAudio(club, customUrl, onEnd) {
   let done = false;
@@ -2723,6 +2883,22 @@ export default function App() {
   // Modo de jogo
   const [gameMode, setGameMode] = useState(_sv?.gameMode ?? 'brasileirao'); // 'brasileirao' | 'copa' | 'multi'
 
+  // Dificuldade (curva de OVR da IA) — preferência do dispositivo, independente
+  // de save em andamento (uma temporada já iniciada mantém o OVR que já baixou).
+  const [difficulty, setDifficulty] = useState(() => {
+    try { return localStorage.getItem('brl_difficulty') || 'normal'; } catch { return 'normal'; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem('brl_difficulty', difficulty); } catch { }
+  }, [difficulty]);
+
+  // Mercado de transferências entre temporadas: libera até 2 jogadores do
+  // elenco atual e reaproveita o fluxo de draft (mesmo dado/rolagem) só pra
+  // preencher as vagas liberadas. Essa flag decide se o confirm do Squad, no
+  // final desse mini-draft, chama newSeason (mesmo elenco, só trocado) em vez
+  // de startSeason (jogo novo do zero).
+  const [isTransferSeason, setIsTransferSeason] = useState(false);
+
   // Multiplayer (PeerJS)
   const [multiPhase, setMultiPhase] = useState(null); // null|'lobby'|'room'
   const [multiGameMode, setMultiGameMode] = useState('brasileirao');
@@ -2787,6 +2963,21 @@ export default function App() {
   const [seasonAwards, setSeasonAwards] = useState(_sv?.seasonAwards ?? []);
   // Conquistas desbloqueadas nesta submissão (toast) + ranking global
   const [newAchievements, setNewAchievements] = useState([]);
+
+  // Indicador de offline — o service worker (public/sw.js) mantém o app
+  // funcionando sem rede depois da primeira visita; isso só avisa o usuário
+  // que ele está no modo offline (login/ranking/multiplayer não funcionam).
+  const [isOffline, setIsOffline] = useState(() => typeof navigator !== 'undefined' && !navigator.onLine);
+  useEffect(() => {
+    const goOnline = () => setIsOffline(false);
+    const goOffline = () => setIsOffline(true);
+    window.addEventListener('online', goOnline);
+    window.addEventListener('offline', goOffline);
+    return () => {
+      window.removeEventListener('online', goOnline);
+      window.removeEventListener('offline', goOffline);
+    };
+  }, []);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   // Silenciar áudio de gol — o estado React só existe pra atualizar o ícone;
   // quem realmente controla se toca ou não é a flag de módulo em playGoalAudio.
@@ -2904,6 +3095,31 @@ export default function App() {
     setSelectedPlayer(null);
     setRepositioningSlot(null);
     setCaptainSlot(null);
+    setPhase('draft');
+    rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
+  };
+
+  const openTransferMarket = () => setPhase('transfer');
+
+  // Libera as vagas escolhidas (até 2) e reabre o draft só pra elas — mantém
+  // formação, elenco restante e (se não foi liberado) o capitão intactos.
+  const confirmTransferReleases = (slotKeysToRelease) => {
+    setIsTransferSeason(true);
+    if (slotKeysToRelease.length === 0) {
+      newSeason();
+      return;
+    }
+    setPitch(prev => {
+      const next = { ...prev };
+      slotKeysToRelease.forEach(k => delete next[k]);
+      return next;
+    });
+    setCaptainSlot(prev => (slotKeysToRelease.includes(prev) ? null : prev));
+    setUsedTeamIds([]);
+    setSkipsLeft(MAX_SKIPS);
+    setLog([]);
+    setSelectedPlayer(null);
+    setRepositioningSlot(null);
     setPhase('draft');
     rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
   };
@@ -3042,6 +3258,31 @@ export default function App() {
     }
   };
 
+  // Atalhos de teclado (só faz sentido no desktop, mas não atrapalha o
+  // celular) — espaço pausa/retoma a partida ao vivo, setas mudam a
+  // velocidade. Ignora quando o foco está num campo de texto (nome do time,
+  // chat, etc.), senão espaço/setas quebrariam a digitação normal.
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable) return;
+      if (phase !== 'playing') return;
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (isSimulating && !isPaused) pauseSim();
+        else if (isPaused) resumeSim();
+      } else if (e.code === 'ArrowUp' || e.code === 'ArrowRight') {
+        e.preventDefault();
+        setSimSpeed(s => (s === 1 ? 1.5 : s === 1.5 ? 2 : 2));
+      } else if (e.code === 'ArrowDown' || e.code === 'ArrowLeft') {
+        e.preventDefault();
+        setSimSpeed(s => (s === 2 ? 1.5 : s === 1.5 ? 1 : 1));
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [phase, isSimulating, isPaused]);
+
   const applyLiveSub = (starterKey, benchPlayer) => {
     const starter = liveLineupRef.current?.[starterKey];
     if (!starter || !benchPlayer) return;
@@ -3126,7 +3367,10 @@ export default function App() {
     while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
     const opps = pool.slice(0, neededAI).map((t, idx) => {
       // Adiciona club/year/nat — usados no hino do clube, no áudio de gol e na visualização de elenco
-      const playersWithMeta = t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' }));
+      const playersWithMeta = applyDifficultyToPlayers(
+        t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' })),
+        difficulty
+      );
       return {
         id: `${t.id}_${idx}`,
         label: t.label,
@@ -3278,6 +3522,8 @@ export default function App() {
         if (ev.type !== 'goal') {
           // Cartão/lesão: entra no feed mas não mexe no placar nem toca áudio de gol.
           shownEventsRef.current.push({ ...ev, homeScore: hs, awayScore: as_ });
+          if ((ev.type === 'yellow' || ev.type === 'red') && ev.teamId === myTeamId) hapticPulse(HAPTIC.card);
+          if (ev.type === 'penalty_miss') hapticPulse(HAPTIC.penaltyMiss);
           if (ev.type === 'injury') {
             if (ev.teamId === myTeamId) {
               // Lesão do meu jogador: para o jogo aqui — o resto dos eventos
@@ -3300,6 +3546,7 @@ export default function App() {
         if (ev.teamId === um.homeId) hs++;
         else as_++;
         shownEventsRef.current.push({ ...ev, homeScore: hs, awayScore: as_ });
+        hapticPulse(ev.teamId === myTeamId ? HAPTIC.goal : HAPTIC.concede);
         // Record scorer (gols contra nao contam pro artilheiro). Chave por
         // time+nome — nomes reais se repetem em elencos de times/anos
         // diferentes (ex.: "Edmundo"), e uma chave só por nome fundia os
@@ -3540,7 +3787,7 @@ export default function App() {
   // Calcula e aplica os prêmios de fim de temporada — só o elenco do próprio
   // usuário recebe o bônus permanente (é o único que atravessa pra próxima
   // temporada; os adversários são sorteados de novo em "newSeason").
-  const applySeasonAwards = (copaChampionId, tableOverride, scorersOverride, assistersOverride, matchHistoryOverride) => {
+  const applySeasonAwards = (copaChampionId, tableOverride, scorersOverride, assistersOverride, matchHistoryOverride, ratingsOverride) => {
     const myTeam = leagueTeams.find(t => t.id === myTeamId);
     // Overrides evitam closure velha quando chamado de dentro da simulação
     // direta (fastForward*): o estado real (scorers/assisters/leagueTable) só
@@ -3548,7 +3795,8 @@ export default function App() {
     // acumulados localmente durante o loop assíncrono.
     const awards = computeSeasonAwards({
       myTeamId, myPlayers: myTeam?.players, leagueTable: tableOverride || leagueTable,
-      scorers: scorersOverride || scorers, assisters: assistersOverride || assisters, gameMode,
+      scorers: scorersOverride || scorers, assisters: assistersOverride || assisters,
+      seasonRatings: ratingsOverride || seasonRatings, gameMode,
     });
     setSeasonAwards(awards);
     if (awards.length > 0) {
@@ -3705,7 +3953,7 @@ export default function App() {
     setFastSimActive(false);
     setFastSimStatusMsg('');
     if (!fastSimCancelRef.current) {
-      applySeasonAwards(undefined, table, scorersAcc, assistersAcc, history);
+      applySeasonAwards(undefined, table, scorersAcc, assistersAcc, history, ratingsAcc);
       setPhase('results');
     } else {
       // Cancelado no meio do caminho: roundResults ficou com o resultado da
@@ -3874,7 +4122,7 @@ export default function App() {
     setFastSimStatusMsg('');
     if (!fastSimCancelRef.current) {
       setCupWinnerId(winnerId);
-      applySeasonAwards(winnerId, undefined, scorersAcc, assistersAcc, history);
+      applySeasonAwards(winnerId, undefined, scorersAcc, assistersAcc, history, ratingsAcc);
       setPhase('results');
     } else {
       // Mesmo motivo do fastForwardBrasileirao: sem isso, roundResults ficava
@@ -4126,6 +4374,7 @@ export default function App() {
 
   // Nova temporada com o mesmo elenco
   const newSeason = useCallback(() => {
+    setIsTransferSeason(false);
     const pitchWithCaptain = captainSlot && pitch[captainSlot]
       ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
       : pitch;
@@ -4162,7 +4411,10 @@ export default function App() {
     let pool = [];
     while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
     const opps = pool.slice(0, neededAI).map((t, idx) => {
-      const playersWithMeta = t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' }));
+      const playersWithMeta = applyDifficultyToPlayers(
+        t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' })),
+        difficulty
+      );
       return {
         id: `${t.id}_${idx}`,
         label: t.label,
@@ -4194,7 +4446,7 @@ export default function App() {
       setLeagueTable([]);
     }
     setPhase('playing');
-  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo]);
+  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo, difficulty]);
 
   // Simula todas as fases restantes da Copa até o campeão (usuário eliminado)
   // ── MULTIPLAYER (PeerJS) ──────────────────────────────────────────────────
@@ -4587,6 +4839,7 @@ export default function App() {
             <button
               onClick={toggleGoalAudioMuted}
               title={goalAudioMuted ? 'Áudio de gol desativado — clique pra reativar' : 'Desativar áudio de gol'}
+              className="tap-target-sm"
               style={{
                 position: 'relative', flexShrink: 0,
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
@@ -4605,8 +4858,9 @@ export default function App() {
             <button
               onClick={() => setShowLeaderboard(true)}
               title="Ranking global"
+              className="tap-target-sm"
               style={{
-                flexShrink: 0,
+                position: 'relative', flexShrink: 0,
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
@@ -4645,6 +4899,16 @@ export default function App() {
           </div>
         </div>
       </header>
+      {isOffline && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9500,
+          background: '#3a2c0f', color: '#d4a23c', textAlign: 'center',
+          fontSize: 12, fontFamily: "'Space Mono', monospace", padding: '6px 12px',
+          borderBottom: '1px solid rgba(212,162,60,0.35)',
+        }}>
+          📡 Sem conexão — jogando offline. Login, ranking e multiplayer ficam indisponíveis até a rede voltar.
+        </div>
+      )}
       {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} myUsername={currentUser?.username} />}
       {newAchievements.length > 0 && (
         <AchievementToast achievements={newAchievements} onClose={() => setNewAchievements([])} />
@@ -4687,14 +4951,23 @@ export default function App() {
           <Intro
             onStart={goToFormationPicker}
             gameMode={gameMode} onSetGameMode={setGameMode}
+            difficulty={difficulty} onSetDifficulty={setDifficulty}
             myTeamColor={myTeamColor}
             onMultiPlayer={() => setMultiPhase('lobby')}
           />
         )}
         {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} />}
+        {phase === 'transfer' && (
+          <TransferMarket
+            pitch={pitch}
+            pitchSlots={pitchSlots}
+            myTeamColor={myTeamColor}
+            onConfirm={confirmTransferReleases}
+          />
+        )}
         {phase === 'draft' && (
           <Draft
-            onBack={!multiPhase ? () => { setPhase('formation'); setPitch({}); setUsedTeamIds([]); setLog([]); setRolledTeam(null); setSkipsLeft(MAX_SKIPS); } : undefined}
+            onBack={(!multiPhase && !isTransferSeason) ? () => { setPhase('formation'); setPitch({}); setUsedTeamIds([]); setLog([]); setRolledTeam(null); setSkipsLeft(MAX_SKIPS); } : undefined}
             rolledTeam={rolledTeam}
             isRolling={isRolling}
             rollingPreview={rollingPreview}
@@ -4719,8 +4992,8 @@ export default function App() {
             pitch={pitch} pitchSlots={pitchSlots}
             formationLabel={formationKey ? FORMATIONS[formationKey].label : ''}
             captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
-            onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : startSeason}
-            onRedo={() => { setPhase('formation'); setCaptainSlot(null); }}
+            onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : (isTransferSeason ? newSeason : startSeason)}
+            onRedo={!isTransferSeason ? () => { setPhase('formation'); setCaptainSlot(null); } : undefined}
             myTeamColor={myTeamColor}
             selectedPlayer={selectedPlayer}
             repositioningSlot={repositioningSlot}
@@ -4796,7 +5069,7 @@ export default function App() {
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} matchHistory={matchHistory} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} onOpenTransferMarket={openTransferMarket} matchHistory={matchHistory} />
         )}
         {viewingTeam && <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} />}
         {showMatchSummary && activeUserMatch && (
@@ -5054,6 +5327,7 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
   const [savingCred, setSavingCred] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
 
   const [audioMode, setAudioMode] = useState('default'); // 'off' | 'default' | 'hino' | 'youtube'
   const [ytInput, setYtInput] = useState('');
@@ -5193,6 +5467,7 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
           onCancel={() => setCropSrc(null)}
         />
       )}
+      {showAchievements && <AchievementsModal user={user} onClose={() => setShowAchievements(false)} />}
       <div style={{ width: '100%', maxWidth: 460, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer' }}>✕</button>
         <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{user.username}</div>
@@ -5204,9 +5479,16 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
           <span>⭐ <b>{user.ranking_points || 0}</b> pts</span>
         </div>
 
-        {user.achievements?.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Conquistas</div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>
+              Conquistas ({user.achievements?.length || 0}/{Object.keys(ACHIEVEMENT_CATALOG).length})
+            </div>
+            <button onClick={() => setShowAchievements(true)} style={{ background: 'none', border: 'none', color: mc, fontSize: 11, cursor: 'pointer', padding: 0 }}>
+              Ver todas →
+            </button>
+          </div>
+          {user.achievements?.length > 0 ? (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {user.achievements.map(id => {
                 const a = ACHIEVEMENT_CATALOG[id];
@@ -5218,8 +5500,10 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
                 );
               })}
             </div>
-          </div>
-        )}
+          ) : (
+            <div style={{ fontSize: 11.5, opacity: 0.4 }}>Nenhuma conquista desbloqueada ainda.</div>
+          )}
+        </div>
 
         <div style={styles.teamEditCard}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
@@ -5580,7 +5864,7 @@ function parseYouTubeId(input) {
   return null;
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, myTeamColor, onMultiPlayer }) {
+function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, onMultiPlayer }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
 
@@ -5669,6 +5953,31 @@ function Intro({ onStart, gameMode, onSetGameMode, myTeamColor, onMultiPlayer })
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Dificuldade */}
+        <div style={{ marginBottom: 28 }}>
+          <div style={styles.teamEditLabel}>Dificuldade</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }} className="difficulty-grid">
+            {Object.entries(DIFFICULTY_LEVELS).map(([key, d]) => (
+              <button
+                key={key}
+                onClick={() => onSetDifficulty(key)}
+                title={d.desc}
+                style={{
+                  padding: '10px 6px', borderRadius: 10, border: '2px solid',
+                  borderColor: difficulty === key ? mc : 'rgba(255,255,255,0.1)',
+                  background: difficulty === key ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
+                  color: difficulty === key ? mc : '#F4F1EA',
+                  cursor: 'pointer', textAlign: 'center', fontSize: 12, fontWeight: 700,
+                  transition: 'all 0.12s',
+                }}
+              >
+                {d.short}
+              </button>
+            ))}
+          </div>
+          <div style={{ fontSize: 11, opacity: 0.5, marginTop: 6, lineHeight: 1.4 }}>{DIFFICULTY_LEVELS[difficulty]?.desc}</div>
         </div>
 
         {/* Jogar com Amigos */}
@@ -6138,10 +6447,11 @@ function MiniPitchPreview({ formationKey }) {
   );
 }
 
-function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace, myTeamColor, captainSlot }) {
+function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, myTeamColor, captainSlot }) {
   const mc = myTeamColor || '#d4a23c';
   const dark = needsDark(mc);
   const highlightKeys = new Set(highlightSlots.map(s => s.key));
+  const previewKeys = new Set(previewSlots.map(s => s.key));
 
   const markLine = (style) => <div style={{ position: 'absolute', pointerEvents: 'none', ...style }} />;
 
@@ -6188,6 +6498,10 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
         {pitchSlots.filter(slot => !slot.isBench).map(slot => {
           const occupant = pitch[slot.key];
           const isHighlighted = highlightKeys.has(slot.key);
+          // Preview de hover: só faz sentido em vaga vazia e quando não há
+          // seleção ativa (Draft já garante isso ao computar previewSlots) —
+          // é só um "olhar antes de escalar", não é clicável.
+          const isPreviewed = !occupant && !isHighlighted && previewKeys.has(slot.key);
           // Vaga ocupada TAMBÉM entra em canPlace quando destacada — é o que
           // permite trocar de lugar com quem já está lá durante reposição
           // (fora da reposição, isHighlighted nunca inclui vaga ocupada, então
@@ -6197,19 +6511,23 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
           const clickable = canPlace || canUnplace;
           const isCap = captainSlot && slot.key === captainSlot;
 
-          const circleColor = occupant ? mc : isHighlighted ? 'rgba(127,217,154,0.35)' : 'rgba(255,255,255,0.1)';
+          const circleColor = occupant ? mc : isHighlighted ? 'rgba(127,217,154,0.35)' : isPreviewed ? 'rgba(212,162,60,0.22)' : 'rgba(255,255,255,0.1)';
           const borderColor = canUnplace
             ? `2px dashed ${mc}`
             : isHighlighted
               ? '2px solid #7fd99a'
-              : occupant
-                ? '2.5px solid rgba(255,255,255,0.65)'
-                : '1.5px solid rgba(255,255,255,0.28)';
+              : isPreviewed
+                ? '2px dashed #d4a23c'
+                : occupant
+                  ? '2.5px solid rgba(255,255,255,0.65)'
+                  : '1.5px solid rgba(255,255,255,0.28)';
           const shadow = occupant
             ? `0 3px 10px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.25)`
             : isHighlighted
               ? '0 0 14px rgba(127,217,154,0.45)'
-              : 'none';
+              : isPreviewed
+                ? '0 0 10px rgba(212,162,60,0.3)'
+                : 'none';
 
           return (
             <div
@@ -6240,7 +6558,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
                 flexDirection: 'column',
                 position: 'relative',
-                transform: isHighlighted && !occupant ? 'scale(1.12)' : 'scale(1)',
+                transform: (isHighlighted || isPreviewed) && !occupant ? 'scale(1.12)' : 'scale(1)',
                 transition: 'all 0.15s',
               }}>
                 {isCap && (
@@ -6251,7 +6569,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
                     {shortName(occupant.name)}
                   </span>
                 ) : (
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 8, color: isHighlighted ? '#7fd99a' : 'rgba(255,255,255,0.55)', lineHeight: 1 }}>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 8, color: isHighlighted ? '#7fd99a' : isPreviewed ? '#d4a23c' : 'rgba(255,255,255,0.55)', lineHeight: 1 }}>
                     {slot.label}
                   </span>
                 )}
@@ -6283,11 +6601,12 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], onClickSlot, onUnplace,
 }
 
 // Exibe os jogadores do banco de reservas (interativo durante o draft)
-function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], onClickSlot, onUnplace }) {
+function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace }) {
   const mc = myTeamColor || '#d4a23c';
   const benchSlots = pitchSlots.filter(s => s.isBench);
   const filled = benchSlots.filter(s => pitch[s.key]);
   const highlightKeys = new Set(highlightSlots.map(s => s.key));
+  const previewKeys = new Set(previewSlots.map(s => s.key));
   if (benchSlots.length === 0) return null;
   return (
     <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.07)' }}>
@@ -6298,6 +6617,7 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], onC
         {benchSlots.map(slot => {
           const p = pitch[slot.key];
           const isHighlighted = highlightKeys.has(slot.key);
+          const isPreviewed = !p && !isHighlighted && previewKeys.has(slot.key);
           const canPlace = isHighlighted && !!onClickSlot;
           const canUnplace = !!p && !!onUnplace;
           const clickable = canPlace || canUnplace;
@@ -6308,8 +6628,8 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], onC
               title={p ? (canPlace ? `Trocar de lugar com ${p.name}` : `${p.name} — clique para remover`) : canPlace ? 'Colocar no banco' : slot.label}
               style={{
                 padding: '6px 10px', borderRadius: 8, fontSize: 12, minWidth: 80, textAlign: 'center',
-                background: canPlace ? 'rgba(127,217,154,0.12)' : p ? `${mc}22` : 'rgba(255,255,255,0.04)',
-                border: `1px solid ${canPlace ? '#7fd99a88' : p ? mc + '55' : 'rgba(255,255,255,0.1)'}`,
+                background: canPlace ? 'rgba(127,217,154,0.12)' : isPreviewed ? 'rgba(212,162,60,0.1)' : p ? `${mc}22` : 'rgba(255,255,255,0.04)',
+                border: `1px ${isPreviewed ? 'dashed' : 'solid'} ${canPlace ? '#7fd99a88' : isPreviewed ? '#d4a23c88' : p ? mc + '55' : 'rgba(255,255,255,0.1)'}`,
                 cursor: clickable ? 'pointer' : 'default',
                 transform: canPlace ? 'scale(1.06)' : 'scale(1)',
                 transition: 'all 0.15s',
@@ -6322,7 +6642,7 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], onC
                   <div style={{ fontSize: 10, opacity: 0.5 }}>{p.pos[0]} · {p.ovr}</div>
                 </>
               ) : (
-                <div style={{ color: canPlace ? '#7fd99a' : 'rgba(255,255,255,0.25)', fontSize: 11, fontWeight: canPlace ? 600 : 400 }}>
+                <div style={{ color: canPlace ? '#7fd99a' : isPreviewed ? '#d4a23c' : 'rgba(255,255,255,0.25)', fontSize: 11, fontWeight: (canPlace || isPreviewed) ? 600 : 400 }}>
                   {canPlace ? '+ ' : ''}{slot.label}
                 </div>
               )}
@@ -6471,6 +6791,10 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   const isMobile = useIsMobile();
   const filledCount = Object.keys(pitch).length;
   const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
+  // Preview no hover: só no desktop (touch não tem hover de verdade) e só
+  // quando não há seleção ativa, pra não conflitar com o destaque real.
+  const [hoveredPlayer, setHoveredPlayer] = useState(null);
+  const previewSlots = !isMobile && !selectedPlayer && hoveredPlayer ? eligibleSlotsForPlayer(hoveredPlayer) : [];
   const sortedPlayers = useMemo(() => {
     if (!rolledTeam) return [];
     return [...rolledTeam.players].sort((a, b) => posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]));
@@ -6517,14 +6841,22 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
     <div style={styles.card} className="card-mob">
       <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} />
 
-      {selectedPlayer && (
+      {selectedPlayer ? (
         <div style={styles.selectedPlayerBanner}>
           {repositioningSlot !== null
             ? <>Mova <b>{selectedPlayer.name}</b> para outra posição — ou clique num jogador para cancelar</>
             : <>Escolha a posição no campo para <b>{selectedPlayer.name}</b></>
           }
         </div>
-      )}
+      ) : previewSlots.length > 0 && hoveredPlayer ? (
+        <div style={{ ...styles.selectedPlayerBanner, background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.4)' }}>
+          👀 <b>{hoveredPlayer.name}</b> pode jogar em: {previewSlots.map(s => s.label).join(', ')}
+        </div>
+      ) : hoveredPlayer && isPlayerBlockedByFormation(hoveredPlayer) ? (
+        <div style={{ ...styles.selectedPlayerBanner, background: 'rgba(224,80,80,0.1)', border: '1px solid rgba(224,80,80,0.4)' }}>
+          🔒 <b>{hoveredPlayer.name}</b> não tem posição compatível com o esquema atual
+        </div>
+      ) : null}
 
       <div style={isMobile ? mobileLayoutStyle : styles.draftLayout} className="draft-layout-grid">
         {/* No mobile: campo primeiro; no desktop: jogadores primeiro */}
@@ -6534,6 +6866,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
               pitch={pitch}
               pitchSlots={pitchSlots}
               highlightSlots={highlightSlots}
+              previewSlots={previewSlots}
               onClickSlot={onClickPitchSlot}
               onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
               myTeamColor={myTeamColor}
@@ -6565,6 +6898,8 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                 <button
                   key={i}
                   onClick={() => canPick && onClickPlayer(p)}
+                  onMouseEnter={() => setHoveredPlayer(p)}
+                  onMouseLeave={() => setHoveredPlayer(prev => (prev?.name === p.name ? null : prev))}
                   disabled={!canPick}
                   title={blockedByFormation ? 'Sem posição compatível nesse esquema — nem titular, nem banco' : undefined}
                   style={{
@@ -6643,6 +6978,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
               pitch={pitch}
               pitchSlots={pitchSlots}
               highlightSlots={highlightSlots}
+              previewSlots={previewSlots}
               onClickSlot={onClickPitchSlot}
               onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
               myTeamColor={myTeamColor}
@@ -6656,6 +6992,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
         pitchSlots={pitchSlots}
         myTeamColor={myTeamColor}
         highlightSlots={highlightSlots}
+        previewSlots={previewSlots}
         onClickSlot={onClickPitchSlot}
         onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
       />
@@ -6760,15 +7097,86 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
       </div>
 
       <div style={styles.btnRow}>
-        <button style={styles.btnGhost} onClick={onRedo}>Trocar formacao</button>
+        {onRedo && <button style={styles.btnGhost} onClick={onRedo}>Trocar formacao</button>}
         <button
-          style={{ ...styles.btnPrimary, opacity: captainSlot ? 1 : 0.6 }}
+          style={{ ...styles.btnPrimary, opacity: (captainSlot && repositioningSlot === null) ? 1 : 0.6 }}
           onClick={onConfirm}
-          title={captainSlot ? '' : 'Escolha um capitao primeiro'}
+          disabled={!captainSlot || repositioningSlot !== null}
+          title={
+            repositioningSlot !== null
+              ? 'Termine de reposicionar o jogador primeiro'
+              : captainSlot ? '' : 'Escolha um capitao primeiro'
+          }
         >
-          {captainSlot ? 'Disputar ->' : 'Escolha um capitao'}
+          {repositioningSlot !== null ? 'Reposicionando…' : captainSlot ? 'Disputar ->' : 'Escolha um capitao'}
         </button>
       </div>
+    </div>
+  );
+}
+
+// Mercado de transferências entre temporadas: libera até 2 jogadores do
+// elenco pra sortear substitutos (reaproveita o dado do draft original,
+// só que preenchendo apenas as vagas liberadas — sem orçamento).
+function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
+  const mc = myTeamColor || '#d4a23c';
+  const [releasedKeys, setReleasedKeys] = useState([]);
+  const starterSlots = pitchSlots.filter(s => !s.isBench).sort((a, b) => posOrderIndex(a.realPos) - posOrderIndex(b.realPos));
+  const benchSlots = pitchSlots.filter(s => s.isBench);
+
+  const toggle = (key) => {
+    setReleasedKeys(prev => {
+      if (prev.includes(key)) return prev.filter(k => k !== key);
+      if (prev.length >= 2) return prev;
+      return [...prev, key];
+    });
+  };
+
+  const renderRow = (slot) => {
+    const p = pitch[slot.key];
+    if (!p) return null;
+    const isReleased = releasedKeys.includes(slot.key);
+    return (
+      <button
+        key={slot.key}
+        onClick={() => toggle(slot.key)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
+          padding: '9px 12px', borderRadius: 9, marginBottom: 4,
+          border: `1px solid ${isReleased ? 'rgba(224,80,80,0.5)' : 'rgba(255,255,255,0.07)'}`,
+          background: isReleased ? 'rgba(224,80,80,0.12)' : 'rgba(255,255,255,0.03)',
+          color: '#F4F1EA', cursor: 'pointer',
+        }}
+      >
+        <span style={{ width: 34, fontSize: 11, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>{slot.realPos === 'bench' ? (p.pos?.[0] || '-') : slot.realPos}</span>
+        <span style={{ flex: 1, minWidth: 0, fontWeight: 600, textDecoration: isReleased ? 'line-through' : 'none', opacity: isReleased ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+        <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), flexShrink: 0 }}>{p.ovr}</span>
+        {isReleased && <span style={{ color: '#e05050', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>LIBERADO</span>}
+      </button>
+    );
+  };
+
+  return (
+    <div style={styles.card} className="card-mob">
+      <div style={styles.eyebrow}>Mercado de Transferências</div>
+      <h2 style={styles.h2}>Libere até 2 jogadores pra sortear substitutos</h2>
+      <p style={{ fontSize: 13, opacity: 0.6, marginBottom: 16, lineHeight: 1.5 }}>
+        Toque em quem você quer dispensar (até 2, titular ou banco). Pra cada um, você volta a rolar o dado igual no draft original até achar alguém pra vaga. Sem orçamento — é troca direta.
+      </p>
+
+      <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Titulares</div>
+      {starterSlots.map(renderRow)}
+      <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, margin: '14px 0 6px' }}>Banco</div>
+      {benchSlots.map(renderRow)}
+
+      <button
+        style={{ ...styles.btnPrimary, marginTop: 20, width: '100%', background: mc, color: '#0B1A12' }}
+        onClick={() => onConfirm(releasedKeys)}
+      >
+        {releasedKeys.length === 0
+          ? 'Manter elenco e seguir →'
+          : `Liberar ${releasedKeys.length} e sortear substituto${releasedKeys.length > 1 ? 's' : ''} →`}
+      </button>
     </div>
   );
 }
@@ -6885,6 +7293,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
     const newOp = !isMyKick ? opGoals + (scored ? 1 : 0) : opGoals;
     const newMyK = isMyKick ? [...myKickResults, { scored, name: taker }] : myKickResults;
     const newOpK = !isMyKick ? [...opKickResults, { scored }] : opKickResults;
+    hapticPulse(scored ? (isMyKick ? HAPTIC.goal : HAPTIC.concede) : HAPTIC.penaltyMiss);
     setInner(p => ({ ...p, phase: 'result', takerName: taker, lastResult: { scored, scorer: taker, isMyKick, resultText }, myGoals: newMy, opGoals: newOp, myKickResults: newMyK, opKickResults: newOpK }));
     clearT();
     tiRef.current = setTimeout(() => advanceKick({ myGoals: newMy, opGoals: newOp, myK: newMyK, opK: newOpK }), 2200);
@@ -7254,7 +7663,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           {isSimulating && (
             <div style={{ display: 'flex', gap: 4, marginLeft: 6 }}>
               {[1, 1.5, 2].map(sp => (
-                <button key={sp} onClick={() => onSetSpeed(sp)} style={{
+                <button key={sp} onClick={() => onSetSpeed(sp)} className="tap-target-sm" style={{
                   fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: simSpeed === sp ? 700 : 400,
                   padding: '3px 8px', borderRadius: 6, border: '1px solid', cursor: 'pointer',
                   borderColor: simSpeed === sp ? '#d4a23c' : 'rgba(255,255,255,0.2)',
@@ -7266,15 +7675,15 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           )}
           {roundDone && !isSimulating && <div style={styles.clockFull}>Tempo encerrado</div>}
           {isSimulating && !isPaused && (
-            <button onClick={onPause} style={{
-              fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+            <button onClick={onPause} className="tap-target-sm" style={{
+              position: 'relative', fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
               padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,140,0,0.5)',
               background: 'rgba(255,140,0,0.1)', color: '#ffaa00', cursor: 'pointer', marginLeft: 6,
             }}>⏸ Pausar</button>
           )}
           {isPaused && (
-            <button onClick={onResume} style={{
-              fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
+            <button onClick={onResume} className="tap-target-sm" style={{
+              position: 'relative', fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
               padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(127,217,154,0.5)',
               background: 'rgba(127,217,154,0.1)', color: '#7fd99a', cursor: 'pointer', marginLeft: 6,
             }}>▶ Retomar</button>
@@ -7454,6 +7863,15 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   const clockDisplay = `${clockMinute}'`;
   const [showHistory, setShowHistory] = useState(false);
   const [showRatings, setShowRatings] = useState(false);
+  // Navegação por abas (só faz sentido no Brasileirão — a Copa é mata-mata,
+  // sem tabela/estatísticas de temporada pra separar; ela mantém a tela única).
+  const [activeTab, setActiveTab] = useState('partida');
+  const TABS = [
+    { id: 'partida', label: 'Partida', icon: '⚽' },
+    { id: 'tabela', label: 'Tabela', icon: '📊' },
+    { id: 'elenco', label: 'Elenco', icon: '👥' },
+    { id: 'estatisticas', label: 'Estatísticas', icon: '🏅' },
+  ];
 
   // Simulação direta em andamento — sobrepõe qualquer outra tela (Copa ou
   // Brasileirão, eliminado ou não) até chegar no fim ou o usuário cancelar.
@@ -7762,6 +8180,27 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         )}
       </div>
 
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.08)' }} className="tab-bar-scroll">
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setActiveTab(t.id)}
+            style={{
+              flex: '1 1 0%', minWidth: 0, background: 'none', border: 'none', cursor: 'pointer',
+              padding: '10px 6px 12px', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap',
+              color: activeTab === t.id ? mc : 'rgba(244,241,234,0.45)',
+              borderBottom: `2px solid ${activeTab === t.id ? mc : 'transparent'}`,
+              marginBottom: -1, transition: 'color 0.12s, border-color 0.12s',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+            }}
+          >
+            <span>{t.icon}</span><span>{t.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'partida' && (
+      <>
       <LiveMatchBox
         um={um} homeTeam={homeTeam} awayTeam={awayTeam}
         myTeamId={myTeamId} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} mc={mc}
@@ -7795,7 +8234,10 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           })}
         </div>
       )}
+      </>
+      )}
 
+      {activeTab === 'tabela' && (
       <div style={styles.tableSection} className="table-scroll">
         <div style={styles.sectionLabel}>Classificacao Geral</div>
         <div style={styles.tableHeaderRow}>
@@ -7865,7 +8307,53 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           ))}
         </div>
       </div>
+      )}
 
+      {activeTab === 'elenco' && (() => {
+        const myTeam = leagueTeams.find(t => t.id === myTeamId);
+        const players = myTeam?.players || [];
+        const starters = players.filter(p => !p.isBench);
+        const bench = players.filter(p => p.isBench);
+        const prefix = `${myTeamId}::`;
+        const suspendedSet = new Set(Object.entries(suspensions || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => k.slice(prefix.length)));
+        const injuredSet = new Set(Object.entries(injuries || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => k.slice(prefix.length)));
+        const renderRow = (p) => {
+          const isOut = suspendedSet.has(p.name) || injuredSet.has(p.name);
+          // p.pos é a lista de posições que o jogador PODE jogar, não onde ele
+          // foi escalado (um LD com pos ['LD','MD'] pode estar num slot MD) —
+          // pra mostrar a posição real usada, busca a vaga pelo slotKey salvo
+          // no draft; jogador de banco não tem posição de vaga (slot é "SUB").
+          const assignedPos = !p.isBench && pitchSlots.find(s => s.key === p.slotKey)?.realPos;
+          const posLabel = assignedPos || p.pos?.[0] || '-';
+          return (
+            <div key={p.name} style={{ ...styles.squadRow, opacity: isOut ? 0.45 : 1 }}>
+              <span style={{ ...styles.squadPos, color: p.isCaptain ? '#d4a23c' : undefined }}>{p.isCaptain ? 'C' : posLabel}</span>
+              <span style={styles.squadName}>
+                {p.name}
+                {suspendedSet.has(p.name) && <span title="Suspenso" style={{ marginLeft: 6 }}>🟥</span>}
+                {injuredSet.has(p.name) && <span title="Lesionado" style={{ marginLeft: 6 }}>🩹</span>}
+              </span>
+              <span style={styles.squadTeam}>{p.club || ''}</span>
+              <span style={{ ...styles.squadOvr, color: p.isCaptain ? '#d4a23c' : undefined }}>{p.isCaptain ? `${p.ovr} +2` : p.ovr}</span>
+            </div>
+          );
+        };
+        return (
+          <div style={styles.squadList}>
+            <div style={styles.sectionLabel}>Titulares</div>
+            {starters.map(renderRow)}
+            {bench.length > 0 && (
+              <>
+                <div style={{ ...styles.sectionLabel, marginTop: 14 }}>Banco</div>
+                {bench.map(renderRow)}
+              </>
+            )}
+          </div>
+        );
+      })()}
+
+      {activeTab === 'estatisticas' && (
+      <>
       {/* Artilheiros */}
       {scorers && Object.keys(scorers).length > 0 && (
         <div style={{ marginTop: 14 }}>
@@ -7979,7 +8467,11 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           }
         </div>
       )}
+      </>
+      )}
 
+      {activeTab === 'partida' && (
+      <>
       {(() => {
         const prefix = `${myTeamId}::`;
         const desfalques = [
@@ -8044,6 +8536,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             </div>
           )}
         </div>
+      )}
+      </>
       )}
     </div>
   );
@@ -8288,7 +8782,7 @@ function ChampionMarquee({ teamLabel, color }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, matchHistory }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory }) {
   const mc = myTeamColor || '#d4a23c';
   const [showCampaign, setShowCampaign] = useState(false);
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
@@ -8450,6 +8944,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           campaign: campaignLines,
         }} />
         {onNewSeason && <button style={{ ...styles.btnGhost, marginTop: 10, width: '100%' }} onClick={onNewSeason}>Nova temporada com mesmo elenco</button>}
+        {onOpenTransferMarket && <button style={{ ...styles.btnGhost, marginTop: 8, width: '100%' }} onClick={onOpenTransferMarket}>Mercado de transferências (trocar até 2)</button>}
         <button style={{ ...styles.btnPrimary, marginTop: 10, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
           Jogar de novo
         </button>
@@ -8662,6 +9157,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         awards: seasonAwards?.map(a => `${a.name} — ${a.reason}`),
       }} />
       {onNewSeason && <button style={{ ...styles.btnGhost, marginTop: 20, width: '100%' }} onClick={onNewSeason}>Nova temporada com mesmo elenco</button>}
+      {onOpenTransferMarket && <button style={{ ...styles.btnGhost, marginTop: 8, width: '100%' }} onClick={onOpenTransferMarket}>Mercado de transferências (trocar até 2)</button>}
       <button style={{ ...styles.btnPrimary, marginTop: 10, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
         Jogar de novo
       </button>
@@ -8705,6 +9201,10 @@ const globalCss = `
     * { transition: none !important; animation: none !important; }
   }
   @media (max-width: 768px) {
+    /* Área de toque mínima recomendada (~44px) sem inflar o botão visualmente
+       — um pseudo-elemento invisível estica a região clicável ao redor. */
+    .tap-target-sm { position: relative; }
+    .tap-target-sm::after { content: ''; position: absolute; inset: -10px; }
     .draft-layout-grid { grid-template-columns: 1fr !important; }
     .draft-layout-grid > div:first-child { order: 2; }
     .draft-layout-grid > div:last-child { order: 1; max-height: none !important; position: static !important; }
@@ -8721,6 +9221,7 @@ const globalCss = `
     .header-account-btn { padding: 6px 10px !important; font-size: 11px !important; }
     .intro-title-h { font-size: 26px !important; line-height: 1.2 !important; }
     .feat-grid-3 { grid-template-columns: 1fr 1fr !important; }
+    .difficulty-grid { grid-template-columns: 1fr 1fr !important; }
     .stats-grid-3 { grid-template-columns: 1fr 1fr !important; }
     .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     /* GP/GC somem no mobile (sobra SG, que já resume os dois) — sem isso as
@@ -8741,6 +9242,7 @@ const globalCss = `
     .formation-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
     .match-summary-cols { flex-direction: column !important; }
     .match-summary-header-team { font-size: 13px !important; }
+    .tab-bar-scroll button { font-size: 11px !important; padding: 8px 4px 10px !important; gap: 3px !important; }
   }
   input::placeholder { color: rgba(255,255,255,0.2); }
   input:focus { border-color: rgba(212,162,60,0.5) !important; outline: none; }
