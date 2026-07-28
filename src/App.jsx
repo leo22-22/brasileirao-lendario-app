@@ -2100,6 +2100,16 @@ function generateMatchEvents(homeTeam, awayTeam, rand = Math.random) {
 
   const { events, homeRedCount, awayRedCount } = pickMatchCards(homeTeam, homeXI, awayTeam, awayXI, rand, randMin);
 
+  // Quem foi expulso não pode marcar gol, dar assistência nem bater pênalti
+  // depois disso — ele já saiu de campo. `homeXI`/`awayXI` seguem intactos
+  // (usados nas notas de fim de jogo, que cobrem os 90 min inteiros de quem
+  // começou jogando), só o POOL de sorteio de gol/pênalti exclui quem já foi
+  // expulso nesta partida.
+  const homeSentOff = new Set(events.filter(e => e.type === 'red' && e.teamId === homeTeam.id).map(e => e.player));
+  const awaySentOff = new Set(events.filter(e => e.type === 'red' && e.teamId === awayTeam.id).map(e => e.player));
+  const homeGoalXI = homeXI.filter(p => !homeSentOff.has(p.name));
+  const awayGoalXI = awayXI.filter(p => !awaySentOff.has(p.name));
+
   const diff = homeTeam.ovr - awayTeam.ovr;
   let homeExp = Math.max(0.2, 1.3 + diff * 0.042) * HOME_ADVANTAGE;
   let awayExp = Math.max(0.2, 1.3 - diff * 0.042);
@@ -2116,15 +2126,15 @@ function generateMatchEvents(homeTeam, awayTeam, rand = Math.random) {
     ...pickGoalOutcome(scoringTeam, scoringXI, concedingTeam, concedingXI, rand),
   });
 
-  for (let i = 0; i < homeGoals; i++) events.push(makeGoalEvent(homeTeam, homeXI, awayTeam, awayXI));
-  for (let i = 0; i < awayGoals; i++) events.push(makeGoalEvent(awayTeam, awayXI, homeTeam, homeXI));
+  for (let i = 0; i < homeGoals; i++) events.push(makeGoalEvent(homeTeam, homeGoalXI, awayTeam, awayGoalXI));
+  for (let i = 0; i < awayGoals; i++) events.push(makeGoalEvent(awayTeam, awayGoalXI, homeTeam, homeGoalXI));
 
   // Pênalti sofrido durante o jogo (evento avulso, além dos gols de jogo
   // corrido sorteados acima) — nem todo pênalti vira gol, o goleiro pode
   // defender ou o batedor pode desperdiçar, igual na vida real. Quando
   // convertido, entra como um gol normal (isPenalty:true) e conta pro placar
   // e pro artilheiro; quando perdido, só aparece no feed, sem mexer no placar.
-  [[homeTeam, homeXI, awayTeam, awayXI], [awayTeam, awayXI, homeTeam, homeXI]].forEach(([team, xi, opp, oppXI]) => {
+  [[homeTeam, homeGoalXI, awayTeam, awayXI], [awayTeam, awayGoalXI, homeTeam, homeXI]].forEach(([team, xi, opp, oppXI]) => {
     if (xi.length === 0 || rand() >= PENALTY_AWARD_CHANCE_PER_TEAM) return;
     const taker = pickGoalScorer(xi, rand);
     const scored = rand() < penaltyScoreRate(team.ovr);
@@ -2194,6 +2204,13 @@ function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
 
   const { events: discipline, homeRedCount, awayRedCount } = pickMatchCards(homeTeam, homeXI, awayTeam, awayXI, rand, null);
 
+  // Mesma regra da versão detalhada: quem foi expulso não concorre mais a
+  // gol/assistência/pênalti pro resto da partida.
+  const homeSentOff = new Set(discipline.filter(e => e.type === 'red' && e.teamId === homeTeam.id).map(e => e.player));
+  const awaySentOff = new Set(discipline.filter(e => e.type === 'red' && e.teamId === awayTeam.id).map(e => e.player));
+  const homeGoalXI = homeXI.filter(p => !homeSentOff.has(p.name));
+  const awayGoalXI = awayXI.filter(p => !awaySentOff.has(p.name));
+
   const diff = homeTeam.ovr - awayTeam.ovr;
   let homeExp = Math.max(0.2, 1.3 + diff * 0.042) * HOME_ADVANTAGE;
   let awayExp = Math.max(0.2, 1.3 - diff * 0.042);
@@ -2212,14 +2229,14 @@ function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   // simulação direta (que só passa por esta função pra TODOS os jogos,
   // incluindo o do usuário) nunca alimentava artilheiros/assistências.
   const goals = [];
-  for (let i = 0; i < homeGoals; i++) goals.push(pickGoalOutcome(homeTeam, homeXI, awayTeam, awayXI, rand));
-  for (let i = 0; i < awayGoals; i++) goals.push(pickGoalOutcome(awayTeam, awayXI, homeTeam, homeXI, rand));
+  for (let i = 0; i < homeGoals; i++) goals.push(pickGoalOutcome(homeTeam, homeGoalXI, awayTeam, awayGoalXI, rand));
+  for (let i = 0; i < awayGoals; i++) goals.push(pickGoalOutcome(awayTeam, awayGoalXI, homeTeam, homeGoalXI, rand));
 
   // Pênalti durante o jogo (fora das disputas de shootout) — só o desfecho
   // convertido importa aqui (sem minuto a minuto pra mostrar a cobrança
   // perdida); quando convertido, soma no placar e entra como gol normal
   // (isPenalty:true) pro artilheiro contar certo.
-  [[homeTeam, homeXI, true], [awayTeam, awayXI, false]].forEach(([team, xi, isHome]) => {
+  [[homeTeam, homeGoalXI, true], [awayTeam, awayGoalXI, false]].forEach(([team, xi, isHome]) => {
     if (xi.length === 0 || rand() >= PENALTY_AWARD_CHANCE_PER_TEAM) return;
     if (rand() >= penaltyScoreRate(team.ovr)) return;
     const taker = pickGoalScorer(xi, rand);
@@ -3307,6 +3324,21 @@ export default function App() {
       if (benchKey) next[benchKey] = { ...starter, slotKey: benchKey, isBench: true };
       return next;
     });
+    // Também sincroniza o `leagueTeams` — é ELE (não o `pitch`) que a
+    // simulação usa (getStarters/teamsForRound) pra decidir quem joga na
+    // PRÓXIMA rodada. Sem isso, a troca aparecia certa na tela (liveLineup
+    // vem do pitch) mas a simulação seguinte continuava sorteando gols pro
+    // titular antigo, porque leagueTeams só é reconstruído em startSeason/
+    // newSeason, nunca durante a temporada.
+    setLeagueTeams(prev => prev.map(t => {
+      if (t.id !== myTeamId) return t;
+      const nextPlayers = t.players.map(pl => {
+        if (pl.name === starter.name) return { ...pl, isBench: true };
+        if (pl.name === benchPlayer.name) return { ...pl, isBench: false };
+        return pl;
+      });
+      return { ...t, players: nextPlayers, ovr: teamStrength(Object.fromEntries(nextPlayers.map((p, i) => [i, p]))) };
+    }));
     setSubbedOutNames(prev => [...prev, starter.name]);
     setSubSelectStarter(null);
     // Mostra a troca no feed da partida, igual gol/cartão/lesão — empurra no
@@ -5932,13 +5964,19 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
                 sub: '32 times · Mata-mata · Ida e volta',
               },
             ].map(m => (
-              <button key={m.id} onClick={() => onSetGameMode(m.id)} style={{
-                padding: '14px 12px', borderRadius: 12, border: '2px solid', position: 'relative',
-                borderColor: gameMode === m.id ? mc : 'rgba(255,255,255,0.1)',
-                background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
-                color: '#F4F1EA', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s',
-                boxShadow: gameMode === m.id ? `0 0 0 1px ${hexToRgba(mc, 0.15)} inset` : 'none',
-              }}>
+              <button
+                key={m.id}
+                onClick={() => onSetGameMode(m.id)}
+                className="mode-card-hover"
+                aria-pressed={gameMode === m.id}
+                style={{
+                  padding: '14px 12px', borderRadius: 12, border: '2px solid', position: 'relative',
+                  borderColor: gameMode === m.id ? mc : 'rgba(255,255,255,0.1)',
+                  background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
+                  color: '#F4F1EA', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s',
+                  boxShadow: gameMode === m.id ? `0 0 0 1px ${hexToRgba(mc, 0.15)} inset` : 'none',
+                }}
+              >
                 {gameMode === m.id && (
                   <div style={{ position: 'absolute', top: 10, right: 10, width: 18, height: 18, borderRadius: '50%', background: mc, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, color: '#0B1A12' }}>✓</div>
                 )}
@@ -5964,6 +6002,8 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
                 key={key}
                 onClick={() => onSetDifficulty(key)}
                 title={d.desc}
+                className="mode-card-hover"
+                aria-pressed={difficulty === key}
                 style={{
                   padding: '10px 6px', borderRadius: 10, border: '2px solid',
                   borderColor: difficulty === key ? mc : 'rgba(255,255,255,0.1)',
@@ -6025,12 +6065,18 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
             { id: 'brasileirao', label: 'Brasileirão', sub: 'Até 20 jogadores', trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/02ftjh1684945323.png' },
             { id: 'copa', label: 'Copa do Brasil', sub: 'Até 32 jogadores', trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/jv27c41776553182.png' },
           ].map(m => (
-            <button key={m.id} onClick={() => onSetGameMode(m.id)} style={{
-              padding: '12px', borderRadius: 12, border: '2px solid',
-              borderColor: gameMode === m.id ? mc : 'rgba(255,255,255,0.1)',
-              background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
-              color: '#F4F1EA', cursor: 'pointer', textAlign: 'left',
-            }}>
+            <button
+              key={m.id}
+              onClick={() => onSetGameMode(m.id)}
+              className="mode-card-hover"
+              aria-pressed={gameMode === m.id}
+              style={{
+                padding: '12px', borderRadius: 12, border: '2px solid',
+                borderColor: gameMode === m.id ? mc : 'rgba(255,255,255,0.1)',
+                background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
+                color: '#F4F1EA', cursor: 'pointer', textAlign: 'left',
+              }}
+            >
               <img src={m.trophy} alt={m.label} style={{ height: 32, objectFit: 'contain', marginBottom: 6, display: 'block' }} onError={e => { e.currentTarget.style.display = 'none'; }} />
               <div style={{ fontWeight: 700, fontSize: 13, color: gameMode === m.id ? mc : '#F4F1EA' }}>{m.label}</div>
               <div style={{ fontSize: 11, opacity: 0.5 }}>{m.sub}</div>
@@ -6549,9 +6595,12 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
               }}
               className="pitch-spot"
             >
-              {/* Círculo principal */}
-              <div style={{
-                width: 44, height: 44, borderRadius: '50%',
+              {/* Círculo principal — flexShrink:0 é essencial aqui: o wrapper
+                  ".pitch-spot" é um flex column, e sem isso o mobile (que só
+                  limitava a ALTURA do wrapper) encolhia só a altura do
+                  círculo, achatando-o numa elipse em vez de manter o círculo. */}
+              <div className="pitch-spot-circle" style={{
+                width: 44, height: 44, borderRadius: '50%', flexShrink: 0,
                 background: circleColor,
                 border: borderColor,
                 boxShadow: shadow,
@@ -6793,7 +6842,21 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
   // Preview no hover: só no desktop (touch não tem hover de verdade) e só
   // quando não há seleção ativa, pra não conflitar com o destaque real.
+  // Debounça a entrada (não a saída) — sem isso, passar o mouse rápido por
+  // vários jogadores da lista disparava um re-render + animação de escala no
+  // campo a cada linha sobrevoada, e a transição de 0.15s de cada uma ainda
+  // rodando quando a próxima já começava dava a sensação de "delay"/travado.
   const [hoveredPlayer, setHoveredPlayer] = useState(null);
+  const hoverTimeoutRef = useRef(null);
+  useEffect(() => () => clearTimeout(hoverTimeoutRef.current), []);
+  const handlePlayerHoverStart = (p) => {
+    clearTimeout(hoverTimeoutRef.current);
+    hoverTimeoutRef.current = setTimeout(() => setHoveredPlayer(p), 60);
+  };
+  const handlePlayerHoverEnd = (p) => {
+    clearTimeout(hoverTimeoutRef.current);
+    setHoveredPlayer(prev => (prev?.name === p.name ? null : prev));
+  };
   const previewSlots = !isMobile && !selectedPlayer && hoveredPlayer ? eligibleSlotsForPlayer(hoveredPlayer) : [];
   const sortedPlayers = useMemo(() => {
     if (!rolledTeam) return [];
@@ -6898,8 +6961,8 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                 <button
                   key={i}
                   onClick={() => canPick && onClickPlayer(p)}
-                  onMouseEnter={() => setHoveredPlayer(p)}
-                  onMouseLeave={() => setHoveredPlayer(prev => (prev?.name === p.name ? null : prev))}
+                  onMouseEnter={() => handlePlayerHoverStart(p)}
+                  onMouseLeave={() => handlePlayerHoverEnd(p)}
                   disabled={!canPick}
                   title={blockedByFormation ? 'Sem posição compatível nesse esquema — nem titular, nem banco' : undefined}
                   style={{
@@ -7622,6 +7685,11 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
 function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
+  // Expulso já saiu de campo — não tem como "substituir" quem nem está mais
+  // jogando (o time simplesmente segue com um a menos, igual na vida real).
+  const redCardedNames = new Set(
+    (liveEvents || []).filter(ev => ev.type === 'red' && ev.teamId === myTeamId).map(ev => ev.player)
+  );
   const hColor = homeTeam.id === myTeamId ? mc : (homeTeam.colors?.p || homeTeam.color || '#3a85d9');
   const aColor = awayTeam.id === myTeamId ? mc : (awayTeam.colors?.p || awayTeam.color || '#c94040');
   const isClassico = isRivalryMatch(homeTeam.club, awayTeam.club);
@@ -7754,7 +7822,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Titulares</div>
               {Object.entries(liveLineup)
-                .filter(([k, p]) => !p.isBench)
+                .filter(([k, p]) => !p.isBench && !redCardedNames.has(p.name))
                 .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
                 .map(([k, p]) => (
                 <button key={k} onClick={() => onSelectSubStarter(subSelectStarter === k ? null : k)}
@@ -9188,9 +9256,9 @@ const globalCss = `
   @keyframes fadeSlideIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
   @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
-  .marquee-track { animation: marquee 48s linear infinite; }
+  .marquee-track { animation: marquee 48s linear infinite; will-change: transform; }
   .marquee-track:hover { animation-play-state: paused; }
-  .champion-marquee-track { animation: marquee 10s linear infinite; }
+  .champion-marquee-track { animation: marquee 10s linear infinite; will-change: transform; }
   @keyframes suspensePulse {
     0%, 100% { opacity: 0.55; transform: scale(0.97); text-shadow: 0 0 0 rgba(212,162,60,0); }
     50% { opacity: 1; transform: scale(1.04); text-shadow: 0 0 20px rgba(212,162,60,0.65); }
@@ -9234,7 +9302,8 @@ const globalCss = `
     .live-teams-row { gap: 6px !important; }
     .live-team-n { font-size: 12px !important; }
     .squad-row-g { grid-template-columns: 36px 1fr auto 36px !important; gap: 8px !important; }
-    .pitch-spot { width: 40px !important; height: 40px !important; font-size: 8px !important; }
+    .pitch-spot { font-size: 8px !important; }
+    .pitch-spot-circle { width: 40px !important; height: 40px !important; }
     .pitch-spot-name { font-size: 7px !important; }
     .h1-mob { font-size: 24px !important; }
     .h2-mob { font-size: 18px !important; }
@@ -9253,6 +9322,8 @@ const globalCss = `
   .draft-left::-webkit-scrollbar-thumb:hover { background: rgba(212,162,60,0.65); }
   .formation-card:hover { background: rgba(212,162,60,0.09) !important; border-color: rgba(212,162,60,0.45) !important; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
   .formation-card:active { transform: translateY(0); }
+  .mode-card-hover:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+  .mode-card-hover:active { transform: translateY(0); }
 `;
 
 const styles = {

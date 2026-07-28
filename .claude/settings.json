@@ -130,7 +130,15 @@
       "Bash(grep -n \"opacity: 0.4, fontFamily.*11 }}>{i + 1}\" src/App.jsx)",
       "Bash(node test_achievements.js)",
       "Bash(curl -s -o /dev/null -w \"vite=%{http_code}\\\\n\" http://localhost:5173/)",
-      "Bash(curl -s -o /dev/null -w \"api=%{http_code}\\\\n\" http://localhost:4000/api/leaderboard)"
+      "Bash(curl -s -o /dev/null -w \"api=%{http_code}\\\\n\" http://localhost:4000/api/leaderboard)",
+      "Bash(npx eslint *)",
+      "Bash(chromium-cli --help)",
+      "Bash(node drive.js)",
+      "Bash(node drive2.js)",
+      "Bash(curl -sf http://localhost:5173)",
+      "Bash(node drive3.js)",
+      "Bash(node drive4.js)",
+      "Bash(sed -i 's/await page.waitForTimeout\\(20000\\);/await page.waitForTimeout\\(35000\\);/' drive4.js)"
     ],
     "additionalDirectories": [
       "c:\\Users\\ueer\\Downloads\\brasileirao-lendario-app\\server"
