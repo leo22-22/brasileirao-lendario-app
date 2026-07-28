@@ -6901,25 +6901,39 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   }
 
   return (
-    <div style={styles.card} className="card-mob">
+    <div style={{ ...styles.card, position: 'relative' }} className="card-mob">
       <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} />
 
-      {selectedPlayer ? (
+      {selectedPlayer && (
         <div style={styles.selectedPlayerBanner}>
           {repositioningSlot !== null
             ? <>Mova <b>{selectedPlayer.name}</b> para outra posição — ou clique num jogador para cancelar</>
             : <>Escolha a posição no campo para <b>{selectedPlayer.name}</b></>
           }
         </div>
-      ) : previewSlots.length > 0 && hoveredPlayer ? (
-        <div style={{ ...styles.selectedPlayerBanner, background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.4)' }}>
-          👀 <b>{hoveredPlayer.name}</b> pode jogar em: {previewSlots.map(s => s.label).join(', ')}
+      )}
+
+      {/* Banner de preview do hover: sempre sobreposto (position:absolute +
+          wrapper de altura zero), nunca em fluxo normal. Antes ele empurrava
+          o layout ao aparecer/sumir — o que deslocava a PRÓPRIA linha hoverada
+          pra fora do cursor, disparando mouseleave, escondendo o banner, o que
+          devolvia a linha pro lugar, disparando mouseenter de novo: um loop
+          infinito de pisca-pisca. pointerEvents:'none' garante que o banner
+          nunca "rouba" o hover de quem está embaixo dele mesmo quando
+          se sobrepõe visualmente. */}
+      {!selectedPlayer && (
+        <div style={{ position: 'relative', height: 0, zIndex: 5 }}>
+          {previewSlots.length > 0 && hoveredPlayer ? (
+            <div style={{ ...styles.selectedPlayerBanner, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none', background: '#1a2a12', boxShadow: '0 4px 14px rgba(0,0,0,0.45)', border: '1px solid rgba(212,162,60,0.5)' }}>
+              👀 <b>{hoveredPlayer.name}</b> pode jogar em: {previewSlots.map(s => s.label).join(', ')}
+            </div>
+          ) : hoveredPlayer && isPlayerBlockedByFormation(hoveredPlayer) ? (
+            <div style={{ ...styles.selectedPlayerBanner, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none', background: '#2a1414', boxShadow: '0 4px 14px rgba(0,0,0,0.45)', border: '1px solid rgba(224,80,80,0.5)' }}>
+              🔒 <b>{hoveredPlayer.name}</b> não tem posição compatível com o esquema atual
+            </div>
+          ) : null}
         </div>
-      ) : hoveredPlayer && isPlayerBlockedByFormation(hoveredPlayer) ? (
-        <div style={{ ...styles.selectedPlayerBanner, background: 'rgba(224,80,80,0.1)', border: '1px solid rgba(224,80,80,0.4)' }}>
-          🔒 <b>{hoveredPlayer.name}</b> não tem posição compatível com o esquema atual
-        </div>
-      ) : null}
+      )}
 
       <div style={isMobile ? mobileLayoutStyle : styles.draftLayout} className="draft-layout-grid">
         {/* No mobile: campo primeiro; no desktop: jogadores primeiro */}

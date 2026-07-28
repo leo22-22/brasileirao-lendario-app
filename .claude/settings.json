@@ -138,7 +138,12 @@
       "Bash(curl -sf http://localhost:5173)",
       "Bash(node drive3.js)",
       "Bash(node drive4.js)",
-      "Bash(sed -i 's/await page.waitForTimeout\\(20000\\);/await page.waitForTimeout\\(35000\\);/' drive4.js)"
+      "Bash(sed -i 's/await page.waitForTimeout\\(20000\\);/await page.waitForTimeout\\(35000\\);/' drive4.js)",
+      "Bash(ffprobe -v error -show_entries format=duration -of default=noprint_wrappers=1:nokey=1 \"c:\\\\Users\\\\ueer\\\\Downloads\\\\brasileirao-lendario-app\\\\Gravando 2026-07-28 102248.mp4\")",
+      "Bash(python -c \"import cv2; print\\(cv2.__version__\\)\")",
+      "Bash(python -m pip install --quiet --user opencv-python-headless)",
+      "Bash(python -c ' *)",
+      "Bash(node drive5.js)"
     ],
     "additionalDirectories": [
       "c:\\Users\\ueer\\Downloads\\brasileirao-lendario-app\\server"
