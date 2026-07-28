@@ -1944,7 +1944,7 @@ function partitionStartersFirst(players) {
 // com um a menos naquela vaga. Retorna o XI efetivo + um log de trocas pra feed/aviso.
 function getEligibleRoster(team, unavailableNames) {
   const all = team?.players || [];
-  if (!unavailableNames || unavailableNames.size === 0) return { players: all.slice(0, 11), changes: [] };
+  if (!unavailableNames || unavailableNames.size === 0) return { players: all.slice(0, 11), changes: [], fullRoster: all };
   const isUnavailable = p => unavailableNames.has(playerKey(team.id, p.name));
   const starters = all.slice(0, 11);
   const bench = all.slice(11).filter(p => !isUnavailable(p));
@@ -1957,7 +1957,10 @@ function getEligibleRoster(team, unavailableNames) {
     if (sub) { result.push({ ...sub, isBench: false }); changes.push({ out: p.name, in: sub.name }); }
     else changes.push({ out: p.name, in: null });
   });
-  return { players: result, changes };
+  // `bench` aqui sobrou só com quem não entrou no XI (splice remove os usados)
+  // — junto com o XI ajustado, forma o elenco completo pra essa rodada, pra
+  // não perder o banco caso role uma 2a troca (lesão cosmética) na mesma partida.
+  return { players: result, changes, fullRoster: [...result, ...bench] };
 }
 
 function decideRedCards(rand) {
@@ -2361,11 +2364,11 @@ function updateFormFromResults(prevForm, results) {
 // zero a partir do elenco completo, então nada precisa ser desfeito depois.
 function teamsForRound(teams, unavailableNames, formMap) {
   return teams.map(t => {
-    const { players, changes } = getEligibleRoster(t, unavailableNames);
+    const { players, changes, fullRoster } = getEligibleRoster(t, unavailableNames);
     const baseOvr = changes.length > 0 ? teamStrength(Object.fromEntries(players.map((p, i) => [i, p]))) : t.ovr;
     const adj = formAdjustment(formMap?.[t.id]);
     if (changes.length === 0 && adj === 0) return t;
-    return { ...t, players: changes.length > 0 ? players : t.players, ovr: Math.round((baseOvr + adj) * 10) / 10 };
+    return { ...t, players: changes.length > 0 ? fullRoster : t.players, ovr: Math.round((baseOvr + adj) * 10) / 10 };
   });
 }
 
@@ -3530,8 +3533,33 @@ export default function App() {
     setForcedSubReason(null);
     setPenaltyPhase(null);
     setSubbedOutNames([]);
-    // Init live lineup from current pitch
-    const initLL = { ...pitch };
+    // Init live lineup from current pitch — mas se algum titular do usuário
+    // está suspenso/lesionado nesta rodada (mesma troca que o motor de
+    // simulação já aplicou via getEligibleRoster/teamsForRound pro homeTeam/
+    // awayTeam acima), espelha essa troca aqui também. Sem isso o painel de
+    // troca e a cobrança de pênalti mostravam o titular "castigado" como se
+    // estivesse em campo, mesmo ele nunca tendo entrado na simulação real.
+    // Não persiste em `pitch`/`leagueTeams` — é só pra essa partida, igual
+    // a troca automática nas outras rodadas (efêmera, recalculada do zero).
+    let initLL = { ...pitch };
+    const myLeagueTeam = leagueTeams.find(t => t.id === myTeamId);
+    if (myLeagueTeam) {
+      const { changes: myChanges } = getEligibleRoster(myLeagueTeam, unavailableNames);
+      if (myChanges.length > 0) {
+        const next = { ...initLL };
+        myChanges.forEach(({ out, in: inName }) => {
+          if (!inName) return;
+          const outKey = Object.keys(next).find(k => next[k]?.name === out && !next[k]?.isBench);
+          const inKey = Object.keys(next).find(k => next[k]?.name === inName);
+          if (!outKey || !inKey) return;
+          const outPlayer = next[outKey];
+          const inPlayer = next[inKey];
+          next[outKey] = { ...inPlayer, slotKey: outKey, isBench: false };
+          next[inKey] = { ...outPlayer, slotKey: inKey, isBench: true };
+        });
+        initLL = next;
+      }
+    }
     setLiveLineup(initLL);
     liveLineupRef.current = initLL;
 
@@ -5101,9 +5129,14 @@ export default function App() {
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} onOpenTransferMarket={openTransferMarket} matchHistory={matchHistory} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} onOpenTransferMarket={openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} />
         )}
-        {viewingTeam && <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} />}
+        {viewingTeam && (() => {
+          const prefix = `${viewingTeam.id}::`;
+          const suspendedNames = new Set(Object.entries(suspensions || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => k.slice(prefix.length)));
+          const injuredNames = new Set(Object.entries(injuries || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => k.slice(prefix.length)));
+          return <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspendedNames={suspendedNames} injuredNames={injuredNames} />;
+        })()}
         {showMatchSummary && activeUserMatch && (
           <MatchSummaryModal
             ratings={lastMatchRatings}
@@ -6754,29 +6787,49 @@ function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo,
   );
 }
 
-// Modal para ver elenco de um time adversário
-function TeamViewModal({ team, onClose, myTeamColor }) {
+// Modal para ver o elenco COMPLETO (titulares + banco) de um time — aberto
+// ao clicar num time em qualquer lugar do app (tabela, chaveamento da Copa,
+// cabeçalho da partida ao vivo, resultado final). Importante sobretudo no
+// mobile, onde não dá pra "passar o olho" no elenco adversário sem um modal.
+function TeamViewModal({ team, onClose, myTeamColor, suspendedNames, injuredNames }) {
   const mc = myTeamColor || '#d4a23c';
   if (!team) return null;
-  const starters = team.players?.filter(p => !p.isBench) || team.players || [];
+  const players = team.players || [];
+  const starters = players.filter(p => !p.isBench);
+  const bench = players.filter(p => p.isBench);
+  const renderRow = (p, i) => {
+    const isOut = suspendedNames?.has(p.name) || injuredNames?.has(p.name);
+    return (
+      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, opacity: isOut ? 0.45 : 1 }}>
+        <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.join('/') || '-'}</span>
+        <span style={{ flex: 1 }}>
+          {p.name}
+          {suspendedNames?.has(p.name) && <span title="Suspenso" style={{ marginLeft: 6 }}>🟥</span>}
+          {injuredNames?.has(p.name) && <span title="Lesionado" style={{ marginLeft: 6 }}>🩹</span>}
+        </span>
+        <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
+      </div>
+    );
+  };
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 400, maxHeight: '80vh', overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 400, maxHeight: '85vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             {team.clubLogo && <img src={team.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain', marginRight: 8, verticalAlign: 'middle' }} alt="" />}
             <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>{team.label}</span>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20 }}>x</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20, padding: 6 }}>x</button>
         </div>
-        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc, marginBottom: 12 }}>OVR {team.ovr}</div>
-        {starters.map((p, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
-            <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.join('/') || '-'}</span>
-            <span style={{ flex: 1 }}>{p.name}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
-          </div>
-        ))}
+        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc, marginBottom: 12 }}>OVR {team.ovr} · {players.length} jogadores</div>
+        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Titulares</div>
+        {starters.map(renderRow)}
+        {bench.length > 0 && (
+          <>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 14, marginBottom: 4 }}>Banco</div>
+            {bench.map(renderRow)}
+          </>
+        )}
       </div>
     </div>
   );
@@ -7696,7 +7749,7 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
   );
 }
 
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots, myUnavailableNames, onViewTeam }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
   // Expulso já saiu de campo — não tem como "substituir" quem nem está mais
@@ -7717,7 +7770,12 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
         </div>
       )}
       <div style={styles.liveTeamsRow} className="live-teams-row">
-        <div style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0 }} className="live-team-n">
+        <div
+          onClick={() => homeTeam.id !== myTeamId && onViewTeam && onViewTeam(homeTeam)}
+          title={homeTeam.id !== myTeamId ? 'Ver elenco' : undefined}
+          style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0, cursor: homeTeam.id !== myTeamId ? 'pointer' : 'default' }}
+          className="live-team-n"
+        >
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{homeTeam.label}</span>
           {homeTeam.id === myTeamId
             ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} alt="" /> : (myTeamBadge && <span style={{ fontSize: 22, flexShrink: 0 }}>{myTeamBadge}</span>))
@@ -7729,7 +7787,12 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           <span style={styles.liveScoreDash}>–</span>
           <span style={styles.liveScoreNum} className="live-score-n">{liveScore.away}</span>
         </div>
-        <div style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6, minWidth: 0 }} className="live-team-n">
+        <div
+          onClick={() => awayTeam.id !== myTeamId && onViewTeam && onViewTeam(awayTeam)}
+          title={awayTeam.id !== myTeamId ? 'Ver elenco' : undefined}
+          style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6, minWidth: 0, cursor: awayTeam.id !== myTeamId ? 'pointer' : 'default' }}
+          className="live-team-n"
+        >
           {awayTeam.id === myTeamId
             ? (myTeamLogo ? <img src={myTeamLogo} style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} alt="" /> : (myTeamBadge && <span style={{ fontSize: 22, flexShrink: 0 }}>{myTeamBadge}</span>))
             : (awayTeam.clubLogo && <img src={awayTeam.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} alt="" />)
@@ -7836,7 +7899,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Titulares</div>
               {Object.entries(liveLineup)
-                .filter(([k, p]) => !p.isBench && !redCardedNames.has(p.name))
+                .filter(([k, p]) => !p.isBench && !redCardedNames.has(p.name) && !myUnavailableNames?.has(p.name))
                 .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
                 .map(([k, p]) => (
                 <button key={k} onClick={() => onSelectSubStarter(subSelectStarter === k ? null : k)}
@@ -7858,7 +7921,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Reservas</div>
                 {Object.entries(liveLineup)
-                  .filter(([k, p]) => p.isBench)
+                  .filter(([k, p]) => p.isBench && !myUnavailableNames?.has(p.name))
                   .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
                   .map(([k, p]) => {
                     const alreadyOut = (subbedOutNames || []).includes(p.name);
@@ -7937,6 +8000,18 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
 
 function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
   const mc = myTeamColor || '#d4a23c';
+  // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
+  // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
+  // de pênalti na tela ao vivo, pra não deixar escalar/selecionar quem está
+  // fora por disciplina/lesão mesmo depois da troca automática pré-jogo.
+  const myUnavailableNames = useMemo(() => {
+    const names = new Set();
+    const prefix = `${myTeamId}::`;
+    const add = obj => Object.entries(obj || {}).forEach(([k, left]) => { if (left > 0 && k.startsWith(prefix)) names.add(k.slice(prefix.length)); });
+    add(suspensions);
+    add(injuries);
+    return names;
+  }, [suspensions, injuries, myTeamId]);
   const round = fixtures[currentRound] || [];
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
   const homeTeam = um ? leagueTeams.find(t => t.id === um.homeId) : null;
@@ -8144,6 +8219,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           subSelectStarter={subSelectStarter}
           onSelectSubStarter={onSelectSubStarter}
           onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
+          myUnavailableNames={myUnavailableNames} onViewTeam={onViewTeam}
         />
 
         {/* Placar agregado após jogo de volta */}
@@ -8297,6 +8373,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         subSelectStarter={subSelectStarter}
         onSelectSubStarter={onSelectSubStarter}
         onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
+        myUnavailableNames={myUnavailableNames} onViewTeam={onViewTeam}
       />
 
       {roundDone && (
@@ -8864,7 +8941,7 @@ function ChampionMarquee({ teamLabel, color }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam }) {
   const mc = myTeamColor || '#d4a23c';
   const [showCampaign, setShowCampaign] = useState(false);
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
@@ -9191,7 +9268,10 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
             }}>
               <span style={styles.tablePos}>{i + 1}</span>
-              <span style={{ flex: 1, minWidth: 0, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span
+                onClick={() => !isMe && onViewTeam && onViewTeam(leagueTeams.find(t => t.id === row.id))}
+                style={{ flex: 1, minWidth: 0, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: isMe ? 'default' : 'pointer' }}
+              >
                 {isMe
                   ? (myTeamLogo
                     ? <img src={myTeamLogo} style={styles.tableCrestImg} alt="" />
