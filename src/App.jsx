@@ -1696,10 +1696,10 @@ function teamStrength(xi) {
 // como o ajuste vive nos jogadores, ele sobrevive a recomputações de OVR
 // no meio da temporada (troca por lesão/suspensão em teamsForRound).
 const DIFFICULTY_LEVELS = {
-  facil: { label: 'Fácil', short: 'Fácil', desc: 'IA joga abaixo do seu nível de papel.', aiOvrAdjust: -6 },
+  facil: { label: 'Fácil', short: 'Fácil', desc: 'IA joga abaixo do seu nível de papel.', aiOvrAdjust: -2 },
   normal: { label: 'Normal', short: 'Normal', desc: 'IA joga com o OVR original dos times sorteados.', aiOvrAdjust: 0 },
-  dificil: { label: 'Difícil', short: 'Difícil', desc: 'IA joga acima do seu nível de papel.', aiOvrAdjust: 5 },
-  lendario: { label: 'Lendário', short: 'Lendário', desc: 'IA bem mais forte — só para quem já domina o jogo.', aiOvrAdjust: 10 },
+  dificil: { label: 'Difícil', short: 'Difícil', desc: 'IA joga acima do seu nível de papel.', aiOvrAdjust: 2 },
+  lendario: { label: 'Lendário', short: 'Lendário', desc: 'IA bem mais forte — só para quem já domina o jogo.', aiOvrAdjust: 5 },
 };
 function applyDifficultyToPlayers(players, difficultyKey) {
   const adjust = DIFFICULTY_LEVELS[difficultyKey]?.aiOvrAdjust || 0;
@@ -2928,6 +2928,7 @@ export default function App() {
   const [joinInput, setJoinInput] = useState('');
   const [multiTimerLeft, setMultiTimerLeft] = useState(null);
   const [multiConnecting, setMultiConnecting] = useState(false);
+  const multiConnectingRef = useRef(false); // espelha multiConnecting p/ checagem síncrona (evita Peer duplicado em duplo-toque antes do re-render)
   const [multiError, setMultiError] = useState('');
   const peerRef = useRef(null);       // instância Peer (líder ou guest)
   const connsRef = useRef({});        // líder: { peerId: DataConnection }
@@ -4602,6 +4603,10 @@ export default function App() {
   };
 
   const multiCreateRoom = async (attemptsLeft = 5) => {
+    if (attemptsLeft === 5) {
+      if (multiConnectingRef.current) return; // evita Peer duplicado em duplo-toque antes do re-render
+      multiConnectingRef.current = true;
+    }
     setMultiConnecting(true);
     setMultiError('');
     const code = generateRoomCode();
@@ -4610,12 +4615,14 @@ export default function App() {
       peer = new Peer(code, { debug: 1 });
       peerRef.current = peer;
     } catch (e) {
+      multiConnectingRef.current = false;
       setMultiConnecting(false);
       setMultiError('Erro ao criar conexão: ' + e.message);
       return;
     }
 
     const timeout = setTimeout(() => {
+      multiConnectingRef.current = false;
       setMultiConnecting(false);
       setMultiError('Tempo esgotado — sem resposta do servidor de conexão. Verifique sua internet.');
       try { peer.destroy(); } catch { }
@@ -4623,6 +4630,7 @@ export default function App() {
 
     peer.on('open', (id) => {
       clearTimeout(timeout);
+      multiConnectingRef.current = false;
       setMultiConnecting(false);
       setIsLeader(true);
       setRoomCode(id.toUpperCase());
@@ -4699,6 +4707,7 @@ export default function App() {
         return;
       }
       clearTimeout(timeout);
+      multiConnectingRef.current = false;
       setMultiConnecting(false);
       setMultiError('Erro: ' + (e.message || e.type));
       try { peer.destroy(); } catch { }
@@ -4706,16 +4715,39 @@ export default function App() {
   };
 
   const multiJoinRoom = async (code) => {
+    if (multiConnectingRef.current) return; // já tem uma tentativa de entrada em andamento — evita Peer duplicado no duplo-toque
     const normalizedCode = code.trim().toUpperCase();
+    if (!normalizedCode) return;
+    multiConnectingRef.current = true;
+    setMultiConnecting(true);
+    setMultiError('');
     const peer = new Peer(undefined, { debug: 1 });
     peerRef.current = peer;
+
+    // Mesma rede de segurança do "Criar sala" — sem isso, uma conexão que
+    // trava (rede ruim, sinalização não responde) deixava o botão "Entrar"
+    // sem feedback nenhum pra sempre, sem erro e sem spinner.
+    const timeout = setTimeout(() => {
+      multiConnectingRef.current = false;
+      setMultiConnecting(false);
+      setMultiError('Tempo esgotado — sem resposta do servidor de conexão. Verifique sua internet.');
+      try { peer.destroy(); } catch { }
+    }, 12000);
+
     peer.on('open', (myPeerId) => {
       // O codigo de 6 caracteres digitado pelo jogador É o peerId completo do lider
       // (o lider cria sua sala com esse mesmo codigo como ID via generateRoomCode()).
       const conn = peer.connect(normalizedCode, { reliable: true });
       leaderConnRef.current = conn;
       conn.on('open', () => {
+        clearTimeout(timeout);
+        multiConnectingRef.current = false;
+        setMultiConnecting(false);
         conn.send({ type: 'join', pid: MY_PID, name: myTeamName || 'Meu Time', color: myTeamColor, logo: myTeamLogo || null, coach: myTeamCoach || '', city: myTeamCity || '' });
+        setIsLeader(false);
+        setRoomCode(normalizedCode);
+        setMultiPhase('room');
+        setChatMessages([]);
       });
       conn.on('data', (msg) => {
         if (msg.type === 'snap') { setRoomSnap(msg.snap); setMultiGameMode(msg.snap.gameMode); }
@@ -4723,16 +4755,14 @@ export default function App() {
         if (msg.type === 'chat' || msg.type === 'reaction') addLocalChatMessage(msg);
       });
       conn.on('close', () => alert('Conexão com o líder perdida.'));
-      setIsLeader(false);
-      setRoomCode(normalizedCode);
-      setMultiPhase('room');
-      setChatMessages([]);
     });
     peer.on('error', (e) => {
-      if (e.type === 'peer-unavailable') alert('Sala não encontrada. Verifique o código.');
-      else alert('Erro: ' + e.message);
-      peer.destroy();
-      setMultiPhase('lobby');
+      clearTimeout(timeout);
+      multiConnectingRef.current = false;
+      setMultiConnecting(false);
+      if (e.type === 'peer-unavailable') setMultiError('Sala não encontrada. Verifique o código.');
+      else setMultiError('Erro: ' + e.message);
+      try { peer.destroy(); } catch { }
     });
   };
 
@@ -5235,12 +5265,20 @@ function ImageCropModal({ src, onConfirm, onCancel }) {
     ctx.stroke();
   }, [pan, zoom, loaded]);
 
-  const onMD = e => { drag.current = { active: true, sx: e.clientX, sy: e.clientY, spx: pan.x, spy: pan.y }; };
-  const onMM = e => {
+  // Pointer Events (não Mouse Events) — cobrem mouse, touch e caneta com a
+  // mesma API. Com só onMouse*, arrastar pra reposicionar o logo era
+  // impossível no celular (touch não dispara mousemove/mouseup contínuo).
+  // setPointerCapture mantém os eventos vindo pro canvas mesmo se o dedo/
+  // cursor sair da área dele no meio do arraste.
+  const onPD = e => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    drag.current = { active: true, sx: e.clientX, sy: e.clientY, spx: pan.x, spy: pan.y };
+  };
+  const onPM = e => {
     if (!drag.current.active) return;
     setPan({ x: drag.current.spx + e.clientX - drag.current.sx, y: drag.current.spy + e.clientY - drag.current.sy });
   };
-  const onMU = () => { drag.current.active = false; };
+  const onPU = () => { drag.current.active = false; };
 
   const confirm = () => {
     const out = document.createElement('canvas');
@@ -5265,8 +5303,8 @@ function ImageCropModal({ src, onConfirm, onCancel }) {
       <div style={{ fontSize: 12, opacity: 0.5 }}>Arraste para reposicionar · Use o slider para zoom</div>
       <canvas
         ref={canvasRef} width={CROP} height={CROP}
-        style={{ borderRadius: '50%', cursor: 'grab', display: 'block' }}
-        onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} onMouseLeave={onMU}
+        style={{ borderRadius: '50%', cursor: 'grab', display: 'block', touchAction: 'none' }}
+        onPointerDown={onPD} onPointerMove={onPM} onPointerUp={onPU} onPointerCancel={onPU}
       />
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <span style={{ fontSize: 12, opacity: 0.45 }}>−</span>
@@ -5472,9 +5510,23 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
     setGoalAudioMode('idle');
     setGoalAudioLinkInput('');
   };
+  // A gravação pelo microfone já é limitada a 5s (naturalmente pequena), mas
+  // um arquivo escolhido do dispositivo não tem esse limite — sem checar o
+  // tamanho aqui, um áudio de alguns MB virava um data URL gigante mandado
+  // pro servidor sem aviso nenhum, especialmente doloroso em rede móvel.
+  // O limite tem que caber no `express.json({ limit: '2mb' })` do servidor
+  // (server/index.ts) DEPOIS de virar base64 (infla ~33%) — 1.4MB brutos dá
+  // ~1.87MB em base64, com margem confortável pra não bater no limite.
+  const MAX_GOAL_AUDIO_BYTES = 1.4 * 1024 * 1024;
   const handleGoalAudioFile = e => {
     const file = e.target.files[0];
     if (!file) return;
+    if (file.size > MAX_GOAL_AUDIO_BYTES) {
+      setGoalAudioError('Áudio muito grande (máx. 1,4MB). Escolha um arquivo mais curto.');
+      e.target.value = '';
+      return;
+    }
+    setGoalAudioError('');
     const reader = new FileReader();
     reader.onload = () => commitField('goal_audio', reader.result);
     reader.readAsDataURL(file);
@@ -6141,12 +6193,13 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
         <input
           value={joinInput}
           onChange={e => onJoinInput(e.target.value.trim())}
-          onKeyDown={e => e.key === 'Enter' && onJoinRoom()}
+          onKeyDown={e => e.key === 'Enter' && !connecting && onJoinRoom()}
           placeholder="Cole o código da sala aqui…"
-          style={{ ...styles.teamInput, flex: 1, margin: 0, fontFamily: 'monospace', fontSize: 13 }}
+          disabled={connecting}
+          style={{ ...styles.teamInput, flex: 1, margin: 0, fontFamily: 'monospace', fontSize: 13, opacity: connecting ? 0.6 : 1 }}
         />
-        <button onClick={onJoinRoom} style={{ ...styles.btnPrimary, margin: 0, padding: '0 18px', whiteSpace: 'nowrap' }}>
-          Entrar
+        <button onClick={onJoinRoom} disabled={connecting} style={{ ...styles.btnPrimary, margin: 0, padding: '0 18px', whiteSpace: 'nowrap', opacity: connecting ? 0.7 : 1 }}>
+          {connecting ? '⏳' : 'Entrar'}
         </button>
       </div>
       <div style={{ fontSize: 11, opacity: 0.4, marginTop: 6, textAlign: 'center' }}>Cole o código que o criador da sala compartilhou</div>
@@ -6171,10 +6224,15 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
     const aiIds = players.filter(([, p]) => p.isAI).map(([pid]) => pid);
     const freshIds = aiIds.filter(pid => !seenAiIds.current.has(pid));
     if (freshIds.length === 0) return;
+    // Guarda todo timeout/interval criado aqui pra poder cancelar no cleanup
+    // — sem isso, sair da sala (ou a lista de players mudar) no meio da
+    // animação deixava timers órfãos chamando setState num componente já
+    // desmontado.
+    const timers = [];
     freshIds.forEach((pid, idx) => {
       seenAiIds.current.add(pid);
       const startDelay = idx * 130;
-      setTimeout(() => {
+      const toId = setTimeout(() => {
         let step = 0;
         const totalSteps = 5;
         const iv = setInterval(() => {
@@ -6187,8 +6245,11 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             setRevealNames(prev => ({ ...prev, [pid]: decoy }));
           }
         }, 90);
+        timers.push(iv);
       }, startDelay);
+      timers.push(toId);
     });
+    return () => timers.forEach(id => { clearTimeout(id); clearInterval(id); });
   }, [players.map(([pid]) => pid).join(',')]);
 
   const [copied, setCopied] = React.useState(false);
