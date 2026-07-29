@@ -1,4 +1,4 @@
-import 'dotenv/config';
+import './env.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
@@ -11,11 +11,45 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 
+// Atrás de proxy reverso (Hostinger, Nginx, etc.) o socket que chega no Node
+// é sempre o do proxy — sem isso, req.ip vira sempre o mesmo IP pra todo
+// mundo, e o rate limiter abaixo bloquearia o site inteiro de uma vez em vez
+// de só quem está de fato abusando.
+app.set('trust proxy', 1);
+
 // Autenticação é via Bearer token (não usa cookies), então CORS aberto não
 // expõe a nada a mais — em produção front e API rodam na mesma origem de
-// qualquer forma (Express servindo o build do React abaixo).
-app.use(cors());
+// qualquer forma (Express servindo o build do React abaixo). ALLOWED_ORIGIN
+// deixa restringir em produção se quiser (ex.: bloquear scraping de outro
+// domínio); sem a env var, mantém aberto (comportamento de sempre/dev).
+app.use(cors(process.env.ALLOWED_ORIGIN ? { origin: process.env.ALLOWED_ORIGIN } : undefined));
 app.use(express.json({ limit: '2mb' }));
+
+// Limitador simples em memória (sem dependência nova) — protege login/
+// cadastro de força bruta e spam de bot assim que o site fica público.
+// Não sobrevive a restart do processo nem é distribuído entre instâncias,
+// mas isso é suficiente pro tamanho desse app (uma instância só).
+function rateLimiter(maxRequests: number, windowMs: number) {
+  const hits = new Map<string, number[]>();
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, timestamps] of hits) {
+      if (timestamps.every(t => now - t >= windowMs)) hits.delete(key);
+    }
+  }, 10 * 60 * 1000).unref();
+  return (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const key = req.ip || 'unknown';
+    const now = Date.now();
+    const timestamps = (hits.get(key) || []).filter(t => now - t < windowMs);
+    if (timestamps.length >= maxRequests) {
+      return res.status(429).json({ error: 'Muitas tentativas. Aguarde um pouco antes de tentar de novo.' });
+    }
+    timestamps.push(now);
+    hits.set(key, timestamps);
+    next();
+  };
+}
+app.use('/api/auth', rateLimiter(10, 15 * 60 * 1000));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/me', meRoutes);

@@ -3,7 +3,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const db = new Database(path.join(__dirname, 'data.db'));
+// Em dev (tsx roda o .ts direto) __dirname é server/; compilado (tsc) esse
+// mesmo arquivo vira server/dist/db.js e __dirname passa a ser server/dist/.
+// Sem normalizar isso, o banco de produção ia parar DENTRO de dist/ — a
+// mesma pasta que `tsc` recria a cada build — e sumiria a cada deploy.
+// DB_PATH permite apontar pra outro lugar (ex.: um disco persistente
+// específico do host) sem precisar mexer no código.
+const serverRoot = path.basename(__dirname) === 'dist' ? path.join(__dirname, '..') : __dirname;
+const dbPath = process.env.DB_PATH || path.join(serverRoot, 'data.db');
+const db = new Database(dbPath);
 
 db.pragma('journal_mode = WAL');
 
