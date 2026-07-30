@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import db, { toPublicUser, USERNAME_RE, type UserRow } from '../db.js';
+import type { RowDataPacket, ResultSetHeader } from 'mysql2';
+import pool, { toPublicUser, USERNAME_RE, type UserRow } from '../db.js';
 import { signToken } from '../auth.js';
 
 const router = Router();
@@ -25,21 +26,23 @@ router.post('/signup', async (req, res) => {
       return res.status(400).json({ error: 'A senha precisa ter pelo menos 6 caracteres.' });
     }
 
-    const existingUsername = db.prepare('SELECT id FROM users WHERE username = ?').get(normalizedUsername);
-    if (existingUsername) {
+    const [existingUsername] = await pool.query<RowDataPacket[]>('SELECT id FROM users WHERE username = ?', [normalizedUsername]);
+    if (existingUsername.length > 0) {
       return res.status(409).json({ error: 'Esse nome de usuário já está em uso.' });
     }
-    const existingEmail = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
-    if (existingEmail) {
+    const [existingEmail] = await pool.query<RowDataPacket[]>('SELECT id FROM users WHERE email = ?', [normalizedEmail]);
+    if (existingEmail.length > 0) {
       return res.status(409).json({ error: 'Já existe uma conta com esse email.' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
-    const info = db
-      .prepare('INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)')
-      .run(normalizedUsername, normalizedEmail, passwordHash);
+    const [info] = await pool.query<ResultSetHeader>(
+      'INSERT INTO users (username, email, password_hash, achievements) VALUES (?, ?, ?, ?)',
+      [normalizedUsername, normalizedEmail, passwordHash, '[]']
+    );
 
-    const row = db.prepare('SELECT * FROM users WHERE id = ?').get(info.lastInsertRowid) as UserRow;
+    const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE id = ?', [info.insertId]);
+    const row = rows[0];
     const token = signToken(row.id);
     return res.status(201).json({ token, user: toPublicUser(row) });
   } catch (err) {
@@ -56,7 +59,8 @@ router.post('/login', async (req, res) => {
     }
     const normalizedEmail = email.trim().toLowerCase();
 
-    const row = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail) as UserRow | undefined;
+    const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE email = ?', [normalizedEmail]);
+    const row = rows[0];
     if (!row) {
       return res.status(401).json({ error: 'Email ou senha incorretos.' });
     }

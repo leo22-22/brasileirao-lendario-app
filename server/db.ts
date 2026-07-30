@@ -1,67 +1,51 @@
-import Database from 'better-sqlite3';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import mysql from 'mysql2/promise';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-// Em dev (tsx roda o .ts direto) __dirname é server/; compilado (tsc) esse
-// mesmo arquivo vira server/dist/db.js e __dirname passa a ser server/dist/.
-// Sem normalizar isso, o banco de produção ia parar DENTRO de dist/ — a
-// mesma pasta que `tsc` recria a cada build — e sumiria a cada deploy.
-// DB_PATH permite apontar pra outro lugar (ex.: um disco persistente
-// específico do host) sem precisar mexer no código.
-const serverRoot = path.basename(__dirname) === 'dist' ? path.join(__dirname, '..') : __dirname;
-const dbPath = process.env.DB_PATH || path.join(serverRoot, 'data.db');
-const db = new Database(dbPath);
+// MySQL gerenciado da Hostinger, não SQLite — a hospedagem "Web App" refaz o
+// diretório do app do zero a cada deploy (checkout novo do git), então um
+// arquivo local (SQLite) não sobrevive entre deploys. O banco gerenciado é
+// externo a esse ciclo e persiste normalmente.
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+});
 
-db.pragma('journal_mode = WAL');
-
-db.exec(`
+// Banco novo (sem instalação anterior pra migrar) — schema completo direto,
+// sem o histórico de ALTER TABLE incremental que a versão SQLite precisava.
+// MEDIUMTEXT (não TEXT, limite de 64KB) em team_logo/goal_audio porque os
+// dois guardam data URLs em base64 que podem passar de 1MB (áudio de gol).
+await pool.query(`
   CREATE TABLE IF NOT EXISTS users (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    username TEXT UNIQUE NOT NULL,
-    email TEXT UNIQUE NOT NULL,
-    password_hash TEXT NOT NULL,
-    team_name TEXT,
-    team_color TEXT,
-    team_logo TEXT,
-    team_coach TEXT,
-    team_city TEXT,
-    goal_audio TEXT,
-    titles_brasileirao INTEGER NOT NULL DEFAULT 0,
-    titles_copa INTEGER NOT NULL DEFAULT 0,
-    seasons_played INTEGER NOT NULL DEFAULT 0,
-    best_position INTEGER,
-    ranking_points INTEGER NOT NULL DEFAULT 0,
-    achievements TEXT NOT NULL DEFAULT '[]',
-    career_goals INTEGER NOT NULL DEFAULT 0,
-    career_assists INTEGER NOT NULL DEFAULT 0,
-    career_conceded INTEGER NOT NULL DEFAULT 0,
-    best_goal_diff INTEGER,
-    unbeaten_titles_brasileirao INTEGER NOT NULL DEFAULT 0,
-    unbeaten_titles_copa INTEGER NOT NULL DEFAULT 0,
-    multiplayer_wins INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    id INT PRIMARY KEY AUTO_INCREMENT,
+    username VARCHAR(20) UNIQUE NOT NULL,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    team_name VARCHAR(64),
+    team_color VARCHAR(32),
+    team_logo MEDIUMTEXT,
+    team_coach VARCHAR(64),
+    team_city VARCHAR(64),
+    goal_audio MEDIUMTEXT,
+    titles_brasileirao INT NOT NULL DEFAULT 0,
+    titles_copa INT NOT NULL DEFAULT 0,
+    seasons_played INT NOT NULL DEFAULT 0,
+    best_position INT,
+    ranking_points INT NOT NULL DEFAULT 0,
+    achievements MEDIUMTEXT,
+    career_goals INT NOT NULL DEFAULT 0,
+    career_assists INT NOT NULL DEFAULT 0,
+    career_conceded INT NOT NULL DEFAULT 0,
+    best_goal_diff INT,
+    unbeaten_titles_brasileirao INT NOT NULL DEFAULT 0,
+    unbeaten_titles_copa INT NOT NULL DEFAULT 0,
+    multiplayer_wins INT NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
   )
 `);
-
-// Bancos criados antes dessas colunas existirem (CREATE TABLE IF NOT EXISTS não
-// altera tabela já existente) — adiciona uma a uma, ignorando erro de coluna duplicada.
-function ensureColumn(ddl: string) {
-  try { db.exec(`ALTER TABLE users ADD COLUMN ${ddl}`); } catch { /* já existe */ }
-}
-ensureColumn('titles_brasileirao INTEGER NOT NULL DEFAULT 0');
-ensureColumn('titles_copa INTEGER NOT NULL DEFAULT 0');
-ensureColumn('seasons_played INTEGER NOT NULL DEFAULT 0');
-ensureColumn('best_position INTEGER');
-ensureColumn('ranking_points INTEGER NOT NULL DEFAULT 0');
-ensureColumn("achievements TEXT NOT NULL DEFAULT '[]'");
-ensureColumn('career_goals INTEGER NOT NULL DEFAULT 0');
-ensureColumn('career_assists INTEGER NOT NULL DEFAULT 0');
-ensureColumn('career_conceded INTEGER NOT NULL DEFAULT 0');
-ensureColumn('best_goal_diff INTEGER');
-ensureColumn('unbeaten_titles_brasileirao INTEGER NOT NULL DEFAULT 0');
-ensureColumn('unbeaten_titles_copa INTEGER NOT NULL DEFAULT 0');
-ensureColumn('multiplayer_wins INTEGER NOT NULL DEFAULT 0');
 
 export interface UserRow {
   id: number;
@@ -79,7 +63,7 @@ export interface UserRow {
   seasons_played: number;
   best_position: number | null;
   ranking_points: number;
-  achievements: string;
+  achievements: string | null;
   career_goals: number;
   career_assists: number;
   career_conceded: number;
@@ -147,4 +131,4 @@ export function toPublicUser(row: UserRow): PublicUser {
 // Letras, números, ponto/underscore/hífen, 3 a 20 caracteres — sem espaço.
 export const USERNAME_RE = /^[a-zA-Z0-9._-]{3,20}$/;
 
-export default db;
+export default pool;

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
-import db, { toPublicUser, USERNAME_RE, type UserRow } from '../db.js';
+import type { RowDataPacket, ResultSetHeader } from 'mysql2';
+import pool, { toPublicUser, USERNAME_RE, type UserRow } from '../db.js';
 import { requireAuth } from '../auth.js';
 
 const router = Router();
@@ -11,8 +12,9 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Colunas que o cliente pode atualizar diretamente (sem tratamento especial).
 const SIMPLE_FIELDS = ['team_name', 'team_color', 'team_logo', 'team_coach', 'team_city', 'goal_audio'] as const;
 
-function getUserOr404(userId: number, res: import('express').Response): UserRow | null {
-  const row = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as UserRow | undefined;
+async function getUserOr404(userId: number, res: import('express').Response): Promise<UserRow | null> {
+  const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE id = ?', [userId]);
+  const row = rows[0];
   if (!row) {
     res.status(404).json({ error: 'Conta não encontrada.' });
     return null;
@@ -20,8 +22,8 @@ function getUserOr404(userId: number, res: import('express').Response): UserRow 
   return row;
 }
 
-router.get('/', (req, res) => {
-  const row = getUserOr404(req.userId!, res);
+router.get('/', async (req, res) => {
+  const row = await getUserOr404(req.userId!, res);
   if (!row) return;
   res.json({ user: toPublicUser(row) });
 });
@@ -29,7 +31,7 @@ router.get('/', (req, res) => {
 router.put('/', async (req, res) => {
   try {
     const userId = req.userId!;
-    const current = getUserOr404(userId, res);
+    const current = await getUserOr404(userId, res);
     if (!current) return;
 
     const body = req.body ?? {};
@@ -53,8 +55,8 @@ router.put('/', async (req, res) => {
         return res.status(400).json({ error: 'Nome de usuário deve ter de 3 a 20 caracteres (letras, números, ponto, hífen ou underscore).' });
       }
       if (normalizedUsername !== current.username) {
-        const existing = db.prepare('SELECT id FROM users WHERE username = ? AND id != ?').get(normalizedUsername, userId);
-        if (existing) {
+        const [existing] = await pool.query<RowDataPacket[]>('SELECT id FROM users WHERE username = ? AND id != ?', [normalizedUsername, userId]);
+        if (existing.length > 0) {
           return res.status(409).json({ error: 'Esse nome de usuário já está em uso.' });
         }
       }
@@ -70,8 +72,8 @@ router.put('/', async (req, res) => {
         return res.status(400).json({ error: 'Email inválido.' });
       }
       if (normalizedEmail !== current.email) {
-        const existing = db.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(normalizedEmail, userId);
-        if (existing) {
+        const [existing] = await pool.query<RowDataPacket[]>('SELECT id FROM users WHERE email = ? AND id != ?', [normalizedEmail, userId]);
+        if (existing.length > 0) {
           return res.status(409).json({ error: 'Já existe uma conta com esse email.' });
         }
       }
@@ -92,10 +94,10 @@ router.put('/', async (req, res) => {
 
     const setClause = columns.map(col => `${col} = ?`).join(', ');
     const values = columns.map(col => updates[col]);
-    db.prepare(`UPDATE users SET ${setClause} WHERE id = ?`).run(...values, userId);
+    await pool.query(`UPDATE users SET ${setClause} WHERE id = ?`, [...values, userId]);
 
-    const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as UserRow;
-    return res.json({ user: toPublicUser(updated) });
+    const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE id = ?', [userId]);
+    return res.json({ user: toPublicUser(rows[0]) });
   } catch (err) {
     console.error('[update me]', err);
     return res.status(500).json({ error: 'Erro interno ao atualizar a conta.' });
@@ -105,10 +107,10 @@ router.put('/', async (req, res) => {
 // Registra o resultado de uma temporada encerrada (Brasileirão ou Copa) e
 // atualiza títulos/pontos de ranking/conquistas da conta. Chamado pelo cliente
 // ao chegar na tela de resultado, só quando o usuário está logado.
-router.post('/season-result', (req, res) => {
+router.post('/season-result', async (req, res) => {
   try {
     const userId = req.userId!;
-    const current = getUserOr404(userId, res);
+    const current = await getUserOr404(userId, res);
     if (!current) return;
 
     const body = req.body ?? {};
@@ -190,29 +192,30 @@ router.post('/season-result', (req, res) => {
 
     const newlyUnlocked = [...after].filter(a => !before.has(a));
 
-    db.prepare(
+    await pool.query(
       `UPDATE users SET titles_brasileirao=?, titles_copa=?, seasons_played=?, best_position=?, ranking_points=?, achievements=?,
        career_goals=?, career_assists=?, career_conceded=?, best_goal_diff=?, unbeaten_titles_brasileirao=?, unbeaten_titles_copa=?, multiplayer_wins=?
-       WHERE id=?`
-    ).run(
-      titlesBr, titlesCopa, seasonsPlayed, bestPosition, rankingPoints, JSON.stringify([...after]),
-      careerGoals, careerAssists, careerConceded, bestGoalDiff, unbeatenTitlesBr, unbeatenTitlesCopa, multiplayerWins,
-      userId
+       WHERE id=?`,
+      [
+        titlesBr, titlesCopa, seasonsPlayed, bestPosition, rankingPoints, JSON.stringify([...after]),
+        careerGoals, careerAssists, careerConceded, bestGoalDiff, unbeatenTitlesBr, unbeatenTitlesCopa, multiplayerWins,
+        userId,
+      ]
     );
 
-    const updated = db.prepare('SELECT * FROM users WHERE id = ?').get(userId) as UserRow;
-    return res.json({ user: toPublicUser(updated), newlyUnlocked });
+    const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE id = ?', [userId]);
+    return res.json({ user: toPublicUser(rows[0]), newlyUnlocked });
   } catch (err) {
     console.error('[season-result]', err);
     return res.status(500).json({ error: 'Erro interno ao registrar o resultado da temporada.' });
   }
 });
 
-router.delete('/', (req, res) => {
+router.delete('/', async (req, res) => {
   try {
     const userId = req.userId!;
-    const result = db.prepare('DELETE FROM users WHERE id = ?').run(userId);
-    if (result.changes === 0) {
+    const [result] = await pool.query<ResultSetHeader>('DELETE FROM users WHERE id = ?', [userId]);
+    if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Conta não encontrada.' });
     }
     return res.status(204).send();
