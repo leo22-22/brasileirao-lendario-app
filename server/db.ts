@@ -4,6 +4,19 @@ import mysql from 'mysql2/promise';
 // diretório do app do zero a cada deploy (checkout novo do git), então um
 // arquivo local (SQLite) não sobrevive entre deploys. O banco gerenciado é
 // externo a esse ciclo e persiste normalmente.
+
+// DIAGNÓSTICO TEMPORÁRIO — imprime o que o processo realmente recebeu (sem a
+// senha) pra descobrir se a variável de ambiente configurada no painel está
+// de fato chegando aqui. Remover depois de resolver o "Access denied".
+console.log('[db] config recebida:', {
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  database: process.env.DB_NAME,
+  senhaDefinida: !!process.env.DB_PASSWORD,
+  senhaTamanho: process.env.DB_PASSWORD?.length,
+});
+
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
