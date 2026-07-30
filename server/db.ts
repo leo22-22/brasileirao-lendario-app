@@ -5,11 +5,18 @@ import mysql from 'mysql2/promise';
 // arquivo local (SQLite) não sobrevive entre deploys. O banco gerenciado é
 // externo a esse ciclo e persiste normalmente.
 
+// Node resolve "localhost" pra IPv6 (::1) em vários ambientes, e o usuário
+// MySQL da Hostinger só tinha permissão liberada pra IPv4 — trocando por um
+// IP literal não rola resolução de DNS nenhuma (sem ambiguidade v4/v6),
+// então força 127.0.0.1 sempre que o host vier vazio ou como "localhost".
+const resolvedHost = (!process.env.DB_HOST || process.env.DB_HOST === 'localhost') ? '127.0.0.1' : process.env.DB_HOST;
+
 // DIAGNÓSTICO TEMPORÁRIO — imprime o que o processo realmente recebeu (sem a
 // senha) pra descobrir se a variável de ambiente configurada no painel está
 // de fato chegando aqui. Remover depois de resolver o "Access denied".
 console.log('[db] config recebida:', {
-  host: process.env.DB_HOST,
+  hostBruto: process.env.DB_HOST,
+  hostResolvido: resolvedHost,
   port: process.env.DB_PORT,
   user: process.env.DB_USER,
   database: process.env.DB_NAME,
@@ -18,7 +25,7 @@ console.log('[db] config recebida:', {
 });
 
 const pool = mysql.createPool({
-  host: process.env.DB_HOST,
+  host: resolvedHost,
   port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
