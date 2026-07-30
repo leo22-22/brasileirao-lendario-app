@@ -18,34 +18,41 @@ const pool = mysql.createPool({
 // sem o histórico de ALTER TABLE incremental que a versão SQLite precisava.
 // MEDIUMTEXT (não TEXT, limite de 64KB) em team_logo/goal_audio porque os
 // dois guardam data URLs em base64 que podem passar de 1MB (áudio de gol).
-await pool.query(`
-  CREATE TABLE IF NOT EXISTS users (
-    id INT PRIMARY KEY AUTO_INCREMENT,
-    username VARCHAR(20) UNIQUE NOT NULL,
-    email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255) NOT NULL,
-    team_name VARCHAR(64),
-    team_color VARCHAR(32),
-    team_logo MEDIUMTEXT,
-    team_coach VARCHAR(64),
-    team_city VARCHAR(64),
-    goal_audio MEDIUMTEXT,
-    titles_brasileirao INT NOT NULL DEFAULT 0,
-    titles_copa INT NOT NULL DEFAULT 0,
-    seasons_played INT NOT NULL DEFAULT 0,
-    best_position INT,
-    ranking_points INT NOT NULL DEFAULT 0,
-    achievements MEDIUMTEXT,
-    career_goals INT NOT NULL DEFAULT 0,
-    career_assists INT NOT NULL DEFAULT 0,
-    career_conceded INT NOT NULL DEFAULT 0,
-    best_goal_diff INT,
-    unbeaten_titles_brasileirao INT NOT NULL DEFAULT 0,
-    unbeaten_titles_copa INT NOT NULL DEFAULT 0,
-    multiplayer_wins INT NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-  )
-`);
+//
+// Exportado como função (chamada por index.ts antes do app.listen), não como
+// top-level await aqui — o loader Node da Hostinger (lsnode.js, via
+// LiteSpeed) carrega o entry file com require(), que não aceita um grafo de
+// módulos ESM com top-level await ("ERR_REQUIRE_ASYNC_MODULE").
+export async function ensureSchema() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS users (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      username VARCHAR(20) UNIQUE NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password_hash VARCHAR(255) NOT NULL,
+      team_name VARCHAR(64),
+      team_color VARCHAR(32),
+      team_logo MEDIUMTEXT,
+      team_coach VARCHAR(64),
+      team_city VARCHAR(64),
+      goal_audio MEDIUMTEXT,
+      titles_brasileirao INT NOT NULL DEFAULT 0,
+      titles_copa INT NOT NULL DEFAULT 0,
+      seasons_played INT NOT NULL DEFAULT 0,
+      best_position INT,
+      ranking_points INT NOT NULL DEFAULT 0,
+      achievements MEDIUMTEXT,
+      career_goals INT NOT NULL DEFAULT 0,
+      career_assists INT NOT NULL DEFAULT 0,
+      career_conceded INT NOT NULL DEFAULT 0,
+      best_goal_diff INT,
+      unbeaten_titles_brasileirao INT NOT NULL DEFAULT 0,
+      unbeaten_titles_copa INT NOT NULL DEFAULT 0,
+      multiplayer_wins INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+}
 
 export interface UserRow {
   id: number;

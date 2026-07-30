@@ -6,6 +6,7 @@ import cors from 'cors';
 import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import leaderboardRoutes from './routes/leaderboard.js';
+import { ensureSchema } from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -73,6 +74,16 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
   res.status(500).json({ error: 'Erro interno do servidor.' });
 });
 
-app.listen(PORT, () => {
-  console.log(`API rodando em http://localhost:${PORT}`);
+// main() em vez de top-level await: o loader Node da Hostinger carrega esse
+// arquivo com require(), que quebra num grafo ESM com await solto no topo
+// (ERR_REQUIRE_ASYNC_MODULE). Dentro de uma função normal isso não importa.
+async function main() {
+  await ensureSchema();
+  app.listen(PORT, () => {
+    console.log(`API rodando em http://localhost:${PORT}`);
+  });
+}
+main().catch(err => {
+  console.error('[boot] falha ao iniciar o servidor:', err);
+  process.exit(1);
 });
