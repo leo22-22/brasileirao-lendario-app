@@ -3,6 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import leaderboardRoutes from './routes/leaderboard.js';
@@ -17,6 +18,17 @@ const PORT = process.env.PORT ? Number(process.env.PORT) : 4000;
 // mundo, e o rate limiter abaixo bloquearia o site inteiro de uma vez em vez
 // de só quem está de fato abusando.
 app.set('trust proxy', 1);
+
+// Headers de segurança padrão (X-Content-Type-Options, HSTS, X-Frame-Options,
+// Referrer-Policy, etc.). CSP e COEP ficam desligados aqui de propósito: o
+// site embute iframes do YouTube (hino do clube) e carrega fontes do Google,
+// analytics e imagens de terceiros (escudos/troféus) — uma CSP/COEP padrão
+// quebraria isso, e calibrar uma lista de origens com precisão exigiria
+// testar no navegador de verdade, não só por código.
+app.use(helmet({
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false,
+}));
 
 // Autenticação é via Bearer token (não usa cookies), então CORS aberto não
 // expõe a nada a mais — em produção front e API rodam na mesma origem de

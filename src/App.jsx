@@ -11,6 +11,23 @@ const MY_PID = (() => {
   return id;
 })();
 
+// STUN sozinho (padrão do PeerJS) só resolve NAT simples — dois jogadores
+// atrás de rede mais restritiva (corporativa, algumas 4G com CGNAT) não
+// conseguem fechar a conexão P2P sem um servidor TURN de retransmissão.
+// Configurável via .env (VITE_TURN_URL/VITE_TURN_USERNAME/VITE_TURN_CREDENTIAL)
+// — sem essas variáveis, cai de volta pro STUN público (comportamento atual,
+// nada quebra por não ter TURN configurado).
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  ...(import.meta.env.VITE_TURN_URL ? [{
+    urls: import.meta.env.VITE_TURN_URL,
+    username: import.meta.env.VITE_TURN_USERNAME,
+    credential: import.meta.env.VITE_TURN_CREDENTIAL,
+  }] : []),
+];
+const PEER_OPTIONS = { debug: 1, config: { iceServers: ICE_SERVERS } };
+
 // Seeded PRNG (mulberry32) — garante mesmos resultados em todos os clientes
 function makePrng(seed) {
   let s = seed >>> 0;
@@ -4612,7 +4629,7 @@ export default function App() {
     const code = generateRoomCode();
     let peer;
     try {
-      peer = new Peer(code, { debug: 1 });
+      peer = new Peer(code, PEER_OPTIONS);
       peerRef.current = peer;
     } catch (e) {
       multiConnectingRef.current = false;
@@ -4721,7 +4738,7 @@ export default function App() {
     multiConnectingRef.current = true;
     setMultiConnecting(true);
     setMultiError('');
-    const peer = new Peer(undefined, { debug: 1 });
+    const peer = new Peer(undefined, PEER_OPTIONS);
     peerRef.current = peer;
 
     // Mesma rede de segurança do "Criar sala" — sem isso, uma conexão que
