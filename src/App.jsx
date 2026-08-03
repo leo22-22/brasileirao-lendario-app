@@ -5277,6 +5277,7 @@ export default function App() {
             difficulty={difficulty} onSetDifficulty={setDifficulty}
             myTeamColor={myTeamColor} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge}
             currentUser={currentUser}
+            onUpdateFields={updateAccountFields}
             onMultiPlayer={() => setMultiPhase('lobby')}
             onNavigateInfo={navigateToInfo}
           />
@@ -5652,11 +5653,6 @@ function EqBars({ color = '#d4a23c', height = 12 }) {
 // ============================================================
 function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, onLogout, onDeleteAccount }) {
   const mc = myTeamColor || '#d4a23c';
-  const fileInputRef = useRef(null);
-  const [cropSrc, setCropSrc] = useState(null);
-  const [name, setName] = useState(user.team_name || '');
-  const [city, setCity] = useState(user.team_city || '');
-  const [coach, setCoach] = useState(user.team_coach || '');
   const [username, setUsername] = useState(user.username);
   const [email, setEmail] = useState(user.email);
   const [password, setPassword] = useState('');
@@ -5685,9 +5681,6 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
   const anthemId = anthemClub && CLUB_ANTHEMS[anthemClub];
 
   useEffect(() => {
-    setName(user.team_name || '');
-    setCity(user.team_city || '');
-    setCoach(user.team_coach || '');
     setUsername(user.username);
     setEmail(user.email);
   }, [user]);
@@ -5775,14 +5768,6 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
     catch (err) { setError(err.message || 'Erro ao salvar.'); }
   };
 
-  const handleFileChange = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const url = URL.createObjectURL(file);
-    setCropSrc(url);
-    e.target.value = '';
-  };
-
   const saveCredentials = async () => {
     setCredError('');
     const fields = {};
@@ -5812,13 +5797,6 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
-      {cropSrc && (
-        <ImageCropModal
-          src={cropSrc}
-          onConfirm={dataUrl => { setCropSrc(null); commitField('team_logo', dataUrl); }}
-          onCancel={() => setCropSrc(null)}
-        />
-      )}
       {showAchievements && <AchievementsModal user={user} onClose={() => setShowAchievements(false)} />}
       <div style={{ width: '100%', maxWidth: 460, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer' }}>✕</button>
@@ -5855,106 +5833,6 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
           ) : (
             <div style={{ fontSize: 11.5, opacity: 0.4 }}>Nenhuma conquista desbloqueada ainda.</div>
           )}
-        </div>
-
-        <div style={styles.teamEditCard}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  width: 76, height: 76, borderRadius: 16,
-                  background: hexToRgba(mc, 0.15),
-                  border: `2px dashed ${hexToRgba(mc, 0.6)}`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', overflow: 'hidden', position: 'relative',
-                }}
-              >
-                {myTeamLogo
-                  ? <img src={myTeamLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                  : <span style={{ fontSize: 32, opacity: 0.4 }}>📷</span>
-                }
-              </div>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                style={{ fontSize: 11, fontWeight: 600, color: mc, background: hexToRgba(mc, 0.12), border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}
-              >
-                📷 Upload logo
-              </button>
-            </div>
-            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
-            {myTeamLogo && (
-              <button onClick={() => commitField('team_logo', null)} style={{ fontSize: 11, color: '#e05050', background: 'none', border: '1px solid rgba(224,80,80,0.3)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer' }}>
-                Remover logo
-              </button>
-            )}
-          </div>
-
-          <div style={styles.teamEditSep} />
-
-          <div style={styles.teamEditSection}>
-            <div style={styles.teamEditLabel}>Emblema do clube</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-              {Object.entries(CLUB_LOGOS).map(([club, url]) => (
-                <button
-                  key={club}
-                  onClick={() => commitField('team_logo', myTeamLogo === url ? null : url)}
-                  title={club}
-                  style={{
-                    width: 44, height: 44, borderRadius: 10, padding: 5,
-                    border: `2px solid ${myTeamLogo === url ? mc : 'rgba(255,255,255,0.08)'}`,
-                    background: myTeamLogo === url ? hexToRgba(mc, 0.15) : 'rgba(255,255,255,0.03)',
-                    cursor: 'pointer', transition: 'all 0.12s',
-                  }}
-                >
-                  <img src={url} alt={club} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div style={styles.teamEditSection}>
-            <div style={styles.teamEditLabel}>Cor principal</div>
-            <div style={styles.colorGrid}>
-              {TEAM_COLORS.map(c => (
-                <button key={c} onClick={() => commitField('team_color', c)} style={{
-                  width: 30, height: 30, borderRadius: '50%',
-                  background: c,
-                  border: `3px solid ${mc === c ? '#fff' : 'transparent'}`,
-                  outline: mc === c ? `2px solid ${c}` : 'none',
-                  outlineOffset: 2,
-                  cursor: 'pointer', transition: 'all 0.12s', padding: 0,
-                }} />
-              ))}
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <div>
-              <label style={styles.teamEditLabel}>Nome do time</label>
-              <input
-                value={name} onChange={e => setName(e.target.value)}
-                onBlur={() => name !== (user.team_name || '') && commitField('team_name', name)}
-                placeholder="Meu Time" maxLength={24} style={styles.teamInput}
-              />
-            </div>
-            <div>
-              <label style={styles.teamEditLabel}>Cidade</label>
-              <input
-                value={city} onChange={e => setCity(e.target.value)}
-                onBlur={() => city !== (user.team_city || '') && commitField('team_city', city)}
-                placeholder="Ex: São Paulo" maxLength={20} style={styles.teamInput}
-              />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={styles.teamEditLabel}>Técnico</label>
-              <input
-                value={coach} onChange={e => setCoach(e.target.value)}
-                onBlur={() => coach !== (user.team_coach || '') && commitField('team_coach', coach)}
-                placeholder="Seu nome" maxLength={24} style={styles.teamInput}
-              />
-            </div>
-          </div>
         </div>
 
         {/* Áudio ambiente — trilha padrão, hino do clube ou link próprio */}
@@ -6221,7 +6099,7 @@ function parseYouTubeId(input) {
 // título invicto) com metas quantitativas (com barra, via getAchievementProgress).
 const FEATURED_ACHIEVEMENT_IDS = ['unbeaten_league_champion', 'goals_1000', 'dynasty', 'veteran'];
 
-function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onMultiPlayer, onNavigateInfo }) {
+function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
@@ -6432,7 +6310,7 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
       </div>
 
       {showClub && (
-        <ClubHistoryModal user={currentUser} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} myTeamColor={myTeamColor} onClose={() => setShowClub(false)} />
+        <ClubHistoryModal user={currentUser} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} myTeamColor={myTeamColor} onUpdateFields={onUpdateFields} onClose={() => setShowClub(false)} />
       )}
       {showAchievements && currentUser && (
         <AchievementsModal user={currentUser} onClose={() => setShowAchievements(false)} />
@@ -6444,7 +6322,7 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
 // "Ver meu Clube" — histórico de carreira completo da conta (jogos, V/E/D,
 // gols marcados/sofridos, títulos, conquistas). Reaproveita os campos
 // career_* que o servidor já acumula a cada temporada registrada.
-function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose }) {
+function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose, onUpdateFields }) {
   const mc = myTeamColor || '#d4a23c';
   const mp = user?.career_matches_played || 0;
   const w = user?.career_wins || 0;
@@ -6456,6 +6334,33 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose 
   const gd = gp - gc;
   const unlockedCount = (user?.achievements || []).length;
   const totalAchievements = Object.keys(ACHIEVEMENT_CATALOG).length;
+
+  const fileInputRef = useRef(null);
+  const [cropSrc, setCropSrc] = useState(null);
+  const [name, setName] = useState(user?.team_name || '');
+  const [city, setCity] = useState(user?.team_city || '');
+  const [coach, setCoach] = useState(user?.team_coach || '');
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    setName(user?.team_name || '');
+    setCity(user?.team_city || '');
+    setCoach(user?.team_coach || '');
+  }, [user]);
+
+  const commitField = async (field, value) => {
+    setError('');
+    try { await onUpdateFields({ [field]: value }); }
+    catch (err) { setError(err.message || 'Erro ao salvar.'); }
+  };
+
+  const handleFileChange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    setCropSrc(url);
+    e.target.value = '';
+  };
 
   // Cor fixa (não a cor do time) pro texto — a cor do time pode ser escura
   // (ex.: preto do Santos), o que deixava o número ilegível em cima do fundo
@@ -6470,6 +6375,13 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose 
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      {cropSrc && (
+        <ImageCropModal
+          src={cropSrc}
+          onConfirm={dataUrl => { setCropSrc(null); commitField('team_logo', dataUrl); }}
+          onCancel={() => setCropSrc(null)}
+        />
+      )}
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '88vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, position: 'relative' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer', zIndex: 1 }}>✕</button>
         <div style={{ padding: '28px 24px 20px', textAlign: 'center', background: `linear-gradient(180deg, ${hexToRgba(mc, 0.18)}, transparent)`, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -6484,6 +6396,109 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose 
         </div>
 
         <div style={{ padding: '20px 24px 24px' }}>
+          {onUpdateFields && (
+            <div style={styles.teamEditCard}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                  <div
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{
+                      width: 76, height: 76, borderRadius: 16,
+                      background: hexToRgba(mc, 0.15),
+                      border: `2px dashed ${hexToRgba(mc, 0.6)}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', overflow: 'hidden', position: 'relative',
+                    }}
+                  >
+                    {myTeamLogo
+                      ? <img src={myTeamLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      : <span style={{ fontSize: 32, opacity: 0.4 }}>📷</span>
+                    }
+                  </div>
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    style={{ fontSize: 11, fontWeight: 600, color: mc, background: hexToRgba(mc, 0.12), border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}
+                  >
+                    📷 Upload logo
+                  </button>
+                </div>
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
+                {myTeamLogo && (
+                  <button onClick={() => commitField('team_logo', null)} style={{ fontSize: 11, color: '#e05050', background: 'none', border: '1px solid rgba(224,80,80,0.3)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer' }}>
+                    Remover logo
+                  </button>
+                )}
+              </div>
+
+              <div style={styles.teamEditSep} />
+
+              <div style={styles.teamEditSection}>
+                <div style={styles.teamEditLabel}>Emblema do clube</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {Object.entries(CLUB_LOGOS).map(([club, url]) => (
+                    <button
+                      key={club}
+                      onClick={() => commitField('team_logo', myTeamLogo === url ? null : url)}
+                      title={club}
+                      style={{
+                        width: 44, height: 44, borderRadius: 10, padding: 5,
+                        border: `2px solid ${myTeamLogo === url ? mc : 'rgba(255,255,255,0.08)'}`,
+                        background: myTeamLogo === url ? hexToRgba(mc, 0.15) : 'rgba(255,255,255,0.03)',
+                        cursor: 'pointer', transition: 'all 0.12s',
+                      }}
+                    >
+                      <img src={url} alt={club} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div style={styles.teamEditSection}>
+                <div style={styles.teamEditLabel}>Cor principal</div>
+                <div style={styles.colorGrid}>
+                  {TEAM_COLORS.map(c => (
+                    <button key={c} onClick={() => commitField('team_color', c)} style={{
+                      width: 30, height: 30, borderRadius: '50%',
+                      background: c,
+                      border: `3px solid ${mc === c ? '#fff' : 'transparent'}`,
+                      outline: mc === c ? `2px solid ${c}` : 'none',
+                      outlineOffset: 2,
+                      cursor: 'pointer', transition: 'all 0.12s', padding: 0,
+                    }} />
+                  ))}
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div>
+                  <label style={styles.teamEditLabel}>Nome do time</label>
+                  <input
+                    value={name} onChange={e => setName(e.target.value)}
+                    onBlur={() => name !== (user?.team_name || '') && commitField('team_name', name)}
+                    placeholder="Meu Time" maxLength={24} style={styles.teamInput}
+                  />
+                </div>
+                <div>
+                  <label style={styles.teamEditLabel}>Cidade</label>
+                  <input
+                    value={city} onChange={e => setCity(e.target.value)}
+                    onBlur={() => city !== (user?.team_city || '') && commitField('team_city', city)}
+                    placeholder="Ex: São Paulo" maxLength={20} style={styles.teamInput}
+                  />
+                </div>
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={styles.teamEditLabel}>Técnico</label>
+                  <input
+                    value={coach} onChange={e => setCoach(e.target.value)}
+                    onBlur={() => coach !== (user?.team_coach || '') && commitField('team_coach', coach)}
+                    placeholder="Seu nome" maxLength={24} style={styles.teamInput}
+                  />
+                </div>
+              </div>
+              {error && <div style={{ color: '#e05050', fontSize: 11.5, marginTop: 10 }}>{error}</div>}
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
             <Stat label="Brasileirões" value={user?.titles_brasileirao || 0} />
             <Stat label="Copas do Brasil" value={user?.titles_copa || 0} />
