@@ -3135,6 +3135,49 @@ export default function App() {
   const hasUnseenNews = (() => {
     try { return localStorage.getItem('brl_news_seen') !== WHATS_NEW[0].id; } catch { return false; }
   })();
+
+  // Rotas de verdade (URL própria, compartilhável, indexável pelo Google) pras
+  // páginas institucionais — Como Jogar/Termos/Privacidade/Contato. É só
+  // History API direto (pushState/popstate), sem lib de rotas: o servidor já
+  // cai em index.html pra qualquer caminho fora de /api (SPA catch-all), e
+  // aqui a gente só lê window.location.pathname pra saber qual página mostrar.
+  const [infoPage, setInfoPage] = useState(() => INFO_ROUTES[window.location.pathname] || null);
+  useEffect(() => {
+    const onPopState = () => setInfoPage(INFO_ROUTES[window.location.pathname] || null);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, []);
+  useEffect(() => {
+    document.title = infoPage
+      ? `${INFO_TABS.find(t => t.id === infoPage)?.label} — Brasileirão Lendário`
+      : 'Brasileirão Lendário — Monte seu time com lendas do futebol brasileiro';
+  }, [infoPage]);
+  const navigateToInfo = (tab) => {
+    const path = Object.entries(INFO_ROUTES).find(([, v]) => v === tab)?.[0] || '/';
+    window.history.pushState(null, '', path);
+    setInfoPage(tab);
+  };
+  const closeInfoPage = () => {
+    window.history.pushState(null, '', '/');
+    setInfoPage(null);
+  };
+
+  // Compartilhar o jogo com amigos (não é o convite de sala — é o app em si).
+  // Mais importante ainda rodando instalado como PWA: nesse modo não tem
+  // barra de endereço visível pra copiar o link manualmente.
+  const [appShareCopied, setAppShareCopied] = useState(false);
+  const shareApp = async () => {
+    trackEvent('share', { method: 'app_referral' });
+    const url = window.location.origin;
+    const text = 'Tô jogando Brasileirão Lendário — monta seu time com craques históricos do futebol brasileiro e dispute o título. Bora jogar?';
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Brasileirão Lendário', text, url }); } catch { /* usuário cancelou — sem problema */ }
+    } else {
+      navigator.clipboard?.writeText(url);
+      setAppShareCopied(true);
+      setTimeout(() => setAppShareCopied(false), 2000);
+    }
+  };
   // Silenciar áudio de gol — o estado React só existe pra atualizar o ícone;
   // quem realmente controla se toca ou não é a flag de módulo em playGoalAudio.
   const [goalAudioMuted, setGoalAudioMutedUi] = useState(() => isGoalAudioMuted());
@@ -5074,6 +5117,19 @@ export default function App() {
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} className="header-actions-h">
             <button
+              onClick={shareApp}
+              title="Compartilhar o jogo com amigos"
+              className="tap-target-sm"
+              style={{
+                flexShrink: 0,
+                background: 'none', border: '1px solid rgba(212,162,60,0.35)',
+                borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
+                color: appShareCopied ? '#7fd99a' : '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
+              }}
+            >
+              {appShareCopied ? '✓' : '📤'}
+            </button>
+            <button
               onClick={toggleGoalAudioMuted}
               title={goalAudioMuted ? 'Áudio de gol desativado — clique pra reativar' : 'Desativar áudio de gol'}
               className="tap-target-sm"
@@ -5176,6 +5232,7 @@ export default function App() {
       )}
       {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} myUsername={currentUser?.username} />}
       {showNews && <NewsModal onClose={() => setShowNews(false)} />}
+      {infoPage && <InfoPage tab={infoPage} onNavigate={navigateToInfo} onClose={closeInfoPage} myTeamColor={myTeamColor} />}
       {newAchievements.length > 0 && (
         <AchievementToast achievements={newAchievements} onClose={() => setNewAchievements([])} />
       )}
@@ -5221,6 +5278,7 @@ export default function App() {
             myTeamColor={myTeamColor} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge}
             currentUser={currentUser}
             onMultiPlayer={() => setMultiPhase('lobby')}
+            onNavigateInfo={navigateToInfo}
           />
         )}
         {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} />}
@@ -6163,13 +6221,11 @@ function parseYouTubeId(input) {
 // título invicto) com metas quantitativas (com barra, via getAchievementProgress).
 const FEATURED_ACHIEVEMENT_IDS = ['unbeaten_league_champion', 'goals_1000', 'dynasty', 'veteran'];
 
-function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onMultiPlayer }) {
+function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onMultiPlayer, onNavigateInfo }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
-  const [infoTab, setInfoTab] = useState(null);
-  const openInfo = (tab) => setInfoTab(tab);
 
   return (
     <>
@@ -6368,7 +6424,7 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
           marginTop: 28, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.08)',
         }}>
           {[['como-jogar', 'Como Jogar'], ['termos', 'Termos de Uso'], ['privacidade', 'Política de Privacidade'], ['contato', 'Contato']].map(([id, label]) => (
-            <button key={id} onClick={() => openInfo(id)} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: 0, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            <button key={id} onClick={() => onNavigateInfo(id)} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: 0, textDecoration: 'underline', textUnderlineOffset: 3 }}>
               {label}
             </button>
           ))}
@@ -6380,9 +6436,6 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
       )}
       {showAchievements && currentUser && (
         <AchievementsModal user={currentUser} onClose={() => setShowAchievements(false)} />
-      )}
-      {infoTab && (
-        <InfoModal tab={infoTab} onSetTab={setInfoTab} onClose={() => setInfoTab(null)} />
       )}
     </>
   );
@@ -6476,6 +6529,14 @@ const INFO_TABS = [
   { id: 'privacidade', label: 'Privacidade', icon: '🔒' },
   { id: 'contato', label: 'Contato', icon: '✉️' },
 ];
+// URL própria de cada aba — path -> id da aba (usado pelo roteamento no
+// componente raiz, via History API direta).
+const INFO_ROUTES = {
+  '/como-jogar': 'como-jogar',
+  '/termos-de-uso': 'termos',
+  '/privacidade': 'privacidade',
+  '/contato': 'contato',
+};
 
 const HOW_TO_PLAY_STEPS = [
   { icon: '🎲', title: 'Monte seu elenco no draft', text: 'A cada rodada do draft, você sorteia um time histórico do Brasileirão (1959–2026) e escolhe UM jogador dele pra preencher uma vaga da sua formação. Não gostou do time sorteado? Você tem até 3 pulos pra tentar outro.' },
@@ -6486,20 +6547,35 @@ const HOW_TO_PLAY_STEPS = [
   { icon: '👥', title: 'Jogue com amigos', text: 'No modo multiplayer, cada jogador faz seu próprio draft e assume um time real da liga — sem servidor, a conexão é direta entre os navegadores (P2P). Um cria a sala, os outros entram com o código ou o link de convite.' },
 ];
 
-// Como Jogar, Termos de Uso, Política de Privacidade e Contato — modelo
-// genérico de entretenimento gratuito, sem apostas/dinheiro real. Termos/
-// Privacidade NÃO são aconselhamento jurídico; vale revisão antes de tratar
-// como documento definitivo (LGPD).
-function InfoModal({ tab, onSetTab, onClose }) {
+// Como Jogar, Termos de Uso, Política de Privacidade e Contato — página cheia
+// com URL própria (ver INFO_ROUTES + roteamento no componente raiz), não mais
+// um modal solto: dá pra compartilhar/favoritar o link e o Google indexa cada
+// uma separadamente. Modelo de texto genérico de entretenimento gratuito, sem
+// apostas/dinheiro real. Termos/Privacidade NÃO são aconselhamento jurídico;
+// vale revisão antes de tratar como documento definitivo (LGPD).
+function InfoPage({ tab, onNavigate, onClose, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, maxHeight: '85vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
+      <button
+        onClick={onClose}
+        title="Voltar pro app"
+        style={{
+          position: 'fixed', top: 14, left: 14, zIndex: 10001,
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'rgba(15,31,21,0.95)', border: `1px solid ${hexToRgba(mc, 0.4)}`,
+          borderRadius: 999, padding: '8px 14px', color: mc,
+          fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+        }}
+      >
+        ← Voltar pro app
+      </button>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, margin: '0 auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
         <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
           {INFO_TABS.map(t => (
             <button
               key={t.id}
-              onClick={() => onSetTab(t.id)}
+              onClick={() => onNavigate(t.id)}
               style={{
                 padding: '6px 12px', borderRadius: 999, border: `1px solid ${tab === t.id ? '#d4a23c' : 'rgba(255,255,255,0.15)'}`,
                 background: tab === t.id ? 'rgba(212,162,60,0.12)' : 'transparent',
