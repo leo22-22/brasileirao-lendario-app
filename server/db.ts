@@ -11,19 +11,6 @@ import mysql from 'mysql2/promise';
 // então força 127.0.0.1 sempre que o host vier vazio ou como "localhost".
 const resolvedHost = (!process.env.DB_HOST || process.env.DB_HOST === 'localhost') ? '127.0.0.1' : process.env.DB_HOST;
 
-// DIAGNÓSTICO TEMPORÁRIO — imprime o que o processo realmente recebeu (sem a
-// senha) pra descobrir se a variável de ambiente configurada no painel está
-// de fato chegando aqui. Remover depois de resolver o "Access denied".
-console.log('[db] config recebida:', {
-  hostBruto: process.env.DB_HOST,
-  hostResolvido: resolvedHost,
-  port: process.env.DB_PORT,
-  user: process.env.DB_USER,
-  database: process.env.DB_NAME,
-  senhaDefinida: !!process.env.DB_PASSWORD,
-  senhaTamanho: process.env.DB_PASSWORD?.length,
-});
-
 const pool = mysql.createPool({
   host: resolvedHost,
   port: process.env.DB_PORT ? Number(process.env.DB_PORT) : 3306,
