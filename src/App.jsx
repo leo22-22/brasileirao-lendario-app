@@ -6226,7 +6226,7 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
               className="mode-card-hover"
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
-                padding: '14px 16px', marginBottom: 14, borderRadius: 12,
+                padding: '14px 16px', marginBottom: 14, borderRadius: 12, color: '#F4F1EA',
                 border: `2px solid ${hexToRgba(mc, 0.4)}`, background: hexToRgba(mc, 0.08), cursor: 'pointer',
               }}
             >
@@ -6236,11 +6236,11 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
               }
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: mc }}>Ver meu Clube</div>
-                <div style={{ fontSize: 11, opacity: 0.6 }}>
+                <div style={{ fontSize: 11, opacity: 0.6, color: '#F4F1EA' }}>
                   {(currentUser.titles_brasileirao || 0) + (currentUser.titles_copa || 0)} títulos · {currentUser.seasons_played || 0} temporadas · histórico completo
                 </div>
               </div>
-              <span style={{ fontSize: 18, opacity: 0.5 }}>→</span>
+              <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA' }}>→</span>
             </button>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
