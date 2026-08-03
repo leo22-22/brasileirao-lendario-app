@@ -2511,18 +2511,24 @@ const ACHIEVEMENT_CATALOG = {
   // Marcos de gols marcados (carreira, soma de todas as temporadas/copas)
   goals_100: { icon: '⚽', label: 'Artilheiro Nato', desc: 'Marcou 100 gols com a conta.' },
   goals_1000: { icon: '👟', label: 'Máquina de Gols', desc: 'Marcou 1.000 gols com a conta.' },
+  goals_2500: { icon: '🥾', label: 'Chuteira Quente', desc: 'Marcou 2.500 gols com a conta.' },
+  goals_5000: { icon: '🔥', label: 'Artilheiro Implacável', desc: 'Marcou 5.000 gols com a conta.' },
   goals_10000: { icon: '🎯', label: 'Gols Não Faltam', desc: 'Marcou 10.000 gols com a conta.' },
   goals_20000: { icon: '🌟', label: 'Lenda Artilheira', desc: 'Marcou 20.000 gols com a conta.' },
   // Marcos de assistências (carreira)
   assists_100: { icon: '🤝', label: 'Garçom', desc: 'Deu 100 assistências com a conta.' },
   assists_1000: { icon: '🍽️', label: 'Cozinheiro de Jogadas', desc: 'Deu 1.000 assistências com a conta.' },
-  assists_10000: { icon: '🎩', label: 'Maestro', desc: 'Deu 10.000 assistências com a conta.' },
-  assists_20000: { icon: '🪄', label: 'Mágico das Assistências', desc: 'Deu 20.000 assistências com a conta.' },
+  assists_2500: { icon: '🥢', label: 'Talher de Ouro', desc: 'Deu 2.500 assistências com a conta.' },
+  assists_5000: { icon: '🎩', label: 'Maestro', desc: 'Deu 5.000 assistências com a conta.' },
+  assists_10000: { icon: '🪄', label: 'Mágico das Assistências', desc: 'Deu 10.000 assistências com a conta.' },
+  assists_20000: { icon: '🧞', label: 'Gênio da Bola Parada e do Passe', desc: 'Deu 20.000 assistências com a conta.' },
   // Marcos de gols sofridos (carreira) — pra rir da própria zaga
   conceded_100: { icon: '🥅', label: 'Zaga Furada', desc: 'Sofreu 100 gols com a conta.' },
   conceded_1000: { icon: '😅', label: 'Time Vazado', desc: 'Sofreu 1.000 gols com a conta.' },
-  conceded_10000: { icon: '🧱', label: 'Parede de Queijo Suíço', desc: 'Sofreu 10.000 gols com a conta.' },
-  conceded_20000: { icon: '🏳️', label: 'Sofredor Profissional', desc: 'Sofreu 20.000 gols com a conta.' },
+  conceded_2500: { icon: '🕳️', label: 'Zaga Peneira', desc: 'Sofreu 2.500 gols com a conta.' },
+  conceded_5000: { icon: '🧱', label: 'Parede de Queijo Suíço', desc: 'Sofreu 5.000 gols com a conta.' },
+  conceded_10000: { icon: '🏳️', label: 'Sofredor Profissional', desc: 'Sofreu 10.000 gols com a conta.' },
+  conceded_20000: { icon: '💀', label: 'Zaga de Papel', desc: 'Sofreu 20.000 gols com a conta.' },
   // Saldo de gols (melhor campanha)
   goal_diff_30: { icon: '📈', label: 'Saldo Positivo', desc: 'Fechou uma temporada ou copa com saldo de gols +30.' },
   goal_diff_50: { icon: '🚀', label: 'Atropelo', desc: 'Fechou uma temporada ou copa com saldo de gols +50.' },
@@ -2534,15 +2540,43 @@ const ACHIEVEMENT_CATALOG = {
   // Multiplayer
   multiplayer_win: { icon: '🎮', label: 'Rei do Multiplayer', desc: 'Venceu uma temporada jogando com amigos.' },
   multiplayer_veteran: { icon: '🕹️', label: 'Veterano do Multiplayer', desc: 'Venceu 10 temporadas jogando com amigos.' },
+  // Elenco de encher os olhos — melhor jogador INDIVIDUAL já escalado (não
+  // precisa ser o mesmo jogador em temporadas diferentes, é o recorde)
+  squad_ovr_85: { icon: '⭐', label: 'Craque no Elenco', desc: 'Teve um jogador de overall 85+ no elenco.' },
+  squad_ovr_86: { icon: '⭐', label: 'Craque Cotado', desc: 'Teve um jogador de overall 86+ no elenco.' },
+  squad_ovr_87: { icon: '🌠', label: 'Fora de Série', desc: 'Teve um jogador de overall 87+ no elenco.' },
+  squad_ovr_88: { icon: '🌠', label: 'Categoria Mundial', desc: 'Teve um jogador de overall 88+ no elenco.' },
+  squad_ovr_89: { icon: '💫', label: 'Nível Seleção', desc: 'Teve um jogador de overall 89+ no elenco.' },
+  squad_ovr_90: { icon: '💫', label: 'Ídolo Absoluto', desc: 'Teve um jogador de overall 90+ no elenco.' },
+  squad_ovr_91: { icon: '👽', label: 'Extraterrestre', desc: 'Teve um jogador de overall 91+ no elenco.' },
+  squad_ovr_92: { icon: '🐐', label: 'O Maior de Todos', desc: 'Teve um jogador de overall 92+ no elenco.' },
+  // Time de encher os olhos — overall médio do XI (não de um jogador só)
+  team_ovr_90: { icon: '🛡️', label: 'Time de Gala', desc: 'Montou um time com overall médio 90+.' },
+  team_ovr_91: { icon: '🛡️', label: 'Elenco Milionário', desc: 'Montou um time com overall médio 91+.' },
+  team_ovr_92: { icon: '🏛️', label: 'Escrete Histórico', desc: 'Montou um time com overall médio 92+.' },
+  team_ovr_93: { icon: '🏛️', label: 'Time dos Sonhos', desc: 'Montou um time com overall médio 93+.' },
+  team_ovr_94: { icon: '👑', label: 'Seleção Improvável', desc: 'Montou um time com overall médio 94+.' },
+  team_ovr_95: { icon: '👑', label: 'Time Perfeito', desc: 'Montou um time com overall médio 95+.' },
+  // Volume de carreira (jogos disputados e vitórias acumuladas)
+  matches_50: { icon: '📋', label: 'Rodagem', desc: 'Disputou 50 partidas com a conta.' },
+  matches_100: { icon: '📖', label: 'Centenário', desc: 'Disputou 100 partidas com a conta.' },
+  matches_250: { icon: '📚', label: 'Nas Quatro Linhas', desc: 'Disputou 250 partidas com a conta.' },
+  matches_500: { icon: '🏟️', label: 'Casa Cheia', desc: 'Disputou 500 partidas com a conta.' },
+  wins_50: { icon: '✅', label: 'Começando a Vencer', desc: 'Venceu 50 partidas com a conta.' },
+  wins_100: { icon: '🥇', label: 'Máquina de Vencer', desc: 'Venceu 100 partidas com a conta.' },
+  wins_250: { icon: '🏅', label: 'Imbatível na Estatística', desc: 'Venceu 250 partidas com a conta.' },
 };
 
 // Agrupamento por categoria pra galeria completa (AchievementsModal).
 const ACHIEVEMENT_CATEGORIES = [
   { label: 'Títulos e Carreira', ids: ['first_title', 'dynasty', 'veteran', 'podium_finish', 'unbeaten_season', 'golden_boot'] },
-  { label: 'Gols', ids: ['goals_100', 'goals_1000', 'goals_10000', 'goals_20000'] },
-  { label: 'Assistências', ids: ['assists_100', 'assists_1000', 'assists_10000', 'assists_20000'] },
-  { label: 'Gols Sofridos', ids: ['conceded_100', 'conceded_1000', 'conceded_10000', 'conceded_20000'] },
+  { label: 'Gols', ids: ['goals_100', 'goals_1000', 'goals_2500', 'goals_5000', 'goals_10000', 'goals_20000'] },
+  { label: 'Assistências', ids: ['assists_100', 'assists_1000', 'assists_2500', 'assists_5000', 'assists_10000', 'assists_20000'] },
+  { label: 'Gols Sofridos', ids: ['conceded_100', 'conceded_1000', 'conceded_2500', 'conceded_5000', 'conceded_10000', 'conceded_20000'] },
   { label: 'Saldo de Gols', ids: ['goal_diff_30', 'goal_diff_50', 'goal_diff_80'] },
+  { label: 'Elenco', ids: ['squad_ovr_85', 'squad_ovr_86', 'squad_ovr_87', 'squad_ovr_88', 'squad_ovr_89', 'squad_ovr_90', 'squad_ovr_91', 'squad_ovr_92'] },
+  { label: 'Time', ids: ['team_ovr_90', 'team_ovr_91', 'team_ovr_92', 'team_ovr_93', 'team_ovr_94', 'team_ovr_95'] },
+  { label: 'Volume de Carreira', ids: ['matches_50', 'matches_100', 'matches_250', 'matches_500', 'wins_50', 'wins_100', 'wins_250'] },
   { label: 'Campanhas Invictas', ids: ['unbeaten_league_champion', 'unbeaten_cup_champion', 'perfect_double'] },
   { label: 'Multiplayer', ids: ['multiplayer_win', 'multiplayer_veteran'] },
 ];
@@ -2558,20 +2592,47 @@ function getAchievementProgress(id, user) {
     case 'veteran': return { current: user.seasons_played || 0, target: 10 };
     case 'goals_100': return { current: user.career_goals || 0, target: 100 };
     case 'goals_1000': return { current: user.career_goals || 0, target: 1000 };
+    case 'goals_2500': return { current: user.career_goals || 0, target: 2500 };
+    case 'goals_5000': return { current: user.career_goals || 0, target: 5000 };
     case 'goals_10000': return { current: user.career_goals || 0, target: 10000 };
     case 'goals_20000': return { current: user.career_goals || 0, target: 20000 };
     case 'assists_100': return { current: user.career_assists || 0, target: 100 };
     case 'assists_1000': return { current: user.career_assists || 0, target: 1000 };
+    case 'assists_2500': return { current: user.career_assists || 0, target: 2500 };
+    case 'assists_5000': return { current: user.career_assists || 0, target: 5000 };
     case 'assists_10000': return { current: user.career_assists || 0, target: 10000 };
     case 'assists_20000': return { current: user.career_assists || 0, target: 20000 };
     case 'conceded_100': return { current: user.career_conceded || 0, target: 100 };
     case 'conceded_1000': return { current: user.career_conceded || 0, target: 1000 };
+    case 'conceded_2500': return { current: user.career_conceded || 0, target: 2500 };
+    case 'conceded_5000': return { current: user.career_conceded || 0, target: 5000 };
     case 'conceded_10000': return { current: user.career_conceded || 0, target: 10000 };
     case 'conceded_20000': return { current: user.career_conceded || 0, target: 20000 };
     case 'goal_diff_30': return { current: Math.max(0, user.best_goal_diff || 0), target: 30 };
     case 'goal_diff_50': return { current: Math.max(0, user.best_goal_diff || 0), target: 50 };
     case 'goal_diff_80': return { current: Math.max(0, user.best_goal_diff || 0), target: 80 };
     case 'multiplayer_veteran': return { current: user.multiplayer_wins || 0, target: 10 };
+    case 'squad_ovr_85': return { current: user.best_player_ovr || 0, target: 85 };
+    case 'squad_ovr_86': return { current: user.best_player_ovr || 0, target: 86 };
+    case 'squad_ovr_87': return { current: user.best_player_ovr || 0, target: 87 };
+    case 'squad_ovr_88': return { current: user.best_player_ovr || 0, target: 88 };
+    case 'squad_ovr_89': return { current: user.best_player_ovr || 0, target: 89 };
+    case 'squad_ovr_90': return { current: user.best_player_ovr || 0, target: 90 };
+    case 'squad_ovr_91': return { current: user.best_player_ovr || 0, target: 91 };
+    case 'squad_ovr_92': return { current: user.best_player_ovr || 0, target: 92 };
+    case 'team_ovr_90': return { current: user.best_team_ovr || 0, target: 90 };
+    case 'team_ovr_91': return { current: user.best_team_ovr || 0, target: 91 };
+    case 'team_ovr_92': return { current: user.best_team_ovr || 0, target: 92 };
+    case 'team_ovr_93': return { current: user.best_team_ovr || 0, target: 93 };
+    case 'team_ovr_94': return { current: user.best_team_ovr || 0, target: 94 };
+    case 'team_ovr_95': return { current: user.best_team_ovr || 0, target: 95 };
+    case 'matches_50': return { current: user.career_matches_played || 0, target: 50 };
+    case 'matches_100': return { current: user.career_matches_played || 0, target: 100 };
+    case 'matches_250': return { current: user.career_matches_played || 0, target: 250 };
+    case 'matches_500': return { current: user.career_matches_played || 0, target: 500 };
+    case 'wins_50': return { current: user.career_wins || 0, target: 50 };
+    case 'wins_100': return { current: user.career_wins || 0, target: 100 };
+    case 'wins_250': return { current: user.career_wins || 0, target: 250 };
     default: return null;
   }
 }
@@ -3070,6 +3131,10 @@ export default function App() {
     };
   }, []);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
+  const [showNews, setShowNews] = useState(false);
+  const hasUnseenNews = (() => {
+    try { return localStorage.getItem('brl_news_seen') !== WHATS_NEW[0].id; } catch { return false; }
+  })();
   // Silenciar áudio de gol — o estado React só existe pra atualizar o ícone;
   // quem realmente controla se toca ou não é a flag de módulo em playGoalAudio.
   const [goalAudioMuted, setGoalAudioMutedUi] = useState(() => isGoalAudioMuted());
@@ -3974,9 +4039,16 @@ export default function App() {
       .filter(([k]) => k.startsWith(`${myTeamId}::`))
       .reduce((sum, [, d]) => sum + (d.assists || 0), 0);
     const gotTopScorerAward = awards.some(a => a.reason === 'Artilheiro da temporada');
+    // Overall do time e do melhor jogador individual do elenco NESTA temporada
+    // — o servidor só atualiza o recorde se isso superar o que já tinha salvo.
+    const myTeamThisSeason = leagueTeams?.find(t => t.id === myTeamId);
+    const teamOvr = myTeamThisSeason?.ovr ?? null;
+    const squadOvrs = (myTeamThisSeason?.players || []).map(p => p.ovr || 0);
+    const bestPlayerOvr = squadOvrs.length > 0 ? Math.max(...squadOvrs) : null;
     api.submitSeasonResult({
       gameMode, champion, position, losses, wins: campaignWins, draws: campaignDraws, gotTopScorerAward,
       goalsScored, goalsConceded, assistsMade, unbeaten, multiplayer: !!roomSnap,
+      teamOvr, bestPlayerOvr,
     })
       .then(({ user, newlyUnlocked }) => {
         setCurrentUser(user);
@@ -5031,6 +5103,22 @@ export default function App() {
                 color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
               }}
             >🏆</button>
+            <button
+              onClick={() => { setShowNews(true); try { localStorage.setItem('brl_news_seen', WHATS_NEW[0].id); } catch { /* ignore */ } }}
+              title="Novidades"
+              className="tap-target-sm"
+              style={{
+                position: 'relative', flexShrink: 0,
+                background: 'none', border: '1px solid rgba(212,162,60,0.35)',
+                borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
+                color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
+              }}
+            >
+              💡
+              {hasUnseenNews && (
+                <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: '50%', background: '#e05050', border: '1px solid #0B1A12' }} />
+              )}
+            </button>
             {currentUser ? (
               <button
                 onClick={() => setShowAccountPanel(true)}
@@ -5087,6 +5175,7 @@ export default function App() {
         </div>
       )}
       {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} myUsername={currentUser?.username} />}
+      {showNews && <NewsModal onClose={() => setShowNews(false)} />}
       {newAchievements.length > 0 && (
         <AchievementToast achievements={newAchievements} onClose={() => setNewAchievements([])} />
       )}
@@ -6072,12 +6161,13 @@ function parseYouTubeId(input) {
 // Objetivos em destaque na home — curadoria de 4 (não a galeria de 25 inteira,
 // pra não poluir a primeira tela). Mistura metas binárias (sem barra, ex.:
 // título invicto) com metas quantitativas (com barra, via getAchievementProgress).
-const FEATURED_OBJECTIVE_IDS = ['unbeaten_league_champion', 'goals_1000', 'dynasty', 'veteran'];
+const FEATURED_ACHIEVEMENT_IDS = ['unbeaten_league_champion', 'goals_1000', 'dynasty', 'veteran'];
 
 function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onMultiPlayer }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
+  const [showAchievements, setShowAchievements] = useState(false);
   const [infoTab, setInfoTab] = useState(null);
   const openInfo = (tab) => setInfoTab(tab);
 
@@ -6153,9 +6243,14 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
               <span style={{ fontSize: 18, opacity: 0.5 }}>→</span>
             </button>
 
-            <div style={styles.teamEditLabel}>Seus objetivos</div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <div style={styles.teamEditLabel}>Conquistas em destaque</div>
+              <button onClick={() => setShowAchievements(true)} style={{ background: 'none', border: 'none', color: mc, fontSize: 11, cursor: 'pointer', padding: 0 }}>
+                Ver todas ({Object.keys(ACHIEVEMENT_CATALOG).length}) →
+              </button>
+            </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {FEATURED_OBJECTIVE_IDS.map(id => (
+              {FEATURED_ACHIEVEMENT_IDS.map(id => (
                 <AchievementProgressCard key={id} id={id} user={currentUser} unlockedSet={new Set(currentUser.achievements || [])} />
               ))}
             </div>
@@ -6267,38 +6362,12 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
           {gameMode === 'copa' ? 'Escolher formação — Copa →' : 'Escolher formação — Brasileirão →'}
         </button>
 
-        {/* Como Jogar — sempre visível (não modal) de propósito: além de ficar
-            bonito, é o único conteúdo de texto de verdade do site pra ajudar
-            a rankear no Google por termos genéricos, já que o resto do app só
-            existe depois de interação (SPA). */}
-        <div style={{ marginTop: 36, paddingTop: 28, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-          <div style={styles.introSectionLabel}>Como jogar</div>
-          <div style={{ display: 'grid', gap: 18 }}>
-            {[
-              { icon: '🎲', title: 'Monte seu elenco no draft', text: 'A cada rodada do draft, você sorteia um time histórico do Brasileirão (1959–2026) e escolhe UM jogador dele pra preencher uma vaga da sua formação. Não gostou do time sorteado? Você tem até 3 pulos pra tentar outro.' },
-              { icon: '🧩', title: 'Escolha a formação e o capitão', text: 'Antes do draft, escolha entre várias formações táticas (4-4-2, 4-3-3, 3-5-2 e outras). Depois de montar os 11 titulares e o banco, escolha um capitão — ele ganha +2 de overall fixo pra temporada inteira.' },
-              { icon: '⚙️', title: 'Escolha a dificuldade certa', text: 'Fácil, Normal, Difícil ou Lendário ajustam o nível dos adversários controlados pela IA. Lendário é pensado pra quem já manja do jogo — os rivais jogam bem acima do overall de papel deles.' },
-              { icon: '🏆', title: 'Brasileirão ou Copa do Brasil', text: 'No Brasileirão, são 20 times em pontos corridos (38 rodadas, todos contra todos). Na Copa do Brasil, é mata-mata com ida e volta entre 32 times até sair um campeão.' },
-              { icon: '🩹', title: 'Cuidado com cartões e lesões', text: 'Jogadores suspensos (3 amarelos ou vermelho direto) e lesionados ficam fora automaticamente das próximas rodadas, sendo substituídos pelo reserva da mesma posição — acompanhe isso na aba Elenco.' },
-              { icon: '👥', title: 'Jogue com amigos', text: 'No modo multiplayer, cada jogador faz seu próprio draft e assume um time real da liga — sem servidor, a conexão é direta entre os navegadores (P2P). Um cria a sala, os outros entram com o código.' },
-            ].map(step => (
-              <div key={step.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-                <div style={{ ...styles.featIconWrap, background: hexToRgba(mc, 0.14), border: `1px solid ${hexToRgba(mc, 0.35)}`, flexShrink: 0 }}>{step.icon}</div>
-                <div>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{step.title}</div>
-                  <div style={{ fontSize: 12.5, opacity: 0.6, lineHeight: 1.6 }}>{step.text}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Rodapé institucional */}
         <div style={{
           display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap',
           marginTop: 28, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.08)',
         }}>
-          {[['termos', 'Termos de Uso'], ['privacidade', 'Política de Privacidade'], ['contato', 'Contato']].map(([id, label]) => (
+          {[['como-jogar', 'Como Jogar'], ['termos', 'Termos de Uso'], ['privacidade', 'Política de Privacidade'], ['contato', 'Contato']].map(([id, label]) => (
             <button key={id} onClick={() => openInfo(id)} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: 0, textDecoration: 'underline', textUnderlineOffset: 3 }}>
               {label}
             </button>
@@ -6308,6 +6377,9 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
 
       {showClub && (
         <ClubHistoryModal user={currentUser} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} myTeamColor={myTeamColor} onClose={() => setShowClub(false)} />
+      )}
+      {showAchievements && currentUser && (
+        <AchievementsModal user={currentUser} onClose={() => setShowAchievements(false)} />
       )}
       {infoTab && (
         <InfoModal tab={infoTab} onSetTab={setInfoTab} onClose={() => setInfoTab(null)} />
@@ -6332,9 +6404,13 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose 
   const unlockedCount = (user?.achievements || []).length;
   const totalAchievements = Object.keys(ACHIEVEMENT_CATALOG).length;
 
+  // Cor fixa (não a cor do time) pro texto — a cor do time pode ser escura
+  // (ex.: preto do Santos), o que deixava o número ilegível em cima do fundo
+  // escuro do modal. Dourado fixo é sempre legível, é o acento padrão do app.
+  const statColor = '#d4a23c';
   const Stat = ({ label, value }) => (
     <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
-      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 19, fontWeight: 700, color: mc }}>{value}</div>
+      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 19, fontWeight: 700, color: statColor }}>{value}</div>
       <div style={{ fontSize: 9.5, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 3 }}>{label}</div>
     </div>
   );
@@ -6385,7 +6461,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose 
 
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.25)', borderRadius: 10 }}>
             <span style={{ fontSize: 12 }}>🏅 Conquistas desbloqueadas</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>{unlockedCount}/{totalAchievements}</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: statColor }}>{unlockedCount}/{totalAchievements}</span>
           </div>
         </div>
       </div>
@@ -6395,14 +6471,25 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose 
 
 const CONTACT_EMAIL = 'leonardoranuci@brasileiraolendario.com.br';
 const INFO_TABS = [
+  { id: 'como-jogar', label: 'Como Jogar', icon: '🎮' },
   { id: 'termos', label: 'Termos de Uso', icon: '📜' },
   { id: 'privacidade', label: 'Privacidade', icon: '🔒' },
   { id: 'contato', label: 'Contato', icon: '✉️' },
 ];
 
-// Termos de Uso, Política de Privacidade e Contato — modelo genérico de
-// entretenimento gratuito, sem apostas/dinheiro real. NÃO é aconselhamento
-// jurídico; vale revisão antes de tratar como documento definitivo (LGPD).
+const HOW_TO_PLAY_STEPS = [
+  { icon: '🎲', title: 'Monte seu elenco no draft', text: 'A cada rodada do draft, você sorteia um time histórico do Brasileirão (1959–2026) e escolhe UM jogador dele pra preencher uma vaga da sua formação. Não gostou do time sorteado? Você tem até 3 pulos pra tentar outro.' },
+  { icon: '🧩', title: 'Escolha a formação e o capitão', text: 'Antes do draft, escolha entre várias formações táticas (4-4-2, 4-3-3, 3-5-2 e outras). Depois de montar os 11 titulares e o banco, escolha um capitão — ele ganha +2 de overall fixo pra temporada inteira.' },
+  { icon: '⚙️', title: 'Escolha a dificuldade certa', text: 'Fácil, Normal, Difícil ou Lendário ajustam o nível dos adversários controlados pela IA. Lendário é pensado pra quem já manja do jogo — os rivais jogam bem acima do overall de papel deles.' },
+  { icon: '🏆', title: 'Brasileirão ou Copa do Brasil', text: 'No Brasileirão, são 20 times em pontos corridos (38 rodadas, todos contra todos). Na Copa do Brasil, é mata-mata com ida e volta entre 32 times até sair um campeão.' },
+  { icon: '🩹', title: 'Cuidado com cartões e lesões', text: 'Jogadores suspensos (3 amarelos ou vermelho direto) e lesionados ficam fora automaticamente das próximas rodadas, sendo substituídos pelo reserva da mesma posição — acompanhe isso na aba Elenco.' },
+  { icon: '👥', title: 'Jogue com amigos', text: 'No modo multiplayer, cada jogador faz seu próprio draft e assume um time real da liga — sem servidor, a conexão é direta entre os navegadores (P2P). Um cria a sala, os outros entram com o código ou o link de convite.' },
+];
+
+// Como Jogar, Termos de Uso, Política de Privacidade e Contato — modelo
+// genérico de entretenimento gratuito, sem apostas/dinheiro real. Termos/
+// Privacidade NÃO são aconselhamento jurídico; vale revisão antes de tratar
+// como documento definitivo (LGPD).
 function InfoModal({ tab, onSetTab, onClose }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -6423,6 +6510,23 @@ function InfoModal({ tab, onSetTab, onClose }) {
             </button>
           ))}
         </div>
+
+        {tab === 'como-jogar' && (
+          <div style={{ fontSize: 13, lineHeight: 1.75, opacity: 0.85 }}>
+            <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 14 }}>Como Jogar</h2>
+            <div style={{ display: 'grid', gap: 16 }}>
+              {HOW_TO_PLAY_STEPS.map(step => (
+                <div key={step.title} style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>{step.icon}</span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 2, opacity: 1 }}>{step.title}</div>
+                    <div style={{ fontSize: 12.5, opacity: 0.65, lineHeight: 1.6 }}>{step.text}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {tab === 'termos' && (
           <div style={{ fontSize: 13, lineHeight: 1.75, opacity: 0.85 }}>
@@ -6451,10 +6555,12 @@ function InfoModal({ tab, onSetTab, onClose }) {
 
         {tab === 'contato' && (
           <div style={{ fontSize: 13, lineHeight: 1.75, opacity: 0.85 }}>
-            <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 12 }}>Contato</h2>
-            <p>Dúvidas, sugestões, problemas técnicos ou solicitações sobre seus dados pessoais — manda um email:</p>
-            <p>
-              <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: '#d4a23c', fontWeight: 700, textDecoration: 'none' }}>{CONTACT_EMAIL}</a>
+            <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 12 }}>Fala com a gente!</h2>
+            <p>Esse jogo é feito por (e pra) quem ama futebol brasileiro — então toda ideia é bem-vinda:</p>
+            <p><b>🏟️ Quer que a gente adicione algum time histórico que falta?</b> Manda os 20 atletas completos (titulares + reservas) do elenco que você quer ver no jogo, com posição de cada um — a gente confere e, se entrar, divulga aqui no site quem teve a ideia.</p>
+            <p><b>💡 Tem alguma sugestão, bug pra reportar ou só quer trocar uma ideia?</b> Manda pra gente também — toda sugestão que vira novidade no jogo, o crédito é seu.</p>
+            <p style={{ marginTop: 16 }}>
+              <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: '#d4a23c', fontWeight: 700, textDecoration: 'none', fontSize: 14 }}>✉️ {CONTACT_EMAIL}</a>
             </p>
           </div>
         )}
@@ -8096,6 +8202,54 @@ function LeaderboardModal({ onClose, myUsername }) {
             <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 13 }}>{r.ranking_points} pts</span>
           </div>
         ))}
+      </div>
+    </div>
+  );
+}
+
+// Changelog resumido, mais recente primeiro — o botão 💡 no header mostra um
+// ponto vermelho enquanto `id` do primeiro item aqui for diferente do último
+// visto (guardado em localStorage). Atualize essa lista a cada leva de
+// novidades relevante pro jogador (não precisa registrar todo commit interno).
+const WHATS_NEW = [
+  {
+    id: '2026-08-migracao-mysql',
+    date: 'Agosto de 2026',
+    title: 'Site novo no ar, com conta e ranking mais estáveis',
+    desc: 'Migramos o site pra hospedagem definitiva (brasileiraolendario.com.br) e trocamos o banco de dados pra um mais robusto — login, conquistas e ranking agora persistem com muito mais confiabilidade entre atualizações do jogo.',
+  },
+  {
+    id: '2026-08-clube-conquistas',
+    date: 'Agosto de 2026',
+    title: '"Ver meu Clube" e dezenas de conquistas novas',
+    desc: 'A tela inicial agora mostra um histórico completo de carreira (jogos, vitórias, empates, derrotas, gols marcados e sofridos) e um mural de conquistas — incluindo marcos de overall de elenco e de time, não só de gols.',
+  },
+  {
+    id: '2026-08-convite-instalar',
+    date: 'Agosto de 2026',
+    title: 'Convide amigos por link e instale como app',
+    desc: 'No multiplayer, agora dá pra compartilhar um link direto de convite pra sala (em vez de só o código). O jogo também pode ser instalado como aplicativo no celular ou computador.',
+  },
+];
+
+// Mural de novidades — acessado pelo ícone 💡 no header.
+function NewsModal({ onClose }) {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div style={{ background: '#0B1A12', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 460, maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#d4a23c', letterSpacing: 1, textTransform: 'uppercase' }}>💡 Novidades</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 18, cursor: 'pointer' }}>×</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          {WHATS_NEW.map(item => (
+            <div key={item.id} style={{ borderLeft: '2px solid rgba(212,162,60,0.4)', paddingLeft: 12 }}>
+              <div style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace", textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>{item.date}</div>
+              <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 4 }}>{item.title}</div>
+              <div style={{ fontSize: 12.5, opacity: 0.65, lineHeight: 1.55 }}>{item.desc}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

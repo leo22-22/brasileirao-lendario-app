@@ -134,6 +134,11 @@ router.post('/season-result', async (req, res) => {
     const assistsMade = Number.isFinite(body.assistsMade) ? Math.max(0, Number(body.assistsMade)) : 0;
     const unbeaten = !!body.unbeaten;
     const isMultiplayer = !!body.multiplayer;
+    // Overall do time (média do XI, com casa decimal) e do melhor jogador
+    // individual escalado NESTA temporada — comparados com o recorde salvo
+    // pra decidir se bateu marco novo (nunca diminui, só o maior dos dois).
+    const teamOvr = Number.isFinite(body.teamOvr) ? Number(body.teamOvr) : null;
+    const seasonBestPlayerOvr = Number.isFinite(body.bestPlayerOvr) ? Number(body.bestPlayerOvr) : null;
 
     let titlesBr = current.titles_brasileirao;
     let titlesCopa = current.titles_copa;
@@ -165,6 +170,11 @@ router.post('/season-result', async (req, res) => {
     else if (gameMode === 'brasileirao' && position != null) pointsEarned = Math.max(5, 21 - position);
     const rankingPoints = current.ranking_points + pointsEarned;
 
+    const newBestTeamOvr = teamOvr != null ? Math.max(Number(current.best_team_ovr) || 0, teamOvr) : current.best_team_ovr;
+    const newBestPlayerOvr = seasonBestPlayerOvr != null ? Math.max(current.best_player_ovr || 0, seasonBestPlayerOvr) : current.best_player_ovr;
+    const totalMatchesPlayed = current.career_matches_played + matchesPlayed;
+    const totalWins = current.career_wins + wins;
+
     const before = new Set(JSON.parse(current.achievements || '[]'));
     const after = new Set(before);
     const totalTitles = titlesBr + titlesCopa;
@@ -176,11 +186,11 @@ router.post('/season-result', async (req, res) => {
     if (gotTopScorerAward) after.add('golden_boot');
 
     // Marcos de carreira (gols/assistências/gols sofridos acumulados)
-    const GOAL_TIERS: [number, string][] = [[100, 'goals_100'], [1000, 'goals_1000'], [10000, 'goals_10000'], [20000, 'goals_20000']];
+    const GOAL_TIERS: [number, string][] = [[100, 'goals_100'], [1000, 'goals_1000'], [2500, 'goals_2500'], [5000, 'goals_5000'], [10000, 'goals_10000'], [20000, 'goals_20000']];
     GOAL_TIERS.forEach(([n, id]) => { if (careerGoals >= n) after.add(id); });
-    const ASSIST_TIERS: [number, string][] = [[100, 'assists_100'], [1000, 'assists_1000'], [10000, 'assists_10000'], [20000, 'assists_20000']];
+    const ASSIST_TIERS: [number, string][] = [[100, 'assists_100'], [1000, 'assists_1000'], [2500, 'assists_2500'], [5000, 'assists_5000'], [10000, 'assists_10000'], [20000, 'assists_20000']];
     ASSIST_TIERS.forEach(([n, id]) => { if (careerAssists >= n) after.add(id); });
-    const CONCEDED_TIERS: [number, string][] = [[100, 'conceded_100'], [1000, 'conceded_1000'], [10000, 'conceded_10000'], [20000, 'conceded_20000']];
+    const CONCEDED_TIERS: [number, string][] = [[100, 'conceded_100'], [1000, 'conceded_1000'], [2500, 'conceded_2500'], [5000, 'conceded_5000'], [10000, 'conceded_10000'], [20000, 'conceded_20000']];
     CONCEDED_TIERS.forEach(([n, id]) => { if (careerConceded >= n) after.add(id); });
 
     // Saldo de gols (melhor campanha individual)
@@ -197,17 +207,32 @@ router.post('/season-result', async (req, res) => {
     if (isMultiplayer && champion) after.add('multiplayer_win');
     if (multiplayerWins >= 10) after.add('multiplayer_veteran');
 
+    // Elenco de encher os olhos (melhor jogador individual já escalado) e
+    // time de encher os olhos (melhor overall médio do XI já alcançado)
+    const SQUAD_OVR_TIERS: [number, string][] = [85, 86, 87, 88, 89, 90, 91, 92].map(n => [n, `squad_ovr_${n}`]);
+    SQUAD_OVR_TIERS.forEach(([n, id]) => { if (newBestPlayerOvr != null && newBestPlayerOvr >= n) after.add(id); });
+    const TEAM_OVR_TIERS: [number, string][] = [90, 91, 92, 93, 94, 95].map(n => [n, `team_ovr_${n}`]);
+    TEAM_OVR_TIERS.forEach(([n, id]) => { if (newBestTeamOvr != null && newBestTeamOvr >= n) after.add(id); });
+
+    // Volume de carreira (jogos disputados e vitórias acumuladas)
+    const MATCHES_TIERS: [number, string][] = [[50, 'matches_50'], [100, 'matches_100'], [250, 'matches_250'], [500, 'matches_500']];
+    MATCHES_TIERS.forEach(([n, id]) => { if (totalMatchesPlayed >= n) after.add(id); });
+    const WINS_TIERS: [number, string][] = [[50, 'wins_50'], [100, 'wins_100'], [250, 'wins_250']];
+    WINS_TIERS.forEach(([n, id]) => { if (totalWins >= n) after.add(id); });
+
     const newlyUnlocked = [...after].filter(a => !before.has(a));
 
     await pool.query(
       `UPDATE users SET titles_brasileirao=?, titles_copa=?, seasons_played=?, best_position=?, ranking_points=?, achievements=?,
        career_goals=?, career_assists=?, career_conceded=?, best_goal_diff=?, unbeaten_titles_brasileirao=?, unbeaten_titles_copa=?, multiplayer_wins=?,
-       career_matches_played=career_matches_played+?, career_wins=career_wins+?, career_draws=career_draws+?, career_losses=career_losses+?
+       career_matches_played=career_matches_played+?, career_wins=career_wins+?, career_draws=career_draws+?, career_losses=career_losses+?,
+       best_team_ovr=?, best_player_ovr=?
        WHERE id=?`,
       [
         titlesBr, titlesCopa, seasonsPlayed, bestPosition, rankingPoints, JSON.stringify([...after]),
         careerGoals, careerAssists, careerConceded, bestGoalDiff, unbeatenTitlesBr, unbeatenTitlesCopa, multiplayerWins,
         matchesPlayed, wins, draws, lossesCount,
+        newBestTeamOvr, newBestPlayerOvr,
         userId,
       ]
     );

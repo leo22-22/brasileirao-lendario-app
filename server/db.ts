@@ -74,6 +74,11 @@ export async function ensureSchema() {
   await ensureColumn('career_wins INT NOT NULL DEFAULT 0');
   await ensureColumn('career_draws INT NOT NULL DEFAULT 0');
   await ensureColumn('career_losses INT NOT NULL DEFAULT 0');
+  // Melhor overall de TIME (média do XI, pode ter casa decimal) e do melhor
+  // jogador INDIVIDUAL já escalado (inteiro) — marcos pras conquistas de
+  // "elenco de encher os olhos" e "time de encher os olhos".
+  await ensureColumn('best_team_ovr DECIMAL(5,1)');
+  await ensureColumn('best_player_ovr INT');
 }
 
 export interface UserRow {
@@ -104,6 +109,8 @@ export interface UserRow {
   career_wins: number;
   career_draws: number;
   career_losses: number;
+  best_team_ovr: number | null;
+  best_player_ovr: number | null;
   created_at: string;
 }
 
@@ -134,6 +141,8 @@ export interface PublicUser {
   career_wins: number;
   career_draws: number;
   career_losses: number;
+  best_team_ovr: number | null;
+  best_player_ovr: number | null;
   created_at: string;
 }
 
@@ -165,6 +174,8 @@ export function toPublicUser(row: UserRow): PublicUser {
     career_wins: row.career_wins,
     career_draws: row.career_draws,
     career_losses: row.career_losses,
+    best_team_ovr: row.best_team_ovr,
+    best_player_ovr: row.best_player_ovr,
     created_at: row.created_at,
   };
 }
