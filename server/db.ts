@@ -21,8 +21,6 @@ const pool = mysql.createPool({
   connectionLimit: 10,
 });
 
-// Banco novo (sem instalação anterior pra migrar) — schema completo direto,
-// sem o histórico de ALTER TABLE incremental que a versão SQLite precisava.
 // MEDIUMTEXT (não TEXT, limite de 64KB) em team_logo/goal_audio porque os
 // dois guardam data URLs em base64 que podem passar de 1MB (áudio de gol).
 //
@@ -59,6 +57,23 @@ export async function ensureSchema() {
       created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // O banco já está em produção com conta de verdade, então "CREATE TABLE IF
+  // NOT EXISTS" sozinho não basta mais pra colunas novas (não altera tabela
+  // já existente) — cada uma entra por ALTER TABLE, ignorando erro de coluna
+  // duplicada (equivalente ao "ensureColumn" que a versão SQLite tinha).
+  const ensureColumn = async (ddl: string) => {
+    try {
+      await pool.query(`ALTER TABLE users ADD COLUMN ${ddl}`);
+    } catch (err) {
+      const code = (err as { code?: string })?.code;
+      if (code !== 'ER_DUP_FIELDNAME') throw err;
+    }
+  };
+  await ensureColumn('career_matches_played INT NOT NULL DEFAULT 0');
+  await ensureColumn('career_wins INT NOT NULL DEFAULT 0');
+  await ensureColumn('career_draws INT NOT NULL DEFAULT 0');
+  await ensureColumn('career_losses INT NOT NULL DEFAULT 0');
 }
 
 export interface UserRow {
@@ -85,6 +100,10 @@ export interface UserRow {
   unbeaten_titles_brasileirao: number;
   unbeaten_titles_copa: number;
   multiplayer_wins: number;
+  career_matches_played: number;
+  career_wins: number;
+  career_draws: number;
+  career_losses: number;
   created_at: string;
 }
 
@@ -111,6 +130,10 @@ export interface PublicUser {
   unbeaten_titles_brasileirao: number;
   unbeaten_titles_copa: number;
   multiplayer_wins: number;
+  career_matches_played: number;
+  career_wins: number;
+  career_draws: number;
+  career_losses: number;
   created_at: string;
 }
 
@@ -138,6 +161,10 @@ export function toPublicUser(row: UserRow): PublicUser {
     unbeaten_titles_brasileirao: row.unbeaten_titles_brasileirao,
     unbeaten_titles_copa: row.unbeaten_titles_copa,
     multiplayer_wins: row.multiplayer_wins,
+    career_matches_played: row.career_matches_played,
+    career_wins: row.career_wins,
+    career_draws: row.career_draws,
+    career_losses: row.career_losses,
     created_at: row.created_at,
   };
 }

@@ -119,6 +119,13 @@ router.post('/season-result', async (req, res) => {
     const position = Number.isFinite(body.position) ? Number(body.position) : null;
     const losses = Number.isFinite(body.losses) ? Number(body.losses) : null;
     const gotTopScorerAward = !!body.gotTopScorerAward;
+    // V/E/D da campanha que acabou de terminar — acumulados na carreira pro
+    // "Ver Clube". matchesPlayed é derivado aqui (soma dos 3), não confiado
+    // direto do cliente, pra nunca ficar inconsistente com wins+draws+losses.
+    const wins = Number.isFinite(body.wins) ? Math.max(0, Number(body.wins)) : 0;
+    const draws = Number.isFinite(body.draws) ? Math.max(0, Number(body.draws)) : 0;
+    const lossesCount = losses ?? 0;
+    const matchesPlayed = wins + draws + lossesCount;
     // Estatísticas de carreira (acumuladas em todas as temporadas/copas) e
     // flags desse resultado específico — usadas pras conquistas de marcos
     // (gols/assistências/gols sofridos/saldo) e de campanha invicta/multiplayer.
@@ -194,11 +201,13 @@ router.post('/season-result', async (req, res) => {
 
     await pool.query(
       `UPDATE users SET titles_brasileirao=?, titles_copa=?, seasons_played=?, best_position=?, ranking_points=?, achievements=?,
-       career_goals=?, career_assists=?, career_conceded=?, best_goal_diff=?, unbeaten_titles_brasileirao=?, unbeaten_titles_copa=?, multiplayer_wins=?
+       career_goals=?, career_assists=?, career_conceded=?, best_goal_diff=?, unbeaten_titles_brasileirao=?, unbeaten_titles_copa=?, multiplayer_wins=?,
+       career_matches_played=career_matches_played+?, career_wins=career_wins+?, career_draws=career_draws+?, career_losses=career_losses+?
        WHERE id=?`,
       [
         titlesBr, titlesCopa, seasonsPlayed, bestPosition, rankingPoints, JSON.stringify([...after]),
         careerGoals, careerAssists, careerConceded, bestGoalDiff, unbeatenTitlesBr, unbeatenTitlesCopa, multiplayerWins,
+        matchesPlayed, wins, draws, lossesCount,
         userId,
       ]
     );

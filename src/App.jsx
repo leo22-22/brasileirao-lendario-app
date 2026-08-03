@@ -2,6 +2,14 @@
 import Peer from 'peerjs';
 import * as api from './api.js';
 
+// Wrapper de eventos do Analytics (gtag já é carregado no index.html) — só
+// eventos de conversão que interessam pra marketing, não todo clique.
+// Guard pra não quebrar nada se o gtag falhar em carregar (bloqueador de
+// anúncio, rede lenta, etc.) ou em dev sem o script.
+function trackEvent(name, params) {
+  try { window.gtag?.('event', name, params); } catch { /* analytics é bônus, nunca deve travar o jogo */ }
+}
+
 // ─── MULTIPLAYER (PeerJS — sem conta, sem backend) ────────────────────────────
 // O líder vira o "servidor": peers conectam diretamente ao ID dele via WebRTC.
 
@@ -2568,6 +2576,45 @@ function getAchievementProgress(id, user) {
   }
 }
 
+// Card de uma conquista (ícone + label + desc + barra de progresso ou selo de
+// desbloqueada) — compartilhado entre a galeria completa (AchievementsModal) e
+// o showcase de objetivos em destaque na Intro, pra não duplicar o mesmo JSX
+// em dois lugares.
+function AchievementProgressCard({ id, user, unlockedSet }) {
+  const a = ACHIEVEMENT_CATALOG[id];
+  if (!a) return null;
+  const isUnlocked = unlockedSet.has(id);
+  const progress = !isUnlocked ? getAchievementProgress(id, user) : null;
+  const pct = progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : 0;
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10,
+      background: isUnlocked ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.03)',
+      border: `1px solid ${isUnlocked ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.07)'}`,
+    }}>
+      <span style={{ fontSize: 22, flexShrink: 0, filter: isUnlocked ? 'none' : 'grayscale(1)', opacity: isUnlocked ? 1 : 0.4 }}>{a.icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: isUnlocked ? '#F4F1EA' : 'rgba(244,241,234,0.6)' }}>{a.label}</div>
+        <div style={{ fontSize: 11, opacity: 0.5, lineHeight: 1.3 }}>{a.desc}</div>
+        {progress && (
+          <div style={{ marginTop: 6 }}>
+            <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: '#d4a23c', borderRadius: 999, transition: 'width 0.3s' }} />
+            </div>
+            <div style={{ fontSize: 9.5, opacity: 0.45, marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+              {Math.min(progress.current, progress.target).toLocaleString('pt-BR')}/{progress.target.toLocaleString('pt-BR')}
+            </div>
+          </div>
+        )}
+      </div>
+      {isUnlocked
+        ? <span style={{ fontSize: 16, flexShrink: 0 }}>✅</span>
+        : <span style={{ fontSize: 15, flexShrink: 0, opacity: 0.35 }}>🔒</span>
+      }
+    </div>
+  );
+}
+
 // Galeria completa: todas as conquistas do catálogo, desbloqueadas ou não,
 // com barra de progresso quando existe um contador de carreira pra elas.
 function AchievementsModal({ user, onClose }) {
@@ -2583,40 +2630,7 @@ function AchievementsModal({ user, onClose }) {
           <div key={group.label} style={{ marginBottom: 18 }}>
             <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>{group.label}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {group.ids.map(id => {
-                const a = ACHIEVEMENT_CATALOG[id];
-                if (!a) return null;
-                const isUnlocked = unlocked.has(id);
-                const progress = !isUnlocked ? getAchievementProgress(id, user) : null;
-                const pct = progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : 0;
-                return (
-                  <div key={id} style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10,
-                    background: isUnlocked ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.03)',
-                    border: `1px solid ${isUnlocked ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.07)'}`,
-                  }}>
-                    <span style={{ fontSize: 22, flexShrink: 0, filter: isUnlocked ? 'none' : 'grayscale(1)', opacity: isUnlocked ? 1 : 0.4 }}>{a.icon}</span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: isUnlocked ? '#F4F1EA' : 'rgba(244,241,234,0.6)' }}>{a.label}</div>
-                      <div style={{ fontSize: 11, opacity: 0.5, lineHeight: 1.3 }}>{a.desc}</div>
-                      {progress && (
-                        <div style={{ marginTop: 6 }}>
-                          <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                            <div style={{ height: '100%', width: `${pct}%`, background: '#d4a23c', borderRadius: 999, transition: 'width 0.3s' }} />
-                          </div>
-                          <div style={{ fontSize: 9.5, opacity: 0.45, marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
-                            {Math.min(progress.current, progress.target).toLocaleString('pt-BR')}/{progress.target.toLocaleString('pt-BR')}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    {isUnlocked
-                      ? <span style={{ fontSize: 16, flexShrink: 0 }}>✅</span>
-                      : <span style={{ fontSize: 15, flexShrink: 0, opacity: 0.35 }}>🔒</span>
-                    }
-                  </div>
-                );
-              })}
+              {group.ids.map(id => <AchievementProgressCard key={id} id={id} user={user} unlockedSet={unlocked} />)}
             </div>
           </div>
         ))}
@@ -2844,6 +2858,31 @@ export default function App() {
   const [showAccountModal, setShowAccountModal] = useState(false);
   const [showAccountPanel, setShowAccountPanel] = useState(false);
 
+  // Prompt de instalação como PWA — o navegador dispara `beforeinstallprompt`
+  // só quando já acha o site "instalável" (manifest + service worker ok) e a
+  // pessoa ainda não instalou; guardamos o evento pra poder chamar .prompt()
+  // depois, no clique do próprio usuário (não dá pra disparar sozinho).
+  const [installPromptEvent, setInstallPromptEvent] = useState(null);
+  const [installDismissed, setInstallDismissed] = useState(() => {
+    try { return localStorage.getItem('brl_install_dismissed') === '1'; } catch { return false; }
+  });
+  useEffect(() => {
+    const handler = (e) => { e.preventDefault(); setInstallPromptEvent(e); };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+  const handleInstallClick = async () => {
+    if (!installPromptEvent) return;
+    installPromptEvent.prompt();
+    const { outcome } = await installPromptEvent.userChoice;
+    trackEvent('pwa_install_prompt_result', { outcome });
+    setInstallPromptEvent(null);
+  };
+  const dismissInstallBanner = () => {
+    setInstallDismissed(true);
+    try { localStorage.setItem('brl_install_dismissed', '1'); } catch { /* ignore */ }
+  };
+
   // Se já tem token salvo, valida e restaura a sessão ao carregar.
   useEffect(() => {
     if (!authToken) { setAuthLoading(false); return; }
@@ -2878,7 +2917,7 @@ export default function App() {
     setMyTeamCity(currentUser.team_city || '');
   }, [currentUser]);
 
-  const handleAuthSuccess = (result) => {
+  const handleAuthSuccess = (result, mode) => {
     if (!result?.token || !result?.user) {
       setAuthError('Erro ao autenticar. Verifique se o servidor está rodando e tente de novo.');
       return;
@@ -2890,6 +2929,7 @@ export default function App() {
     setAuthError('');
     try { localStorage.setItem('brl_guest_ack', '1'); } catch { /* ignore */ }
     setShowAccountModal(false);
+    if (mode === 'signup') trackEvent('sign_up');
   };
 
   const handleGuestChoice = () => {
@@ -2952,6 +2992,19 @@ export default function App() {
   const leaderConnRef = useRef(null); // guest: conexão com o líder
   const [chatMessages, setChatMessages] = useState([]); // chat/reações da sala (transiente, não é salvo)
   const [chatOpen, setChatOpen] = useState(false);
+
+  // Convite direto por link (?join=CODIGO, gerado pelo botão de compartilhar
+  // da sala) — pré-preenche o código e já leva pro lobby de multiplayer, pra
+  // quem clicou no link só precisar apertar "Entrar".
+  useEffect(() => {
+    const code = new URLSearchParams(window.location.search).get('join');
+    if (code) {
+      setJoinInput(code.trim().toUpperCase());
+      setMultiPhase('lobby');
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Logo do time
   const [myTeamLogo, setMyTeamLogo] = useState(_sv?.myTeamLogo ?? null);
@@ -3903,7 +3956,7 @@ export default function App() {
     // pra decidir "invicto" também na Copa, que não tem coluna de derrotas
     // numa tabela geral como o Brasileirão.
     const myLabel = leagueTeams?.find(t => t.id === myTeamId)?.label || myTeamName || 'Meu Time';
-    let goalsScored = 0, goalsConceded = 0, campaignLosses = 0;
+    let goalsScored = 0, goalsConceded = 0, campaignLosses = 0, campaignWins = 0, campaignDraws = 0;
     (matchHistoryOverride || matchHistory || []).filter(m => m.gameMode === gameMode).forEach(m => {
       const isHome = m.homeLabel === myLabel;
       const my = isHome ? m.hg : m.ag;
@@ -3911,6 +3964,8 @@ export default function App() {
       goalsScored += my;
       goalsConceded += opp;
       if (my < opp) campaignLosses++;
+      else if (my > opp) campaignWins++;
+      else campaignDraws++;
     });
     const losses = campaignLosses;
     const unbeaten = campaignLosses === 0;
@@ -3920,12 +3975,13 @@ export default function App() {
       .reduce((sum, [, d]) => sum + (d.assists || 0), 0);
     const gotTopScorerAward = awards.some(a => a.reason === 'Artilheiro da temporada');
     api.submitSeasonResult({
-      gameMode, champion, position, losses, gotTopScorerAward,
+      gameMode, champion, position, losses, wins: campaignWins, draws: campaignDraws, gotTopScorerAward,
       goalsScored, goalsConceded, assistsMade, unbeaten, multiplayer: !!roomSnap,
     })
       .then(({ user, newlyUnlocked }) => {
         setCurrentUser(user);
         if (newlyUnlocked?.length > 0) setNewAchievements(newlyUnlocked);
+        trackEvent('season_complete', { game_mode: gameMode, champion });
       })
       .catch(() => { /* ranking é bônus — falha aqui não deve travar a tela de resultado */ });
   };
@@ -4665,6 +4721,7 @@ export default function App() {
       setRoomSnap(initialSnap);
       setMultiPhase('room');
       setChatMessages([]);
+      trackEvent('multiplayer_room_created', { game_mode: multiGameMode });
     });
 
     peer.on('connection', (conn) => {
@@ -4765,6 +4822,7 @@ export default function App() {
         setRoomCode(normalizedCode);
         setMultiPhase('room');
         setChatMessages([]);
+        trackEvent('multiplayer_room_joined');
       });
       conn.on('data', (msg) => {
         if (msg.type === 'snap') { setRoomSnap(msg.snap); setMultiGameMode(msg.snap.gameMode); }
@@ -5016,6 +5074,18 @@ export default function App() {
           📡 Sem conexão — jogando offline. Login, ranking e multiplayer ficam indisponíveis até a rede voltar.
         </div>
       )}
+      {installPromptEvent && !installDismissed && (
+        <div style={{
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9500,
+          background: '#0f1f15', borderTop: '1px solid rgba(212,162,60,0.3)',
+          display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
+          flexWrap: 'wrap', justifyContent: 'center',
+        }}>
+          <span style={{ fontSize: 12.5, color: '#F4F1EA' }}>📲 Instale o Brasileirão Lendário como app pra abrir mais rápido</span>
+          <button onClick={handleInstallClick} style={{ background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 8, padding: '6px 14px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Instalar</button>
+          <button onClick={dismissInstallBanner} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.4)', fontSize: 12, cursor: 'pointer' }}>Agora não</button>
+        </div>
+      )}
       {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} myUsername={currentUser?.username} />}
       {newAchievements.length > 0 && (
         <AchievementToast achievements={newAchievements} onClose={() => setNewAchievements([])} />
@@ -5059,7 +5129,8 @@ export default function App() {
             onStart={goToFormationPicker}
             gameMode={gameMode} onSetGameMode={setGameMode}
             difficulty={difficulty} onSetDifficulty={setDifficulty}
-            myTeamColor={myTeamColor}
+            myTeamColor={myTeamColor} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge}
+            currentUser={currentUser}
             onMultiPlayer={() => setMultiPhase('lobby')}
           />
         )}
@@ -5357,7 +5428,7 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
     setLoading(true);
     try {
       const result = mode === 'signup' ? await api.signup(username, email, password) : await api.login(email, password);
-      onAuthSuccess(result);
+      onAuthSuccess(result, mode);
     } catch (err) {
       setError(err.message || 'Algo deu errado. Tente de novo.');
     } finally {
@@ -5998,9 +6069,17 @@ function parseYouTubeId(input) {
   return null;
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, onMultiPlayer }) {
+// Objetivos em destaque na home — curadoria de 4 (não a galeria de 25 inteira,
+// pra não poluir a primeira tela). Mistura metas binárias (sem barra, ex.:
+// título invicto) com metas quantitativas (com barra, via getAchievementProgress).
+const FEATURED_OBJECTIVE_IDS = ['unbeaten_league_champion', 'goals_1000', 'dynasty', 'veteran'];
+
+function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onMultiPlayer }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
+  const [showClub, setShowClub] = useState(false);
+  const [infoTab, setInfoTab] = useState(null);
+  const openInfo = (tab) => setInfoTab(tab);
 
   return (
     <>
@@ -6047,6 +6126,49 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
             ))}
           </div>
         </div>
+
+        {/* Clube + objetivos de carreira — só pra quem tem conta (é o que
+            persiste entre sessões); convidado vê uma chamada pra criar conta. */}
+        {currentUser ? (
+          <div style={{ marginBottom: 28 }}>
+            <button
+              onClick={() => setShowClub(true)}
+              className="mode-card-hover"
+              style={{
+                width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
+                padding: '14px 16px', marginBottom: 14, borderRadius: 12,
+                border: `2px solid ${hexToRgba(mc, 0.4)}`, background: hexToRgba(mc, 0.08), cursor: 'pointer',
+              }}
+            >
+              {myTeamLogo
+                ? <img src={myTeamLogo} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
+                : <span style={{ fontSize: 32, flexShrink: 0 }}>{myTeamBadge || '⭐'}</span>
+              }
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 700, fontSize: 14, color: mc }}>Ver meu Clube</div>
+                <div style={{ fontSize: 11, opacity: 0.6 }}>
+                  {(currentUser.titles_brasileirao || 0) + (currentUser.titles_copa || 0)} títulos · {currentUser.seasons_played || 0} temporadas · histórico completo
+                </div>
+              </div>
+              <span style={{ fontSize: 18, opacity: 0.5 }}>→</span>
+            </button>
+
+            <div style={styles.teamEditLabel}>Seus objetivos</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {FEATURED_OBJECTIVE_IDS.map(id => (
+                <AchievementProgressCard key={id} id={id} user={currentUser} unlockedSet={new Set(currentUser.achievements || [])} />
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div style={{
+            marginBottom: 28, padding: '14px 16px', borderRadius: 12,
+            border: '1px dashed rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.02)',
+            fontSize: 12, opacity: 0.6, textAlign: 'center',
+          }}>
+            Crie uma conta pra acompanhar seus objetivos de carreira e o histórico do seu clube.
+          </div>
+        )}
 
         {/* Modo de jogo */}
         <div style={{ marginBottom: 28 }}>
@@ -6144,8 +6266,200 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
         <button style={{ ...styles.btnIntro, background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: '#0B1A12', boxShadow: `0 8px 24px ${hexToRgba(mc, 0.35)}` }} onClick={onStart}>
           {gameMode === 'copa' ? 'Escolher formação — Copa →' : 'Escolher formação — Brasileirão →'}
         </button>
+
+        {/* Como Jogar — sempre visível (não modal) de propósito: além de ficar
+            bonito, é o único conteúdo de texto de verdade do site pra ajudar
+            a rankear no Google por termos genéricos, já que o resto do app só
+            existe depois de interação (SPA). */}
+        <div style={{ marginTop: 36, paddingTop: 28, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={styles.introSectionLabel}>Como jogar</div>
+          <div style={{ display: 'grid', gap: 18 }}>
+            {[
+              { icon: '🎲', title: 'Monte seu elenco no draft', text: 'A cada rodada do draft, você sorteia um time histórico do Brasileirão (1959–2026) e escolhe UM jogador dele pra preencher uma vaga da sua formação. Não gostou do time sorteado? Você tem até 3 pulos pra tentar outro.' },
+              { icon: '🧩', title: 'Escolha a formação e o capitão', text: 'Antes do draft, escolha entre várias formações táticas (4-4-2, 4-3-3, 3-5-2 e outras). Depois de montar os 11 titulares e o banco, escolha um capitão — ele ganha +2 de overall fixo pra temporada inteira.' },
+              { icon: '⚙️', title: 'Escolha a dificuldade certa', text: 'Fácil, Normal, Difícil ou Lendário ajustam o nível dos adversários controlados pela IA. Lendário é pensado pra quem já manja do jogo — os rivais jogam bem acima do overall de papel deles.' },
+              { icon: '🏆', title: 'Brasileirão ou Copa do Brasil', text: 'No Brasileirão, são 20 times em pontos corridos (38 rodadas, todos contra todos). Na Copa do Brasil, é mata-mata com ida e volta entre 32 times até sair um campeão.' },
+              { icon: '🩹', title: 'Cuidado com cartões e lesões', text: 'Jogadores suspensos (3 amarelos ou vermelho direto) e lesionados ficam fora automaticamente das próximas rodadas, sendo substituídos pelo reserva da mesma posição — acompanhe isso na aba Elenco.' },
+              { icon: '👥', title: 'Jogue com amigos', text: 'No modo multiplayer, cada jogador faz seu próprio draft e assume um time real da liga — sem servidor, a conexão é direta entre os navegadores (P2P). Um cria a sala, os outros entram com o código.' },
+            ].map(step => (
+              <div key={step.title} style={{ display: 'flex', gap: 14, alignItems: 'flex-start' }}>
+                <div style={{ ...styles.featIconWrap, background: hexToRgba(mc, 0.14), border: `1px solid ${hexToRgba(mc, 0.35)}`, flexShrink: 0 }}>{step.icon}</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3 }}>{step.title}</div>
+                  <div style={{ fontSize: 12.5, opacity: 0.6, lineHeight: 1.6 }}>{step.text}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Rodapé institucional */}
+        <div style={{
+          display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap',
+          marginTop: 28, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.08)',
+        }}>
+          {[['termos', 'Termos de Uso'], ['privacidade', 'Política de Privacidade'], ['contato', 'Contato']].map(([id, label]) => (
+            <button key={id} onClick={() => openInfo(id)} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: 0, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
+
+      {showClub && (
+        <ClubHistoryModal user={currentUser} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} myTeamColor={myTeamColor} onClose={() => setShowClub(false)} />
+      )}
+      {infoTab && (
+        <InfoModal tab={infoTab} onSetTab={setInfoTab} onClose={() => setInfoTab(null)} />
+      )}
     </>
+  );
+}
+
+// "Ver meu Clube" — histórico de carreira completo da conta (jogos, V/E/D,
+// gols marcados/sofridos, títulos, conquistas). Reaproveita os campos
+// career_* que o servidor já acumula a cada temporada registrada.
+function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose }) {
+  const mc = myTeamColor || '#d4a23c';
+  const mp = user?.career_matches_played || 0;
+  const w = user?.career_wins || 0;
+  const d = user?.career_draws || 0;
+  const l = user?.career_losses || 0;
+  const winPct = mp > 0 ? Math.round((w / mp) * 100) : 0;
+  const gp = user?.career_goals || 0;
+  const gc = user?.career_conceded || 0;
+  const gd = gp - gc;
+  const unlockedCount = (user?.achievements || []).length;
+  const totalAchievements = Object.keys(ACHIEVEMENT_CATALOG).length;
+
+  const Stat = ({ label, value }) => (
+    <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
+      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 19, fontWeight: 700, color: mc }}>{value}</div>
+      <div style={{ fontSize: 9.5, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 3 }}>{label}</div>
+    </div>
+  );
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '88vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer', zIndex: 1 }}>✕</button>
+        <div style={{ padding: '28px 24px 20px', textAlign: 'center', background: `linear-gradient(180deg, ${hexToRgba(mc, 0.18)}, transparent)`, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+          {myTeamLogo
+            ? <img src={myTeamLogo} alt="" style={{ width: 64, height: 64, borderRadius: 16, objectFit: 'cover', marginBottom: 10 }} />
+            : <div style={{ fontSize: 48, marginBottom: 6 }}>{myTeamBadge || '⭐'}</div>
+          }
+          <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700 }}>{user?.team_name || 'Meu Time'}</div>
+          <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>
+            {user?.team_city || ''}{user?.team_coach ? ` · Téc. ${user.team_coach}` : ''}
+          </div>
+        </div>
+
+        <div style={{ padding: '20px 24px 24px' }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
+            <Stat label="Brasileirões" value={user?.titles_brasileirao || 0} />
+            <Stat label="Copas do Brasil" value={user?.titles_copa || 0} />
+            <Stat label="Temporadas" value={user?.seasons_played || 0} />
+          </div>
+
+          <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Retrospecto de carreira</div>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+            <Stat label="Jogos" value={mp} />
+            <Stat label="Vitórias" value={w} />
+            <Stat label="Empates" value={d} />
+            <Stat label="Derrotas" value={l} />
+          </div>
+          {mp > 0 && (
+            <div style={{ height: 6, borderRadius: 999, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
+              <div style={{ width: `${(w / mp) * 100}%`, background: '#7fd99a' }} />
+              <div style={{ width: `${(d / mp) * 100}%`, background: '#d4a23c' }} />
+              <div style={{ width: `${(l / mp) * 100}%`, background: '#e05050' }} />
+            </div>
+          )}
+          <div style={{ fontSize: 11, opacity: 0.5, textAlign: 'center', marginBottom: 22 }}>{winPct}% de aproveitamento</div>
+
+          <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
+            <Stat label="Gols marcados" value={gp} />
+            <Stat label="Gols sofridos" value={gc} />
+            <Stat label="Saldo" value={gd >= 0 ? `+${gd}` : gd} />
+          </div>
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.25)', borderRadius: 10 }}>
+            <span style={{ fontSize: 12 }}>🏅 Conquistas desbloqueadas</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>{unlockedCount}/{totalAchievements}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const CONTACT_EMAIL = 'leonardoranuci@brasileiraolendario.com.br';
+const INFO_TABS = [
+  { id: 'termos', label: 'Termos de Uso', icon: '📜' },
+  { id: 'privacidade', label: 'Privacidade', icon: '🔒' },
+  { id: 'contato', label: 'Contato', icon: '✉️' },
+];
+
+// Termos de Uso, Política de Privacidade e Contato — modelo genérico de
+// entretenimento gratuito, sem apostas/dinheiro real. NÃO é aconselhamento
+// jurídico; vale revisão antes de tratar como documento definitivo (LGPD).
+function InfoModal({ tab, onSetTab, onClose }) {
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, maxHeight: '85vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
+        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+        <div style={{ display: 'flex', gap: 6, marginBottom: 18, flexWrap: 'wrap' }}>
+          {INFO_TABS.map(t => (
+            <button
+              key={t.id}
+              onClick={() => onSetTab(t.id)}
+              style={{
+                padding: '6px 12px', borderRadius: 999, border: `1px solid ${tab === t.id ? '#d4a23c' : 'rgba(255,255,255,0.15)'}`,
+                background: tab === t.id ? 'rgba(212,162,60,0.12)' : 'transparent',
+                color: tab === t.id ? '#d4a23c' : 'rgba(244,241,234,0.6)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+              }}
+            >
+              {t.icon} {t.label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 'termos' && (
+          <div style={{ fontSize: 13, lineHeight: 1.75, opacity: 0.85 }}>
+            <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 12 }}>Termos de Uso</h2>
+            <p><b>Sobre o jogo.</b> Brasileirão Lendário é um simulador de futebol gratuito, feito por fã, sem qualquer vínculo oficial com a CBF, clubes ou federações — os nomes de times e jogadores históricos aparecem em caráter editorial/homenagem, sem fins comerciais associados a essas marcas.</p>
+            <p><b>Sem apostas ou dinheiro real.</b> Não há qualquer forma de aposta, prêmio em dinheiro ou compra dentro do jogo. É puramente entretenimento.</p>
+            <p><b>Sua conta.</b> Você é responsável por manter sua senha em segurança. Pode excluir sua conta e todos os dados associados a qualquer momento, direto no painel de conta.</p>
+            <p><b>Modo multiplayer.</b> Ao jogar com outras pessoas, espera-se conduta respeitosa. Não há moderação em tempo real do chat — use o bom senso.</p>
+            <p><b>Sem garantias.</b> O serviço é fornecido "como está". Não garantimos disponibilidade ininterrupta nem ausência total de erros.</p>
+            <p><b>Mudanças.</b> Estes termos podem ser atualizados conforme o jogo evolui.</p>
+            <p style={{ opacity: 0.5, fontSize: 11.5 }}>Dúvidas: {CONTACT_EMAIL}</p>
+          </div>
+        )}
+
+        {tab === 'privacidade' && (
+          <div style={{ fontSize: 13, lineHeight: 1.75, opacity: 0.85 }}>
+            <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 12 }}>Política de Privacidade</h2>
+            <p><b>O que coletamos.</b> Nome de usuário, email e senha (guardada só como hash, nunca em texto puro) ao criar conta; estatísticas de jogo (temporadas, gols, títulos etc.) associadas à sua conta; e o endereço IP das suas requisições, usado só pra limitar tentativas de login e evitar abuso — não pra rastreamento.</p>
+            <p><b>Armazenamento local.</b> O progresso da partida em andamento e o token de login ficam salvos no seu próprio navegador (localStorage), não em nossos servidores.</p>
+            <p><b>Google Analytics.</b> Usamos o Google Analytics pra entender, de forma agregada, como o site é usado (páginas vistas, eventos como criar conta ou completar uma temporada). Não vendemos nem compartilhamos seus dados pessoais com terceiros pra fins de publicidade.</p>
+            <p><b>Seus direitos.</b> Você pode acessar, corrigir ou excluir seus dados a qualquer momento — a exclusão de conta (disponível no painel) apaga permanentemente seu registro do nosso banco de dados.</p>
+            <p><b>Menores de idade.</b> O jogo não é direcionado especificamente a crianças menores de 13 anos.</p>
+            <p style={{ opacity: 0.5, fontSize: 11.5 }}>Dúvidas ou solicitações sobre seus dados: {CONTACT_EMAIL}</p>
+          </div>
+        )}
+
+        {tab === 'contato' && (
+          <div style={{ fontSize: 13, lineHeight: 1.75, opacity: 0.85 }}>
+            <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 12 }}>Contato</h2>
+            <p>Dúvidas, sugestões, problemas técnicos ou solicitações sobre seus dados pessoais — manda um email:</p>
+            <p>
+              <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: '#d4a23c', fontWeight: 700, textDecoration: 'none' }}>{CONTACT_EMAIL}</a>
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -6276,6 +6590,23 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
+  // Convite direto — link com ?join=CODIGO já pré-preenche o código de quem
+  // clicar (ver useEffect no componente raiz). Web Share API com fallback de
+  // copiar link, mesmo padrão do ShareResultButton.
+  const [inviteCopied, setInviteCopied] = React.useState(false);
+  const shareInvite = async () => {
+    const code = roomData.leaderPeerId || roomCode;
+    const url = `${window.location.origin}/?join=${code}`;
+    const text = `Bora jogar Brasileirão Lendário comigo? Entra na minha sala: ${url}`;
+    trackEvent('share', { method: 'multiplayer_invite' });
+    if (navigator.share) {
+      try { await navigator.share({ title: 'Brasileirão Lendário', text, url }); } catch { /* usuário cancelou — sem problema */ }
+    } else {
+      navigator.clipboard?.writeText(url);
+      setInviteCopied(true);
+      setTimeout(() => setInviteCopied(false), 2000);
+    }
+  };
 
   const fileRef = React.useRef(null);
   const handleFile = e => {
@@ -6299,10 +6630,15 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: mc, margin: '10px 0 6px', wordBreak: 'break-all', background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 14px', letterSpacing: 1 }}>
               {roomData.leaderPeerId}
             </div>
-            <button onClick={copyCode} style={{ fontSize: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '5px 14px', color: copied ? '#7fd99a' : '#aaa', cursor: 'pointer' }}>
-              {copied ? '✓ Copiado!' : '📋 Copiar código'}
-            </button>
-            <div style={{ fontSize: 11, opacity: 0.4, marginTop: 6 }}>Envie este código para seus amigos entrarem na sala</div>
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button onClick={copyCode} style={{ fontSize: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '5px 14px', color: copied ? '#7fd99a' : '#aaa', cursor: 'pointer' }}>
+                {copied ? '✓ Copiado!' : '📋 Copiar código'}
+              </button>
+              <button onClick={shareInvite} style={{ fontSize: 12, background: hexToRgba(mc, 0.12), border: `1px solid ${hexToRgba(mc, 0.4)}`, borderRadius: 8, padding: '5px 14px', color: inviteCopied ? '#7fd99a' : mc, cursor: 'pointer' }}>
+                {inviteCopied ? '✓ Link copiado!' : '📤 Convidar amigos'}
+              </button>
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.4, marginTop: 6 }}>Envie o código ou o link de convite pros seus amigos entrarem na sala</div>
           </>
         )}
         {!isLeader && (
@@ -8914,6 +9250,7 @@ function ShareResultButton({ cardData }) {
   const [busy, setBusy] = useState(false);
   const share = async () => {
     setBusy(true);
+    trackEvent('share', { method: 'result_card' });
     try {
       const canvas = await drawResultCard(cardData);
       const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
