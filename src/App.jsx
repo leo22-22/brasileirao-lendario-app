@@ -6490,9 +6490,9 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                     onChange={e => commitField('team_uf', e.target.value || null)}
                     style={styles.teamInput}
                   >
-                    <option value="">Não informado</option>
+                    <option value="" style={styles.selectOption}>Não informado</option>
                     {BRAZIL_UFS.map(([code, label]) => (
-                      <option key={code} value={code}>{code} — {label}</option>
+                      <option key={code} value={code} style={styles.selectOption}>{code} — {label}</option>
                     ))}
                   </select>
                 </div>
@@ -8410,9 +8410,9 @@ function LeaderboardModal({ onClose, myUsername }) {
                 onChange={e => applyFilters(e.target.value, logo)}
                 style={{ ...styles.teamInput, flex: 1 }}
               >
-                <option value="">Todos os estados</option>
+                <option value="" style={styles.selectOption}>Todos os estados</option>
                 {BRAZIL_UFS.map(([code, label]) => (
-                  <option key={code} value={code}>{code} — {label}</option>
+                  <option key={code} value={code} style={styles.selectOption}>{code} — {label}</option>
                 ))}
               </select>
               <select
@@ -8420,9 +8420,9 @@ function LeaderboardModal({ onClose, myUsername }) {
                 onChange={e => applyFilters(uf, e.target.value)}
                 style={{ ...styles.teamInput, flex: 1 }}
               >
-                <option value="">Todos os escudos</option>
+                <option value="" style={styles.selectOption}>Todos os escudos</option>
                 {Object.entries(CLUB_LOGOS).map(([club, url]) => (
-                  <option key={club} value={url}>{club.replace(/-/g, ' ')}</option>
+                  <option key={club} value={url} style={styles.selectOption}>{club.replace(/-/g, ' ')}</option>
                 ))}
               </select>
             </div>
@@ -10416,6 +10416,11 @@ const styles = {
   badgeGrid: { display: 'flex', flexWrap: 'wrap', gap: 6 },
   colorGrid: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   teamInput: { width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '9px 12px', color: '#F4F1EA', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' },
+  // O popup nativo de <option> ignora o background semi-transparente do
+  // <select> pai (a maioria dos navegadores desenha a lista com o fundo
+  // padrão do sistema) — sem uma cor sólida explícita aqui, o texto claro
+  // herdado ficava quase ilegível em cima de um fundo claro.
+  selectOption: { background: '#14261a', color: '#F4F1EA' },
 
   // Intro screen
   introCard: { textAlign: 'center', padding: '40px 28px 36px', position: 'relative', overflow: 'hidden' },
