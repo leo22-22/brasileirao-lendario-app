@@ -2114,77 +2114,41 @@ function pickGoalOutcome(scoringTeam, scoringXI, concedingTeam, concedingXI, ran
   };
 }
 
-function generateMatchEvents(homeTeam, awayTeam, rand = Math.random) {
-  const homeXI = getStarters(homeTeam);
-  const awayXI = getStarters(awayTeam);
-
+// Constrói o feed de eventos "ao vivo" (com minuto pra animação) A PARTIR do
+// resultado que simAiMatch já decidiu com a seed compartilhada — antes, a
+// partida do usuário era gerada por um algoritmo próprio (generateMatchEvents,
+// removido), diferente do usado pras outras partidas da rodada. No
+// multiplayer isso fazia cada peer calcular um placar diferente pra mesma
+// partida (a "minha" pra mim é "de fundo" pro meu adversário), desalinhando a
+// tabela entre os dois pro resto da temporada. Usando sempre simAiMatch como
+// fonte da verdade, placar/cartões/lesões batem em qualquer cliente; só o
+// minuto de cada evento aqui é sorteado localmente (cosmético, não precisa
+// bater entre clientes).
+function buildLiveMatchEvents(sim, homeTeam, homeXI, awayTeam, awayXI) {
   const usedMin = new Set();
   const randMin = (minM = 1, maxM = 90) => {
     let m;
-    do { m = Math.floor(rand() * (maxM - minM + 1)) + minM; } while (usedMin.has(m));
+    do { m = Math.floor(Math.random() * (maxM - minM + 1)) + minM; } while (usedMin.has(m));
     usedMin.add(m);
     return m;
   };
 
-  const { events, homeRedCount, awayRedCount } = pickMatchCards(homeTeam, homeXI, awayTeam, awayXI, rand, randMin);
-
-  // Quem foi expulso não pode marcar gol, dar assistência nem bater pênalti
-  // depois disso — ele já saiu de campo. `homeXI`/`awayXI` seguem intactos
-  // (usados nas notas de fim de jogo, que cobrem os 90 min inteiros de quem
-  // começou jogando), só o POOL de sorteio de gol/pênalti exclui quem já foi
-  // expulso nesta partida.
-  const homeSentOff = new Set(events.filter(e => e.type === 'red' && e.teamId === homeTeam.id).map(e => e.player));
-  const awaySentOff = new Set(events.filter(e => e.type === 'red' && e.teamId === awayTeam.id).map(e => e.player));
-  const homeGoalXI = homeXI.filter(p => !homeSentOff.has(p.name));
-  const awayGoalXI = awayXI.filter(p => !awaySentOff.has(p.name));
-
-  const diff = homeTeam.ovr - awayTeam.ovr;
-  let homeExp = Math.max(0.2, 1.3 + diff * 0.042) * HOME_ADVANTAGE;
-  let awayExp = Math.max(0.2, 1.3 - diff * 0.042);
-  if (isRivalryMatch(homeTeam.club, awayTeam.club)) { homeExp *= RIVALRY_BOOST; awayExp *= RIVALRY_BOOST; }
-  [homeExp, awayExp] = applyRedCardEffect(homeExp, awayExp, homeRedCount, awayRedCount);
-  const homeGoals = poissonSample(homeExp, rand);
-  const awayGoals = poissonSample(awayExp, rand);
-
-  // Usa sempre o XI efetivo (já considera suspensão/lesão) — nunca o banco,
-  // senão um jogador suspenso podia "marcar" mesmo fora de campo.
-  const makeGoalEvent = (scoringTeam, scoringXI, concedingTeam, concedingXI) => ({
-    type: 'goal',
-    minute: randMin(),
-    ...pickGoalOutcome(scoringTeam, scoringXI, concedingTeam, concedingXI, rand),
-  });
-
-  for (let i = 0; i < homeGoals; i++) events.push(makeGoalEvent(homeTeam, homeGoalXI, awayTeam, awayGoalXI));
-  for (let i = 0; i < awayGoals; i++) events.push(makeGoalEvent(awayTeam, awayGoalXI, homeTeam, homeGoalXI));
-
-  // Pênalti sofrido durante o jogo (evento avulso, além dos gols de jogo
-  // corrido sorteados acima) — nem todo pênalti vira gol, o goleiro pode
-  // defender ou o batedor pode desperdiçar, igual na vida real. Quando
-  // convertido, entra como um gol normal (isPenalty:true) e conta pro placar
-  // e pro artilheiro; quando perdido, só aparece no feed, sem mexer no placar.
-  [[homeTeam, homeGoalXI, awayTeam, awayXI], [awayTeam, awayGoalXI, homeTeam, homeXI]].forEach(([team, xi, opp, oppXI]) => {
-    if (xi.length === 0 || rand() >= PENALTY_AWARD_CHANCE_PER_TEAM) return;
-    const taker = pickGoalScorer(xi, rand);
-    const scored = rand() < penaltyScoreRate(team.ovr);
-    if (scored) {
-      events.push({ type: 'goal', minute: randMin(), teamId: team.id, teamLabel: team.label, scorer: taker, isOwnGoal: false, isPenalty: true, assist: null });
-    } else {
-      events.push({ type: 'penalty_miss', minute: randMin(), teamId: team.id, teamLabel: team.label, player: taker, gkName: pickGkName(oppXI) });
+  const discipline = (sim.discipline || []).map(ev => {
+    if (ev.type === 'injury') {
+      const team = ev.teamId === homeTeam.id ? homeTeam : awayTeam;
+      const xi = ev.teamId === homeTeam.id ? homeXI : awayXI;
+      const pos = xi.find(p => p.name === ev.player)?.pos?.[0];
+      return {
+        ...ev, minute: randMin(), teamLabel: team.label,
+        medicalQuote: medicalQuote(), replacementName: pickReplacementName(team, pos),
+      };
     }
+    return { ...ev, minute: (ev.type === 'red' && !ev.secondYellow) ? randMin(20, 90) : randMin() };
   });
 
-  // Lesões (no máximo 1 por time por jogo)
-  [[homeTeam, homeXI], [awayTeam, awayXI]].forEach(([team, xi]) => {
-    if (xi.length === 0 || rand() >= INJURY_CHANCE_PER_TEAM) return;
-    const player = weightedPick(xi, INJURY_WEIGHT_BY_POS, rand);
-    const rounds = INJURY_MIN_ROUNDS + Math.floor(rand() * (INJURY_MAX_ROUNDS - INJURY_MIN_ROUNDS + 1));
-    events.push({
-      type: 'injury', minute: randMin(), teamId: team.id, teamLabel: team.label, player: player.name, rounds,
-      medicalQuote: medicalQuote(rand), replacementName: pickReplacementName(team, player.pos?.[0]),
-    });
-  });
+  const goals = (sim.goals || []).map(g => ({ ...g, type: 'goal', minute: randMin() }));
 
-  return events.sort((a, b) => a.minute - b.minute);
+  return [...discipline, ...goals].sort((a, b) => a.minute - b.minute);
 }
 
 // Nota de jogo por jogador (estilo 6.5, 8.2) — só é calculada pro jogo do
@@ -3696,7 +3660,8 @@ export default function App() {
     const homeXI = getStarters(homeTeam);
     const awayXI = getStarters(awayTeam);
     const matchRand = matchPrng(roomSnap?.seed, currentRound, um.homeId, um.awayId);
-    const events = generateMatchEvents(homeTeam, awayTeam, matchRand);
+    const sim = simAiMatch(homeTeam, awayTeam, matchRand);
+    const events = buildLiveMatchEvents(sim, homeTeam, homeXI, awayTeam, awayXI);
 
     setActiveUserMatch(um);
     setLiveEvents([]);
@@ -3817,10 +3782,15 @@ export default function App() {
       if (minute >= 90) {
         setIsSimulating(false);
 
-        const finalHs = hs;
-        const finalAs = as_;
+        // Placar oficial vem do `sim` (mesmo motor/seed usado por todos os
+        // clientes pra essa partida) — não do `hs`/`as_` acumulado localmente
+        // no tick, que por construção já deveria bater, mas usar `sim` direto
+        // garante que o resultado registrado é exatamente o mesmo que
+        // qualquer outro peer no multiplayer calcula pra esse confronto.
+        const finalHs = sim.homeGoals;
+        const finalAs = sim.awayGoals;
 
-        const ratings = computeMatchRatings(homeTeam, homeXI, awayTeam, awayXI, events, finalHs, finalAs, matchRand);
+        const ratings = sim.ratings;
         setLastMatchRatings(ratings);
         let ratingsAcc = applySeasonRatings(seasonRatings, ratings);
 
