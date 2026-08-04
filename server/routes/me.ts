@@ -12,6 +12,13 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // Colunas que o cliente pode atualizar diretamente (sem tratamento especial).
 const SIMPLE_FIELDS = ['team_name', 'team_color', 'team_logo', 'team_coach', 'team_city', 'goal_audio'] as const;
 
+// 26 estados + Distrito Federal — usado tanto pra validar team_uf quanto pro
+// filtro de região do ranking global.
+export const BRAZIL_UFS = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA', 'MT', 'MS', 'MG',
+  'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO',
+];
+
 async function getUserOr404(userId: number, res: import('express').Response): Promise<UserRow | null> {
   const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE id = ?', [userId]);
   const row = rows[0];
@@ -25,6 +32,9 @@ async function getUserOr404(userId: number, res: import('express').Response): Pr
 router.get('/', async (req, res) => {
   const row = await getUserOr404(req.userId!, res);
   if (!row) return;
+  // Chamado sempre que o app carrega com uma sessão válida — melhor sinal de
+  // "jogador ativo" que login sozinho (o token fica salvo entre sessões).
+  pool.query('UPDATE users SET last_active_at = NOW() WHERE id = ?', [row.id]).catch(err => console.error('[touch last_active_at]', err));
   res.json({ user: toPublicUser(row) });
 });
 
@@ -44,6 +54,17 @@ router.put('/', async (req, res) => {
         }
         updates[field] = body[field];
       }
+    }
+
+    if ('team_uf' in body) {
+      if (body.team_uf !== null && typeof body.team_uf !== 'string') {
+        return res.status(400).json({ error: 'UF inválida.' });
+      }
+      const normalizedUf = body.team_uf ? body.team_uf.trim().toUpperCase() : null;
+      if (normalizedUf !== null && !BRAZIL_UFS.includes(normalizedUf)) {
+        return res.status(400).json({ error: 'UF inválida.' });
+      }
+      updates.team_uf = normalizedUf;
     }
 
     if ('username' in body) {

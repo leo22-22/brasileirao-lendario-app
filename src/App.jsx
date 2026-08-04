@@ -6047,6 +6047,19 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
 const TEAM_BADGES = ['⭐', '🔥', '🦅', '🐯', '🦁', '💎', '⚡', '🏆', '🌊', '🎯', '🛡️', '🌟'];
 const TEAM_COLORS = ['#d4a23c', '#e05050', '#4a90d9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#e91e8c'];
 
+// Estados brasileiros — usado no seletor de UF do time (Ver Clube) e no
+// filtro de região do ranking global. Precisa bater com BRAZIL_UFS no
+// backend (server/routes/me.ts).
+const BRAZIL_UFS = [
+  ['AC', 'Acre'], ['AL', 'Alagoas'], ['AP', 'Amapá'], ['AM', 'Amazonas'], ['BA', 'Bahia'],
+  ['CE', 'Ceará'], ['DF', 'Distrito Federal'], ['ES', 'Espírito Santo'], ['GO', 'Goiás'],
+  ['MA', 'Maranhão'], ['MT', 'Mato Grosso'], ['MS', 'Mato Grosso do Sul'], ['MG', 'Minas Gerais'],
+  ['PA', 'Pará'], ['PB', 'Paraíba'], ['PR', 'Paraná'], ['PE', 'Pernambuco'], ['PI', 'Piauí'],
+  ['RJ', 'Rio de Janeiro'], ['RN', 'Rio Grande do Norte'], ['RS', 'Rio Grande do Sul'],
+  ['RO', 'Rondônia'], ['RR', 'Roraima'], ['SC', 'Santa Catarina'], ['SP', 'São Paulo'],
+  ['SE', 'Sergipe'], ['TO', 'Tocantins'],
+];
+
 function parseYouTubeId(input) {
   if (!input) return null;
   const s = input.trim();
@@ -6455,6 +6468,19 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                     onBlur={() => city !== (user?.team_city || '') && commitField('team_city', city)}
                     placeholder="Ex: São Paulo" maxLength={20} style={styles.teamInput}
                   />
+                </div>
+                <div>
+                  <label style={styles.teamEditLabel}>Estado (UF)</label>
+                  <select
+                    value={user?.team_uf || ''}
+                    onChange={e => commitField('team_uf', e.target.value || null)}
+                    style={styles.teamInput}
+                  >
+                    <option value="">Não informado</option>
+                    {BRAZIL_UFS.map(([code, label]) => (
+                      <option key={code} value={code}>{code} — {label}</option>
+                    ))}
+                  </select>
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={styles.teamEditLabel}>Técnico</label>
@@ -8231,25 +8257,80 @@ function AchievementToast({ achievements, onClose }) {
   );
 }
 
-// Ranking global — busca no backend ao abrir, público (não exige login pra ver).
+const LEADERBOARD_PAGE_SIZE = 30;
+
+// Ranking global — busca no backend ao abrir, público (não exige login pra
+// ver). Paginado com "carregar mais" (dá pra ver todo mundo, não só um top
+// fixo) e filtrável por UF do time.
 function LeaderboardModal({ onClose, myUsername }) {
   const [rows, setRows] = useState(null);
+  const [stats, setStats] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [uf, setUf] = useState('');
   const [error, setError] = useState('');
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const load = (reset, offset) => {
+    api.fetchLeaderboard({ limit: LEADERBOARD_PAGE_SIZE, offset, uf })
+      .then(({ leaderboard, total: t, hasMore: hm, stats: s }) => {
+        setRows(prev => reset || !prev ? leaderboard : [...prev, ...leaderboard]);
+        setTotal(t);
+        setHasMore(hm);
+        if (s) setStats(s);
+        setError('');
+      })
+      .catch(() => setError('Não foi possível carregar o ranking agora.'))
+      .finally(() => setLoadingMore(false));
+  };
+
   useEffect(() => {
-    api.fetchLeaderboard(20)
-      .then(({ leaderboard }) => setRows(leaderboard))
-      .catch(() => setError('Não foi possível carregar o ranking agora.'));
-  }, []);
+    setRows(null);
+    load(true, 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uf]);
+
+  const loadMore = () => {
+    setLoadingMore(true);
+    load(false, rows?.length || 0);
+  };
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
       <div style={{ background: '#0B1A12', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: '#d4a23c', letterSpacing: 1, textTransform: 'uppercase' }}>🏆 Ranking Global</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 18, cursor: 'pointer' }}>×</button>
         </div>
+
+        {stats && (
+          <div style={{ display: 'flex', gap: 12, fontSize: 11, opacity: 0.6, marginBottom: 12 }}>
+            <span>👥 {stats.totalPlayers} jogadores registrados</span>
+            <span>🟢 {stats.activePlayers30d} ativos (30d)</span>
+          </div>
+        )}
+
+        <select
+          value={uf}
+          onChange={e => setUf(e.target.value)}
+          style={{ ...styles.teamInput, marginBottom: 12 }}
+        >
+          <option value="">Todos os estados</option>
+          {BRAZIL_UFS.map(([code, label]) => (
+            <option key={code} value={code}>{code} — {label}</option>
+          ))}
+        </select>
+
         {error && <div style={{ fontSize: 13, opacity: 0.6 }}>{error}</div>}
         {!error && !rows && <div style={{ fontSize: 13, opacity: 0.6 }}>Carregando...</div>}
-        {rows && rows.length === 0 && <div style={{ fontSize: 13, opacity: 0.6 }}>Ninguém no ranking ainda — jogue uma temporada logado pra entrar!</div>}
+        {rows && rows.length === 0 && (
+          <div style={{ fontSize: 13, opacity: 0.6 }}>
+            {uf ? 'Ninguém desse estado no ranking ainda.' : 'Ninguém no ranking ainda — jogue uma temporada logado pra entrar!'}
+          </div>
+        )}
+        {rows && rows.length > 0 && (
+          <div style={{ fontSize: 10.5, opacity: 0.45, marginBottom: 4 }}>{total} {total === 1 ? 'jogador' : 'jogadores'}{uf ? ` em ${uf}` : ''}</div>
+        )}
         {rows && rows.map((r, i) => (
           <div key={r.username} style={{
             display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
@@ -8259,10 +8340,25 @@ function LeaderboardModal({ onClose, myUsername }) {
           }}>
             <span style={{ width: 22, textAlign: 'right', opacity: 0.5, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
             <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>{r.username}</span>
+            {r.team_uf && !uf && <span style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace" }}>{r.team_uf}</span>}
             <span style={{ fontSize: 11, opacity: 0.6 }}>🏆{r.titles_brasileirao + r.titles_copa}</span>
             <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 13 }}>{r.ranking_points} pts</span>
           </div>
         ))}
+        {hasMore && (
+          <button
+            onClick={loadMore}
+            disabled={loadingMore}
+            style={{
+              width: '100%', marginTop: 12, padding: '9px 0', borderRadius: 8,
+              background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)',
+              color: '#d4a23c', fontSize: 12.5, fontWeight: 600, cursor: loadingMore ? 'default' : 'pointer',
+              opacity: loadingMore ? 0.6 : 1,
+            }}
+          >
+            {loadingMore ? 'Carregando...' : 'Carregar mais'}
+          </button>
+        )}
       </div>
     </div>
   );
@@ -8273,6 +8369,12 @@ function LeaderboardModal({ onClose, myUsername }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-08-ranking-uf',
+    date: 'Agosto de 2026',
+    title: 'Ranking Global mostra todo mundo e filtra por estado',
+    desc: 'O Ranking Global agora lista todos os jogadores (com "carregar mais", não só um top fixo), dá pra filtrar por estado (UF) e mostra quantos jogadores estão ativos. Também corrigimos um bug em que o placar de partidas no multiplayer podia ficar diferente entre os jogadores da mesma sala.',
+  },
   {
     id: '2026-08-migracao-mysql',
     date: 'Agosto de 2026',

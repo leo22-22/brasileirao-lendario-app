@@ -69,6 +69,8 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Email ou senha incorretos.' });
     }
 
+    await pool.query('UPDATE users SET last_active_at = NOW() WHERE id = ?', [row.id]);
+
     const token = signToken(row.id);
     return res.json({ token, user: toPublicUser(row) });
   } catch (err) {

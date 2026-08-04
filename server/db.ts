@@ -40,6 +40,7 @@ export async function ensureSchema() {
       team_logo MEDIUMTEXT,
       team_coach VARCHAR(64),
       team_city VARCHAR(64),
+      team_uf VARCHAR(2),
       goal_audio MEDIUMTEXT,
       titles_brasileirao INT NOT NULL DEFAULT 0,
       titles_copa INT NOT NULL DEFAULT 0,
@@ -54,7 +55,8 @@ export async function ensureSchema() {
       unbeaten_titles_brasileirao INT NOT NULL DEFAULT 0,
       unbeaten_titles_copa INT NOT NULL DEFAULT 0,
       multiplayer_wins INT NOT NULL DEFAULT 0,
-      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      last_active_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
     )
   `);
 
@@ -79,6 +81,18 @@ export async function ensureSchema() {
   // "elenco de encher os olhos" e "time de encher os olhos".
   await ensureColumn('best_team_ovr DECIMAL(5,1)');
   await ensureColumn('best_player_ovr INT');
+  // UF (estado brasileiro) do time — usado pra filtrar o ranking global por
+  // região. Índice separado porque o ranking filtra por essa coluna.
+  await ensureColumn('team_uf VARCHAR(2)');
+  // Última vez que a conta esteve ativa (login ou GET /me) — alimenta a
+  // contagem de "jogadores ativos" no ranking global.
+  await ensureColumn('last_active_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+  try {
+    await pool.query('CREATE INDEX idx_users_team_uf ON users (team_uf)');
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code !== 'ER_DUP_KEYNAME') throw err;
+  }
 }
 
 export interface UserRow {
@@ -91,6 +105,7 @@ export interface UserRow {
   team_logo: string | null;
   team_coach: string | null;
   team_city: string | null;
+  team_uf: string | null;
   goal_audio: string | null;
   titles_brasileirao: number;
   titles_copa: number;
@@ -112,6 +127,7 @@ export interface UserRow {
   best_team_ovr: number | null;
   best_player_ovr: number | null;
   created_at: string;
+  last_active_at: string;
 }
 
 export interface PublicUser {
@@ -123,6 +139,7 @@ export interface PublicUser {
   team_logo: string | null;
   team_coach: string | null;
   team_city: string | null;
+  team_uf: string | null;
   goal_audio: string | null;
   titles_brasileirao: number;
   titles_copa: number;
@@ -156,6 +173,7 @@ export function toPublicUser(row: UserRow): PublicUser {
     team_logo: row.team_logo,
     team_coach: row.team_coach,
     team_city: row.team_city,
+    team_uf: row.team_uf,
     goal_audio: row.goal_audio,
     titles_brasileirao: row.titles_brasileirao,
     titles_copa: row.titles_copa,
