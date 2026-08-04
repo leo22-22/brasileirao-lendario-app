@@ -3096,8 +3096,15 @@ export default function App() {
   }, []);
   const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showNews, setShowNews] = useState(false);
-  const hasUnseenNews = (() => {
-    try { return localStorage.getItem('brl_news_seen') !== WHATS_NEW[0].id; } catch { return false; }
+  // Quantas novidades o jogador ainda não viu (não só um "tem ou não tem") —
+  // itens antes do último visto na lista (mais recente primeiro) são novos.
+  const unseenNewsCount = (() => {
+    try {
+      const seenId = localStorage.getItem('brl_news_seen');
+      if (!seenId) return WHATS_NEW.length;
+      const idx = WHATS_NEW.findIndex(item => item.id === seenId);
+      return idx === -1 ? WHATS_NEW.length : idx;
+    } catch { return 0; }
   })();
 
   // Rotas de verdade (URL própria, compartilhável, indexável pelo Google) pras
@@ -5141,8 +5148,15 @@ export default function App() {
               }}
             >
               💡
-              {hasUnseenNews && (
-                <span style={{ position: 'absolute', top: -2, right: -2, width: 8, height: 8, borderRadius: '50%', background: '#e05050', border: '1px solid #0B1A12' }} />
+              {unseenNewsCount > 0 && (
+                <span style={{
+                  position: 'absolute', top: -6, right: -6, minWidth: 15, height: 15, padding: '0 3px',
+                  borderRadius: 999, background: '#e05050', border: '1px solid #0B1A12',
+                  fontSize: 9, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontFamily: "'Space Mono', monospace", lineHeight: 1,
+                }}>
+                  {unseenNewsCount > 9 ? '9+' : unseenNewsCount}
+                </span>
               )}
             </button>
             {currentUser ? (
@@ -8261,20 +8275,31 @@ const LEADERBOARD_PAGE_SIZE = 30;
 
 // Ranking global — busca no backend ao abrir, público (não exige login pra
 // ver). Paginado com "carregar mais" (dá pra ver todo mundo, não só um top
-// fixo) e filtrável por UF do time.
+// fixo), filtrável por UF e por escudo do time, e com um botão "Ver minha
+// classificação" que pula direto pra posição do jogador (com uma animação de
+// contagem rápida até o número real, tipo velocímetro) e destaca a linha dele.
 function LeaderboardModal({ onClose, myUsername }) {
   const [rows, setRows] = useState(null);
+  const [baseOffset, setBaseOffset] = useState(0);
   const [stats, setStats] = useState(null);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [uf, setUf] = useState('');
+  const [logo, setLogo] = useState('');
   const [error, setError] = useState('');
   const [loadingMore, setLoadingMore] = useState(false);
+  const [finding, setFinding] = useState(false);
+  const [findDisplay, setFindDisplay] = useState(1);
+  const [highlightRank, setHighlightRank] = useState(null);
+  const rowRefs = useRef({});
 
-  const load = (reset, offset) => {
-    api.fetchLeaderboard({ limit: LEADERBOARD_PAGE_SIZE, offset, uf })
+  const load = (reset, offset, overrides = {}) => {
+    const effectiveUf = 'uf' in overrides ? overrides.uf : uf;
+    const effectiveLogo = 'logo' in overrides ? overrides.logo : logo;
+    api.fetchLeaderboard({ limit: LEADERBOARD_PAGE_SIZE, offset, uf: effectiveUf, logo: effectiveLogo })
       .then(({ leaderboard, total: t, hasMore: hm, stats: s }) => {
         setRows(prev => reset || !prev ? leaderboard : [...prev, ...leaderboard]);
+        if (reset) setBaseOffset(offset);
         setTotal(t);
         setHasMore(hm);
         if (s) setStats(s);
@@ -8285,15 +8310,64 @@ function LeaderboardModal({ onClose, myUsername }) {
   };
 
   useEffect(() => {
-    setRows(null);
-    load(true, 0);
+    load(true, 0, { uf: '', logo: '' });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uf]);
+  }, []);
+
+  const applyFilters = (nextUf, nextLogo) => {
+    setUf(nextUf);
+    setLogo(nextLogo);
+    setHighlightRank(null);
+    setRows(null);
+    load(true, 0, { uf: nextUf, logo: nextLogo });
+  };
 
   const loadMore = () => {
     setLoadingMore(true);
-    load(false, rows?.length || 0);
+    load(false, baseOffset + (rows?.length || 0));
   };
+
+  // "Efeito de velocidade": conta rápido do 1 até a colocação real (com
+  // desaceleração no final), depois busca a janela do ranking em volta dela
+  // e rola/realça a linha do jogador — sem filtro nenhum ativo, é sobre o
+  // campeonato inteiro, não faria sentido misturar com uma fatia filtrada.
+  const findMe = async () => {
+    if (finding) return;
+    setError('');
+    try {
+      const { rank } = await api.fetchMyRank();
+      setFinding(true);
+      setFindDisplay(1);
+      const startedAt = performance.now();
+      const DURATION = 900;
+      const animate = (now) => {
+        const t = Math.min(1, (now - startedAt) / DURATION);
+        const eased = 1 - Math.pow(1 - t, 3);
+        setFindDisplay(Math.max(1, Math.round(1 + (rank - 1) * eased)));
+        if (t < 1) {
+          requestAnimationFrame(animate);
+        } else {
+          setFinding(false);
+          setUf('');
+          setLogo('');
+          setHighlightRank(rank);
+          setRows(null);
+          load(true, Math.max(0, rank - 4), { uf: '', logo: '' });
+        }
+      };
+      requestAnimationFrame(animate);
+    } catch {
+      setError('Não foi possível buscar sua classificação agora.');
+    }
+  };
+
+  useEffect(() => {
+    if (highlightRank == null || !rows) return;
+    const el = rowRefs.current[highlightRank];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const t = setTimeout(() => setHighlightRank(null), 2500);
+    return () => clearTimeout(t);
+  }, [rows, highlightRank]);
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
@@ -8310,54 +8384,100 @@ function LeaderboardModal({ onClose, myUsername }) {
           </div>
         )}
 
-        <select
-          value={uf}
-          onChange={e => setUf(e.target.value)}
-          style={{ ...styles.teamInput, marginBottom: 12 }}
-        >
-          <option value="">Todos os estados</option>
-          {BRAZIL_UFS.map(([code, label]) => (
-            <option key={code} value={code}>{code} — {label}</option>
-          ))}
-        </select>
+        {finding ? (
+          <div style={{ textAlign: 'center', padding: '34px 0' }}>
+            <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Buscando sua posição...</div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 42, fontWeight: 700, color: '#d4a23c' }}>#{findDisplay}</div>
+          </div>
+        ) : (
+          <>
+            {myUsername && (
+              <button
+                onClick={findMe}
+                style={{
+                  width: '100%', marginBottom: 12, padding: '9px 0', borderRadius: 8,
+                  background: 'rgba(212,162,60,0.14)', border: '1px solid rgba(212,162,60,0.4)',
+                  color: '#d4a23c', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                }}
+              >
+                📍 Ver minha classificação
+              </button>
+            )}
 
-        {error && <div style={{ fontSize: 13, opacity: 0.6 }}>{error}</div>}
-        {!error && !rows && <div style={{ fontSize: 13, opacity: 0.6 }}>Carregando...</div>}
-        {rows && rows.length === 0 && (
-          <div style={{ fontSize: 13, opacity: 0.6 }}>
-            {uf ? 'Ninguém desse estado no ranking ainda.' : 'Ninguém no ranking ainda — jogue uma temporada logado pra entrar!'}
-          </div>
-        )}
-        {rows && rows.length > 0 && (
-          <div style={{ fontSize: 10.5, opacity: 0.45, marginBottom: 4 }}>{total} {total === 1 ? 'jogador' : 'jogadores'}{uf ? ` em ${uf}` : ''}</div>
-        )}
-        {rows && rows.map((r, i) => (
-          <div key={r.username} style={{
-            display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0',
-            borderBottom: '1px solid rgba(255,255,255,0.06)',
-            fontWeight: r.username === myUsername ? 700 : 400,
-            color: r.username === myUsername ? '#d4a23c' : '#F4F1EA',
-          }}>
-            <span style={{ width: 22, textAlign: 'right', opacity: 0.5, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-            <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>{r.username}</span>
-            {r.team_uf && !uf && <span style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace" }}>{r.team_uf}</span>}
-            <span style={{ fontSize: 11, opacity: 0.6 }}>🏆{r.titles_brasileirao + r.titles_copa}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 13 }}>{r.ranking_points} pts</span>
-          </div>
-        ))}
-        {hasMore && (
-          <button
-            onClick={loadMore}
-            disabled={loadingMore}
-            style={{
-              width: '100%', marginTop: 12, padding: '9px 0', borderRadius: 8,
-              background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)',
-              color: '#d4a23c', fontSize: 12.5, fontWeight: 600, cursor: loadingMore ? 'default' : 'pointer',
-              opacity: loadingMore ? 0.6 : 1,
-            }}
-          >
-            {loadingMore ? 'Carregando...' : 'Carregar mais'}
-          </button>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <select
+                value={uf}
+                onChange={e => applyFilters(e.target.value, logo)}
+                style={{ ...styles.teamInput, flex: 1 }}
+              >
+                <option value="">Todos os estados</option>
+                {BRAZIL_UFS.map(([code, label]) => (
+                  <option key={code} value={code}>{code} — {label}</option>
+                ))}
+              </select>
+              <select
+                value={logo}
+                onChange={e => applyFilters(uf, e.target.value)}
+                style={{ ...styles.teamInput, flex: 1 }}
+              >
+                <option value="">Todos os escudos</option>
+                {Object.entries(CLUB_LOGOS).map(([club, url]) => (
+                  <option key={club} value={url}>{club.replace(/-/g, ' ')}</option>
+                ))}
+              </select>
+            </div>
+
+            {error && <div style={{ fontSize: 13, opacity: 0.6 }}>{error}</div>}
+            {!error && !rows && <div style={{ fontSize: 13, opacity: 0.6 }}>Carregando...</div>}
+            {rows && rows.length === 0 && (
+              <div style={{ fontSize: 13, opacity: 0.6 }}>
+                {uf || logo ? 'Ninguém com esse filtro no ranking ainda.' : 'Ninguém no ranking ainda — jogue uma temporada logado pra entrar!'}
+              </div>
+            )}
+            {rows && rows.length > 0 && (
+              <div style={{ fontSize: 10.5, opacity: 0.45, marginBottom: 4 }}>{total} {total === 1 ? 'jogador' : 'jogadores'}{uf ? ` em ${uf}` : ''}</div>
+            )}
+            {rows && rows.map((r, i) => {
+              const rank = baseOffset + i + 1;
+              const isMe = r.username === myUsername;
+              const isHighlighted = rank === highlightRank;
+              return (
+                <div
+                  key={r.username}
+                  ref={el => { rowRefs.current[rank] = el; }}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '7px 6px',
+                    borderRadius: 8,
+                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    fontWeight: isMe ? 700 : 400,
+                    color: isMe ? '#d4a23c' : '#F4F1EA',
+                    background: isHighlighted ? 'rgba(212,162,60,0.18)' : 'transparent',
+                    transition: 'background 0.4s ease',
+                  }}
+                >
+                  <span style={{ width: 26, textAlign: 'right', opacity: 0.5, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{rank}.</span>
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>{r.username}</span>
+                  {r.team_uf && !uf && <span style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace" }}>{r.team_uf}</span>}
+                  <span style={{ fontSize: 11, opacity: 0.6 }}>🏆{r.titles_brasileirao + r.titles_copa}</span>
+                  <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 13 }}>{r.ranking_points} pts</span>
+                </div>
+              );
+            })}
+            {hasMore && (
+              <button
+                onClick={loadMore}
+                disabled={loadingMore}
+                style={{
+                  width: '100%', marginTop: 12, padding: '9px 0', borderRadius: 8,
+                  background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)',
+                  color: '#d4a23c', fontSize: 12.5, fontWeight: 600, cursor: loadingMore ? 'default' : 'pointer',
+                  opacity: loadingMore ? 0.6 : 1,
+                }}
+              >
+                {loadingMore ? 'Carregando...' : 'Carregar mais'}
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>

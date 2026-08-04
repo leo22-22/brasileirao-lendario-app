@@ -68,8 +68,13 @@ export function submitSeasonResult(payload) {
   return request('/me/season-result', { method: 'POST', body: payload, auth: true });
 }
 
-export function fetchLeaderboard({ limit = 30, offset = 0, uf = '' } = {}) {
+export function fetchLeaderboard({ limit = 30, offset = 0, uf = '', logo = '' } = {}) {
   const params = new URLSearchParams({ limit, offset });
   if (uf) params.set('uf', uf);
+  if (logo) params.set('logo', logo);
   return request(`/leaderboard?${params.toString()}`);
+}
+
+export function fetchMyRank() {
+  return request('/leaderboard/me', { auth: true });
 }
