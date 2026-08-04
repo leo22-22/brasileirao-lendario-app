@@ -5425,8 +5425,6 @@ export default function App() {
       {showAccountPanel && currentUser && (
         <AccountPanel
           user={currentUser}
-          myTeamColor={myTeamColor}
-          myTeamLogo={myTeamLogo}
           onUpdateFields={updateAccountFields}
           onClose={() => setShowAccountPanel(false)}
           onLogout={handleLogout}
@@ -5635,8 +5633,7 @@ function EqBars({ color = '#d4a23c', height = 12 }) {
 // ============================================================
 // CONTA — painel de edição (time, email/senha, excluir conta)
 // ============================================================
-function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, onLogout, onDeleteAccount }) {
-  const mc = myTeamColor || '#d4a23c';
+function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount }) {
   const [username, setUsername] = useState(user.username);
   const [email, setEmail] = useState(user.email);
   const [password, setPassword] = useState('');
@@ -5645,112 +5642,11 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
   const [savingCred, setSavingCred] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [showAchievements, setShowAchievements] = useState(false);
-
-  const [audioMode, setAudioMode] = useState('default'); // 'off' | 'default' | 'hino' | 'youtube'
-  const [ytInput, setYtInput] = useState('');
-  const [ytId, setYtId] = useState(null);
-
-  const [goalAudioMode, setGoalAudioMode] = useState('idle'); // 'idle' | 'record' | 'link'
-  const [goalAudioLinkInput, setGoalAudioLinkInput] = useState('');
-  const [isRecordingGoal, setIsRecordingGoal] = useState(false);
-  const [recordedGoalPreviewUrl, setRecordedGoalPreviewUrl] = useState(null);
-  const [recordedGoalDataUrl, setRecordedGoalDataUrl] = useState(null);
-  const [goalAudioError, setGoalAudioError] = useState('');
-  const goalMediaRecorderRef = useRef(null);
-  const goalRecordTimeoutRef = useRef(null);
-  const goalAudioFileInputRef = useRef(null);
-
-  const anthemClub = Object.entries(CLUB_LOGOS).find(([, url]) => url === myTeamLogo)?.[0];
-  const anthemId = anthemClub && CLUB_ANTHEMS[anthemClub];
 
   useEffect(() => {
     setUsername(user.username);
     setEmail(user.email);
   }, [user]);
-
-  const applyYoutube = () => {
-    const id = parseYouTubeId(ytInput);
-    if (id) setYtId(id);
-  };
-
-  const startGoalRecording = async () => {
-    setGoalAudioError('');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const chunks = [];
-      const mr = new MediaRecorder(stream);
-      mr.ondataavailable = e => chunks.push(e.data);
-      mr.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        const blob = new Blob(chunks, { type: 'audio/webm' });
-        const reader = new FileReader();
-        reader.onload = () => {
-          setRecordedGoalDataUrl(reader.result);
-          setRecordedGoalPreviewUrl(URL.createObjectURL(blob));
-        };
-        reader.readAsDataURL(blob);
-        setIsRecordingGoal(false);
-      };
-      goalMediaRecorderRef.current = mr;
-      mr.start();
-      setIsRecordingGoal(true);
-      goalRecordTimeoutRef.current = setTimeout(() => { if (mr.state === 'recording') mr.stop(); }, 5000);
-    } catch {
-      setGoalAudioError('Não foi possível acessar o microfone.');
-    }
-  };
-  const stopGoalRecording = () => {
-    clearTimeout(goalRecordTimeoutRef.current);
-    if (goalMediaRecorderRef.current?.state === 'recording') goalMediaRecorderRef.current.stop();
-  };
-  const saveGoalRecording = async () => {
-    if (!recordedGoalDataUrl) return;
-    await commitField('goal_audio', recordedGoalDataUrl);
-    setRecordedGoalDataUrl(null);
-    setRecordedGoalPreviewUrl(null);
-    setGoalAudioMode('idle');
-  };
-  const discardGoalRecording = () => {
-    setRecordedGoalDataUrl(null);
-    setRecordedGoalPreviewUrl(null);
-  };
-  const applyGoalAudioLink = () => {
-    const url = goalAudioLinkInput.trim();
-    if (!url) return;
-    commitField('goal_audio', url);
-    setGoalAudioMode('idle');
-    setGoalAudioLinkInput('');
-  };
-  // A gravação pelo microfone já é limitada a 5s (naturalmente pequena), mas
-  // um arquivo escolhido do dispositivo não tem esse limite — sem checar o
-  // tamanho aqui, um áudio de alguns MB virava um data URL gigante mandado
-  // pro servidor sem aviso nenhum, especialmente doloroso em rede móvel.
-  // O limite tem que caber no `express.json({ limit: '2mb' })` do servidor
-  // (server/index.ts) DEPOIS de virar base64 (infla ~33%) — 1.4MB brutos dá
-  // ~1.87MB em base64, com margem confortável pra não bater no limite.
-  const MAX_GOAL_AUDIO_BYTES = 1.4 * 1024 * 1024;
-  const handleGoalAudioFile = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > MAX_GOAL_AUDIO_BYTES) {
-      setGoalAudioError('Áudio muito grande (máx. 1,4MB). Escolha um arquivo mais curto.');
-      e.target.value = '';
-      return;
-    }
-    setGoalAudioError('');
-    const reader = new FileReader();
-    reader.onload = () => commitField('goal_audio', reader.result);
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
-  const removeGoalAudio = () => commitField('goal_audio', null);
-
-  const commitField = async (field, value) => {
-    setError('');
-    try { await onUpdateFields({ [field]: value }); }
-    catch (err) { setError(err.message || 'Erro ao salvar.'); }
-  };
 
   const saveCredentials = async () => {
     setCredError('');
@@ -5781,258 +5677,10 @@ function AccountPanel({ user, myTeamColor, myTeamLogo, onUpdateFields, onClose, 
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
-      {showAchievements && <AchievementsModal user={user} onClose={() => setShowAchievements(false)} />}
       <div style={{ width: '100%', maxWidth: 460, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer' }}>✕</button>
         <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{user.username}</div>
-        <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 12 }}>{user.email}</div>
-
-        <div style={{ display: 'flex', gap: 14, marginBottom: 16, fontSize: 12 }}>
-          <span>🏆 <b>{(user.titles_brasileirao || 0) + (user.titles_copa || 0)}</b> títulos</span>
-          <span>📅 <b>{user.seasons_played || 0}</b> temporadas</span>
-          <span>⭐ <b>{user.ranking_points || 0}</b> pts</span>
-        </div>
-
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-            <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Conquistas ({user.achievements?.length || 0}/{Object.keys(ACHIEVEMENT_CATALOG).length})
-            </div>
-            <button onClick={() => setShowAchievements(true)} style={{ background: 'none', border: 'none', color: mc, fontSize: 11, cursor: 'pointer', padding: 0 }}>
-              Ver todas →
-            </button>
-          </div>
-          {user.achievements?.length > 0 ? (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {user.achievements.map(id => {
-                const a = ACHIEVEMENT_CATALOG[id];
-                if (!a) return null;
-                return (
-                  <span key={id} title={a.desc} style={{ fontSize: 11, background: 'rgba(212,162,60,0.12)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 999, padding: '3px 9px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                    {a.icon} {a.label}
-                  </span>
-                );
-              })}
-            </div>
-          ) : (
-            <div style={{ fontSize: 11.5, opacity: 0.4 }}>Nenhuma conquista desbloqueada ainda.</div>
-          )}
-        </div>
-
-        {/* Áudio ambiente — trilha padrão, hino do clube ou link próprio */}
-        <div style={{
-          background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
-          border: `1px solid ${hexToRgba(mc, 0.3)}`,
-          borderRadius: 16, padding: '18px 20px', marginBottom: 24, position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 1px, transparent 40px)', pointerEvents: 'none' }} />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, position: 'relative' }}>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎙️</div>
-            <div>
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Transmissão</div>
-              <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>Áudio ambiente</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gap: 8, position: 'relative' }}>
-            <button
-              onClick={() => setAudioMode(m => m === 'default' ? 'off' : 'default')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                border: `1px solid ${audioMode === 'default' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
-                background: audioMode === 'default' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
-              }}
-            >
-              <span style={{ fontSize: 18 }}>🎵</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>Trilha padrão</div>
-                <div style={{ fontSize: 11, opacity: 0.55 }}>Som ambiente clássico do jogo</div>
-              </div>
-              {audioMode === 'default' && <EqBars color={mc} />}
-            </button>
-
-            <button
-              onClick={() => anthemId && setAudioMode(m => m === 'hino' ? 'off' : 'hino')}
-              disabled={!anthemId}
-              title={!anthemId ? 'Escolha um emblema de clube oficial acima pra liberar o hino' : ''}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                padding: '10px 14px', borderRadius: 10, cursor: anthemId ? 'pointer' : 'not-allowed',
-                border: `1px solid ${audioMode === 'hino' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
-                background: audioMode === 'hino' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s', opacity: anthemId ? 1 : 0.45,
-              }}
-            >
-              <span style={{ fontSize: 18 }}>🏆</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>Hino {anthemClub ? `do ${anthemClub.replace(/-/g, ' ')}` : 'do seu time'}</div>
-                <div style={{ fontSize: 11, opacity: 0.55 }}>{anthemId ? 'Hino oficial do clube' : 'Escolha um emblema oficial acima pra liberar'}</div>
-              </div>
-              {audioMode === 'hino' && anthemId && <EqBars color={mc} />}
-            </button>
-
-            <button
-              onClick={() => setAudioMode(m => m === 'youtube' ? 'off' : 'youtube')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                border: `1px solid ${audioMode === 'youtube' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
-                background: audioMode === 'youtube' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
-              }}
-            >
-              <span style={{ fontSize: 18 }}>🔗</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>Link personalizado</div>
-                <div style={{ fontSize: 11, opacity: 0.55 }}>Cole um link do YouTube</div>
-              </div>
-              {audioMode === 'youtube' && ytId && <EqBars color={mc} />}
-            </button>
-          </div>
-
-          {audioMode === 'youtube' && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 10, position: 'relative' }}>
-              <input
-                value={ytInput} onChange={e => setYtInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && applyYoutube()}
-                placeholder="Link do YouTube…" style={{ ...styles.teamInput, flex: 1, margin: 0 }}
-              />
-              <button onClick={applyYoutube} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                Tocar
-              </button>
-            </div>
-          )}
-          {audioMode === 'youtube' && !ytId && ytInput && (
-            <div style={{ fontSize: 11, color: '#e05050', marginTop: 6, position: 'relative' }}>Link inválido — cole um link do YouTube ou ID de 11 caracteres.</div>
-          )}
-
-          {audioMode === 'default' && (
-            <audio key="acc-default-bg" src="/audio.mp3" autoPlay loop style={{ display: 'none' }} />
-          )}
-          {audioMode === 'hino' && anthemId && (
-            <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
-              <iframe key={anthemId} width="1" height="1" src={`https://www.youtube.com/embed/${anthemId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title={`Hino ${anthemClub}`} />
-            </div>
-          )}
-          {audioMode === 'youtube' && ytId && (
-            <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
-              <iframe key={ytId} width="1" height="1" src={`https://www.youtube.com/embed/${ytId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title="Áudio ambiente" />
-            </div>
-          )}
-        </div>
-
-        {/* Áudio de gol do meu time — grava, cola link ou envia arquivo */}
-        <div style={{
-          background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
-          border: `1px solid ${hexToRgba(mc, 0.3)}`,
-          borderRadius: 16, padding: '18px 20px', marginBottom: 24, position: 'relative', overflow: 'hidden',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-            <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>⚽</div>
-            <div>
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Comemoração</div>
-              <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>Áudio de gol do meu time</div>
-            </div>
-          </div>
-
-          {user.goal_audio ? (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
-              <span style={{ fontSize: 12, opacity: 0.7, flex: 1 }}>Áudio personalizado configurado</span>
-              <button onClick={() => { const a = new Audio(user.goal_audio); a.play().catch(() => {}); }} style={{ fontSize: 11, color: mc, background: 'none', border: `1px solid ${hexToRgba(mc, 0.4)}`, borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>▶ Testar</button>
-              <button onClick={removeGoalAudio} style={{ fontSize: 11, color: '#e05050', background: 'none', border: '1px solid rgba(224,80,80,0.3)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>Remover</button>
-            </div>
-          ) : (
-            <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 12 }}>Sem áudio personalizado — toca o som padrão do clube (quando disponível) ao marcar gol.</div>
-          )}
-
-          <div style={{ display: 'grid', gap: 8 }}>
-            <button
-              onClick={() => setGoalAudioMode(m => m === 'record' ? 'idle' : 'record')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                border: `1px solid ${goalAudioMode === 'record' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
-                background: goalAudioMode === 'record' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
-              }}
-            >
-              <span style={{ fontSize: 18 }}>🎙️</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>Gravar</div>
-                <div style={{ fontSize: 11, opacity: 0.55 }}>Grave até 5 segundos pelo microfone</div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => setGoalAudioMode(m => m === 'link' ? 'idle' : 'link')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                border: `1px solid ${goalAudioMode === 'link' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
-                background: goalAudioMode === 'link' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
-              }}
-            >
-              <span style={{ fontSize: 18 }}>🔗</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>Link de áudio</div>
-                <div style={{ fontSize: 11, opacity: 0.55 }}>Cole a URL direta de um arquivo de áudio</div>
-              </div>
-            </button>
-
-            <button
-              onClick={() => goalAudioFileInputRef.current?.click()}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 10, width: '100%',
-                padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
-                color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
-              }}
-            >
-              <span style={{ fontSize: 18 }}>📁</span>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: 13 }}>Enviar arquivo</div>
-                <div style={{ fontSize: 11, opacity: 0.55 }}>Escolha um arquivo de áudio do seu dispositivo</div>
-              </div>
-            </button>
-            <input ref={goalAudioFileInputRef} type="file" accept="audio/*" onChange={handleGoalAudioFile} style={{ display: 'none' }} />
-          </div>
-
-          {goalAudioMode === 'record' && (
-            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-              {!isRecordingGoal && !recordedGoalPreviewUrl && (
-                <button onClick={startGoalRecording} style={{ ...styles.btnSmall, margin: 0 }}>● Iniciar gravação</button>
-              )}
-              {isRecordingGoal && (
-                <button onClick={stopGoalRecording} style={{ ...styles.btnSmall, margin: 0, color: '#e05050', borderColor: 'rgba(224,80,80,0.4)' }}>■ Parar (gravando…)</button>
-              )}
-              {recordedGoalPreviewUrl && (
-                <>
-                  <audio src={recordedGoalPreviewUrl} controls style={{ height: 32 }} />
-                  <button onClick={saveGoalRecording} style={{ ...styles.btnSmall, margin: 0 }}>Salvar</button>
-                  <button onClick={discardGoalRecording} style={{ ...styles.btnSmall, margin: 0, color: '#e05050', borderColor: 'rgba(224,80,80,0.4)' }}>Descartar</button>
-                </>
-              )}
-            </div>
-          )}
-          {goalAudioMode === 'link' && (
-            <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
-              <input
-                value={goalAudioLinkInput} onChange={e => setGoalAudioLinkInput(e.target.value)}
-                onKeyDown={e => e.key === 'Enter' && applyGoalAudioLink()}
-                placeholder="https://…/gol.mp3" style={{ ...styles.teamInput, flex: 1, margin: 0 }}
-              />
-              <button onClick={applyGoalAudioLink} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
-                Aplicar
-              </button>
-            </div>
-          )}
-          {goalAudioError && <div style={{ color: '#e05050', fontSize: 11, marginTop: 8 }}>{goalAudioError}</div>}
-        </div>
-
-        <div style={styles.teamEditSep} />
+        <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 20 }}>{user.email}</div>
 
         <div style={styles.teamEditSection}>
           <div style={styles.teamEditLabel}>Usuário, email e senha</div>
@@ -6338,6 +5986,24 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
   const [city, setCity] = useState(user?.team_city || '');
   const [coach, setCoach] = useState(user?.team_coach || '');
   const [error, setError] = useState('');
+  const [showAchievements, setShowAchievements] = useState(false);
+
+  const [audioMode, setAudioMode] = useState('default'); // 'off' | 'default' | 'hino' | 'youtube'
+  const [ytInput, setYtInput] = useState('');
+  const [ytId, setYtId] = useState(null);
+
+  const [goalAudioMode, setGoalAudioMode] = useState('idle'); // 'idle' | 'record' | 'link'
+  const [goalAudioLinkInput, setGoalAudioLinkInput] = useState('');
+  const [isRecordingGoal, setIsRecordingGoal] = useState(false);
+  const [recordedGoalPreviewUrl, setRecordedGoalPreviewUrl] = useState(null);
+  const [recordedGoalDataUrl, setRecordedGoalDataUrl] = useState(null);
+  const [goalAudioError, setGoalAudioError] = useState('');
+  const goalMediaRecorderRef = useRef(null);
+  const goalRecordTimeoutRef = useRef(null);
+  const goalAudioFileInputRef = useRef(null);
+
+  const anthemClub = Object.entries(CLUB_LOGOS).find(([, url]) => url === myTeamLogo)?.[0];
+  const anthemId = anthemClub && CLUB_ANTHEMS[anthemClub];
 
   useEffect(() => {
     setName(user?.team_name || '');
@@ -6359,6 +6025,79 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
     e.target.value = '';
   };
 
+  const applyYoutube = () => {
+    const id = parseYouTubeId(ytInput);
+    if (id) setYtId(id);
+  };
+
+  const startGoalRecording = async () => {
+    setGoalAudioError('');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks = [];
+      const mr = new MediaRecorder(stream);
+      mr.ondataavailable = e => chunks.push(e.data);
+      mr.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(chunks, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.onload = () => {
+          setRecordedGoalDataUrl(reader.result);
+          setRecordedGoalPreviewUrl(URL.createObjectURL(blob));
+        };
+        reader.readAsDataURL(blob);
+        setIsRecordingGoal(false);
+      };
+      goalMediaRecorderRef.current = mr;
+      mr.start();
+      setIsRecordingGoal(true);
+      goalRecordTimeoutRef.current = setTimeout(() => { if (mr.state === 'recording') mr.stop(); }, 5000);
+    } catch {
+      setGoalAudioError('Não foi possível acessar o microfone.');
+    }
+  };
+  const stopGoalRecording = () => {
+    clearTimeout(goalRecordTimeoutRef.current);
+    if (goalMediaRecorderRef.current?.state === 'recording') goalMediaRecorderRef.current.stop();
+  };
+  const saveGoalRecording = async () => {
+    if (!recordedGoalDataUrl) return;
+    await commitField('goal_audio', recordedGoalDataUrl);
+    setRecordedGoalDataUrl(null);
+    setRecordedGoalPreviewUrl(null);
+    setGoalAudioMode('idle');
+  };
+  const discardGoalRecording = () => {
+    setRecordedGoalDataUrl(null);
+    setRecordedGoalPreviewUrl(null);
+  };
+  const applyGoalAudioLink = () => {
+    const url = goalAudioLinkInput.trim();
+    if (!url) return;
+    commitField('goal_audio', url);
+    setGoalAudioMode('idle');
+    setGoalAudioLinkInput('');
+  };
+  // Ver AccountPanel (removido) pro histórico dessa decisão: o limite tem que
+  // caber no `express.json({ limit: '2mb' })` do servidor DEPOIS de virar
+  // base64 (infla ~33%) — 1.4MB brutos dá ~1.87MB em base64, com folga.
+  const MAX_GOAL_AUDIO_BYTES = 1.4 * 1024 * 1024;
+  const handleGoalAudioFile = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > MAX_GOAL_AUDIO_BYTES) {
+      setGoalAudioError('Áudio muito grande (máx. 1,4MB). Escolha um arquivo mais curto.');
+      e.target.value = '';
+      return;
+    }
+    setGoalAudioError('');
+    const reader = new FileReader();
+    reader.onload = () => commitField('goal_audio', reader.result);
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+  const removeGoalAudio = () => commitField('goal_audio', null);
+
   // Cor fixa (não a cor do time) pro texto — a cor do time pode ser escura
   // (ex.: preto do Santos), o que deixava o número ilegível em cima do fundo
   // escuro do modal. Dourado fixo é sempre legível, é o acento padrão do app.
@@ -6379,6 +6118,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
           onCancel={() => setCropSrc(null)}
         />
       )}
+      {showAchievements && <AchievementsModal user={user} onClose={() => setShowAchievements(false)} />}
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '88vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, position: 'relative' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer', zIndex: 1 }}>✕</button>
         <div style={{ padding: '28px 24px 20px', textAlign: 'center', background: `linear-gradient(180deg, ${hexToRgba(mc, 0.18)}, transparent)`, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
@@ -6537,10 +6277,248 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
             <Stat label="Saldo" value={gd >= 0 ? `+${gd}` : gd} />
           </div>
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.25)', borderRadius: 10 }}>
-            <span style={{ fontSize: 12 }}>🏅 Conquistas desbloqueadas</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: statColor }}>{unlockedCount}/{totalAchievements}</span>
+          <div style={{ marginBottom: onUpdateFields ? 24 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>
+                Conquistas ({unlockedCount}/{totalAchievements})
+              </div>
+              <button onClick={() => setShowAchievements(true)} style={{ background: 'none', border: 'none', color: mc, fontSize: 11, cursor: 'pointer', padding: 0 }}>
+                Ver todas →
+              </button>
+            </div>
+            {user?.achievements?.length > 0 ? (
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                {user.achievements.map(id => {
+                  const a = ACHIEVEMENT_CATALOG[id];
+                  if (!a) return null;
+                  return (
+                    <span key={id} title={a.desc} style={{ fontSize: 11, background: 'rgba(212,162,60,0.12)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 999, padding: '3px 9px', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {a.icon} {a.label}
+                    </span>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={{ fontSize: 11.5, opacity: 0.4 }}>Nenhuma conquista desbloqueada ainda.</div>
+            )}
           </div>
+
+          {onUpdateFields && (
+            <>
+              {/* Áudio ambiente — trilha padrão, hino do clube ou link próprio */}
+              <div style={{
+                background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
+                border: `1px solid ${hexToRgba(mc, 0.3)}`,
+                borderRadius: 16, padding: '18px 20px', marginBottom: 24, position: 'relative', overflow: 'hidden',
+              }}>
+                <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 1px, transparent 40px)', pointerEvents: 'none' }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, position: 'relative' }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎙️</div>
+                  <div>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Transmissão</div>
+                    <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>Áudio ambiente</div>
+                  </div>
+                </div>
+
+                <div style={{ display: 'grid', gap: 8, position: 'relative' }}>
+                  <button
+                    onClick={() => setAudioMode(m => m === 'default' ? 'off' : 'default')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                      border: `1px solid ${audioMode === 'default' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
+                      background: audioMode === 'default' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>🎵</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>Trilha padrão</div>
+                      <div style={{ fontSize: 11, opacity: 0.55 }}>Som ambiente clássico do jogo</div>
+                    </div>
+                    {audioMode === 'default' && <EqBars color={mc} />}
+                  </button>
+
+                  <button
+                    onClick={() => anthemId && setAudioMode(m => m === 'hino' ? 'off' : 'hino')}
+                    disabled={!anthemId}
+                    title={!anthemId ? 'Escolha um emblema de clube oficial acima pra liberar o hino' : ''}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '10px 14px', borderRadius: 10, cursor: anthemId ? 'pointer' : 'not-allowed',
+                      border: `1px solid ${audioMode === 'hino' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
+                      background: audioMode === 'hino' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s', opacity: anthemId ? 1 : 0.45,
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>🏆</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>Hino {anthemClub ? `do ${anthemClub.replace(/-/g, ' ')}` : 'do seu time'}</div>
+                      <div style={{ fontSize: 11, opacity: 0.55 }}>{anthemId ? 'Hino oficial do clube' : 'Escolha um emblema oficial acima pra liberar'}</div>
+                    </div>
+                    {audioMode === 'hino' && anthemId && <EqBars color={mc} />}
+                  </button>
+
+                  <button
+                    onClick={() => setAudioMode(m => m === 'youtube' ? 'off' : 'youtube')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                      border: `1px solid ${audioMode === 'youtube' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
+                      background: audioMode === 'youtube' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>🔗</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>Link personalizado</div>
+                      <div style={{ fontSize: 11, opacity: 0.55 }}>Cole um link do YouTube</div>
+                    </div>
+                    {audioMode === 'youtube' && ytId && <EqBars color={mc} />}
+                  </button>
+                </div>
+
+                {audioMode === 'youtube' && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10, position: 'relative' }}>
+                    <input
+                      value={ytInput} onChange={e => setYtInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && applyYoutube()}
+                      placeholder="Link do YouTube…" style={{ ...styles.teamInput, flex: 1, margin: 0 }}
+                    />
+                    <button onClick={applyYoutube} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                      Tocar
+                    </button>
+                  </div>
+                )}
+                {audioMode === 'youtube' && !ytId && ytInput && (
+                  <div style={{ fontSize: 11, color: '#e05050', marginTop: 6, position: 'relative' }}>Link inválido — cole um link do YouTube ou ID de 11 caracteres.</div>
+                )}
+
+                {audioMode === 'default' && (
+                  <audio key="club-default-bg" src="/audio.mp3" autoPlay loop style={{ display: 'none' }} />
+                )}
+                {audioMode === 'hino' && anthemId && (
+                  <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+                    <iframe key={anthemId} width="1" height="1" src={`https://www.youtube.com/embed/${anthemId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title={`Hino ${anthemClub}`} />
+                  </div>
+                )}
+                {audioMode === 'youtube' && ytId && (
+                  <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
+                    <iframe key={ytId} width="1" height="1" src={`https://www.youtube.com/embed/${ytId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title="Áudio ambiente" />
+                  </div>
+                )}
+              </div>
+
+              {/* Áudio de gol do meu time — grava, cola link ou envia arquivo */}
+              <div style={{
+                background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
+                border: `1px solid ${hexToRgba(mc, 0.3)}`,
+                borderRadius: 16, padding: '18px 20px', position: 'relative', overflow: 'hidden',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                  <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>⚽</div>
+                  <div>
+                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Comemoração</div>
+                    <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>Áudio de gol do meu time</div>
+                  </div>
+                </div>
+
+                {user?.goal_audio ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+                    <span style={{ fontSize: 12, opacity: 0.7, flex: 1 }}>Áudio personalizado configurado</span>
+                    <button onClick={() => { const a = new Audio(user.goal_audio); a.play().catch(() => {}); }} style={{ fontSize: 11, color: mc, background: 'none', border: `1px solid ${hexToRgba(mc, 0.4)}`, borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>▶ Testar</button>
+                    <button onClick={removeGoalAudio} style={{ fontSize: 11, color: '#e05050', background: 'none', border: '1px solid rgba(224,80,80,0.3)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>Remover</button>
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 12 }}>Sem áudio personalizado — toca o som padrão do clube (quando disponível) ao marcar gol.</div>
+                )}
+
+                <div style={{ display: 'grid', gap: 8 }}>
+                  <button
+                    onClick={() => setGoalAudioMode(m => m === 'record' ? 'idle' : 'record')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                      border: `1px solid ${goalAudioMode === 'record' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
+                      background: goalAudioMode === 'record' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>🎙️</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>Gravar</div>
+                      <div style={{ fontSize: 11, opacity: 0.55 }}>Grave até 5 segundos pelo microfone</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => setGoalAudioMode(m => m === 'link' ? 'idle' : 'link')}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                      border: `1px solid ${goalAudioMode === 'link' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
+                      background: goalAudioMode === 'link' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>🔗</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>Link de áudio</div>
+                      <div style={{ fontSize: 11, opacity: 0.55 }}>Cole a URL direta de um arquivo de áudio</div>
+                    </div>
+                  </button>
+
+                  <button
+                    onClick={() => goalAudioFileInputRef.current?.click()}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10, width: '100%',
+                      padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
+                      border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
+                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+                    }}
+                  >
+                    <span style={{ fontSize: 18 }}>📁</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13 }}>Enviar arquivo</div>
+                      <div style={{ fontSize: 11, opacity: 0.55 }}>Escolha um arquivo de áudio do seu dispositivo</div>
+                    </div>
+                  </button>
+                  <input ref={goalAudioFileInputRef} type="file" accept="audio/*" onChange={handleGoalAudioFile} style={{ display: 'none' }} />
+                </div>
+
+                {goalAudioMode === 'record' && (
+                  <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                    {!isRecordingGoal && !recordedGoalPreviewUrl && (
+                      <button onClick={startGoalRecording} style={{ ...styles.btnSmall, margin: 0 }}>● Iniciar gravação</button>
+                    )}
+                    {isRecordingGoal && (
+                      <button onClick={stopGoalRecording} style={{ ...styles.btnSmall, margin: 0, color: '#e05050', borderColor: 'rgba(224,80,80,0.4)' }}>■ Parar (gravando…)</button>
+                    )}
+                    {recordedGoalPreviewUrl && (
+                      <>
+                        <audio src={recordedGoalPreviewUrl} controls style={{ height: 32 }} />
+                        <button onClick={saveGoalRecording} style={{ ...styles.btnSmall, margin: 0 }}>Salvar</button>
+                        <button onClick={discardGoalRecording} style={{ ...styles.btnSmall, margin: 0, color: '#e05050', borderColor: 'rgba(224,80,80,0.4)' }}>Descartar</button>
+                      </>
+                    )}
+                  </div>
+                )}
+                {goalAudioMode === 'link' && (
+                  <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                    <input
+                      value={goalAudioLinkInput} onChange={e => setGoalAudioLinkInput(e.target.value)}
+                      onKeyDown={e => e.key === 'Enter' && applyGoalAudioLink()}
+                      placeholder="https://…/gol.mp3" style={{ ...styles.teamInput, flex: 1, margin: 0 }}
+                    />
+                    <button onClick={applyGoalAudioLink} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                      Aplicar
+                    </button>
+                  </div>
+                )}
+                {goalAudioError && <div style={{ color: '#e05050', fontSize: 11, marginTop: 8 }}>{goalAudioError}</div>}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>
