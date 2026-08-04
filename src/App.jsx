@@ -9390,9 +9390,12 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           // p.pos é a lista de posições que o jogador PODE jogar, não onde ele
           // foi escalado (um LD com pos ['LD','MD'] pode estar num slot MD) —
           // pra mostrar a posição real usada, busca a vaga pelo slotKey salvo
-          // no draft; jogador de banco não tem posição de vaga (slot é "SUB"),
-          // e um reserva promovido também não (o slotKey dele é de banco).
-          const assignedPos = !p.isBench && pitchSlots.find(s => s.key === p.slotKey)?.realPos;
+          // no draft. Exclui slots de banco da busca (`!s.isBench`): um
+          // reserva promovido por getEligibleRoster continua com o slotKey
+          // de quando estava no banco (ex.: "bench2"), e sem esse filtro a
+          // busca encontrava esse slot e usava seu realPos literal "bench"
+          // como se fosse a posição do jogador.
+          const assignedPos = !p.isBench && pitchSlots.find(s => s.key === p.slotKey && !s.isBench)?.realPos;
           const posLabel = assignedPos || p.pos?.[0] || '-';
           return (
             <div key={p.name} style={styles.squadRow}>
