@@ -1988,6 +1988,39 @@ function getEligibleRoster(team, unavailableNames) {
   return { players: result, changes, fullRoster: [...result, ...bench] };
 }
 
+// Monta a visão do elenco pra EXIBIÇÃO (Ver Elenco de qualquer time, aba
+// Elenco do próprio time): titulares já com a troca automática de
+// suspensos/lesionados aplicada — nunca mostra quem está fora como titular
+// — banco restante, e uma lista separada de desfalques com o motivo e, se
+// era titular, quem entrou no lugar (ou aviso de que não tinha reserva na
+// posição, então o time joga com um a menos). Ambos ordenados por posição
+// (GOL → defesa → meio → ataque), não pela ordem de inserção no elenco.
+function buildSquadView(team, suspensions, injuries) {
+  if (!team) return { starters: [], bench: [], unavailable: [] };
+  const all = team.players || [];
+  const prefix = `${team.id}::`;
+  const suspendedNames = new Set(Object.entries(suspensions || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => k.slice(prefix.length)));
+  const injuredNames = new Set(Object.entries(injuries || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => k.slice(prefix.length)));
+  const { players: effectiveStarters, changes } = getEligibleRoster(team, unavailableNamesFrom(suspensions, injuries));
+  const changeByOut = new Map(changes.map(c => [c.out, c.in]));
+  const startersNames = new Set(effectiveStarters.map(p => p.name));
+  const bench = all.slice(11).filter(p => !startersNames.has(p.name) && !suspendedNames.has(p.name) && !injuredNames.has(p.name));
+  const unavailable = all
+    .filter(p => suspendedNames.has(p.name) || injuredNames.has(p.name))
+    .map(p => ({
+      ...p,
+      reason: suspendedNames.has(p.name) ? 'suspenso' : 'lesionado',
+      replacementName: changeByOut.get(p.name) || null,
+      shortOnSubs: changeByOut.has(p.name) && !changeByOut.get(p.name),
+    }));
+  const byPos = (a, b) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]);
+  return {
+    starters: [...effectiveStarters].sort(byPos),
+    bench: [...bench].sort(byPos),
+    unavailable,
+  };
+}
+
 function decideRedCards(rand) {
   return { home: rand() < RED_CARD_CHANCE_PER_TEAM, away: rand() < RED_CARD_CHANCE_PER_TEAM };
 }
@@ -5381,12 +5414,9 @@ export default function App() {
         {phase === 'results' && (
           <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} onOpenTransferMarket={openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} />
         )}
-        {viewingTeam && (() => {
-          const prefix = `${viewingTeam.id}::`;
-          const suspendedNames = new Set(Object.entries(suspensions || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => k.slice(prefix.length)));
-          const injuredNames = new Set(Object.entries(injuries || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => k.slice(prefix.length)));
-          return <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspendedNames={suspendedNames} injuredNames={injuredNames} />;
-        })()}
+        {viewingTeam && (
+          <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspensions={suspensions} injuries={injuries} />
+        )}
         {showMatchSummary && activeUserMatch && (
           <MatchSummaryModal
             ratings={lastMatchRatings}
@@ -7422,26 +7452,31 @@ function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo,
 // ao clicar num time em qualquer lugar do app (tabela, chaveamento da Copa,
 // cabeçalho da partida ao vivo, resultado final). Importante sobretudo no
 // mobile, onde não dá pra "passar o olho" no elenco adversário sem um modal.
-function TeamViewModal({ team, onClose, myTeamColor, suspendedNames, injuredNames }) {
+function TeamViewModal({ team, onClose, myTeamColor, suspensions, injuries }) {
   const mc = myTeamColor || '#d4a23c';
   if (!team) return null;
+  const { starters, bench, unavailable } = buildSquadView(team, suspensions, injuries);
+  const understaffed = unavailable.some(p => p.shortOnSubs);
   const players = team.players || [];
-  const starters = players.filter(p => !p.isBench);
-  const bench = players.filter(p => p.isBench);
-  const renderRow = (p, i) => {
-    const isOut = suspendedNames?.has(p.name) || injuredNames?.has(p.name);
-    return (
-      <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, opacity: isOut ? 0.45 : 1 }}>
-        <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.join('/') || '-'}</span>
-        <span style={{ flex: 1 }}>
-          {p.name}
-          {suspendedNames?.has(p.name) && <span title="Suspenso" style={{ marginLeft: 6 }}>🟥</span>}
-          {injuredNames?.has(p.name) && <span title="Lesionado" style={{ marginLeft: 6 }}>🩹</span>}
-        </span>
-        <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
-      </div>
-    );
-  };
+  const renderRow = (p) => (
+    <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
+      <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.[0] || '-'}</span>
+      <span style={{ flex: 1 }}>{p.name}</span>
+      <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
+    </div>
+  );
+  const renderUnavailableRow = (p) => (
+    <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, opacity: 0.5 }}>
+      <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.[0] || '-'}</span>
+      <span style={{ flex: 1 }}>
+        {p.name}
+        <span title={p.reason === 'suspenso' ? 'Suspenso' : 'Lesionado'} style={{ marginLeft: 6 }}>{p.reason === 'suspenso' ? '🟥' : '🩹'}</span>
+        {p.replacementName && <span style={{ display: 'block', fontSize: 10, opacity: 0.8, marginTop: 1 }}>entra: {p.replacementName}</span>}
+        {p.shortOnSubs && <span style={{ display: 'block', fontSize: 10, color: '#e05050', marginTop: 1 }}>sem reserva na posição</span>}
+      </span>
+      <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
+    </div>
+  );
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 400, maxHeight: '85vh', overflowY: 'auto' }}>
@@ -7453,12 +7488,23 @@ function TeamViewModal({ team, onClose, myTeamColor, suspendedNames, injuredName
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20, padding: 6 }}>x</button>
         </div>
         <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc, marginBottom: 12 }}>OVR {team.ovr} · {players.length} jogadores</div>
+        {understaffed && (
+          <div style={{ background: 'rgba(224,80,80,0.12)', border: '1px solid rgba(224,80,80,0.35)', borderRadius: 8, padding: '8px 10px', fontSize: 11.5, color: '#e05050', marginBottom: 12 }}>
+            ⚠️ Time desfalcado — sem reserva disponível pra uma posição.
+          </div>
+        )}
         <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Titulares</div>
         {starters.map(renderRow)}
         {bench.length > 0 && (
           <>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 14, marginBottom: 4 }}>Banco</div>
             {bench.map(renderRow)}
+          </>
+        )}
+        {unavailable.length > 0 && (
+          <>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 14, marginBottom: 4 }}>Desfalques</div>
+            {unavailable.map(renderUnavailableRow)}
           </>
         )}
       </div>
@@ -9333,41 +9379,62 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
 
       {activeTab === 'elenco' && (() => {
         const myTeam = leagueTeams.find(t => t.id === myTeamId);
-        const players = myTeam?.players || [];
-        const starters = players.filter(p => !p.isBench);
-        const bench = players.filter(p => p.isBench);
-        const prefix = `${myTeamId}::`;
-        const suspendedSet = new Set(Object.entries(suspensions || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => k.slice(prefix.length)));
-        const injuredSet = new Set(Object.entries(injuries || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => k.slice(prefix.length)));
+        // Titulares aqui já vêm com a troca automática de suspensos/lesionados
+        // aplicada (getEligibleRoster) e ordenados por posição — nunca mostra
+        // quem está fora como se estivesse escalado, e quem entrou no lugar
+        // some da lista de "Banco" (já é titular). Mesma lógica usada de
+        // verdade na simulação da rodada (teamsForRound), só pra exibição.
+        const { starters, bench, unavailable } = buildSquadView(myTeam, suspensions, injuries);
+        const understaffed = unavailable.some(p => p.shortOnSubs);
         const renderRow = (p) => {
-          const isOut = suspendedSet.has(p.name) || injuredSet.has(p.name);
           // p.pos é a lista de posições que o jogador PODE jogar, não onde ele
           // foi escalado (um LD com pos ['LD','MD'] pode estar num slot MD) —
           // pra mostrar a posição real usada, busca a vaga pelo slotKey salvo
-          // no draft; jogador de banco não tem posição de vaga (slot é "SUB").
+          // no draft; jogador de banco não tem posição de vaga (slot é "SUB"),
+          // e um reserva promovido também não (o slotKey dele é de banco).
           const assignedPos = !p.isBench && pitchSlots.find(s => s.key === p.slotKey)?.realPos;
           const posLabel = assignedPos || p.pos?.[0] || '-';
           return (
-            <div key={p.name} style={{ ...styles.squadRow, opacity: isOut ? 0.45 : 1 }}>
+            <div key={p.name} style={styles.squadRow}>
               <span style={{ ...styles.squadPos, color: p.isCaptain ? '#d4a23c' : undefined }}>{p.isCaptain ? 'C' : posLabel}</span>
-              <span style={styles.squadName}>
-                {p.name}
-                {suspendedSet.has(p.name) && <span title="Suspenso" style={{ marginLeft: 6 }}>🟥</span>}
-                {injuredSet.has(p.name) && <span title="Lesionado" style={{ marginLeft: 6 }}>🩹</span>}
-              </span>
+              <span style={styles.squadName}>{p.name}</span>
               <span style={styles.squadTeam}>{p.club || ''}</span>
               <span style={{ ...styles.squadOvr, color: p.isCaptain ? '#d4a23c' : undefined }}>{p.isCaptain ? `${p.ovr} +2` : p.ovr}</span>
             </div>
           );
         };
+        const renderUnavailableRow = (p) => (
+          <div key={p.name} style={{ ...styles.squadRow, opacity: 0.5 }}>
+            <span style={styles.squadPos}>{p.pos?.[0] || '-'}</span>
+            <span style={styles.squadName}>
+              {p.name}
+              <span title={p.reason === 'suspenso' ? 'Suspenso' : 'Lesionado'} style={{ marginLeft: 6 }}>{p.reason === 'suspenso' ? '🟥' : '🩹'}</span>
+              {p.replacementName && <span style={{ display: 'block', fontSize: 10, opacity: 0.8, marginTop: 1 }}>entra: {p.replacementName}</span>}
+              {p.shortOnSubs && <span style={{ display: 'block', fontSize: 10, color: '#e05050', marginTop: 1 }}>sem reserva na posição</span>}
+            </span>
+            <span style={styles.squadTeam}>{p.club || ''}</span>
+            <span style={styles.squadOvr}>{p.ovr}</span>
+          </div>
+        );
         return (
           <div style={styles.squadList}>
+            {understaffed && (
+              <div style={{ background: 'rgba(224,80,80,0.12)', border: '1px solid rgba(224,80,80,0.35)', borderRadius: 8, padding: '8px 10px', fontSize: 11.5, color: '#e05050', marginBottom: 12 }}>
+                ⚠️ Time desfalcado — sem reserva disponível pra uma posição.
+              </div>
+            )}
             <div style={styles.sectionLabel}>Titulares</div>
             {starters.map(renderRow)}
             {bench.length > 0 && (
               <>
                 <div style={{ ...styles.sectionLabel, marginTop: 14 }}>Banco</div>
                 {bench.map(renderRow)}
+              </>
+            )}
+            {unavailable.length > 0 && (
+              <>
+                <div style={{ ...styles.sectionLabel, marginTop: 14 }}>Desfalques</div>
+                {unavailable.map(renderUnavailableRow)}
               </>
             )}
           </div>
