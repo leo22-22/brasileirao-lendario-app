@@ -5744,47 +5744,15 @@ function parseYouTubeId(input) {
 // título invicto) com metas quantitativas (com barra, via getAchievementProgress).
 const FEATURED_ACHIEVEMENT_IDS = ['unbeaten_league_champion', 'goals_1000', 'dynasty', 'veteran'];
 
-// Bloco de anúncio Google AdSense — só ativa de verdade quando
-// VITE_ADSENSE_CLIENT_ID (e um slot) estiverem configurados no .env; até lá
-// não renderiza nada, pra não injetar um script quebrado enquanto a conta no
-// AdSense não existir/for aprovada. Ver .env.example pro passo a passo.
-const ADSENSE_CLIENT_ID = import.meta.env.VITE_ADSENSE_CLIENT_ID;
-let adsenseScriptRequested = false;
-function loadAdsenseScript() {
-  if (adsenseScriptRequested || !ADSENSE_CLIENT_ID) return;
-  adsenseScriptRequested = true;
-  const script = document.createElement('script');
-  script.async = true;
-  script.crossOrigin = 'anonymous';
-  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`;
-  document.head.appendChild(script);
-}
-function AdSlot({ slot }) {
-  const ready = !!(ADSENSE_CLIENT_ID && slot);
-  useEffect(() => {
-    if (!ready) return;
-    loadAdsenseScript();
-    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch { /* ignore */ }
-  }, [ready, slot]);
-  if (!ready) return null;
-  return (
-    <ins
-      className="adsbygoogle"
-      style={{ display: 'block', margin: '20px 0' }}
-      data-ad-client={ADSENSE_CLIENT_ID}
-      data-ad-slot={slot}
-      data-ad-format="auto"
-      data-full-width-responsive="true"
-    />
-  );
-}
-
 // Faixa de patrocínio estilo placa de LED de estádio (rodapé do gramado) —
 // por enquanto só placeholders decorativos + um convite pra patrocinar de
 // verdade, que abre um email pronto pro contato. Reaproveita o mesmo
 // mecanismo de "esteira" (marquee) do carrossel de times acima.
 const SPONSOR_SLOTS = ['⭐ Sua marca aqui', '⭐ Sua marca aqui', '⭐ Sua marca aqui', '⭐ Sua marca aqui'];
-function SponsorBanner() {
+// `compact` encolhe a faixa pra caber em espaços apertados (dentro do
+// campinho, sob o placar da partida ao vivo) — mesmo conteúdo/mecanismo,
+// só menor.
+function SponsorBanner({ compact = false }) {
   const slots = [...SPONSOR_SLOTS, ...SPONSOR_SLOTS]; // duplicado pra loop contínuo, igual ao carrossel de times
   // CONTACT_EMAIL só é lido aqui dentro (em tempo de render, não no
   // carregamento do módulo) — é declarado mais abaixo no arquivo, então usar
@@ -5792,11 +5760,11 @@ function SponsorBanner() {
   // zone (ReferenceError ao carregar a página).
   const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Quero patrocinar o Brasileirão Lendário')}`;
   return (
-    <div style={styles.sponsorBannerWrap}>
+    <div style={compact ? styles.sponsorBannerWrapCompact : styles.sponsorBannerWrap}>
       <div style={styles.sponsorBannerTrack} className="sponsor-marquee-track">
-        <a href={mailto} style={styles.sponsorCta}>📢 Patrocine aqui</a>
+        <a href={mailto} style={compact ? styles.sponsorCtaCompact : styles.sponsorCta}>📢 Patrocine aqui</a>
         {slots.map((label, i) => (
-          <span key={i} style={styles.sponsorSlot}>{label}</span>
+          <span key={i} style={compact ? styles.sponsorSlotCompact : styles.sponsorSlot}>{label}</span>
         ))}
       </div>
     </div>
@@ -6001,7 +5969,6 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
         </button>
 
         <SponsorBanner />
-        <AdSlot slot={import.meta.env.VITE_ADSENSE_SLOT_HOME} />
 
         {/* Rodapé institucional */}
         <div style={{
@@ -7338,6 +7305,9 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
             </div>
           );
         })}
+      </div>
+      <div style={{ width: '100%', maxWidth: 380 }}>
+        <SponsorBanner compact />
       </div>
     </div>
   );
@@ -8691,6 +8661,8 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{awayTeam.label}</span>
         </div>
       </div>
+
+      <SponsorBanner compact />
 
       {(isSimulating || roundDone) && (
         <div style={{ ...styles.clockRow, flexWrap: 'wrap', gap: 8 }}>
@@ -10368,7 +10340,7 @@ const styles = {
   },
   miniDotLabel: { fontSize: 7.5, fontWeight: 800, color: '#0B1A12', fontFamily: "'Space Mono', monospace", lineHeight: 1, letterSpacing: -0.2 },
 
-  pitchWrap: { margin: '20px 0', display: 'flex', justifyContent: 'center' },
+  pitchWrap: { margin: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
   pitchField: { position: 'relative', width: '100%', maxWidth: 380, aspectRatio: '0.68', background: 'linear-gradient(180deg,#0f3d22 0%,#145c30 50%,#0f3d22 100%)', border: '2px solid rgba(255,255,255,0.3)', borderRadius: 8, overflow: 'hidden' },
 
   rolledTeamBox: { marginTop: 24 },
@@ -10504,6 +10476,21 @@ const styles = {
     fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase',
     color: '#d4a23c', fontWeight: 700, whiteSpace: 'nowrap', textDecoration: 'none',
     border: '1px solid rgba(212,162,60,0.5)', borderRadius: 999, padding: '3px 12px',
+  },
+  sponsorBannerWrapCompact: {
+    overflow: 'hidden', background: 'rgba(10,23,16,0.92)', border: '1px solid rgba(212,162,60,0.3)',
+    borderRadius: 5, padding: '4px 0',
+    maskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
+    WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
+  },
+  sponsorSlotCompact: {
+    fontFamily: "'Space Mono', monospace", fontSize: 8.5, letterSpacing: 1, textTransform: 'uppercase',
+    color: 'rgba(212,162,60,0.55)', whiteSpace: 'nowrap',
+  },
+  sponsorCtaCompact: {
+    fontFamily: "'Space Mono', monospace", fontSize: 8.5, letterSpacing: 1, textTransform: 'uppercase',
+    color: '#d4a23c', fontWeight: 700, whiteSpace: 'nowrap', textDecoration: 'none',
+    border: '1px solid rgba(212,162,60,0.5)', borderRadius: 999, padding: '2px 8px',
   },
   btnIntro: { background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 12, padding: '16px 40px', fontSize: 17, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3 },
 
