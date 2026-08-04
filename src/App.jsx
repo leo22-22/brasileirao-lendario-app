@@ -5744,6 +5744,65 @@ function parseYouTubeId(input) {
 // título invicto) com metas quantitativas (com barra, via getAchievementProgress).
 const FEATURED_ACHIEVEMENT_IDS = ['unbeaten_league_champion', 'goals_1000', 'dynasty', 'veteran'];
 
+// Bloco de anúncio Google AdSense — só ativa de verdade quando
+// VITE_ADSENSE_CLIENT_ID (e um slot) estiverem configurados no .env; até lá
+// não renderiza nada, pra não injetar um script quebrado enquanto a conta no
+// AdSense não existir/for aprovada. Ver .env.example pro passo a passo.
+const ADSENSE_CLIENT_ID = import.meta.env.VITE_ADSENSE_CLIENT_ID;
+let adsenseScriptRequested = false;
+function loadAdsenseScript() {
+  if (adsenseScriptRequested || !ADSENSE_CLIENT_ID) return;
+  adsenseScriptRequested = true;
+  const script = document.createElement('script');
+  script.async = true;
+  script.crossOrigin = 'anonymous';
+  script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`;
+  document.head.appendChild(script);
+}
+function AdSlot({ slot }) {
+  const ready = !!(ADSENSE_CLIENT_ID && slot);
+  useEffect(() => {
+    if (!ready) return;
+    loadAdsenseScript();
+    try { (window.adsbygoogle = window.adsbygoogle || []).push({}); } catch { /* ignore */ }
+  }, [ready, slot]);
+  if (!ready) return null;
+  return (
+    <ins
+      className="adsbygoogle"
+      style={{ display: 'block', margin: '20px 0' }}
+      data-ad-client={ADSENSE_CLIENT_ID}
+      data-ad-slot={slot}
+      data-ad-format="auto"
+      data-full-width-responsive="true"
+    />
+  );
+}
+
+// Faixa de patrocínio estilo placa de LED de estádio (rodapé do gramado) —
+// por enquanto só placeholders decorativos + um convite pra patrocinar de
+// verdade, que abre um email pronto pro contato. Reaproveita o mesmo
+// mecanismo de "esteira" (marquee) do carrossel de times acima.
+const SPONSOR_SLOTS = ['⭐ Sua marca aqui', '⭐ Sua marca aqui', '⭐ Sua marca aqui', '⭐ Sua marca aqui'];
+function SponsorBanner() {
+  const slots = [...SPONSOR_SLOTS, ...SPONSOR_SLOTS]; // duplicado pra loop contínuo, igual ao carrossel de times
+  // CONTACT_EMAIL só é lido aqui dentro (em tempo de render, não no
+  // carregamento do módulo) — é declarado mais abaixo no arquivo, então usar
+  // o valor direto num `const` no topo do módulo cairia na temporal dead
+  // zone (ReferenceError ao carregar a página).
+  const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Quero patrocinar o Brasileirão Lendário')}`;
+  return (
+    <div style={styles.sponsorBannerWrap}>
+      <div style={styles.sponsorBannerTrack} className="sponsor-marquee-track">
+        <a href={mailto} style={styles.sponsorCta}>📢 Patrocine aqui</a>
+        {slots.map((label, i) => (
+          <span key={i} style={styles.sponsorSlot}>{label}</span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
@@ -5940,6 +5999,9 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
         <button style={{ ...styles.btnIntro, background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: '#0B1A12', boxShadow: `0 8px 24px ${hexToRgba(mc, 0.35)}` }} onClick={onStart}>
           {gameMode === 'copa' ? 'Escolher formação — Copa →' : 'Escolher formação — Brasileirão →'}
         </button>
+
+        <SponsorBanner />
+        <AdSlot slot={import.meta.env.VITE_ADSENSE_SLOT_HOME} />
 
         {/* Rodapé institucional */}
         <div style={{
@@ -10183,6 +10245,8 @@ const globalCss = `
   .marquee-track { animation: marquee 48s linear infinite; will-change: transform; }
   .marquee-track:hover { animation-play-state: paused; }
   .champion-marquee-track { animation: marquee 10s linear infinite; will-change: transform; }
+  .sponsor-marquee-track { animation: marquee 22s linear infinite; will-change: transform; }
+  .sponsor-marquee-track:hover { animation-play-state: paused; }
   @keyframes suspensePulse {
     0%, 100% { opacity: 0.55; transform: scale(0.97); text-shadow: 0 0 0 rgba(212,162,60,0); }
     50% { opacity: 1; transform: scale(1.04); text-shadow: 0 0 20px rgba(212,162,60,0.65); }
@@ -10422,6 +10486,25 @@ const styles = {
   introMarqueeTrack: { display: 'flex', gap: 10, width: 'max-content' },
   introTeamChip: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap', opacity: 0.75, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, padding: '5px 14px 5px 8px' },
   introTeamChipCrest: { width: 16, height: 16, objectFit: 'contain', borderRadius: '50%', flexShrink: 0 },
+  // Placa de LED de estádio — fundo bem escuro, texto âmbar tipo scoreboard,
+  // moldura sutil pra parecer um painel de verdade cravado no rodapé.
+  sponsorBannerWrap: {
+    overflow: 'hidden', marginTop: 20,
+    background: '#0a1710', border: '1px solid rgba(212,162,60,0.25)', borderRadius: 8,
+    padding: '9px 0',
+    maskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
+    WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
+  },
+  sponsorBannerTrack: { display: 'flex', alignItems: 'center', gap: 28, width: 'max-content' },
+  sponsorSlot: {
+    fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase',
+    color: 'rgba(212,162,60,0.55)', whiteSpace: 'nowrap',
+  },
+  sponsorCta: {
+    fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase',
+    color: '#d4a23c', fontWeight: 700, whiteSpace: 'nowrap', textDecoration: 'none',
+    border: '1px solid rgba(212,162,60,0.5)', borderRadius: 999, padding: '3px 12px',
+  },
   btnIntro: { background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 12, padding: '16px 40px', fontSize: 17, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3 },
 
   // Draft side-by-side layout
