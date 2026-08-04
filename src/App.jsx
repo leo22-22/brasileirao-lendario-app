@@ -3155,10 +3155,21 @@ export default function App() {
     document.title = infoPage
       ? `${INFO_TABS.find(t => t.id === infoPage)?.label} — Brasileirão Lendário`
       : 'Brasileirão Lendário — Monte seu time com lendas do futebol brasileiro';
+    // O <link rel="canonical"> do index.html é estático (sempre a home) —
+    // sem atualizar aqui, o Google via cada página institucional (/como-jogar,
+    // /termos-de-uso, etc.) declarando ela mesma como duplicata da home, e só
+    // indexava a home — mesmo com as 5 URLs certinhas no sitemap. Atualiza
+    // pra URL real da página a cada navegação.
+    let link = document.querySelector('link[rel="canonical"]');
+    if (!link) {
+      link = document.createElement('link');
+      link.rel = 'canonical';
+      document.head.appendChild(link);
+    }
+    link.href = `https://brasileiraolendario.com.br${canonicalPathFor(infoPage)}`;
   }, [infoPage]);
   const navigateToInfo = (tab) => {
-    const path = Object.entries(INFO_ROUTES).find(([, v]) => v === tab)?.[0] || '/';
-    window.history.pushState(null, '', path);
+    window.history.pushState(null, '', canonicalPathFor(tab));
     setInfoPage(tab);
   };
   const closeInfoPage = () => {
@@ -6599,6 +6610,13 @@ const INFO_ROUTES = {
   '/privacidade': 'privacidade',
   '/contato': 'contato',
 };
+// Caminho canônico de cada página — o inverso de INFO_ROUTES (id da aba ->
+// path), usado pra manter o <link rel="canonical"> em sincronia com a rota
+// atual (ver useEffect de infoPage no componente raiz).
+function canonicalPathFor(infoPage) {
+  if (!infoPage) return '/';
+  return Object.entries(INFO_ROUTES).find(([, v]) => v === infoPage)?.[0] || '/';
+}
 
 const HOW_TO_PLAY_STEPS = [
   { icon: '🎲', title: 'Monte seu elenco no draft', text: 'A cada rodada do draft, você sorteia um time histórico do Brasileirão (1959–2026) e escolhe UM jogador dele pra preencher uma vaga da sua formação. Não gostou do time sorteado? Você tem até 3 pulos pra tentar outro.' },
