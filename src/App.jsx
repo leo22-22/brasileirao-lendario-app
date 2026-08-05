@@ -5817,12 +5817,27 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
+  // Números REAIS da comunidade (nunca inventados) — mesma fonte do Ranking
+  // Global, só num lugar mais visível (topo da home), pra dar uma noção
+  // honesta de tamanho pra quem chega no site pela primeira vez.
+  const [communityStats, setCommunityStats] = useState(null);
+  useEffect(() => {
+    api.fetchLeaderboard({ limit: 1 })
+      .then(({ stats }) => { if (stats) setCommunityStats(stats); })
+      .catch(() => {});
+  }, []);
 
   return (
     <>
       <div style={styles.introCard} className="intro-card-mob">
         <div style={{ ...styles.introTopBar, background: `linear-gradient(90deg, transparent, ${mc}, transparent)` }} />
         <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2026</div>
+        {communityStats && (
+          <div style={styles.communityStatsBar}>
+            <span>👥 <b>{communityStats.totalPlayers}</b> jogadores cadastrados</span>
+            <span>🟢 <b>{communityStats.activePlayers30d}</b> ativos nos últimos 30 dias</span>
+          </div>
+        )}
         <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
         <p style={styles.introLead}>
           Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
@@ -10523,6 +10538,10 @@ const styles = {
   // padrão do sistema) — sem uma cor sólida explícita aqui, o texto claro
   // herdado ficava quase ilegível em cima de um fundo claro.
   selectOption: { background: '#14261a', color: '#F4F1EA' },
+  communityStatsBar: {
+    display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: 11.5, opacity: 0.7,
+    marginBottom: 16, marginTop: -8,
+  },
 
   // Intro screen
   introCard: { textAlign: 'center', padding: '40px 28px 36px', position: 'relative', overflow: 'hidden' },
