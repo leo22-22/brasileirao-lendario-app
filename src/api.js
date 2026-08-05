@@ -78,3 +78,18 @@ export function fetchLeaderboard({ limit = 30, offset = 0, uf = '', logo = '' } 
 export function fetchMyRank() {
   return request('/leaderboard/me', { auth: true });
 }
+
+// Registro público de salas de multiplayer (só metadados — o jogo em si
+// continua 100% P2P via PeerJS). Sem auth: guest também pode criar/ver salas,
+// igual o resto do multiplayer hoje.
+export function fetchPublicRooms() {
+  return request('/rooms');
+}
+
+export function publishRoom(code, { label, gameMode, playerCount, phase }) {
+  return request(`/rooms/${code}`, { method: 'PUT', body: { label, gameMode, playerCount, phase } });
+}
+
+export function closeRoom(code) {
+  return request(`/rooms/${code}`, { method: 'DELETE' });
+}

@@ -4575,6 +4575,10 @@ export default function App() {
   }, [autoCountdown]);
 
   const restart = () => {
+    // Sai do registro público de salas na hora (não espera os 45s de TTL) —
+    // só o líder tem uma sala publicada; pra convidado ou fora do multiplayer
+    // `isLeader`/`roomCode` não batem os dois e isso vira um no-op.
+    if (isLeader && roomCode) { api.closeRoom(roomCode).catch(() => {}); }
     try { localStorage.removeItem('brl_save'); } catch { }
     if (timerRef.current) clearTimeout(timerRef.current);
     if (clockRef.current) clearTimeout(clockRef.current);
@@ -4923,6 +4927,33 @@ export default function App() {
       try { peer.destroy(); } catch { }
     });
   };
+
+  // Heartbeat pro registro público de salas ("Ver salas") — só o líder
+  // publica (o registro é só metadados pra descoberta; o jogo em si continua
+  // 100% P2P). Publica na hora ao criar a sala (não espera o 1º tick) e
+  // continua batendo durante team-setup/simulação — é assim que uma sala "em
+  // andamento" segue visível (só que bloqueada) na lista em vez de sumir
+  // assim que o jogo começa. Falha de rede aqui nunca pode virar erro visível
+  // pro jogador, é só um canal auxiliar de descoberta.
+  useEffect(() => {
+    if (!isLeader || !roomCode) return;
+    const publish = () => {
+      setRoomSnap(current => {
+        if (current) {
+          api.publishRoom(roomCode, {
+            label: current.players?.[MY_PID]?.name || 'Meu Time',
+            gameMode: current.gameMode,
+            playerCount: Object.keys(current.players || {}).length,
+            phase: current.phase,
+          }).catch(() => {});
+        }
+        return current;
+      });
+    };
+    publish();
+    const interval = setInterval(publish, 15000);
+    return () => clearInterval(interval);
+  }, [isLeader, roomCode]);
 
   const multiJoinRoom = async (code) => {
     if (multiConnectingRef.current) return; // já tem uma tentativa de entrada em andamento — evita Peer duplicado no duplo-toque
@@ -5275,8 +5306,16 @@ export default function App() {
             joinInput={joinInput} onJoinInput={setJoinInput}
             onCreateRoom={multiCreateRoom}
             onJoinRoom={() => multiJoinRoom(joinInput)}
+            onBrowseRooms={() => setMultiPhase('browse')}
             connecting={multiConnecting} error={multiError}
             onBack={() => { setMultiPhase(null); setGameMode('brasileirao'); setMultiError(''); }}
+          />
+        )}
+        {multiPhase === 'browse' && (
+          <PublicRoomsScreen
+            onBack={() => setMultiPhase('lobby')}
+            onJoinRoom={multiJoinRoom}
+            myTeamColor={myTeamColor}
           />
         )}
         {multiPhase === 'room' && roomSnap && (
@@ -6743,7 +6782,7 @@ function InfoPage({ tab, onNavigate, onClose, myTeamColor }) {
 // ============================================================
 // TELAS MULTIPLAYER
 // ============================================================
-function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLogo, joinInput, onJoinInput, onCreateRoom, onJoinRoom, connecting, error, onBack }) {
+function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLogo, joinInput, onJoinInput, onCreateRoom, onJoinRoom, onBrowseRooms, connecting, error, onBack }) {
   const mc = myTeamColor || '#d4a23c';
   return (
     <div style={styles.card} className="card-mob">
@@ -6811,6 +6850,98 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
         </button>
       </div>
       <div style={{ fontSize: 11, opacity: 0.4, marginTop: 6, textAlign: 'center' }}>Cole o código que o criador da sala compartilhou</div>
+
+      <button
+        onClick={onBrowseRooms}
+        style={{
+          width: '100%', marginTop: 16, padding: '10px 0', borderRadius: 10,
+          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.12)',
+          color: '#F4F1EA', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+        }}
+      >
+        🔎 Ver salas abertas
+      </button>
+      <div style={{ fontSize: 11, opacity: 0.4, marginTop: 6, textAlign: 'center' }}>Não conhece ninguém? Entre numa sala aberta pra estranhos</div>
+    </div>
+  );
+}
+
+// Lista pública de salas abertas — busca a cada 7s enquanto a tela estiver
+// montada. Sala em andamento (status 'in_progress') continua aparecendo,
+// só que bloqueada (sem botão de entrar) — é assim que a lista dá uma noção
+// de "tem gente jogando" mesmo sem poder entrar naquela em específico.
+function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
+  const [rooms, setRooms] = useState(null);
+  const [error, setError] = useState('');
+  const [joiningCode, setJoiningCode] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      api.fetchPublicRooms()
+        .then(({ rooms: list }) => { if (!cancelled) { setRooms(list); setError(''); } })
+        .catch(() => { if (!cancelled) setError('Não foi possível carregar as salas agora.'); });
+    };
+    load();
+    const interval = setInterval(load, 7000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, []);
+
+  const handleJoin = (code) => {
+    setJoiningCode(code);
+    onJoinRoom(code);
+  };
+
+  return (
+    <div style={styles.card} className="card-mob">
+      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12 }}>← Voltar</button>
+      <div style={styles.eyebrow}>Multiplayer</div>
+      <h2 style={styles.h2}>Salas Abertas</h2>
+
+      {error && <div style={{ fontSize: 13, opacity: 0.6, marginTop: 12 }}>{error}</div>}
+      {!error && !rooms && <div style={{ fontSize: 13, opacity: 0.6, marginTop: 12 }}>Carregando...</div>}
+      {rooms && rooms.length === 0 && (
+        <div style={{ fontSize: 13, opacity: 0.6, marginTop: 12 }}>Nenhuma sala aberta agora — crie a sua!</div>
+      )}
+
+      {rooms && rooms.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4 }}>
+          {rooms.map(room => {
+            const isOpen = room.status === 'lobby';
+            return (
+              <div
+                key={room.code}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
+                  border: `1px solid ${isOpen ? hexToRgba(mc, 0.3) : 'rgba(255,255,255,0.08)'}`,
+                  background: isOpen ? hexToRgba(mc, 0.06) : 'rgba(255,255,255,0.02)',
+                  opacity: isOpen ? 1 : 0.55,
+                }}
+              >
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{room.gameMode === 'copa' ? '🏅' : '🏆'}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{room.label}</div>
+                  <div style={{ fontSize: 11, opacity: 0.5 }}>
+                    {room.playerCount}/{room.maxPlayers} jogadores · {room.gameMode === 'copa' ? 'Copa do Brasil' : 'Brasileirão'}
+                  </div>
+                </div>
+                {isOpen ? (
+                  <button
+                    onClick={() => handleJoin(room.code)}
+                    disabled={joiningCode !== null}
+                    style={{ ...styles.btnPrimary, margin: 0, padding: '7px 14px', fontSize: 12.5, flexShrink: 0, opacity: joiningCode !== null ? 0.7 : 1 }}
+                  >
+                    {joiningCode === room.code ? '⏳' : 'Entrar'}
+                  </button>
+                ) : (
+                  <span title="Partida em andamento" style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
