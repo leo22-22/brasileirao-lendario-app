@@ -2914,6 +2914,11 @@ export default function App() {
   const [authLoading, setAuthLoading] = useState(() => !!api.getToken());
   const [authError, setAuthError] = useState('');
   const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountModalMode, setAccountModalMode] = useState('choice');
+  // Abre o modal de conta já numa aba específica (ex.: 'signup' direto, sem
+  // passar pela tela de escolha) — usado pelo convite de conta no fim de
+  // temporada pra quem jogou como convidado.
+  const openAccountModal = (mode = 'choice') => { setAccountModalMode(mode); setShowAccountModal(true); };
   const [showAccountPanel, setShowAccountPanel] = useState(false);
 
   // Prompt de instalação como PWA — o navegador dispara `beforeinstallprompt`
@@ -5462,7 +5467,7 @@ export default function App() {
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} onOpenTransferMarket={openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} onOpenTransferMarket={openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} />
         )}
         {viewingTeam && (
           <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspensions={suspensions} injuries={injuries} />
@@ -5496,6 +5501,7 @@ export default function App() {
       </main>
       {showAccountModal && (
         <AccountModal
+          mode={accountModalMode}
           onGuestChoice={handleGuestChoice}
           onAuthSuccess={handleAuthSuccess}
           onClose={() => setShowAccountModal(false)}
@@ -10039,7 +10045,33 @@ function ChampionMarquee({ teamLabel, color }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam }) {
+// Convite pra criar conta no melhor momento possível — logo que a pessoa
+// termina uma temporada jogando como convidado (satisfação alta, e sem
+// conta esse resultado nem entra no Ranking Global). Dispensa só nessa
+// sessão (sem localStorage) — não é a mesma decisão "definitiva" do modal
+// de primeira visita, então pode aparecer de novo numa próxima temporada.
+function GuestConversionBanner({ myTeamColor, onOpenAccount }) {
+  const mc = myTeamColor || '#d4a23c';
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, padding: '12px 14px',
+      borderRadius: 12, background: hexToRgba(mc, 0.1), border: `1px solid ${hexToRgba(mc, 0.35)}`,
+    }}>
+      <span style={{ fontSize: 22, flexShrink: 0 }}>🏆</span>
+      <div style={{ flex: 1, fontSize: 12.5, lineHeight: 1.4 }}>
+        <b>Curtiu a temporada?</b> Crie uma conta pra salvar seu time, entrar no Ranking Global e não perder esse progresso.
+      </div>
+      <button onClick={onOpenAccount} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '7px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+        Criar conta
+      </button>
+      <button onClick={() => setDismissed(true)} title="Dispensar" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 16, cursor: 'pointer', flexShrink: 0, padding: 0 }}>×</button>
+    </div>
+  );
+}
+
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount }) {
   const mc = myTeamColor || '#d4a23c';
   const [showCampaign, setShowCampaign] = useState(false);
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
@@ -10094,6 +10126,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           {userWon && <div style={styles.badge}>Copa do Brasil conquistada! Time lendario!</div>}
         </div>
         <ChampionMarquee teamLabel={winner?.label} color={mc} />
+        {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
         {topScorers.length > 0 && (
           <div style={{ marginBottom: 16 }}>
             <div style={styles.sectionLabel}>Artilheiro da Copa</div>
@@ -10226,6 +10259,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       </h1>
 
       <ChampionMarquee teamLabel={champion?.label} color={mc} />
+      {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
 
       {!isChampion && (
         <div style={styles.championBox}>
