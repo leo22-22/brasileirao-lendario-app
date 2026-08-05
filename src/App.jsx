@@ -3151,35 +3151,75 @@ export default function App() {
   // cai em index.html pra qualquer caminho fora de /api (SPA catch-all), e
   // aqui a gente só lê window.location.pathname pra saber qual página mostrar.
   const [infoPage, setInfoPage] = useState(() => INFO_ROUTES[window.location.pathname] || null);
+  const [teamsPage, setTeamsPage] = useState(() => parseTeamsPathname(window.location.pathname));
   useEffect(() => {
-    const onPopState = () => setInfoPage(INFO_ROUTES[window.location.pathname] || null);
+    const onPopState = () => {
+      setInfoPage(INFO_ROUTES[window.location.pathname] || null);
+      setTeamsPage(parseTeamsPathname(window.location.pathname));
+    };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
   }, []);
   useEffect(() => {
-    document.title = infoPage
-      ? `${INFO_TABS.find(t => t.id === infoPage)?.label} — Brasileirão Lendário`
-      : 'Brasileirão Lendário — Monte seu time com lendas do futebol brasileiro';
-    // O <link rel="canonical"> do index.html é estático (sempre a home) —
-    // sem atualizar aqui, o Google via cada página institucional (/como-jogar,
-    // /termos-de-uso, etc.) declarando ela mesma como duplicata da home, e só
-    // indexava a home — mesmo com as 5 URLs certinhas no sitemap. Atualiza
-    // pra URL real da página a cada navegação.
+    let title = 'Brasileirão Lendário — Monte seu time com lendas do futebol brasileiro';
+    let description = `Simulador de futebol grátis: monte seu elenco com craques históricos de ${TEAMS.length} times do futebol brasileiro (1959-2026), escale a formação e dispute o Brasileirão ou a Copa do Brasil sozinho ou com amigos no multiplayer.`;
+    let path = '/';
+    if (infoPage) {
+      title = `${INFO_TABS.find(t => t.id === infoPage)?.label} — Brasileirão Lendário`;
+      path = canonicalPathFor(infoPage);
+    } else if (teamsPage === 'index') {
+      title = 'Times Históricos do Brasileirão — Brasileirão Lendário';
+      description = `Os ${TEAMS.length} times históricos disponíveis pra montar no Brasileirão Lendário, com elenco completo de cada um.`;
+      path = '/times';
+    } else if (teamsPage) {
+      const team = TEAMS.find(t => t.id === teamsPage);
+      const { baseName, achievement } = parseTeamLabel(team.label);
+      title = `${team.label} — Elenco completo | Brasileirão Lendário`;
+      description = `Monte o ${baseName}${achievement ? ` (${achievement})` : ''} no Brasileirão Lendário: elenco completo com ${team.players.length} jogadores reais, técnico ${team.coach}, e dispute o Brasileirão ou a Copa do Brasil.`;
+      path = canonicalTeamsPath(teamsPage);
+    }
+    document.title = title;
+    // A <meta name="description"> do index.html é estática — sem atualizar
+    // aqui, toda página (institucional ou de time) mantém o snippet
+    // genérico da home nos resultados de busca, perdendo a chance de um
+    // resumo específico por página.
+    const descTag = document.querySelector('meta[name="description"]');
+    if (descTag) descTag.content = description;
+    // O <link rel="canonical"> do index.html também é estático (sempre a
+    // home) — sem atualizar aqui, o Google via cada página institucional/de
+    // time declarando ela mesma como duplicata da home, e só indexava a
+    // home — mesmo com as URLs certinhas no sitemap. Atualiza pra URL real
+    // da página a cada navegação.
     let link = document.querySelector('link[rel="canonical"]');
     if (!link) {
       link = document.createElement('link');
       link.rel = 'canonical';
       document.head.appendChild(link);
     }
-    link.href = `https://brasileiraolendario.com.br${canonicalPathFor(infoPage)}`;
-  }, [infoPage]);
+    link.href = `https://brasileiraolendario.com.br${path}`;
+  }, [infoPage, teamsPage]);
   const navigateToInfo = (tab) => {
     window.history.pushState(null, '', canonicalPathFor(tab));
     setInfoPage(tab);
+    setTeamsPage(null);
   };
   const closeInfoPage = () => {
     window.history.pushState(null, '', '/');
     setInfoPage(null);
+  };
+  const navigateToTeamsIndex = () => {
+    window.history.pushState(null, '', '/times');
+    setTeamsPage('index');
+    setInfoPage(null);
+  };
+  const navigateToTeam = (id) => {
+    window.history.pushState(null, '', `/times/${id}`);
+    setTeamsPage(id);
+    setInfoPage(null);
+  };
+  const closeTeamsPage = () => {
+    window.history.pushState(null, '', '/');
+    setTeamsPage(null);
   };
 
   // Compartilhar o jogo com amigos (não é o convite de sala — é o app em si).
@@ -5297,6 +5337,10 @@ export default function App() {
       {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} myUsername={currentUser?.username} />}
       {showNews && <NewsModal onClose={() => setShowNews(false)} />}
       {infoPage && <InfoPage tab={infoPage} onNavigate={navigateToInfo} onClose={closeInfoPage} myTeamColor={myTeamColor} />}
+      {teamsPage === 'index' && <TeamsIndexPage onBack={closeTeamsPage} onOpenTeam={navigateToTeam} myTeamColor={myTeamColor} />}
+      {teamsPage && teamsPage !== 'index' && (
+        <TeamDetailPage team={TEAMS.find(t => t.id === teamsPage)} onBack={closeTeamsPage} onOpenIndex={navigateToTeamsIndex} myTeamColor={myTeamColor} />
+      )}
       {newAchievements.length > 0 && (
         <AchievementToast achievements={newAchievements} onClose={() => setNewAchievements([])} />
       )}
@@ -5352,6 +5396,7 @@ export default function App() {
             onUpdateFields={updateAccountFields}
             onMultiPlayer={() => setMultiPhase('lobby')}
             onNavigateInfo={navigateToInfo}
+            onNavigateTeams={navigateToTeamsIndex}
           />
         )}
         {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} />}
@@ -5857,7 +5902,7 @@ function SponsorBanner({ compact = false }) {
   );
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo }) {
+function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
@@ -6081,6 +6126,9 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
               {label}
             </button>
           ))}
+          <button onClick={onNavigateTeams} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: 0, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            Times Históricos
+          </button>
         </div>
       </div>
 
@@ -6678,6 +6726,31 @@ function canonicalPathFor(infoPage) {
   return Object.entries(INFO_ROUTES).find(([, v]) => v === infoPage)?.[0] || '/';
 }
 
+// Extrai o nome base e a conquista (texto entre parênteses no fim do label,
+// quando existe, ex.: "Guarani 1978 (Campeao Brasileiro)") — só reformata o
+// que já está no dado de TEAMS, não inventa nenhum fato novo.
+function parseTeamLabel(label) {
+  const m = label.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
+  return m ? { baseName: m[1], achievement: m[2] } : { baseName: label, achievement: null };
+}
+// Roteamento das páginas de time histórico — /times (índice) e /times/{id}
+// (detalhe). Sem lib de rotas, mesmo esquema das páginas institucionais
+// (History API direta + o servidor caindo em index.html pra tudo fora de
+// /api). Sem página de "não encontrado" dedicada: um id inválido cai em
+// null/home, exagero criar isso pra 46 páginas conhecidas.
+function parseTeamsPathname(pathname) {
+  if (pathname === '/times') return 'index';
+  if (pathname.startsWith('/times/')) {
+    const id = pathname.slice('/times/'.length);
+    return TEAMS.some(t => t.id === id) ? id : null;
+  }
+  return null;
+}
+function canonicalTeamsPath(teamsPage) {
+  if (!teamsPage) return '/';
+  return teamsPage === 'index' ? '/times' : `/times/${teamsPage}`;
+}
+
 const HOW_TO_PLAY_STEPS = [
   { icon: '🎲', title: 'Monte seu elenco no draft', text: 'A cada rodada do draft, você sorteia um time histórico do Brasileirão (1959–2026) e escolhe UM jogador dele pra preencher uma vaga da sua formação. Não gostou do time sorteado? Você tem até 3 pulos pra tentar outro.' },
   { icon: '🧩', title: 'Escolha a formação e o capitão', text: 'Antes do draft, escolha entre várias formações táticas (4-4-2, 4-3-3, 3-5-2 e outras). Depois de montar os 11 titulares e o banco, escolha um capitão — ele ganha +2 de overall fixo pra temporada inteira.' },
@@ -6780,6 +6853,130 @@ function InfoPage({ tab, onNavigate, onClose, myTeamColor }) {
             </p>
           </div>
         )}
+      </div>
+    </div>
+  );
+}
+
+// Índice + detalhe dos times históricos — conteúdo indexável de verdade
+// (URL própria por time), gerado só a partir do que já existe em TEAMS
+// (clube, ano, técnico, conquista, elenco real) — nenhum fato novo é
+// inventado. Mesmo visual/estrutura do InfoPage (overlay + botão "Voltar
+// pro app" fixo), pra manter consistência.
+function TeamsIndexPage({ onBack, onOpenTeam, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
+  const sorted = [...TEAMS].sort((a, b) => a.year - b.year);
+  return (
+    <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
+      <button
+        onClick={onBack}
+        title="Voltar pro app"
+        style={{
+          position: 'fixed', top: 14, left: 14, zIndex: 10001,
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'rgba(15,31,21,0.95)', border: `1px solid ${hexToRgba(mc, 0.4)}`,
+          borderRadius: 999, padding: '8px 14px', color: mc,
+          fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+        }}
+      >
+        ← Voltar pro app
+      </button>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, margin: '0 auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
+        <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 6 }}>Times Históricos</h1>
+        <p style={{ fontSize: 13, opacity: 0.6, lineHeight: 1.6, marginBottom: 18 }}>
+          Os {TEAMS.length} times que você pode sortear no draft do Brasileirão Lendário, cada um com o elenco real da época.
+        </p>
+        <div style={{ display: 'grid', gap: 8 }}>
+          {sorted.map(team => {
+            const { baseName, achievement } = parseTeamLabel(team.label);
+            return (
+              <button
+                key={team.id}
+                onClick={() => onOpenTeam(team.id)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
+                  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
+                  color: '#F4F1EA', textAlign: 'left', cursor: 'pointer',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
+                  {achievement && <div style={{ fontSize: 11, color: mc, marginTop: 1 }}>{achievement}</div>}
+                </div>
+                <span style={{ fontSize: 11, opacity: 0.4, flexShrink: 0 }}>{team.players.length} jogadores</span>
+                <span style={{ fontSize: 14, opacity: 0.4, flexShrink: 0 }}>→</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TeamDetailPage({ team, onBack, onOpenIndex, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
+  if (!team) return null;
+  const { baseName, achievement } = parseTeamLabel(team.label);
+  const starters = [...team.players.slice(0, 11)].sort((a, b) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]));
+  const bench = team.players.slice(11);
+  return (
+    <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
+      <button
+        onClick={onBack}
+        title="Voltar pro app"
+        style={{
+          position: 'fixed', top: 14, left: 14, zIndex: 10001,
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'rgba(15,31,21,0.95)', border: `1px solid ${hexToRgba(mc, 0.4)}`,
+          borderRadius: 999, padding: '8px 14px', color: mc,
+          fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+        }}
+      >
+        ← Voltar pro app
+      </button>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, margin: '0 auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
+        <button onClick={onOpenIndex} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 11.5, cursor: 'pointer', padding: 0, marginBottom: 14 }}>
+          ← Ver todos os times
+        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
+          <span style={{ width: 14, height: 14, borderRadius: '50%', background: team.colors?.p || mc, border: '1px solid rgba(255,255,255,0.3)', flexShrink: 0 }} />
+          <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></h1>
+        </div>
+        {achievement && (
+          <div style={{ display: 'inline-block', fontSize: 11, fontWeight: 700, color: mc, background: hexToRgba(mc, 0.12), border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 999, padding: '3px 10px', marginBottom: 12 }}>
+            🏆 {achievement}
+          </div>
+        )}
+        <p style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.6, marginBottom: 18 }}>
+          Monte o {baseName}{achievement ? ` (${achievement})` : ''} no Brasileirão Lendário: elenco completo com {team.players.length} jogadores reais, técnico {team.coach}, e dispute o Brasileirão ou a Copa do Brasil sozinho ou com amigos.
+        </p>
+
+        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>Titulares</div>
+        {starters.map(p => (
+          <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12.5 }}>
+            <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.[0] || '-'}</span>
+            <span style={{ flex: 1 }}>{p.name}</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }} title="Força no simulador, não é uma estatística histórica oficial">{p.ovr}</span>
+          </div>
+        ))}
+        {bench.length > 0 && (
+          <>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 14, marginBottom: 6 }}>Banco</div>
+            {bench.map(p => (
+              <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12.5 }}>
+                <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.[0] || '-'}</span>
+                <span style={{ flex: 1 }}>{p.name}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }} title="Força no simulador, não é uma estatística histórica oficial">{p.ovr}</span>
+              </div>
+            ))}
+          </>
+        )}
+        <div style={{ fontSize: 10, opacity: 0.4, marginTop: 10 }}>* Overall é a força do jogador no simulador, não uma estatística histórica oficial.</div>
+
+        <button onClick={onBack} style={{ ...styles.btnPrimary, width: '100%', marginTop: 20, background: mc, color: '#0B1A12' }}>
+          Jogar agora →
+        </button>
       </div>
     </div>
   );
