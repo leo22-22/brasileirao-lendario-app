@@ -5885,15 +5885,14 @@ const SPONSOR_SLOTS = ['⭐ Sua marca aqui', '⭐ Sua marca aqui', '⭐ Sua marc
 // só menor.
 function SponsorBanner({ compact = false }) {
   const slots = [...SPONSOR_SLOTS, ...SPONSOR_SLOTS]; // duplicado pra loop contínuo, igual ao carrossel de times
-  // CONTACT_EMAIL só é lido aqui dentro (em tempo de render, não no
-  // carregamento do módulo) — é declarado mais abaixo no arquivo, então usar
-  // o valor direto num `const` no topo do módulo cairia na temporal dead
-  // zone (ReferenceError ao carregar a página).
-  const mailto = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('Quero patrocinar o Brasileirão Lendário')}`;
   return (
     <div style={compact ? styles.sponsorBannerWrapCompact : styles.sponsorBannerWrap}>
       <div style={styles.sponsorBannerTrack} className="sponsor-marquee-track">
-        <a href={mailto} style={compact ? styles.sponsorCtaCompact : styles.sponsorCta}>📢 Patrocine aqui</a>
+        <EmailLink
+          subject="Quero patrocinar o Brasileirão Lendário"
+          style={compact ? styles.sponsorCtaCompact : styles.sponsorCta}
+          label="📢 Patrocine aqui"
+        />
         {slots.map((label, i) => (
           <span key={i} style={compact ? styles.sponsorSlotCompact : styles.sponsorSlot}>{label}</span>
         ))}
@@ -6704,6 +6703,29 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
 }
 
 const CONTACT_EMAIL = 'leonardoranuci@brasileiraolendario.com.br';
+
+// Link de email reutilizável — clicar SEMPRE copia o endereço pro clipboard
+// (com confirmação visível trocando o texto por um instante), além de tentar
+// abrir o cliente de email padrão via mailto:. O mailto: sozinho só funciona
+// se o dispositivo tiver um app de email configurado como padrão — sem isso,
+// clicar num <a href="mailto:..."> normal não faz NADA visível (parecia um
+// bug quebrado, mas era só falta de fallback pra quem não tem isso configurado).
+function EmailLink({ subject, style, label }) {
+  const [copied, setCopied] = useState(false);
+  const mailto = `mailto:${CONTACT_EMAIL}${subject ? `?subject=${encodeURIComponent(subject)}` : ''}`;
+  const handleClick = () => {
+    if (!navigator.clipboard?.writeText) return;
+    navigator.clipboard.writeText(CONTACT_EMAIL)
+      .then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); })
+      .catch(() => {});
+  };
+  return (
+    <a href={mailto} onClick={handleClick} style={style}>
+      {copied ? '✅ Email copiado!' : label}
+    </a>
+  );
+}
+
 const INFO_TABS = [
   { id: 'como-jogar', label: 'Como Jogar', icon: '🎮' },
   { id: 'termos', label: 'Termos de Uso', icon: '📜' },
@@ -6826,7 +6848,7 @@ function InfoPage({ tab, onNavigate, onClose, myTeamColor }) {
             <p><b>Modo multiplayer.</b> Ao jogar com outras pessoas, espera-se conduta respeitosa. Não há moderação em tempo real do chat — use o bom senso.</p>
             <p><b>Sem garantias.</b> O serviço é fornecido "como está". Não garantimos disponibilidade ininterrupta nem ausência total de erros.</p>
             <p><b>Mudanças.</b> Estes termos podem ser atualizados conforme o jogo evolui.</p>
-            <p style={{ opacity: 0.5, fontSize: 11.5 }}>Dúvidas: {CONTACT_EMAIL}</p>
+            <p style={{ opacity: 0.5, fontSize: 11.5 }}>Dúvidas: <EmailLink label={CONTACT_EMAIL} style={{ color: '#d4a23c', textDecoration: 'underline' }} /></p>
           </div>
         )}
 
@@ -6838,7 +6860,7 @@ function InfoPage({ tab, onNavigate, onClose, myTeamColor }) {
             <p><b>Google Analytics.</b> Usamos o Google Analytics pra entender, de forma agregada, como o site é usado (páginas vistas, eventos como criar conta ou completar uma temporada). Não vendemos nem compartilhamos seus dados pessoais com terceiros pra fins de publicidade.</p>
             <p><b>Seus direitos.</b> Você pode acessar, corrigir ou excluir seus dados a qualquer momento — a exclusão de conta (disponível no painel) apaga permanentemente seu registro do nosso banco de dados.</p>
             <p><b>Menores de idade.</b> O jogo não é direcionado especificamente a crianças menores de 13 anos.</p>
-            <p style={{ opacity: 0.5, fontSize: 11.5 }}>Dúvidas ou solicitações sobre seus dados: {CONTACT_EMAIL}</p>
+            <p style={{ opacity: 0.5, fontSize: 11.5 }}>Dúvidas ou solicitações sobre seus dados: <EmailLink label={CONTACT_EMAIL} style={{ color: '#d4a23c', textDecoration: 'underline' }} /></p>
           </div>
         )}
 
@@ -6849,7 +6871,7 @@ function InfoPage({ tab, onNavigate, onClose, myTeamColor }) {
             <p><b>🏟️ Quer que a gente adicione algum time histórico que falta?</b> Manda os 20 atletas completos (titulares + reservas) do elenco que você quer ver no jogo, com posição de cada um — a gente confere e, se entrar, divulga aqui no site quem teve a ideia.</p>
             <p><b>💡 Tem alguma sugestão, bug pra reportar ou só quer trocar uma ideia?</b> Manda pra gente também — toda sugestão que vira novidade no jogo, o crédito é seu.</p>
             <p style={{ marginTop: 16 }}>
-              <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: '#d4a23c', fontWeight: 700, textDecoration: 'none', fontSize: 14 }}>✉️ {CONTACT_EMAIL}</a>
+              <EmailLink label={`✉️ ${CONTACT_EMAIL}`} style={{ color: '#d4a23c', fontWeight: 700, textDecoration: 'none', fontSize: 14 }} />
             </p>
           </div>
         )}
