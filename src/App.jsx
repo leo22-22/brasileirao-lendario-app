@@ -1812,11 +1812,68 @@ function generateDoubleRoundRobin(teamIds) {
   return [...first, ...second];
 }
 
+// ── Calendário da temporada ──────────────────────────────────────────────
+// Datas das rodadas do Brasileirão: derivadas só do número de rodadas e do
+// ano (função pura e determinística), então nada disso precisa ser salvo —
+// save antigo continua funcionando e as datas são recalculadas na hora.
+// Formato realista: começa no primeiro sábado a partir de 13/04, uma rodada
+// por semana, com uma rodada de meio de semana (quarta) a cada 9 — é o que
+// faz as 38 rodadas caberem entre abril e dezembro, como no campeonato real.
+const SEASON_START_MONTH = 3; // abril (0-based)
+const SEASON_START_DAY = 13;
+const MIDWEEK_EVERY = 9;
+
+function addDays(date, n) {
+  const d = new Date(date);
+  d.setDate(d.getDate() + n);
+  return d;
+}
+// Chave YYYY-MM-DD pra comparar/indexar dias sem esbarrar em fuso horário.
+function dateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+function buildSeasonCalendar(numRounds, year) {
+  const dates = [];
+  const d = new Date(year, SEASON_START_MONTH, SEASON_START_DAY);
+  while (d.getDay() !== 6) d.setDate(d.getDate() + 1); // primeiro sábado
+  for (let r = 0; r < numRounds; r++) {
+    dates.push(new Date(d));
+    if (d.getDay() === 3) d.setDate(d.getDate() + 3);              // quarta → sábado
+    else if ((r + 1) % MIDWEEK_EVERY === 0) d.setDate(d.getDate() + 4); // sábado → quarta
+    else d.setDate(d.getDate() + 7);                                // sábado → sábado
+  }
+  return dates;
+}
+// Índice da rodada que acontece nesse dia (ou -1). Recebe o mapa pronto pra
+// não varrer o array de datas a cada célula do calendário.
+function roundDateMap(dates) {
+  const map = {};
+  dates.forEach((d, i) => { map[dateKey(d)] = i; });
+  return map;
+}
+// Grade do mês começando na segunda-feira, com null nas bordas.
+function monthMatrix(year, month) {
+  const first = new Date(year, month, 1);
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const lead = (first.getDay() + 6) % 7; // seg=0 … dom=6
+  const cells = [...Array(lead).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => new Date(year, month, i + 1))];
+  while (cells.length % 7 !== 0) cells.push(null);
+  const weeks = [];
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7));
+  return weeks;
+}
+const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const WEEKDAY_LABELS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
+
 // Copa do Brasil — tabela de eliminatórias
 const CUP_ROUND_NAMES = ['16 Avos de Final', 'Oitavas de Final', 'Quartas de Final', 'Semifinal', 'Final'];
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const FAST_SIM_ROUND_DELAY_MS = 450;
+// Ritmo da animação "dia a dia" do calendário: dias vazios passam voando,
+// dia de jogo pausa o suficiente pro selo de resultado aparecer.
+const CALENDAR_EMPTY_DAY_MS = 18;
+const CALENDAR_MATCH_DAY_MS = 380;
 
 // Texto que aparece durante a "simulação direta" — sem isso a espera fica
 // morta na tela; com uma frase que muda a cada rodada dá a sensação de
@@ -3081,6 +3138,14 @@ export default function App() {
   const [leagueTeams, setLeagueTeams] = useState(_sv?.leagueTeams ?? []);
   const [leagueTable, setLeagueTable] = useState(_sv?.leagueTable ?? []);
   const [fixtures, setFixtures] = useState(_sv?.fixtures ?? []);
+  // Datas de cada rodada — derivadas (função pura), nunca salvas. Só faz
+  // sentido no Brasileirão (a Copa é mata-mata, sem calendário de pontos
+  // corridos).
+  const seasonYear = useMemo(() => new Date().getFullYear(), []);
+  const seasonDates = useMemo(
+    () => (fixtures.length > 0 ? buildSeasonCalendar(fixtures.length, seasonYear) : []),
+    [fixtures.length, seasonYear]
+  );
   const [currentRound, setCurrentRound] = useState(_sv?.currentRound ?? 0);
 
   // Copa (eliminatória)
@@ -3260,6 +3325,11 @@ export default function App() {
   const [liveEvents, setLiveEvents] = useState([]);
   const [liveScore, setLiveScore] = useState({ home: 0, away: 0 });
   const [roundResults, setRoundResults] = useState(null);
+  // Placar de TODAS as rodadas já jogadas ({ [rodada]: resultados }) — o
+  // `roundResults` acima guarda só a rodada atual (é sobrescrito), e o
+  // `matchHistory` só os jogos do usuário. O calendário precisa do placar
+  // de qualquer rodada passada. Save antigo sem esse campo vira {}.
+  const [roundHistory, setRoundHistory] = useState(_sv?.roundHistory ?? {});
   const [activeUserMatch, setActiveUserMatch] = useState(null);
 
   const [simSpeed, setSimSpeed] = useState(1);
@@ -3281,6 +3351,14 @@ export default function App() {
   const [fastSimActive, setFastSimActive] = useState(false);
   const [fastSimStatusMsg, setFastSimStatusMsg] = useState('');
   const fastSimCancelRef = useRef(false);
+  // Calendário da temporada: modal aberto, dia que o "cursor" da animação
+  // está percorrendo, e se a simulação em andamento foi disparada por ele
+  // (nesse caso o modal fica aberto animando, em vez do overlay genérico
+  // "Simulando…" que a tela de jogo mostra pro fast-forward normal).
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calendarSimActive, setCalendarSimActive] = useState(false);
+  const [calendarCursor, setCalendarCursor] = useState(null);
+  const calendarCursorRef = useRef(null);
   const [penaltyPhase, setPenaltyPhase] = useState(null);
   // Ref sincrono do penaltyPhase — goNextRound precisa checar "tem pênalti
   // rolando agora" sem depender do closure (que só atualiza no próximo
@@ -3670,6 +3748,9 @@ export default function App() {
     setRoundResults(null);
     setActiveUserMatch(null);
     setMatchHistory([]);
+    setRoundHistory({});
+    setCalendarCursor(null);
+    calendarCursorRef.current = null;
     setScorers({});
     setAssisters({});
     setCleanSheets({});
@@ -3935,6 +4016,7 @@ export default function App() {
         });
 
         setRoundResults(results);
+        setRoundHistory(prev => ({ ...prev, [currentRound]: results }));
         setTeamForm(prev => updateFormFromResults(prev, results));
         setSeasonRatings(ratingsAcc);
         if (otherMatchGoals.length > 0) {
@@ -4179,9 +4261,17 @@ export default function App() {
   // inclusive as do próprio usuário, que passam a ser resolvidas por
   // simAiMatch como qualquer outro jogo (sem tela de partida ao vivo) — uma
   // rodada por vez, com uma pausa curta e texto animado entre elas.
-  const fastForwardBrasileirao = async () => {
+  // `targetRound` (exclusivo) para a simulação ANTES daquela rodada — é o que
+  // o calendário usa pro "simular até esse jogo" (a pessoa joga essa rodada
+  // ao vivo depois). Sem alvo, simula até o fim da temporada.
+  // Cuidado: essa função também é passada direto como onClick (`onSimulateAll`),
+  // e nesse caso o 1º argumento é o evento de clique — daí a checagem de tipo.
+  const fastForwardBrasileirao = async (targetRound = null, { onCalendar = false } = {}) => {
     if (fastSimActive || isSimulating) return;
+    const target = typeof targetRound === 'number' ? Math.min(targetRound, fixtures.length) : fixtures.length;
+    if (currentRound >= target) return;
     setFastSimActive(true);
+    setCalendarSimActive(onCalendar);
     fastSimCancelRef.current = false;
     setShowSubPanel(false);
     setSubSelectStarter(null);
@@ -4200,8 +4290,23 @@ export default function App() {
     let redCardsAcc = { ...redCards };
     let ratingsAcc = { ...seasonRatings };
 
-    while (round < fixtures.length && !fastSimCancelRef.current) {
+    while (round < target && !fastSimCancelRef.current) {
       setFastSimStatusMsg(fastSimStatusText({ gameMode: 'brasileirao', round, totalRounds: fixtures.length, table, myTeamId }));
+
+      // Animação "dia a dia" do calendário: anda pelos dias vazios até chegar
+      // no dia dessa rodada, pra dar a sensação de tempo passando.
+      if (onCalendar && seasonDates[round]) {
+        const roundDay = seasonDates[round];
+        let cursor = calendarCursorRef.current ? addDays(calendarCursorRef.current, 1) : roundDay;
+        while (cursor < roundDay && !fastSimCancelRef.current) {
+          calendarCursorRef.current = cursor;
+          setCalendarCursor(cursor);
+          await delay(CALENDAR_EMPTY_DAY_MS);
+          cursor = addDays(cursor, 1);
+        }
+        calendarCursorRef.current = roundDay;
+        setCalendarCursor(roundDay);
+      }
 
       const unavailable = unavailableNamesFrom(susp, inj);
       const roundTeams = teamsForRound(leagueTeams, unavailable, form);
@@ -4269,13 +4374,18 @@ export default function App() {
       setSeasonRatings(ratingsAcc);
       setCurrentRound(round);
       setRoundResults(results);
+      setRoundHistory(prev => ({ ...prev, [round - 1]: results }));
 
-      await delay(FAST_SIM_ROUND_DELAY_MS);
+      await delay(onCalendar ? CALENDAR_MATCH_DAY_MS : FAST_SIM_ROUND_DELAY_MS);
     }
 
     setFastSimActive(false);
+    setCalendarSimActive(false);
     setFastSimStatusMsg('');
-    if (!fastSimCancelRef.current) {
+    // Só encerra a temporada se chegou de fato ao fim das rodadas — parar no
+    // meio (botão "Parar") ou simular até uma rodada-alvo deixa o jogo seguir
+    // normalmente, com a próxima rodada pronta pra ser jogada ao vivo.
+    if (!fastSimCancelRef.current && round >= fixtures.length) {
       applySeasonAwards(undefined, table, scorersAcc, assistersAcc, history, ratingsAcc);
       setPhase('results');
     } else {
@@ -4460,6 +4570,22 @@ export default function App() {
 
   const cancelFastSim = () => { fastSimCancelRef.current = true; };
 
+  // Abre o calendário posicionando o cursor no dia da última rodada jogada
+  // (ou pouco antes da 1ª), pra que a animação até a próxima rodada tenha
+  // dias vazios pra percorrer.
+  const openCalendar = () => {
+    const anchor = seasonDates[currentRound - 1] || (seasonDates[0] ? addDays(seasonDates[0], -3) : null);
+    calendarCursorRef.current = anchor;
+    setCalendarCursor(anchor);
+    setShowCalendar(true);
+  };
+  // "Simulação direta": abre o calendário e simula até o fim da temporada
+  // com a animação dia a dia (em vez do overlay antigo de tela cheia).
+  const simulateSeasonOnCalendar = () => {
+    openCalendar();
+    fastForwardBrasileirao(null, { onCalendar: true });
+  };
+
   const goNextRound = useCallback(() => {
     // Pênaltis ainda sendo exibidos (usuário assistindo/clicando as cobranças
     // no modal) — não avança rodada nem declara campeão até ele fechar. Sem
@@ -4583,13 +4709,13 @@ export default function App() {
       const save = {
         phase, formationKey, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
         gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo,
-        leagueTeams, leagueTable, fixtures, currentRound,
+        leagueTeams, leagueTable, fixtures, currentRound, roundHistory,
         cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
         matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards,
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -4611,6 +4737,37 @@ export default function App() {
       setAutoCountdown(3);
     }
   }, [simMode, phase, roundResults, isSimulating, penaltyPhase, showMatchSummary]);
+
+  // Modo automático: assim que uma rodada termina, abre o calendário e anda
+  // os dias até a data da próxima rodada — é o "tempo passando" entre uma
+  // partida e outra. Fecha sozinho antes do próximo jogo começar (o avanço
+  // em si continua sendo o auto-advance que já existia, isso aqui é só a
+  // camada visual).
+  useEffect(() => {
+    if (simMode !== 'auto' || gameMode !== 'brasileirao' || phase !== 'playing') return;
+    if (roundResults === null || isSimulating || fastSimActive) return;
+    const from = seasonDates[currentRound];
+    const to = seasonDates[currentRound + 1];
+    if (!from || !to) return;
+    let cancelled = false;
+    (async () => {
+      setShowCalendar(true);
+      let cursor = from;
+      calendarCursorRef.current = from;
+      setCalendarCursor(from);
+      while (cursor < to && !cancelled) {
+        cursor = addDays(cursor, 1);
+        calendarCursorRef.current = cursor;
+        setCalendarCursor(cursor);
+        await delay(CALENDAR_EMPTY_DAY_MS * 3);
+      }
+      if (!cancelled) {
+        await delay(400);
+        setShowCalendar(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [simMode, gameMode, phase, roundResults, isSimulating, fastSimActive, currentRound, seasonDates]);
 
   // Tique do contador regressivo
   useEffect(() => {
@@ -4683,6 +4840,9 @@ export default function App() {
     setEliminationRoundName(null);
     setCupWinnerId(null);
     setMatchHistory([]);
+    setRoundHistory({});
+    setCalendarCursor(null);
+    calendarCursorRef.current = null;
     setScorers({});
     setAssisters({});
     setCleanSheets({});
@@ -4721,6 +4881,9 @@ export default function App() {
     setEliminationRoundName(null);
     setCupWinnerId(null);
     setMatchHistory([]);
+    setRoundHistory({});
+    setCalendarCursor(null);
+    calendarCursorRef.current = null;
     setScorers({});
     setAssisters({});
     setCleanSheets({});
@@ -5513,8 +5676,11 @@ export default function App() {
             teamForm={teamForm}
             viewingTeam={viewingTeam}
             onViewTeam={setViewingTeam}
-            onSimulateAll={gameMode === 'copa' ? fastForwardCopa : fastForwardBrasileirao}
-            fastSimActive={fastSimActive}
+            onSimulateAll={gameMode === 'copa' ? fastForwardCopa : simulateSeasonOnCalendar}
+            onOpenCalendar={gameMode === 'brasileirao' ? openCalendar : undefined}
+            // Durante a simulação pelo calendário o modal já mostra o
+            // progresso — o overlay genérico "Simulando…" só atrapalharia.
+            fastSimActive={fastSimActive && !calendarSimActive}
             fastSimStatusMsg={fastSimStatusMsg}
             onCancelFastSim={cancelFastSim}
             isPaused={isPaused}
@@ -5534,6 +5700,23 @@ export default function App() {
         )}
         {viewingTeam && (
           <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspensions={suspensions} injuries={injuries} />
+        )}
+        {showCalendar && gameMode === 'brasileirao' && fixtures.length > 0 && (
+          <SeasonCalendarModal
+            fixtures={fixtures}
+            seasonDates={seasonDates}
+            currentRound={currentRound}
+            roundHistory={roundHistory}
+            leagueTeams={leagueTeams}
+            myTeamId={myTeamId}
+            myTeamColor={myTeamColor}
+            simActive={calendarSimActive}
+            cursorDate={calendarCursor}
+            onSimulateTo={(round) => fastForwardBrasileirao(round, { onCalendar: true })}
+            onSimulateAll={() => fastForwardBrasileirao(null, { onCalendar: true })}
+            onStop={cancelFastSim}
+            onClose={() => setShowCalendar(false)}
+          />
         )}
         {showMatchSummary && activeUserMatch && (
           <MatchSummaryModal
@@ -8953,6 +9136,18 @@ function LeaderboardModal({ onClose, myUsername }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-08-calendario',
+    date: 'Agosto de 2026',
+    title: 'Adição: calendário de jogos da temporada',
+    desc: 'O Brasileirão agora tem um calendário de verdade, de abril a dezembro, com as 38 rodadas espalhadas em sábados e rodadas de meio de semana. Dá pra abrir pelo botão "Ver calendário", clicar no dia de um jogo futuro pra simular dia a dia até ele, e acompanhar o resultado de cada rodada com selo colorido (🟢 V, 🔴 D, ⚪ E) e placar. No modo automático ele abre sozinho entre as partidas mostrando o tempo passar.',
+  },
+  {
+    id: '2026-08-fix-tabela-multiplayer',
+    date: 'Agosto de 2026',
+    title: 'Correção de bug: confronto entre amigos sempre na mesma rodada',
+    desc: 'No multiplayer, os dois jogadores caíam sempre na 19ª e na 38ª rodada — o gerador de tabela fixava o primeiro time da lista, e os humanos sempre entravam nas primeiras posições. Agora a ordem é sorteada antes de montar a tabela (de forma idêntica em todos os jogadores da sala), então o clássico entre vocês cai numa rodada diferente a cada campeonato.',
+  },
+  {
     id: '2026-08-ranking-uf',
     date: 'Agosto de 2026',
     title: 'Ranking Global mostra todo mundo e filtra por estado',
@@ -9314,7 +9509,184 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
+// Resultado do usuário numa rodada já jogada: {res:'V'|'D'|'E', gf, ga} ou
+// null se a rodada ainda não aconteceu. Usado nos selos do calendário.
+function userRoundResult(roundResults, myTeamId) {
+  if (!roundResults) return null;
+  const m = roundResults.find(r => r.homeId === myTeamId || r.awayId === myTeamId);
+  if (!m) return null;
+  const isHome = m.homeId === myTeamId;
+  const gf = isHome ? m.homeGoals : m.awayGoals;
+  const ga = isHome ? m.awayGoals : m.homeGoals;
+  return { res: gf > ga ? 'V' : gf < ga ? 'D' : 'E', gf, ga };
+}
+const RESULT_COLORS = { V: '#7fd99a', D: '#e05050', E: 'rgba(255,255,255,0.45)' };
+
+// Calendário da temporada — grade do mês com as rodadas marcadas, resultado
+// de cada uma (selo V/D/E + placar) e a simulação "dia a dia" até a rodada
+// que a pessoa escolher.
+function SeasonCalendarModal({
+  fixtures, seasonDates, currentRound, roundHistory, leagueTeams, myTeamId, myTeamColor,
+  simActive, cursorDate, onSimulateTo, onSimulateAll, onStop, onClose,
+}) {
+  const mc = myTeamColor || '#d4a23c';
+  const dateMap = useMemo(() => roundDateMap(seasonDates), [seasonDates]);
+  const refDate = seasonDates[Math.min(currentRound, seasonDates.length - 1)] || new Date();
+  const [view, setView] = useState({ year: refDate.getFullYear(), month: refDate.getMonth() });
+  const [selectedRound, setSelectedRound] = useState(Math.min(currentRound, fixtures.length - 1));
+  const [emptyMsg, setEmptyMsg] = useState('');
+
+  // Durante a animação o calendário segue o cursor (vira o mês sozinho).
+  useEffect(() => {
+    if (!cursorDate) return;
+    setView(v => (v.year === cursorDate.getFullYear() && v.month === cursorDate.getMonth()
+      ? v : { year: cursorDate.getFullYear(), month: cursorDate.getMonth() }));
+  }, [cursorDate]);
+
+  useEffect(() => {
+    if (!emptyMsg) return;
+    const t = setTimeout(() => setEmptyMsg(''), 2000);
+    return () => clearTimeout(t);
+  }, [emptyMsg]);
+
+  const shiftMonth = (delta) => setView(v => {
+    const d = new Date(v.year, v.month + delta, 1);
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
+  const handleDayClick = (day) => {
+    if (simActive) return;
+    const round = dateMap[dateKey(day)];
+    if (round === undefined) { setEmptyMsg('Não há jogo nesse dia.'); return; }
+    setSelectedRound(round);
+    if (round > currentRound) onSimulateTo(round);
+  };
+
+  const teamLabel = (id) => leagueTeams?.find(t => t.id === id)?.label || '—';
+  const selectedMatches = fixtures[selectedRound] || [];
+  const selectedResults = roundHistory?.[selectedRound] || null;
+  const cursorKey = cursorDate ? dateKey(cursorDate) : null;
+
+  return (
+    <div onClick={simActive ? undefined : onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, maxHeight: '92vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 18, position: 'relative' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>
+            📅 Calendário de jogos
+          </div>
+          {!simActive && (
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
+          <button onClick={() => shiftMonth(-1)} disabled={simActive} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#F4F1EA', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>‹</button>
+          <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 15, fontWeight: 700, minWidth: 150, textAlign: 'center' }}>
+            {MONTH_NAMES[view.month]} {view.year}
+          </div>
+          <button onClick={() => shiftMonth(1)} disabled={simActive} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#F4F1EA', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>›</button>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
+          {WEEKDAY_LABELS.map(w => (
+            <div key={w} style={{ textAlign: 'center', fontSize: 9, fontFamily: "'Space Mono', monospace", opacity: 0.4, letterSpacing: 0.5 }}>{w}</div>
+          ))}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
+          {monthMatrix(view.year, view.month).flat().map((day, i) => {
+            if (!day) return <div key={`e${i}`} />;
+            const key = dateKey(day);
+            const round = dateMap[key];
+            const hasRound = round !== undefined;
+            const played = hasRound && roundHistory?.[round];
+            const result = played ? userRoundResult(roundHistory[round], myTeamId) : null;
+            const isCursor = cursorKey === key;
+            const isSelected = hasRound && round === selectedRound;
+            return (
+              <button
+                key={key}
+                onClick={() => handleDayClick(day)}
+                title={hasRound ? `Rodada ${round + 1}` : 'Sem jogo'}
+                style={{
+                  minHeight: 44, padding: '3px 2px', borderRadius: 7, textAlign: 'center', cursor: simActive ? 'default' : 'pointer',
+                  border: `1px solid ${isCursor ? mc : isSelected ? hexToRgba(mc, 0.5) : hasRound ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}`,
+                  background: isCursor ? hexToRgba(mc, 0.22) : hasRound ? 'rgba(255,255,255,0.04)' : 'transparent',
+                  color: '#F4F1EA', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                }}
+              >
+                <span style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", opacity: hasRound ? 0.8 : 0.35 }}>{day.getDate()}</span>
+                {hasRound && !result && (
+                  <span style={{ fontSize: 7.5, color: mc, fontWeight: 700, lineHeight: 1 }}>R{round + 1}</span>
+                )}
+                {result && (
+                  <>
+                    <span style={{
+                      width: 14, height: 14, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: RESULT_COLORS[result.res], color: '#0B1A12', fontSize: 8.5, fontWeight: 800, lineHeight: 1,
+                    }}>{result.res}</span>
+                    <span style={{ fontSize: 7.5, opacity: 0.6, fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{result.gf}-{result.ga}</span>
+                  </>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {emptyMsg && (
+          <div style={{ marginTop: 8, textAlign: 'center', fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>{emptyMsg}</div>
+        )}
+
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.45, marginBottom: 6 }}>
+            Jogos da rodada {selectedRound + 1}
+            {seasonDates[selectedRound] && ` · ${seasonDates[selectedRound].toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`}
+          </div>
+          {selectedMatches.map((m, i) => {
+            const r = selectedResults?.[i];
+            const isMine = m.homeId === myTeamId || m.awayId === myTeamId;
+            return (
+              <div key={`${m.homeId}-${m.awayId}`} style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px', fontSize: 11.5,
+                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                background: isMine ? hexToRgba(mc, 0.08) : 'transparent',
+                fontWeight: isMine ? 700 : 400,
+              }}>
+                <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel(m.homeId)}</span>
+                <span style={{ fontFamily: "'Space Mono', monospace", minWidth: 34, textAlign: 'center', color: r ? mc : 'rgba(255,255,255,0.3)' }}>
+                  {r ? `${r.homeGoals}-${r.awayGoals}` : 'x'}
+                </span>
+                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel(m.awayId)}</span>
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {simActive ? (
+            <button onClick={onStop} style={{ ...styles.btnPrimary, width: '100%', background: '#e05050', color: '#fff' }}>
+              ⏸ Parar no próximo jogo
+            </button>
+          ) : (
+            <>
+              <div style={{ fontSize: 11, opacity: 0.45, textAlign: 'center' }}>
+                Clique no dia de um jogo futuro pra simular até ele.
+              </div>
+              <button onClick={onSimulateAll} style={{ ...styles.btnGhost, marginTop: 0, width: '100%' }}>
+                ⏭ Simular até o fim da temporada
+              </button>
+              <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }}>
+                Ir pra minha liga
+              </button>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
   const mc = myTeamColor || '#d4a23c';
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -9641,6 +10013,14 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         <div>
           <div style={styles.eyebrow}>Brasileirão · Série A</div>
           <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Rodada {currentRound + 1} de {totalRounds}</div>
+          {onOpenCalendar && (
+            <button
+              onClick={onOpenCalendar}
+              style={{ marginTop: 6, background: 'none', border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 8, color: mc, fontSize: 11.5, fontWeight: 600, padding: '4px 10px', cursor: 'pointer' }}
+            >
+              📅 Ver calendário
+            </button>
+          )}
         </div>
         {roundDone && simMode === 'manual' && (
           <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12' }} onClick={onNextRound}>
