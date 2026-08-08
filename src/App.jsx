@@ -8005,8 +8005,76 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], pre
 }
 
 // Chaveamento visual da Copa
-function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo, myTeamBadge, onViewTeam }) {
+// Desfecho de um confronto do mata-mata: agregado ida+volta (com o mando
+// invertido na volta), ou o placar simples quando é jogo único (final), já
+// levando em conta os pênaltis quando o agregado empata — mesma regra que
+// `goNextRound` usa pra decidir quem avança de verdade.
+function cupMatchOutcome(round, matchIdx) {
+  const match = round?.matches?.[matchIdx];
+  if (!match) return { decided: false, aggH: null, aggA: null };
+  const isFinal = (round.matches?.length || 0) === 1;
+  const leg1 = round.leg1Results?.[matchIdx];
+  const leg2 = round.results?.[matchIdx];
+  if (!leg2) return { decided: false, aggH: null, aggA: null };
+  const aggH = isFinal ? leg2.homeGoals : (leg1 ? leg1.homeGoals + leg2.awayGoals : null);
+  const aggA = isFinal ? leg2.awayGoals : (leg1 ? leg1.awayGoals + leg2.homeGoals : null);
+  if (aggH == null || aggA == null) return { decided: false, aggH: null, aggA: null };
+  if (aggH !== aggA) {
+    const winnerId = aggH > aggA ? match.homeId : match.awayId;
+    return { decided: true, aggH, aggA, winnerId, loserId: winnerId === match.homeId ? match.awayId : match.homeId, onPens: false };
+  }
+  const pen = round.penaltyResults?.find(p => p.matchIdx === matchIdx);
+  if (!pen?.winner) return { decided: false, aggH, aggA };
+  return {
+    decided: true, aggH, aggA, winnerId: pen.winner,
+    loserId: pen.winner === match.homeId ? match.awayId : match.homeId, onPens: true,
+  };
+}
+
+// Geometria do chaveamento clássico: 4 fases de cada lado (16 avos → semi) e a
+// final no meio, 9 colunas no total. As posições são calculadas em JS (e não
+// via flex) porque as linhas que ligam um confronto ao bloco da fase seguinte
+// precisam de coordenadas exatas — elas são desenhadas num SVG sobreposto.
+const BK_BLOCK_H = 46;
+const BK_PITCH = 58;   // distância entre os centros de dois blocos das 16 avos
+const BK_COL_W = 132;
+const BK_COL_GAP = 26;
+const BK_SIDE_ROUNDS = 4;
+const BK_GOLD = '#f0c040';
+const BK_HEIGHT = BK_PITCH * 8;                     // 8 confrontos por lado
+const BK_WIDTH = 9 * BK_COL_W + 8 * BK_COL_GAP;
+
+const bkColX = (col) => col * (BK_COL_W + BK_COL_GAP);
+// Centro vertical do bloco `i` da fase `r` (r=0 nas 16 avos). A cada fase o
+// espaçamento dobra, então o bloco da fase seguinte cai exatamente no meio dos
+// dois que o alimentam — é o que faz a árvore fechar sozinha.
+const bkBlockY = (r, i) => BK_PITCH * Math.pow(2, r) * (i + 0.5);
+// Coluna de uma fase: lado esquerdo conta da borda pro meio, direito espelhado.
+const bkColOf = (r, side) => (side === 'L' ? r : 8 - r);
+
+function CupBracketModal({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo, myTeamBadge, onViewTeam, onClose }) {
   const mc = myTeamColor || '#d4a23c';
+  const wrapRef = useRef(null);
+  const [fitScale, setFitScale] = useState(1);
+  const [zoomed, setZoomed] = useState(false);
+
+  // Encolhe o chaveamento inteiro pra caber na largura disponível — assim o
+  // formato clássico aparece de uma vez só, sem rolagem horizontal. No celular
+  // isso fica minúsculo, então o botão de ampliar sobe pra um tamanho legível
+  // e aí sim libera a rolagem lateral.
+  useEffect(() => {
+    const fit = () => {
+      const w = wrapRef.current?.clientWidth;
+      if (w) setFitScale(Math.min(1, w / BK_WIDTH));
+    };
+    fit();
+    window.addEventListener('resize', fit);
+    return () => window.removeEventListener('resize', fit);
+  }, []);
+  const scale = zoomed ? Math.max(fitScale, 0.8) : fitScale;
+  const canZoom = fitScale < 0.8;
+
+  const teamOf = (id) => leagueTeams?.find(t => t.id === id);
   const crestOf = (team, id) => {
     if (id === myTeamId) {
       if (myTeamLogo) return <img src={myTeamLogo} style={styles.bracketCrestImg} alt="" />;
@@ -8015,43 +8083,303 @@ function CupBracket({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo,
     }
     return team?.clubLogo ? <img src={team.clubLogo} style={styles.bracketCrestImg} alt="" /> : null;
   };
+
+  const outcomeAt = (r, matchIdx) => {
+    const round = cupRounds?.[r];
+    if (!round?.matches?.[matchIdx]) return null;
+    return cupMatchOutcome(round, matchIdx);
+  };
+
+  const renderBlock = (r, matchIdx, side, posIdx) => {
+    const round = cupRounds?.[r];
+    const m = round?.matches?.[matchIdx];
+    const x = bkColX(bkColOf(r, side));
+    const y = r >= BK_SIDE_ROUNDS ? BK_HEIGHT / 2 : bkBlockY(r, posIdx);
+    const key = `b${r}-${matchIdx}`;
+    const box = {
+      position: 'absolute', left: x, top: y - BK_BLOCK_H / 2, width: BK_COL_W, height: BK_BLOCK_H,
+      borderRadius: 7, overflow: 'hidden', background: 'rgba(0,0,0,0.3)',
+    };
+
+    // Fase ainda não sorteada: bloco vazio, só pra manter o desenho do
+    // chaveamento completo desde a primeira fase.
+    if (!m) {
+      return (
+        <div key={key} style={{ ...box, border: '1px dashed rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 10, opacity: 0.25, fontFamily: "'Space Mono', monospace" }}>a definir</span>
+        </div>
+      );
+    }
+
+    const out = cupMatchOutcome(round, matchIdx);
+    const rows = [
+      { id: m.homeId, agg: out.aggH },
+      { id: m.awayId, agg: out.aggA },
+    ];
+    return (
+      <div key={key} style={{ ...box, border: '1px solid rgba(255,255,255,0.1)' }}>
+        {rows.map((row, ti) => {
+          const team = teamOf(row.id);
+          const won = out.decided && out.winnerId === row.id;
+          const lost = out.decided && out.loserId === row.id;
+          const mine = row.id === myTeamId;
+          return (
+            <div key={ti} style={{
+              display: 'flex', alignItems: 'center', gap: 5, height: '50%', padding: '0 6px',
+              borderBottom: ti === 0 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+              background: won ? hexToRgba(BK_GOLD, 0.14) : mine ? hexToRgba(mc, 0.14) : 'transparent',
+              boxShadow: won ? `inset 0 0 0 1.5px ${BK_GOLD}` : 'none',
+              opacity: lost ? 0.34 : 1,
+            }}>
+              <span style={{ ...styles.bracketCrestSlot, width: 16, height: 16 }}>{crestOf(team, row.id)}</span>
+              <span
+                onClick={() => !mine && onViewTeam && team && onViewTeam(team)}
+                style={{
+                  flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  fontSize: 10.5, cursor: mine ? 'default' : 'pointer',
+                  color: won ? BK_GOLD : mine ? mc : '#F4F1EA',
+                  fontWeight: won || mine ? 700 : 400,
+                }}
+              >{team?.label || '?'}</span>
+              {row.agg !== null && row.agg !== undefined && (
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10.5, fontWeight: 700, color: won ? BK_GOLD : 'rgba(255,255,255,0.7)' }}>
+                  {row.agg}{out.onPens && won ? '*' : ''}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  // Todos os blocos: 8 confrontos por lado nas 16 avos, metade a cada fase.
+  const blocks = [];
+  for (let r = 0; r < BK_SIDE_ROUNDS; r++) {
+    const perSide = 8 >> r;
+    for (let p = 0; p < perSide; p++) {
+      blocks.push(renderBlock(r, p, 'L', p));
+      blocks.push(renderBlock(r, perSide + p, 'R', p));
+    }
+  }
+  blocks.push(renderBlock(BK_SIDE_ROUNDS, 0, 'L', 0)); // final, no centro
+
+  // Linhas: uma por confronto, do bloco dele até o bloco da fase seguinte.
+  // Fica dourada quando o confronto já foi decidido — é a linha "levando" o
+  // classificado pro próximo bloco.
+  const paths = [];
+  for (let r = 0; r < BK_SIDE_ROUNDS; r++) {
+    const perSide = 8 >> r;
+    for (let p = 0; p < perSide; p++) {
+      for (const side of ['L', 'R']) {
+        const matchIdx = side === 'L' ? p : perSide + p;
+        const out = outcomeAt(r, matchIdx);
+        const lit = !!out?.decided;
+        const y = bkBlockY(r, p);
+        const isSemi = r === BK_SIDE_ROUNDS - 1;
+        const targetY = isSemi ? BK_HEIGHT / 2 : bkBlockY(r + 1, Math.floor(p / 2));
+        const colFrom = bkColOf(r, side);
+        const colTo = isSemi ? 4 : bkColOf(r + 1, side);
+        // No lado direito o desenho corre da direita pra esquerda.
+        const xFrom = side === 'L' ? bkColX(colFrom) + BK_COL_W : bkColX(colFrom);
+        const xTo = side === 'L' ? bkColX(colTo) : bkColX(colTo) + BK_COL_W;
+        const midX = (xFrom + xTo) / 2;
+        paths.push(
+          <path
+            key={`p${r}-${side}-${p}`}
+            d={`M ${xFrom} ${y} H ${midX} V ${targetY} H ${xTo}`}
+            fill="none"
+            stroke={lit ? BK_GOLD : 'rgba(255,255,255,0.13)'}
+            strokeWidth={lit ? 1.8 : 1}
+          />
+        );
+      }
+    }
+  }
+
+  const roundLabels = [];
+  for (let r = 0; r < BK_SIDE_ROUNDS; r++) {
+    for (const side of ['L', 'R']) {
+      roundLabels.push(
+        <div key={`l${r}${side}`} style={{
+          position: 'absolute', left: bkColX(bkColOf(r, side)), top: -22, width: BK_COL_W,
+          textAlign: 'center', fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase',
+          fontFamily: "'Space Mono', monospace", opacity: 0.4,
+        }}>{CUP_ROUND_NAMES[r]}</div>
+      );
+    }
+  }
+  roundLabels.push(
+    <div key="lfinal" style={{
+      position: 'absolute', left: bkColX(4), top: -22, width: BK_COL_W,
+      textAlign: 'center', fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase',
+      fontFamily: "'Space Mono', monospace", color: BK_GOLD, fontWeight: 700,
+    }}>🏆 Final</div>
+  );
+
   return (
-    <div style={{ overflowX: 'auto', marginTop: 12 }}>
-      <div style={{ display: 'flex', gap: 12, minWidth: 'max-content', paddingBottom: 8 }}>
-        {cupRounds.map((round, rIdx) => (
-          <div key={rIdx} style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 150 }}>
-            <div style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace", marginBottom: 6, textAlign: 'center', textTransform: 'uppercase' }}>{round.name}</div>
-            {/* Final é jogo único (2 times = 1 partida): não existe leg1Results
-                pra somar, o placar da própria partida já é o final. */}
-            {round.matches.map((m, mIdx) => {
-              const h = leagueTeams.find(t => t.id === m.homeId);
-              const a = leagueTeams.find(t => t.id === m.awayId);
-              const isFinalMatch = round.matches.length === 1;
-              const leg1 = round.leg1Results?.[mIdx];
-              const leg2 = round.results?.[mIdx];
-              const aggH = isFinalMatch ? (leg2 ? leg2.homeGoals : null) : (leg1 && leg2 ? leg1.homeGoals + leg2.awayGoals : null);
-              const aggA = isFinalMatch ? (leg2 ? leg2.awayGoals : null) : (leg1 && leg2 ? leg1.awayGoals + leg2.homeGoals : null);
-              const hWon = aggH !== null && aggH > aggA;
-              const aWon = aggA !== null && aggA > aggH;
-              return (
-                <div key={mIdx} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, overflow: 'hidden', fontSize: 11.5 }}>
-                  {[{ team: h, id: m.homeId, won: hWon }, { team: a, id: m.awayId, won: aWon }].map(({ team, id, won }, ti) => (
-                    <div key={ti} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '5px 8px', background: won ? 'rgba(127,217,154,0.1)' : id === myTeamId ? `${mc}18` : 'transparent', borderBottom: ti === 0 ? '1px solid rgba(255,255,255,0.06)' : 'none' }}>
-                      <span style={styles.bracketCrestSlot}>{crestOf(team, id)}</span>
-                      <span
-                        onClick={() => id !== myTeamId && onViewTeam && team && onViewTeam(team)}
-                        style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: id === myTeamId ? mc : won ? '#7fd99a' : '#F4F1EA', fontWeight: id === myTeamId || won ? 700 : 400, cursor: id === myTeamId ? 'default' : 'pointer' }}
-                      >{team?.label || '?'}</span>
-                      {aggH !== null && <span style={{ fontFamily: 'monospace', fontSize: 11, fontWeight: 700 }}>{ti === 0 ? aggH : aggA}</span>}
-                    </div>
-                  ))}
-                </div>
-              );
-            })}
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 1460, maxHeight: '94vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: BK_GOLD, fontWeight: 700 }}>
+            🏆 Chaveamento — Copa do Brasil
           </div>
-        ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {canZoom && (
+              <button
+                onClick={() => setZoomed(z => !z)}
+                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, color: '#F4F1EA', fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}
+              >{zoomed ? '⤢ Ver inteiro' : '🔍 Ampliar'}</button>
+            )}
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+          </div>
+        </div>
+
+        <div ref={wrapRef} style={{ width: '100%', overflowX: zoomed ? 'auto' : 'hidden', overflowY: 'hidden' }}>
+          <div style={{ height: (BK_HEIGHT + 30) * scale, width: BK_WIDTH * scale, position: 'relative' }}>
+            <div style={{ position: 'absolute', width: BK_WIDTH, height: BK_HEIGHT, top: 26 * scale, left: 0, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
+              <svg width={BK_WIDTH} height={BK_HEIGHT} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>{paths}</svg>
+              {roundLabels}
+              {blocks}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 14, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', fontSize: 10.5, opacity: 0.55 }}>
+          <span><span style={{ color: BK_GOLD }}>▬</span> classificado</span>
+          <span>times escurecidos foram eliminados</span>
+          <span><span style={{ fontFamily: "'Space Mono', monospace" }}>*</span> decidido nos pênaltis</span>
+        </div>
+
+        <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', marginTop: 14, background: mc, color: '#0B1A12' }}>
+          Fechar
+        </button>
       </div>
     </div>
+  );
+}
+
+// Painel de estatísticas da temporada (artilheiros, assistências, goleiros,
+// notas e cartões) — usado tanto no Brasileirão quanto na Copa.
+function SeasonStatsPanel({ scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, leagueTeams, mc }) {
+  const empty = !((scorers && Object.keys(scorers).length) || (assisters && Object.keys(assisters).length)
+    || (cleanSheets && Object.keys(cleanSheets).length) || (seasonRatings && Object.keys(seasonRatings).length)
+    || (cardCounts && Object.keys(cardCounts).length));
+  if (empty) {
+    return <div style={{ marginTop: 14, fontSize: 12, opacity: 0.45, textAlign: 'center' }}>As estatísticas aparecem depois do primeiro jogo.</div>;
+  }
+  return (
+    <>
+      {scorers && Object.keys(scorers).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={styles.sectionLabel}>Artilheiros</div>
+          {Object.entries(scorers)
+            .sort((a, b) => b[1].goals - a[1].goals)
+            .slice(0, 5)
+            .map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              return (
+                <div key={key} style={styles.statRow}>
+                  <span style={styles.statRank}>{i + 1}.</span>
+                  <span style={styles.statName}>{name}</span>
+                  <span style={styles.statTeam}>{d.teamLabel}</span>
+                  <span style={{ ...styles.statValue, color: mc }}>gol {d.goals}</span>
+                </div>
+              );
+            })
+          }
+        </div>
+      )}
+
+      {assisters && Object.keys(assisters).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={styles.sectionLabel}>Lideres de Assistencia</div>
+          {Object.entries(assisters)
+            .sort((a, b) => b[1].assists - a[1].assists)
+            .slice(0, 5)
+            .map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              return (
+                <div key={key} style={styles.statRow}>
+                  <span style={styles.statRank}>{i + 1}.</span>
+                  <span style={styles.statName}>{name}</span>
+                  <span style={styles.statTeam}>{d.teamLabel}</span>
+                  <span style={{ ...styles.statValue, color: mc }}>assist {d.assists}</span>
+                </div>
+              );
+            })
+          }
+        </div>
+      )}
+
+      {cleanSheets && Object.keys(cleanSheets).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={styles.sectionLabel}>Goleiros — Jogos sem sofrer gol</div>
+          {Object.entries(cleanSheets)
+            .filter(([, d]) => d.clean > 0)
+            .sort((a, b) => b[1].clean - a[1].clean)
+            .slice(0, 5)
+            .map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              return (
+                <div key={key} style={styles.statRow}>
+                  <span style={styles.statRank}>{i + 1}.</span>
+                  <span style={styles.statName}>{name}</span>
+                  <span style={styles.statTeam}>{d.teamLabel}</span>
+                  <span style={{ ...styles.statValue, color: mc }}>🧤 {d.clean}</span>
+                </div>
+              );
+            })
+          }
+        </div>
+      )}
+
+      {seasonRatings && Object.keys(seasonRatings).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={styles.sectionLabel}>Nota Média da Temporada</div>
+          {Object.entries(seasonRatings)
+            .filter(([, d]) => d.count >= 3)
+            .sort((a, b) => (b[1].sum / b[1].count) - (a[1].sum / a[1].count))
+            .slice(0, 5)
+            .map(([key, d], i) => {
+              const { name } = splitPlayerKey(key);
+              const avg = d.sum / d.count;
+              return (
+                <div key={key} style={styles.statRow}>
+                  <span style={styles.statRank}>{i + 1}.</span>
+                  <span style={styles.statName}>{name}</span>
+                  <span style={styles.statTeam}>{d.teamLabel} · {d.count}j</span>
+                  <span style={{ ...styles.statValue, color: avg >= 7.5 ? '#7fd99a' : avg < 5.5 ? '#e0593f' : mc }}>⭐ {avg.toFixed(1)}</span>
+                </div>
+              );
+            })
+          }
+        </div>
+      )}
+
+      {cardCounts && Object.keys(cardCounts).length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <div style={styles.sectionLabel}>Cartões</div>
+          {Object.entries(cardCounts)
+            .sort((a, b) => b[1] - a[1])
+            .slice(0, 5)
+            .map(([key, yellows], i) => {
+              const { teamId, name } = splitPlayerKey(key);
+              const teamLabel = leagueTeams?.find(t => t.id === teamId)?.label;
+              return (
+                <div key={key} style={styles.statRow}>
+                  <span style={styles.statRank}>{i + 1}.</span>
+                  <span style={styles.statName}>{name}</span>
+                  {teamLabel && <span style={styles.statTeam}>{teamLabel}</span>}
+                  {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
+                  <span style={{ ...styles.statValue, color: mc }}>🟨 {yellows}</span>
+                </div>
+              );
+            })
+          }
+        </div>
+      )}
+    </>
   );
 }
 
@@ -9153,6 +9481,12 @@ function LeaderboardModal({ onClose, myUsername }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-08-chaveamento-copa',
+    date: 'Agosto de 2026',
+    title: 'Adição: chaveamento da Copa do Brasil',
+    desc: 'A Copa do Brasil ganhou o chaveamento no formato clássico, num modal grande: 16 confrontos de cada lado e a final no meio. A cada fase que termina, quem foi eliminado escurece e quem passou fica com contorno dourado, com a linha levando o classificado até o bloco da próxima fase. Abre pelo botão "Ver chaveamento" — e no lugar dele, a tela da Copa agora mostra as estatísticas do torneio (artilheiros, assistências, goleiros, notas e cartões).',
+  },
+  {
     id: '2026-08-calendario',
     date: 'Agosto de 2026',
     title: 'Adição: calendário de jogos da temporada',
@@ -9727,6 +10061,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
   // de pênalti na tela ao vivo, pra não deixar escalar/selecionar quem está
   // fora por disciplina/lesão mesmo depois da troca automática pré-jogo.
+  const [showBracket, setShowBracket] = useState(false);
   const myUnavailableNames = useMemo(() => {
     const names = new Set();
     const prefix = `${myTeamId}::`;
@@ -9796,6 +10131,37 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
     const userLeg1 = leg1Results && userOrigIdx >= 0 ? leg1Results[userOrigIdx] : null;
     const origMatch = userOrigIdx >= 0 ? cupRound.matches[userOrigIdx] : null;
 
+    // Rodapé comum às três telas da Copa (jogando, eliminado, eliminado com
+    // resultados): estatísticas do torneio + botão que abre o chaveamento no
+    // modal. O chaveamento saiu de dentro da tela porque em 5 fases ele nunca
+    // coube — no modal dá pra desenhar o formato clássico inteiro.
+    const cupExtras = (
+      <>
+        {cupRounds.length > 0 && (
+          <button
+            style={{ ...styles.btnGhost, width: '100%', marginTop: 14 }}
+            onClick={() => setShowBracket(true)}
+          >
+            🏆 Ver chaveamento
+          </button>
+        )}
+        <div style={{ marginTop: 14 }}>
+          <div style={styles.sectionLabel}>Estatísticas da Copa</div>
+          <SeasonStatsPanel
+            scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings}
+            cardCounts={cardCounts} redCards={redCards} leagueTeams={leagueTeams} mc={mc}
+          />
+        </div>
+        {showBracket && (
+          <CupBracketModal
+            cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc}
+            myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam}
+            onClose={() => setShowBracket(false)}
+          />
+        )}
+      </>
+    );
+
     // Usuário eliminado
     if (!userInCup) {
       const elimRoundName = eliminationRoundName || roundName;
@@ -9818,12 +10184,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                 <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#d4a23c' }}>Simulando em {autoCountdown}s...</div>
               )}
             </div>
-            {cupRounds.length > 0 && (
-              <div style={{ marginTop: 12 }}>
-                <div style={styles.sectionLabel}>Chaveamento</div>
-                <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam} />
-              </div>
-            )}
+            {cupExtras}
           </div>
         );
       }
@@ -9880,12 +10241,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               })}
             </div>
           )}
-          {cupRounds.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <div style={styles.sectionLabel}>Chaveamento</div>
-              <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam} />
-            </div>
-          )}
+          {cupExtras}
         </div>
       );
     }
@@ -10031,13 +10387,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           );
         })()}
 
-        {/* Chaveamento das fases */}
-        {cupRounds.length > 0 && (
-          <div style={{ marginTop: 12 }}>
-            <div style={styles.sectionLabel}>Chaveamento</div>
-            <CupBracket cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam} />
-          </div>
-        )}
+        {cupExtras}
       </div>
     );
   }
@@ -10271,121 +10621,10 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
       })()}
 
       {activeTab === 'estatisticas' && (
-      <>
-      {/* Artilheiros */}
-      {scorers && Object.keys(scorers).length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Artilheiros</div>
-          {Object.entries(scorers)
-            .sort((a, b) => b[1].goals - a[1].goals)
-            .slice(0, 5)
-            .map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
-                <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                <span style={{ fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.teamLabel}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
-              </div>
-              );
-            })
-          }
-        </div>
-      )}
-
-      {assisters && Object.keys(assisters).length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Lideres de Assistencia</div>
-          {Object.entries(assisters)
-            .sort((a, b) => b[1].assists - a[1].assists)
-            .slice(0, 5)
-            .map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
-                <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                <span style={{ fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.teamLabel}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
-              </div>
-              );
-            })
-          }
-        </div>
-      )}
-
-      {cleanSheets && Object.keys(cleanSheets).length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Goleiros — Jogos sem sofrer gol</div>
-          {Object.entries(cleanSheets)
-            .filter(([, d]) => d.clean > 0)
-            .sort((a, b) => b[1].clean - a[1].clean)
-            .slice(0, 5)
-            .map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
-                <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                <span style={{ fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.teamLabel}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
-              </div>
-              );
-            })
-          }
-        </div>
-      )}
-
-      {seasonRatings && Object.keys(seasonRatings).length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Nota Média da Temporada</div>
-          {Object.entries(seasonRatings)
-            .filter(([, d]) => d.count >= 3)
-            .sort((a, b) => (b[1].sum / b[1].count) - (a[1].sum / a[1].count))
-            .slice(0, 5)
-            .map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              const avg = d.sum / d.count;
-              return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
-                <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                <span style={{ fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d.teamLabel} · {d.count}j</span>
-                <span style={{
-                  fontFamily: "'Space Mono', monospace", fontWeight: 700,
-                  color: avg >= 7.5 ? '#7fd99a' : avg < 5.5 ? '#e0593f' : mc,
-                }}>⭐ {avg.toFixed(1)}</span>
-              </div>
-              );
-            })
-          }
-        </div>
-      )}
-
-      {cardCounts && Object.keys(cardCounts).length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Cartões</div>
-          {Object.entries(cardCounts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([key, yellows], i) => {
-              const { teamId, name } = splitPlayerKey(key);
-              const teamLabel = leagueTeams.find(t => t.id === teamId)?.label;
-              return (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
-                  <span style={{ width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                  <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                  {teamLabel && <span style={{ fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel}</span>}
-                  {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
-                </div>
-              );
-            })
-          }
-        </div>
-      )}
-      </>
+        <SeasonStatsPanel
+          scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings}
+          cardCounts={cardCounts} redCards={redCards} leagueTeams={leagueTeams} mc={mc}
+        />
       )}
 
       {activeTab === 'partida' && (
@@ -11321,6 +11560,11 @@ const styles = {
 
   // Jogo ao vivo
   liveMatchBox: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '20px 16px', marginBottom: 20 },
+  statRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 },
+  statRank: { width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 },
+  statName: { flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  statTeam: { fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  statValue: { fontFamily: "'Space Mono', monospace", fontWeight: 700 },
   bracketCrestSlot: { width: 20, height: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   bracketCrestImg: { width: 20, height: 20, objectFit: 'contain', flexShrink: 0, borderRadius: 4, background: 'rgba(255,255,255,0.9)', padding: 1 },
   bracketCrestEmoji: { fontSize: 16, lineHeight: 1 },
