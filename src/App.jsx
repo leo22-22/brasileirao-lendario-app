@@ -1684,10 +1684,14 @@ function buildPitchSlots(formationKey) {
   return slots;
 }
 
-function shuffle2(arr) {
+// Fisher-Yates. `rand` é injetável porque o multiplayer precisa embaralhar de
+// forma DETERMINÍSTICA (mesma seed em todos os peers → mesmo resultado); com
+// Math.random cada cliente geraria uma ordem diferente e o campeonato inteiro
+// desincronizaria.
+function shuffle2(arr, rand = Math.random) {
   const a = [...arr];
   for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
+    const j = Math.floor(rand() * (i + 1));
     [a[i], a[j]] = [a[j], a[i]];
   }
   return a;
@@ -3680,7 +3684,11 @@ export default function App() {
     setSeasonAwards([]);
 
     if (gameMode === 'brasileirao') {
-      const rounds = generateDoubleRoundRobin(allTeams.map(t => t.id));
+      // Embaralha só a ordem passada pro gerador de tabela: o método do
+      // círculo mantém o índice 0 fixo, então a POSIÇÃO no array determina em
+      // que rodada cada dupla se enfrenta. Com o time do usuário sempre no
+      // índice 0, o padrão de adversários saía idêntico toda temporada.
+      const rounds = generateDoubleRoundRobin(shuffle2(allTeams.map(t => t.id)));
       const table = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
       setFixtures(rounds);
       setLeagueTable(table);
@@ -4749,7 +4757,11 @@ export default function App() {
     setLeagueTeams(allTeams);
 
     if (gameMode === 'brasileirao') {
-      const rounds = generateDoubleRoundRobin(allTeams.map(t => t.id));
+      // Embaralha só a ordem passada pro gerador de tabela: o método do
+      // círculo mantém o índice 0 fixo, então a POSIÇÃO no array determina em
+      // que rodada cada dupla se enfrenta. Com o time do usuário sempre no
+      // índice 0, o padrão de adversários saía idêntico toda temporada.
+      const rounds = generateDoubleRoundRobin(shuffle2(allTeams.map(t => t.id)));
       const table = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
       setFixtures(rounds);
       setLeagueTable(table);
@@ -5148,7 +5160,13 @@ export default function App() {
     setGameMode(gMode);
     setLeagueTeams(allTeams);
     if (gMode === 'brasileirao') {
-      const rounds = generateDoubleRoundRobin(allTeams.map(t => t.id));
+      // Mesma correção do single player (a posição no array decide em que
+      // rodada cada dupla se enfrenta), mas aqui o embaralhamento PRECISA ser
+      // semeado: com os humanos sempre nos primeiros índices, dois jogadores
+      // caíam SEMPRE na 19ª e na 38ª rodada. Usa a seed compartilhada da sala
+      // (+2 pra não repetir a sequência já usada no sorteio dos times de IA
+      // acima) pra todos os peers gerarem exatamente o mesmo calendário.
+      const rounds = generateDoubleRoundRobin(shuffle2(allTeams.map(t => t.id), makePrng(roomSnap.seed + 2)));
       setFixtures(rounds);
       setLeagueTable(allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 })));
       setCurrentRound(0);
