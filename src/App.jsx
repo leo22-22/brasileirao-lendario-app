@@ -1870,10 +1870,14 @@ const CUP_ROUND_NAMES = ['16 Avos de Final', 'Oitavas de Final', 'Quartas de Fin
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const FAST_SIM_ROUND_DELAY_MS = 450;
-// Ritmo da animação "dia a dia" do calendário: dias vazios passam voando,
-// dia de jogo pausa o suficiente pro selo de resultado aparecer.
-const CALENDAR_EMPTY_DAY_MS = 18;
-const CALENDAR_MATCH_DAY_MS = 380;
+// Ritmo da animação "dia a dia" do calendário. O dia vazio precisa ser lento
+// o bastante pra dar pra VER o tempo passando — com 18ms (valor anterior) os
+// ~7 dias entre rodadas sumiam em 126ms e parecia que a simulação pulava de
+// jogo em jogo. Como a 1x a temporada inteira leva ~35s, o modal tem um
+// seletor de velocidade (1x/2x/4x) que divide esses tempos.
+const CALENDAR_EMPTY_DAY_MS = 85;
+const CALENDAR_MATCH_DAY_MS = 420;
+const CALENDAR_SPEEDS = [1, 2, 4];
 
 // Texto que aparece durante a "simulação direta" — sem isso a espera fica
 // morta na tela; com uma frase que muda a cada rodada dá a sensação de
@@ -3359,6 +3363,12 @@ export default function App() {
   const [calendarSimActive, setCalendarSimActive] = useState(false);
   const [calendarCursor, setCalendarCursor] = useState(null);
   const calendarCursorRef = useRef(null);
+  // Velocidade da animação do calendário. Também em ref: o loop de simulação
+  // é assíncrono e lê o valor a cada passo — sem a ref ele ficaria preso na
+  // velocidade que estava valendo quando começou.
+  const [calendarSpeed, setCalendarSpeed] = useState(1);
+  const calendarSpeedRef = useRef(1);
+  const changeCalendarSpeed = (s) => { calendarSpeedRef.current = s; setCalendarSpeed(s); };
   const [penaltyPhase, setPenaltyPhase] = useState(null);
   // Ref sincrono do penaltyPhase — goNextRound precisa checar "tem pênalti
   // rolando agora" sem depender do closure (que só atualiza no próximo
@@ -4301,7 +4311,7 @@ export default function App() {
         while (cursor < roundDay && !fastSimCancelRef.current) {
           calendarCursorRef.current = cursor;
           setCalendarCursor(cursor);
-          await delay(CALENDAR_EMPTY_DAY_MS);
+          await delay(CALENDAR_EMPTY_DAY_MS / calendarSpeedRef.current);
           cursor = addDays(cursor, 1);
         }
         calendarCursorRef.current = roundDay;
@@ -4376,16 +4386,19 @@ export default function App() {
       setRoundResults(results);
       setRoundHistory(prev => ({ ...prev, [round - 1]: results }));
 
-      await delay(onCalendar ? CALENDAR_MATCH_DAY_MS : FAST_SIM_ROUND_DELAY_MS);
+      await delay(onCalendar ? CALENDAR_MATCH_DAY_MS / calendarSpeedRef.current : FAST_SIM_ROUND_DELAY_MS);
     }
 
     setFastSimActive(false);
     setCalendarSimActive(false);
     setFastSimStatusMsg('');
-    // Só encerra a temporada se chegou de fato ao fim das rodadas — parar no
-    // meio (botão "Parar") ou simular até uma rodada-alvo deixa o jogo seguir
-    // normalmente, com a próxima rodada pronta pra ser jogada ao vivo.
-    if (!fastSimCancelRef.current && round >= fixtures.length) {
+    // Acabaram as rodadas → temporada encerrada, mesmo que o "Parar" tenha
+    // sido apertado justamente na última (senão o jogo ficava preso em
+    // "Rodada 39 de 38"). O calendário TEM que fechar aqui: ele é renderizado
+    // no root com z-index alto, e a tela de resultado apareceria atrás dele —
+    // era o "cheguei no fim e não acontece nada".
+    if (round >= fixtures.length) {
+      setShowCalendar(false);
       applySeasonAwards(undefined, table, scorersAcc, assistersAcc, history, ratingsAcc);
       setPhase('results');
     } else {
@@ -4759,7 +4772,7 @@ export default function App() {
         cursor = addDays(cursor, 1);
         calendarCursorRef.current = cursor;
         setCalendarCursor(cursor);
-        await delay(CALENDAR_EMPTY_DAY_MS * 3);
+        await delay(CALENDAR_EMPTY_DAY_MS / calendarSpeedRef.current);
       }
       if (!cancelled) {
         await delay(400);
@@ -5701,7 +5714,9 @@ export default function App() {
         {viewingTeam && (
           <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspensions={suspensions} injuries={injuries} />
         )}
-        {showCalendar && gameMode === 'brasileirao' && fixtures.length > 0 && (
+        {/* `phase === 'playing'` é rede de segurança: o calendário nunca pode
+            ficar por cima da tela de resultado no fim da temporada. */}
+        {showCalendar && phase === 'playing' && gameMode === 'brasileirao' && fixtures.length > 0 && (
           <SeasonCalendarModal
             fixtures={fixtures}
             seasonDates={seasonDates}
@@ -5712,6 +5727,8 @@ export default function App() {
             myTeamColor={myTeamColor}
             simActive={calendarSimActive}
             cursorDate={calendarCursor}
+            speed={calendarSpeed}
+            onSetSpeed={changeCalendarSpeed}
             onSimulateTo={(round) => fastForwardBrasileirao(round, { onCalendar: true })}
             onSimulateAll={() => fastForwardBrasileirao(null, { onCalendar: true })}
             onStop={cancelFastSim}
@@ -9527,7 +9544,7 @@ const RESULT_COLORS = { V: '#7fd99a', D: '#e05050', E: 'rgba(255,255,255,0.45)' 
 // que a pessoa escolher.
 function SeasonCalendarModal({
   fixtures, seasonDates, currentRound, roundHistory, leagueTeams, myTeamId, myTeamColor,
-  simActive, cursorDate, onSimulateTo, onSimulateAll, onStop, onClose,
+  simActive, cursorDate, speed, onSetSpeed, onSimulateTo, onSimulateAll, onStop, onClose,
 }) {
   const mc = myTeamColor || '#d4a23c';
   const dateMap = useMemo(() => roundDateMap(seasonDates), [seasonDates]);
@@ -9569,7 +9586,7 @@ function SeasonCalendarModal({
 
   return (
     <div onClick={simActive ? undefined : onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, maxHeight: '92vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 18, position: 'relative' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 760, maxHeight: '94vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 22, position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>
             📅 Calendário de jogos
@@ -9589,7 +9606,7 @@ function SeasonCalendarModal({
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
           {WEEKDAY_LABELS.map(w => (
-            <div key={w} style={{ textAlign: 'center', fontSize: 9, fontFamily: "'Space Mono', monospace", opacity: 0.4, letterSpacing: 0.5 }}>{w}</div>
+            <div key={w} style={{ textAlign: 'center', fontSize: 10.5, fontFamily: "'Space Mono', monospace", opacity: 0.45, letterSpacing: 0.5 }}>{w}</div>
           ))}
         </div>
 
@@ -9609,23 +9626,23 @@ function SeasonCalendarModal({
                 onClick={() => handleDayClick(day)}
                 title={hasRound ? `Rodada ${round + 1}` : 'Sem jogo'}
                 style={{
-                  minHeight: 44, padding: '3px 2px', borderRadius: 7, textAlign: 'center', cursor: simActive ? 'default' : 'pointer',
+                  minHeight: 62, padding: '5px 3px', borderRadius: 8, textAlign: 'center', cursor: simActive ? 'default' : 'pointer',
                   border: `1px solid ${isCursor ? mc : isSelected ? hexToRgba(mc, 0.5) : hasRound ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}`,
                   background: isCursor ? hexToRgba(mc, 0.22) : hasRound ? 'rgba(255,255,255,0.04)' : 'transparent',
                   color: '#F4F1EA', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                 }}
               >
-                <span style={{ fontSize: 10, fontFamily: "'Space Mono', monospace", opacity: hasRound ? 0.8 : 0.35 }}>{day.getDate()}</span>
+                <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", opacity: hasRound ? 0.85 : 0.35 }}>{day.getDate()}</span>
                 {hasRound && !result && (
-                  <span style={{ fontSize: 7.5, color: mc, fontWeight: 700, lineHeight: 1 }}>R{round + 1}</span>
+                  <span style={{ fontSize: 9.5, color: mc, fontWeight: 700, lineHeight: 1 }}>R{round + 1}</span>
                 )}
                 {result && (
                   <>
                     <span style={{
-                      width: 14, height: 14, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: RESULT_COLORS[result.res], color: '#0B1A12', fontSize: 8.5, fontWeight: 800, lineHeight: 1,
+                      width: 19, height: 19, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: RESULT_COLORS[result.res], color: '#0B1A12', fontSize: 11, fontWeight: 800, lineHeight: 1,
                     }}>{result.res}</span>
-                    <span style={{ fontSize: 7.5, opacity: 0.6, fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{result.gf}-{result.ga}</span>
+                    <span style={{ fontSize: 9.5, opacity: 0.65, fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{result.gf}-{result.ga}</span>
                   </>
                 )}
               </button>
@@ -9663,6 +9680,24 @@ function SeasonCalendarModal({
         </div>
 
         <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {/* Velocidade da passagem dos dias — sempre visível (dá pra trocar
+              no meio da simulação, o loop lê o valor a cada passo). */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 2 }}>
+            <span style={{ fontSize: 10.5, opacity: 0.45, fontFamily: "'Space Mono', monospace" }}>VELOCIDADE</span>
+            {CALENDAR_SPEEDS.map(s => (
+              <button
+                key={s}
+                onClick={() => onSetSpeed(s)}
+                style={{
+                  fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: speed === s ? 700 : 400,
+                  padding: '3px 10px', borderRadius: 6, cursor: 'pointer',
+                  border: `1px solid ${speed === s ? mc : 'rgba(255,255,255,0.2)'}`,
+                  background: speed === s ? hexToRgba(mc, 0.15) : 'transparent',
+                  color: speed === s ? mc : 'rgba(255,255,255,0.6)',
+                }}
+              >{s}x</button>
+            ))}
+          </div>
           {simActive ? (
             <button onClick={onStop} style={{ ...styles.btnPrimary, width: '100%', background: '#e05050', color: '#fff' }}>
               ⏸ Parar no próximo jogo
@@ -9704,6 +9739,10 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   const um = activeUserMatch || round.find(m => m.homeId === myTeamId || m.awayId === myTeamId);
   const homeTeam = um ? leagueTeams.find(t => t.id === um.homeId) : null;
   const awayTeam = um ? leagueTeams.find(t => t.id === um.awayId) : null;
+  // Label do próprio time — o histórico guarda só os nomes (homeLabel/
+  // awayLabel), então é assim que dá pra saber o mando e quem foi o
+  // adversário em cada partida (mesmo critério usado na tela de resultado).
+  const myLabel = leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time';
   const roundDone = roundResults !== null;
   const clockDisplay = `${clockMinute}'`;
   const [showHistory, setShowHistory] = useState(false);
@@ -10403,15 +10442,41 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             {showHistory ? 'v' : '>'} Historico ({matchHistory.length} partida{matchHistory.length !== 1 ? 's' : ''})
           </button>
           {showHistory && (
-            <div style={{ marginTop: 8 }}>
-              {[...matchHistory].reverse().map((m, i) => (
-                <div key={i} style={{ ...styles.otherMatchRow, fontSize: 12 }}>
-                  <span style={{ fontSize: 10, opacity: 0.4, minWidth: 32 }}>{m.gameMode === 'copa' ? m.legLabel : `R${m.round}`}</span>
-                  <span style={{ ...styles.otherTeam, fontWeight: m.hg > m.ag ? 700 : 400 }}>{m.homeLabel}</span>
-                  <span style={styles.otherScore}>{m.hg} - {m.ag}</span>
-                  <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: m.ag > m.hg ? 700 : 400 }}>{m.awayLabel}</span>
-                </div>
-              ))}
+            <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {/* Uma linha por partida do usuário: rodada, selo V/D/E, mando
+                  (vs = casa, @ = fora), adversário e placar. Só o adversário
+                  aparece — o outro time é sempre o do usuário, e mostrar os
+                  dois nomes era justamente o que estourava a largura e
+                  quebrava a linha (o grid de 3 colunas recebia 4 filhos). */}
+              {[...matchHistory].reverse().map((m, i) => {
+                const isHome = m.homeLabel === myLabel;
+                const gf = isHome ? m.hg : m.ag;
+                const ga = isHome ? m.ag : m.hg;
+                const res = gf > ga ? 'V' : gf < ga ? 'D' : 'E';
+                const opponent = isHome ? m.awayLabel : m.homeLabel;
+                return (
+                  <div key={i} style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                    borderRadius: 8, background: 'rgba(255,255,255,0.03)',
+                    border: `1px solid ${hexToRgba(RESULT_COLORS[res], 0.28)}`, fontSize: 12.5,
+                  }}>
+                    <span style={{ fontSize: 9.5, opacity: 0.4, fontFamily: "'Space Mono', monospace", width: 30, flexShrink: 0 }}>
+                      {m.gameMode === 'copa' ? (m.legLabel || '').slice(0, 5) : `R${m.round}`}
+                    </span>
+                    <span style={{
+                      width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: RESULT_COLORS[res], color: '#0B1A12', fontSize: 11, fontWeight: 800,
+                    }}>{res}</span>
+                    <span style={{ fontSize: 10, opacity: 0.4, width: 16, flexShrink: 0, textAlign: 'center' }}>{isHome ? 'vs' : '@'}</span>
+                    <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opponent}</span>
+                    <span style={{
+                      fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 13, flexShrink: 0,
+                      color: RESULT_COLORS[res] === RESULT_COLORS.E ? '#F4F1EA' : RESULT_COLORS[res],
+                    }}>{gf}-{ga}</span>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
