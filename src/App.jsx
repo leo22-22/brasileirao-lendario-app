@@ -2815,6 +2815,16 @@ const CLUB_LOGOS = {
   'Atletico-GO': 'https://r2.thesportsdb.com/images/media/team/badge/l7382k1766505911.png',
 };
 
+// Qual clube o emblema escolhido representa. O time do usuário não vem de
+// TEAMS, então não tem campo `club` — e era por isso que ele ficava SEM grito
+// de gol (a busca em GOAL_AUDIO_FILES caía em `undefined`) e, ao ser campeão,
+// tocava o hino do clube da MAIORIA dos jogadores escalados em vez do hino do
+// escudo escolhido. Emblema próprio (upload) continua sem clube conhecido.
+function clubFromLogo(logoUrl) {
+  if (!logoUrl) return null;
+  return Object.keys(CLUB_LOGOS).find(c => CLUB_LOGOS[c] === logoUrl) || null;
+}
+
 // Áudios de gol reais por clube (public/gol/*.mp3). Botafogo tem 2 variantes
 // que alternam aleatoriamente; clubes sem arquivo proprio ficam sem som.
 const GOAL_AUDIO_FILES = {
@@ -3747,7 +3757,7 @@ export default function App() {
       };
     });
 
-    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
+    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, club: clubFromLogo(myTeamLogo), ovr: userOvr, players: userPlayers };
     const allTeams = [myTeamObj, ...opps];
 
     setLeagueTeams(allTeams);
@@ -4928,7 +4938,7 @@ export default function App() {
       };
     });
 
-    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, ovr: userOvr, players: userPlayers };
+    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, club: clubFromLogo(myTeamLogo), ovr: userOvr, players: userPlayers };
     const allTeams = [myTeamObj, ...opps];
     setLeagueTeams(allTeams);
 
@@ -5322,7 +5332,7 @@ export default function App() {
     const maxSlots = gMode === 'copa' ? 32 : 20;
     const humanTeams = players.map(([pid, p]) => ({
       id: pid, label: p.name || 'Jogador', badge: '', color: p.color || '#d4a23c',
-      logo: p.logo || null, clubLogo: null, ovr: p.ovr || 70,
+      logo: p.logo || null, clubLogo: null, club: clubFromLogo(p.logo), ovr: p.ovr || 70,
       players: p.pitch ? partitionStartersFirst(Object.values(p.pitch)) : [], isHuman: true,
     }));
     const needed = maxSlots - humanTeams.length;
@@ -6397,7 +6407,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
   const goalRecordTimeoutRef = useRef(null);
   const goalAudioFileInputRef = useRef(null);
 
-  const anthemClub = Object.entries(CLUB_LOGOS).find(([, url]) => url === myTeamLogo)?.[0];
+  const anthemClub = clubFromLogo(myTeamLogo);
   const anthemId = anthemClub && CLUB_ANTHEMS[anthemClub];
 
   useEffect(() => {
@@ -9894,6 +9904,23 @@ function SeasonCalendarModal({
       ? v : { year: cursorDate.getFullYear(), month: cursorDate.getMonth() }));
   }, [cursorDate]);
 
+  // ...e o painel de jogos embaixo troca junto: quando o cursor cai num dia de
+  // jogo, é aquela rodada que passa a ser exibida. Sem isso o painel ficava
+  // preso na rodada em que o modal foi aberto enquanto a temporada inteira
+  // corria por cima.
+  useEffect(() => {
+    if (!cursorDate) return;
+    const r = dateMap[dateKey(cursorDate)];
+    if (r !== undefined) setSelectedRound(r);
+  }, [cursorDate, dateMap]);
+
+  // Fora da simulação (modo automático entre partidas, ou logo depois de
+  // parar), o painel acompanha a rodada atual do campeonato.
+  useEffect(() => {
+    if (simActive) return;
+    setSelectedRound(Math.min(currentRound, fixtures.length - 1));
+  }, [currentRound, simActive, fixtures.length]);
+
   useEffect(() => {
     if (!emptyMsg) return;
     const t = setTimeout(() => setEmptyMsg(''), 2000);
@@ -11464,11 +11491,15 @@ const globalCss = `
   }
   input::placeholder { color: rgba(255,255,255,0.2); }
   input:focus { border-color: rgba(212,162,60,0.5) !important; outline: none; }
-  .draft-left { scrollbar-width: thin; scrollbar-color: rgba(212,162,60,0.3) transparent; }
+  /* Barra de rolagem discreta em todo o app — a padrão do Chrome/Windows é
+     larga e cinza-claro, e ficava gritando dentro dos modais escuros. */
+  * { scrollbar-width: thin; scrollbar-color: rgba(212,162,60,0.32) transparent; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(212,162,60,0.3); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: rgba(212,162,60,0.55); background-clip: padding-box; border: 2px solid transparent; }
+  ::-webkit-scrollbar-corner { background: transparent; }
   .draft-left::-webkit-scrollbar { width: 3px; }
-  .draft-left::-webkit-scrollbar-track { background: transparent; }
-  .draft-left::-webkit-scrollbar-thumb { background: rgba(212,162,60,0.35); border-radius: 999px; }
-  .draft-left::-webkit-scrollbar-thumb:hover { background: rgba(212,162,60,0.65); }
   .formation-card:hover { background: rgba(212,162,60,0.09) !important; border-color: rgba(212,162,60,0.45) !important; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
   .formation-card:active { transform: translateY(0); }
   .mode-card-hover:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
