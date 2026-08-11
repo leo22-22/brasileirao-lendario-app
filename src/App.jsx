@@ -1771,6 +1771,14 @@ function simulatePenalties(teamAId, teamBId, leagueTeams, rand = Math.random) {
     kicks.push({ a, b, goalsA, goalsB, suddenDeath: true });
     if (goalsA !== goalsB) break;
   }
+  // Estourou a trava das 50 cobranças ainda empatado (chance astronômica, mas
+  // possível): sem desempate declarado, `goalsA > goalsB` dava a vaga sempre
+  // ao time B por padrão. Uma cobrança de morte súbita decidida na moeda é
+  // menos arbitrária do que premiar sempre o mesmo lado.
+  if (goalsA === goalsB) {
+    if (rand() < 0.5) goalsA++; else goalsB++;
+    kicks.push({ a: goalsA > goalsB, b: goalsB > goalsA, goalsA, goalsB, suddenDeath: true });
+  }
   return { winner: goalsA > goalsB ? teamAId : teamBId, goalsA, goalsB, kicks };
 }
 
@@ -1878,6 +1886,14 @@ const FAST_SIM_ROUND_DELAY_MS = 450;
 const CALENDAR_EMPTY_DAY_MS = 85;
 const CALENDAR_MATCH_DAY_MS = 420;
 const CALENDAR_SPEEDS = [1, 2, 4];
+// Quanto o resumo da partida fica na tela sozinho no modo automático, antes de
+// se fechar e liberar o avanço pra próxima rodada. Longo o bastante pra bater
+// o olho nas notas, curto o bastante pra não virar espera.
+const MATCH_SUMMARY_AUTO_MS = 4000;
+// Quanto o chaveamento fica aberto sozinho no modo automático depois que uma
+// fase é decidida. Precisa cobrir a animação dos classificados subindo (~1.2s)
+// e ainda sobrar tempo pra ler a chave.
+const BRACKET_ADVANCE_AUTO_MS = 4200;
 
 // Texto que aparece durante a "simulação direta" — sem isso a espera fica
 // morta na tela; com uma frase que muda a cada rodada dá a sensação de
@@ -2225,10 +2241,20 @@ function pickGoalOutcome(scoringTeam, scoringXI, concedingTeam, concedingXI, ran
 function buildLiveMatchEvents(sim, homeTeam, homeXI, awayTeam, awayXI) {
   const usedMin = new Set();
   const randMin = (minM = 1, maxM = 90) => {
-    let m;
-    do { m = Math.floor(Math.random() * (maxM - minM + 1)) + minM; } while (usedMin.has(m));
-    usedMin.add(m);
-    return m;
+    // Sorteia um minuto ainda livre. A busca é por tentativa, então precisa de
+    // saída: se a faixa lotar (mais eventos do que minutos disponíveis), o
+    // do/while original girava pra sempre e travava a aba. Depois de algumas
+    // tentativas, pega o primeiro minuto livre da faixa — e se nem isso
+    // existir, aceita repetir o minuto (dois lances no mesmo minuto é bem
+    // menos grave do que a partida não rodar).
+    for (let i = 0; i < 40; i++) {
+      const m = Math.floor(Math.random() * (maxM - minM + 1)) + minM;
+      if (!usedMin.has(m)) { usedMin.add(m); return m; }
+    }
+    for (let m = minM; m <= maxM; m++) {
+      if (!usedMin.has(m)) { usedMin.add(m); return m; }
+    }
+    return minM;
   };
 
   const discipline = (sim.discipline || []).map(ev => {
@@ -2746,7 +2772,7 @@ function AchievementsModal({ user, onClose }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
         <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginBottom: 2 }}>Conquistas</div>
         <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 18, fontFamily: "'Space Mono', monospace" }}>{unlocked.size}/{totalCount} desbloqueadas</div>
         {ACHIEVEMENT_CATEGORIES.map(group => (
@@ -3173,6 +3199,16 @@ export default function App() {
   useEffect(() => { userInCupRef.current = userInCup; }, [userInCup]);
   const [eliminationRoundName, setEliminationRoundName] = useState(_sv?.eliminationRoundName ?? null);
   const [cupWinnerId, setCupWinnerId] = useState(_sv?.cupWinnerId ?? null);
+  // Transição do chaveamento: quando uma fase termina, o chaveamento abre
+  // sozinho e mostra os classificados subindo pros blocos da fase seguinte —
+  // é o equivalente na Copa ao calendário andando dia a dia no Brasileirão.
+  // { intoRoundIdx, winnerIds } numa fase comum; { championId } na final.
+  // Nunca é salvo: é um momento, não estado de campeonato.
+  const [bracketAdvance, setBracketAdvance] = useState(null);
+  // Na final a tela de resultado espera o usuário sair do chaveamento — o
+  // troféu subindo no chaveamento é o fecho da Copa, e cortar direto pro
+  // resultado passava por cima dele.
+  const resultsAfterBracketRef = useRef(false);
 
   // Histórico e artilheiros
   const [matchHistory, setMatchHistory] = useState(_sv?.matchHistory ?? []);
@@ -3396,6 +3432,12 @@ export default function App() {
   const isPausedRef = useRef(false);
   const tickFnRef = useRef(null);
   const liveLineupRef = useRef(null);
+  // O tick() da partida precisa saber se está no modo automático (pra não
+  // parar o jogo esperando um clique) e conseguir aplicar uma substituição —
+  // ambos vêm por ref porque o tick roda dentro de um useCallback com
+  // dependências próprias e pegaria versões velhas.
+  const simModeRef = useRef('manual');
+  const applyLiveSubRef = useRef(null);
   // Eventos já mostrados no feed da partida atual — precisa ser um ref (não só
   // a variável local `shown` dentro do tick()) porque uma substituição feita
   // com o jogo pausado é adicionada de fora do tick(); sem compartilhar o
@@ -3411,6 +3453,7 @@ export default function App() {
   useEffect(() => { myTeamIdRef.current = myTeamId; }, [myTeamId]);
 
   useEffect(() => { speedRef.current = simSpeed; }, [simSpeed]);
+  useEffect(() => { simModeRef.current = simMode; }, [simMode]);
 
   useEffect(() => () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -3441,6 +3484,21 @@ export default function App() {
     };
     timerRef.current = setTimeout(tick, 50);
   }, []);
+
+  // O time sorteado é efêmero (nunca entra no save, e nem deveria — ele é
+  // re-sorteado a cada escolha). Só que o SAVE guarda `phase: 'draft'`, então
+  // recarregar a página no meio da escalação restaurava um Draft sem time
+  // nenhum: caía na tela "os times disponíveis se esgotaram", que não tem
+  // botão nenhum — e como o save continuava em 'draft', TODA recarga seguinte
+  // voltava pro mesmo beco. Sortear de novo aqui devolve a pessoa exatamente
+  // de onde parou. Fica reativo (não só no mount) pra também se recuperar de
+  // qualquer outro caminho que deixe o draft sem time na mão.
+  useEffect(() => {
+    if (phase !== 'draft' || rolledTeam || isRolling) return;
+    const candidates = TEAMS.filter(t => !usedTeamIds.includes(t.id));
+    if (candidates.length === 0) return; // aí é o fim real da pool — a tela vazia tem saída própria
+    rollWithAnimation(shuffle2(candidates)[0], candidates);
+  }, [phase, rolledTeam, isRolling, usedTeamIds, rollWithAnimation]);
 
   const chooseFormation = (key) => {
     setFormationKey(key);
@@ -3700,6 +3758,23 @@ export default function App() {
     });
     setLiveEvents([...shownEventsRef.current]);
   };
+  useEffect(() => { applyLiveSubRef.current = applyLiveSub; });
+
+  // Substituição escolhida pelo próprio jogo (modo automático): o melhor
+  // reserva compatível com a vaga de quem saiu. Devolve true se conseguiu —
+  // se o banco não tiver ninguém que jogue ali, o time segue com um a menos,
+  // igual à troca manual quando tudo está bloqueado.
+  const autoSubForSlot = (slotKey) => {
+    const lineup = liveLineupRef.current || {};
+    const slotMeta = pitchSlots.find(s => s.key === slotKey);
+    const candidates = Object.values(lineup)
+      .filter(p => p?.isBench && !subbedOutNames.includes(p.name))
+      .filter(p => !slotMeta || slotMeta.isBench || (p.pos || []).includes(slotMeta.realPos))
+      .sort((a, b) => (b.ovr || 0) - (a.ovr || 0));
+    if (candidates.length === 0) return false;
+    applyLiveSubRef.current?.(slotKey, candidates[0]);
+    return true;
+  };
 
   const pickPlayerForSlot = (player, slotKey) => {
     const isBench = pitchSlots.find(s => s.key === slotKey)?.isBench || false;
@@ -3718,9 +3793,22 @@ export default function App() {
     }
   };
 
+  // Time sorteado em que NENHUM jogador cabe nas vagas que sobraram (ex.: só
+  // falta a vaga de PE, o banco já está cheio e o time não tem ponta esquerda).
+  // Sem os 3 pulos na mão isso deixava a tela inteira sem uma única ação
+  // possível — jogador nenhum clicável, "pular" desabilitado — e o único jeito
+  // de sair era limpar o navegador. Nesse caso o pulo passa a ser de graça.
+  const rolledTeamHasNoFit = useMemo(() => {
+    if (!rolledTeam || isRolling || repositioningSlot !== null) return false;
+    return rolledTeam.players.every(p => eligibleSlotsForPlayer(p).length === 0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rolledTeam, isRolling, repositioningSlot, remainingSlots, pickedPlayerNames, formationPosSet]);
+
   const skipTeam = () => {
-    if (skipsLeft <= 0) return;
-    setSkipsLeft(s => s - 1);
+    if (!rolledTeam) return;
+    if (skipsLeft <= 0 && !rolledTeamHasNoFit) return;
+    // Pulo forçado (nada cabe) não consome a cota — a pessoa não escolheu isso.
+    if (skipsLeft > 0) setSkipsLeft(s => s - 1);
     setUsedTeamIds(prev => [...prev, rolledTeam.id]);
     setLog(prev => [...prev, { teamLabel: rolledTeam.label, skipped: true }]);
     setSelectedPlayer(null);
@@ -3783,6 +3871,9 @@ export default function App() {
     setLastMatchRatings(null);
     setTeamForm({});
     setSeasonAwards([]);
+    setEliminationRoundName(null);
+    setBracketAdvance(null);
+    resultsAfterBracketRef.current = false;
 
     if (gameMode === 'brasileirao') {
       // Embaralha só a ordem passada pro gerador de tabela: o método do
@@ -3844,7 +3935,31 @@ export default function App() {
         return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
       });
       setRoundResults(allResults);
-      setCupRounds(prev => prev.map((r, i) => i === cupRoundIdx ? { ...r, results: allResults } : r));
+      // Pênaltis dos confrontos só de IA. Sem gravar isso, `cupMatchOutcome`
+      // não conseguia dizer quem passou num agregado empatado (ele lê
+      // `penaltyResults` da fase), e o chaveamento deixava o confronto sem
+      // classificado: bloco sem dourado e a linha até a fase seguinte apagada,
+      // mesmo com o time já classificado de fato. Só era gravado quando o
+      // próprio usuário jogava a fase.
+      setCupRounds(prev => prev.map((r, i) => {
+        if (i !== cupRoundIdx) return r;
+        const isFinalRound = (r.matches?.length || 0) === 1;
+        if (cupLegRef.current !== 2 && !isFinalRound) return { ...r, results: allResults };
+        const leg1Res = isFinalRound ? [] : (r.leg1Results || []);
+        const penaltyResults = [];
+        (r.matches || []).forEach((match, i2) => {
+          const l2 = allResults[i2] || { homeGoals: 0, awayGoals: 0 };
+          const l1 = leg1Res[i2] || { homeGoals: 0, awayGoals: 0 };
+          const aggA = isFinalRound ? l2.homeGoals : l1.homeGoals + l2.awayGoals;
+          const aggB = isFinalRound ? l2.awayGoals : l1.awayGoals + l2.homeGoals;
+          if (aggA !== aggB) return;
+          // Mesma chave de seed usada pelo goNextRound, pra o vencedor mostrado
+          // no chaveamento ser exatamente o que avança.
+          const penRand = matchPrng(roomSnap?.seed, `${cupRoundIdx}-${cupLegRef.current}-pen`, match.homeId, match.awayId);
+          penaltyResults.push({ matchIdx: i2, ...simulatePenalties(match.homeId, match.awayId, leagueTeams, penRand) });
+        });
+        return { ...r, results: allResults, ...(penaltyResults.length > 0 ? { penaltyResults } : {}) };
+      }));
       setTeamForm(prev => updateFormFromResults(prev, allResults));
       setScorers(prev => applyGoalsToScorers(prev, allGoals));
       setAssisters(prev => applyGoalsToAssisters(prev, allGoals));
@@ -4168,6 +4283,9 @@ export default function App() {
           });
         }
       } else if (injuredMyPlayerEvent) {
+        const hurtSlotKey = Object.keys(liveLineupRef.current || {}).find(
+          k => liveLineupRef.current[k]?.name === injuredMyPlayerEvent.player && !liveLineupRef.current[k]?.isBench
+        );
         // Meu jogador se machucou: para o jogo e abre o painel de troca com
         // ele já pré-selecionado, igual uma pausa manual — só falta o usuário
         // escolher o reserva (ou seguir com um a menos, se não houver um
@@ -4177,13 +4295,22 @@ export default function App() {
           setIsPaused(true);
           setShowSubPanel(true);
           setForcedSubReason(injuredMyPlayerEvent.player);
-          const hurtSlotKey = Object.keys(liveLineupRef.current || {}).find(
-            k => liveLineupRef.current[k]?.name === injuredMyPlayerEvent.player && !liveLineupRef.current[k]?.isBench
-          );
           if (hurtSlotKey) setSubSelectStarter(hurtSlotKey);
         };
-        if (lastGoalThisTick) playGoalAudio(lastGoalThisTick.club, lastGoalThisTick.customUrl, doForcedPause);
-        else doForcedPause();
+        // ...menos no modo automático, onde não existe "o usuário escolher":
+        // o jogo faz a troca sozinho e segue. Sem isso a partida ficava parada
+        // pra sempre no painel de substituição, e o campeonato inteiro travava
+        // na primeira lesão.
+        const handleInjury = () => {
+          if (simModeRef.current === 'auto') {
+            if (hurtSlotKey) autoSubForSlot(hurtSlotKey);
+            clockRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
+            return;
+          }
+          doForcedPause();
+        };
+        if (lastGoalThisTick) playGoalAudio(lastGoalThisTick.club, lastGoalThisTick.customUrl, handleInjury);
+        else handleInjury();
       } else if (lastGoalThisTick) {
         // Pausa o relogio ate o audio de gol (arquivo real, nao narracao por voz) terminar.
         playGoalAudio(lastGoalThisTick.club, lastGoalThisTick.customUrl, () => {
@@ -4386,7 +4513,9 @@ export default function App() {
       setSuspensions(susp);
       setInjuries(inj);
       setTeamForm(form);
-      setMatchHistory(history);
+      // Cópia nova: `history` é mutado com push a cada rodada, então mandar a
+      // mesma referência faz o React pular o re-render (Object.is igual).
+      setMatchHistory([...history]);
       setScorers(scorersAcc);
       setAssisters(assistersAcc);
       setCleanSheets(cleanSheetsAcc);
@@ -4453,6 +4582,35 @@ export default function App() {
     let redCardsAcc = { ...redCards };
     let ratingsAcc = { ...seasonRatings };
 
+    // Descarrega no estado tudo que o laço acumulou localmente. É chamado no
+    // fim de CADA iteração e também logo antes do break que sai com o campeão
+    // — a final é uma iteração como qualquer outra e precisa entrar nas
+    // estatísticas igual às outras fases.
+    const flushCupState = () => {
+      setCupRounds(currCupRounds);
+      setCupRoundIdx(currCupRoundIdx);
+      setCupLeg(currCupLeg);
+      setFixtures(currFixtures);
+      setCurrentRound(currRound);
+      setCardCounts(cards);
+      setSuspensions(susp);
+      setInjuries(inj);
+      setTeamForm(form);
+      // Cópia nova a cada descarga: `history` é o MESMO array a cada iteração
+      // (history.push muta no lugar), então mandar a referência direta fazia o
+      // React comparar o array consigo mesmo e pular o re-render. Funcionava
+      // por acidente — a mutação vazava pro estado anterior — e por isso a
+      // campanha do jogador às vezes incluía a final e às vezes não.
+      setMatchHistory([...history]);
+      setUserInCup(stillInCup);
+      setEliminationRoundName(elimName);
+      setScorers(scorersAcc);
+      setAssisters(assistersAcc);
+      setCleanSheets(cleanSheetsAcc);
+      setRedCards(redCardsAcc);
+      setSeasonRatings(ratingsAcc);
+    };
+
     let iters = 0;
     while (iters++ < 20 && !fastSimCancelRef.current) {
       const round = currFixtures[currRound];
@@ -4510,6 +4668,10 @@ export default function App() {
       } else {
         const leg1Res = isFinal ? [] : (currCupRounds[currCupRoundIdx].leg1Results || []);
         const userMatchIdx = cupRoundData.matches.findIndex(m => m.homeId === myTeamId || m.awayId === myTeamId);
+        // Guarda as disputas de pênalti da fase junto com o resultado — é daqui
+        // que o chaveamento tira quem passou num agregado empatado. Sem isso o
+        // confronto ficava sem classificado no desenho da chave.
+        const penaltyResults = [];
         const aggregateWinners = cupRoundData.matches.map((match, i) => {
           const l2 = results[i] || { homeGoals: 0, awayGoals: 0 };
           let aggA, aggB;
@@ -4522,6 +4684,7 @@ export default function App() {
           if (aggA !== aggB) return aggA > aggB ? match.homeId : match.awayId;
           const penRand = matchPrng(roomSnap?.seed, `${currCupRoundIdx}-pen`, match.homeId, match.awayId);
           const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams, penRand);
+          penaltyResults.push({ matchIdx: i, ...pen });
           return pen.winner;
         });
 
@@ -4534,13 +4697,20 @@ export default function App() {
         for (let i = 0; i + 1 < aggregateWinners.length; i += 2)
           nextMatches.push({ homeId: aggregateWinners[i], awayId: aggregateWinners[i + 1] });
 
-        currCupRounds = currCupRounds.map((r, i) => i === currCupRoundIdx ? { ...r, results } : r);
+        currCupRounds = currCupRounds.map((r, i) => i === currCupRoundIdx
+          ? { ...r, results, ...(penaltyResults.length > 0 ? { penaltyResults } : {}) }
+          : r);
 
         if (nextMatches.length === 0) {
           winnerId = aggregateWinners[0] || null;
           currRound++;
-          setCupRounds(currCupRounds);
-          setCupRoundIdx(currCupRoundIdx);
+          // Saiu campeão: essa iteração É a final. Antes daqui saía um `break`
+          // seco, pulando o bloco de setters lá embaixo — e a final inteira
+          // (gols, assistências, jogo sem sofrer gol, notas, cartões, e a
+          // própria partida na campanha do jogador) nunca chegava ao estado.
+          // A tela de campeão mostrava a Copa toda MENOS a decisão. Descarrega
+          // tudo antes de sair.
+          flushCupState();
           break;
         }
 
@@ -4553,23 +4723,7 @@ export default function App() {
         currCupLeg = 1;
       }
 
-      setCupRounds(currCupRounds);
-      setCupRoundIdx(currCupRoundIdx);
-      setCupLeg(currCupLeg);
-      setFixtures(currFixtures);
-      setCurrentRound(currRound);
-      setCardCounts(cards);
-      setSuspensions(susp);
-      setInjuries(inj);
-      setTeamForm(form);
-      setMatchHistory(history);
-      setUserInCup(stillInCup);
-      setEliminationRoundName(elimName);
-      setScorers(scorersAcc);
-      setAssisters(assistersAcc);
-      setCleanSheets(cleanSheetsAcc);
-      setRedCards(redCardsAcc);
-      setSeasonRatings(ratingsAcc);
+      flushCupState();
 
       await delay(FAST_SIM_ROUND_DELAY_MS);
     }
@@ -4579,7 +4733,10 @@ export default function App() {
     if (!fastSimCancelRef.current) {
       setCupWinnerId(winnerId);
       applySeasonAwards(winnerId, undefined, scorersAcc, assistersAcc, history, ratingsAcc);
-      setPhase('results');
+      // Mesmo fecho do caminho manual: o troféu sobe no chaveamento (que já
+      // estava na tela durante a simulação) e só então vem o resultado.
+      resultsAfterBracketRef.current = true;
+      setBracketAdvance({ championId: winnerId });
     } else {
       // Mesmo motivo do fastForwardBrasileirao: sem isso, roundResults ficava
       // com o resultado da última rodada simulada (currCupLeg/currCupRoundIdx
@@ -4632,44 +4789,55 @@ export default function App() {
       return;
     }
 
-    // Copa — jogo de ida → jogo de volta → próxima fase
-    setCupRounds(prev => {
-      const currentCupRound = prev[cupRoundIdx];
-      if (!currentCupRound) return prev;
+    // Copa — jogo de ida → jogo de volta → próxima fase.
+    //
+    // Tudo abaixo roda DIRETO, não dentro de um `setCupRounds(prev => …)`.
+    // Antes ficava tudo dentro do updater, e o StrictMode do React (que chama
+    // updater duas vezes de propósito, pra denunciar updater impuro) executava
+    // junto os setState de dentro: `setCupRoundIdx(r => r + 1)` entrava na fila
+    // duas vezes e a Copa PULAVA uma fase inteira (16 avos → quartas). Updater
+    // tem que ser função pura; efeito colateral fica fora.
+    const currentCupRound = cupRounds[cupRoundIdx];
+    if (!currentCupRound) return;
 
-      const reset = () => {
-        setRoundResults(null);
-        setLiveEvents([]);
-        setLiveScore({ home: 0, away: 0 });
-        setClockMinute(0);
-        setActiveUserMatch(null);
-      };
+    const reset = () => {
+      setRoundResults(null);
+      setLiveEvents([]);
+      setLiveScore({ home: 0, away: 0 });
+      setClockMinute(0);
+      setActiveUserMatch(null);
+    };
 
-      // Final é jogo único (2 times = 1 partida só) — sem jogo de volta, a
-      // própria "ida" já decide tudo (no empate, pênaltis na hora).
-      const isFinal = currentCupRound.matches.length === 1;
+    // Final é jogo único (2 times = 1 partida só) — sem jogo de volta, a
+    // própria "ida" já decide tudo (no empate, pênaltis na hora).
+    const isFinal = currentCupRound.matches.length === 1;
 
-      if (cupLeg === 1 && !isFinal) {
-        // Salvar resultados do jogo de ida e preparar jogo de volta
-        const leg1Res = roundResults || [];
-        const leg2Matches = currentCupRound.matches.map(m => ({ homeId: m.awayId, awayId: m.homeId }));
-        setFixtures(f => [...f, leg2Matches]);
-        setCupLeg(2);
-        setCurrentRound(next);
-        reset();
-        // `results` ainda guarda o resultado do jogo de ida (o tick() grava ali
-        // toda vez que uma rodada termina, ida ou volta) — sem limpar aqui, o
-        // chaveamento tratava esse resultado antigo como se já fosse o jogo de
-        // volta enquanto ele ainda estava rolando, e como agregado = ida+ida
-        // (soma comutativa), o placar sempre dava empate por matemática.
-        return prev.map((r, i) => i === cupRoundIdx ? { ...r, leg1Results: leg1Res, results: [] } : r);
-      }
+    if (cupLeg === 1 && !isFinal) {
+      // Salvar resultados do jogo de ida e preparar jogo de volta
+      const leg1Res = roundResults || [];
+      const leg2Matches = currentCupRound.matches.map(m => ({ homeId: m.awayId, awayId: m.homeId }));
+      // `results` ainda guarda o resultado do jogo de ida (o tick() grava ali
+      // toda vez que uma rodada termina, ida ou volta) — sem limpar aqui, o
+      // chaveamento tratava esse resultado antigo como se já fosse o jogo de
+      // volta enquanto ele ainda estava rolando, e como agregado = ida+ida
+      // (soma comutativa), o placar sempre dava empate por matemática.
+      setCupRounds(prev => prev.map((r, i) => i === cupRoundIdx ? { ...r, leg1Results: leg1Res, results: [] } : r));
+      setFixtures(f => [...f, leg2Matches]);
+      setCupLeg(2);
+      setCurrentRound(next);
+      reset();
+      return;
+    }
 
+    {
       // Leg 2 (ou a final de jogo único, que nunca sai do cupLeg 1) — calcular vencedores
       const leg1Res = isFinal ? [] : (currentCupRound.leg1Results || []);
       const leg2Res = roundResults || [];
       // Use pre-computed penalty results from tick if available
       const preComputedPenalties = currentCupRound.penaltyResults || [];
+      // Pênaltis resolvidos aqui na hora (fase sem o usuário, sem nada
+      // pré-computado) — precisam ser gravados na fase pro chaveamento.
+      const latePenalties = [];
 
       const aggregateWinners = currentCupRound.matches.map((match, i) => {
         const l2 = leg2Res[i] || { homeGoals: 0, awayGoals: 0 };
@@ -4692,6 +4860,9 @@ export default function App() {
         if (precomputed) return precomputed.winner;
         const penRand = matchPrng(roomSnap?.seed, `${cupRoundIdx}-${cupLeg}-pen`, match.homeId, match.awayId);
         const pen = simulatePenalties(match.homeId, match.awayId, leagueTeams, penRand);
+        // Guarda também quando cai no fallback, senão o chaveamento fica sem
+        // saber quem passou nesse confronto (bloco sem dourado, linha apagada).
+        latePenalties.push({ matchIdx: i, ...pen });
         return pen.winner;
       });
 
@@ -4699,26 +4870,61 @@ export default function App() {
       for (let i = 0; i + 1 < aggregateWinners.length; i += 2)
         nextMatches.push({ homeId: aggregateWinners[i], awayId: aggregateWinners[i + 1] });
 
+      // Grava na fase os pênaltis resolvidos agora — é o que faz o chaveamento
+      // saber quem passou num agregado empatado.
+      const patchPens = (list) => (latePenalties.length === 0 ? list : list.map((r, i) => i === cupRoundIdx
+        ? { ...r, penaltyResults: [...(r.penaltyResults || []), ...latePenalties] }
+        : r));
+
       if (nextMatches.length === 0) {
-        setCupWinnerId(aggregateWinners[0] || null);
-        applySeasonAwards(aggregateWinners[0] || null);
-        setPhase('results');
-        return prev;
+        const championId = aggregateWinners[0] || null;
+        setCupRounds(prev => patchPens(prev));
+        setCupWinnerId(championId);
+        applySeasonAwards(championId);
+        // Fecho da Copa no próprio chaveamento: o campeão sobe pro bloco da
+        // final com o troféu. A tela de resultado só entra depois que o
+        // usuário sai daqui (ver `resultsAfterBracketRef`).
+        resultsAfterBracketRef.current = true;
+        setBracketAdvance({ championId });
+        return;
       }
 
       const nextRoundName = CUP_ROUND_NAMES[cupRoundIdx + 1] || 'Final';
       const newRound = { name: nextRoundName, matches: nextMatches, leg1Results: [], results: [] };
-      const updated = [...prev, newRound];
 
+      setCupRounds(prev => [...patchPens(prev), newRound]);
       setFixtures(f => [...f, nextMatches]);
-      setCupRoundIdx(r => r + 1);
+      // Valor absoluto em vez de `r => r + 1`: o índice da fase é derivado do
+      // que já sabemos aqui, então ele não depende da ordem da fila e não
+      // anda duas vezes se algo disparar o avanço mais de uma vez.
+      setCupRoundIdx(cupRoundIdx + 1);
       setCupLeg(1);
       setCurrentRound(next);
       reset();
+      // Fase decidida: abre o chaveamento com os classificados subindo pros
+      // blocos novos. Só acontece na virada de FASE — de ida pra volta nada
+      // se classifica, então não faz sentido interromper o jogo ali.
+      setBracketAdvance({ intoRoundIdx: cupRoundIdx + 1, winnerIds: aggregateWinners });
+    }
+  }, [currentRound, fixtures, gameMode, cupRounds, cupRoundIdx, cupLeg, roundResults, leagueTeams, myTeamId, roomSnap?.seed, leagueTable, scorers, assisters]);
 
-      return updated;
-    });
-  }, [currentRound, fixtures, gameMode, cupRoundIdx, cupLeg, roundResults, leagueTeams, myTeamId, roomSnap?.seed, leagueTable, scorers, assisters]);
+  // Sai da transição do chaveamento. Na final é aqui que a tela de resultado
+  // finalmente entra — o troféu no chaveamento vem primeiro.
+  const dismissBracketAdvance = useCallback(() => {
+    setBracketAdvance(null);
+    if (resultsAfterBracketRef.current) {
+      resultsAfterBracketRef.current = false;
+      setPhase('results');
+    }
+  }, []);
+
+  // No modo automático ninguém fecha o chaveamento — ele se fecha sozinho
+  // depois de dar tempo de ver quem subiu, igual ao resumo da partida.
+  useEffect(() => {
+    if (!bracketAdvance || simMode !== 'auto') return;
+    const t = setTimeout(dismissBracketAdvance, BRACKET_ADVANCE_AUTO_MS);
+    return () => clearTimeout(t);
+  }, [bracketAdvance, simMode, dismissBracketAdvance]);
 
   // Mantém refs atualizadas para os efeitos de auto não ficarem com closures velhas
   useEffect(() => { startRoundRef.current = startRound; }, [startRound]);
@@ -4752,6 +4958,9 @@ export default function App() {
     // do resumo/notas que acabou de aparecer, senão a próxima rodada já
     // começa a rolar com o modal antigo ainda na tela.
     if (showMatchSummary) return;
+    // Chaveamento em transição: mesma regra — não começa a próxima fase por
+    // cima dos classificados ainda subindo na tela.
+    if (bracketAdvance) return;
     if (roundResults !== null && !isSimulating) {
       autoActionRef.current = 'nextRound';
       setAutoCountdown(3);
@@ -4759,7 +4968,19 @@ export default function App() {
       autoActionRef.current = 'startRound';
       setAutoCountdown(3);
     }
-  }, [simMode, phase, roundResults, isSimulating, penaltyPhase, showMatchSummary]);
+  }, [simMode, phase, roundResults, isSimulating, penaltyPhase, showMatchSummary, bracketAdvance]);
+
+  // ...e no modo automático ninguém clica em "Continuar" pra fechar esse
+  // resumo. O efeito acima desistia de avançar enquanto ele estivesse aberto,
+  // e como o resumo aparece DEPOIS de toda partida do usuário, o modo Auto
+  // jogava a primeira rodada e travava pra sempre esperando um clique que
+  // nunca vinha. Aqui o resumo se fecha sozinho — tempo suficiente pra ver as
+  // notas, e aí o avanço automático destrava naturalmente.
+  useEffect(() => {
+    if (!showMatchSummary || simMode !== 'auto' || phase !== 'playing') return;
+    const t = setTimeout(() => setShowMatchSummary(false), MATCH_SUMMARY_AUTO_MS);
+    return () => clearTimeout(t);
+  }, [showMatchSummary, simMode, phase]);
 
   // Modo automático: assim que uma rodada termina, abre o calendário e anda
   // os dias até a data da próxima rodada — é o "tempo passando" entre uma
@@ -4862,6 +5083,8 @@ export default function App() {
     setUserInCup(true);
     setEliminationRoundName(null);
     setCupWinnerId(null);
+    setBracketAdvance(null);
+    resultsAfterBracketRef.current = false;
     setMatchHistory([]);
     setRoundHistory({});
     setCalendarCursor(null);
@@ -4903,6 +5126,8 @@ export default function App() {
     setUserInCup(true);
     setEliminationRoundName(null);
     setCupWinnerId(null);
+    setBracketAdvance(null);
+    resultsAfterBracketRef.current = false;
     setMatchHistory([]);
     setRoundHistory({});
     setCalendarCursor(null);
@@ -5327,6 +5552,25 @@ export default function App() {
     setLastMatchRatings(null);
     setTeamForm({});
     setSeasonAwards([]);
+    // O `startSeason` do individual zera estes também; aqui eles ficavam de
+    // fora, então uma campanha anterior podia vazar pra dentro da partida com
+    // amigos (a "Campanha Completa" filtra só por modo de jogo, não por
+    // sessão) e o calendário mostraria resultados de rodadas que não são
+    // dessa liga.
+    setMatchHistory([]);
+    setRoundHistory({});
+    setCupWinnerId(null);
+    setCupRoundIdx(0);
+    setEliminationRoundName(null);
+    setBracketAdvance(null);
+    resultsAfterBracketRef.current = false;
+    setRoundResults(null);
+    setActiveUserMatch(null);
+    setLiveEvents([]);
+    setLiveScore({ home: 0, away: 0 });
+    setClockMinute(0);
+    setCalendarCursor(null);
+    calendarCursorRef.current = null;
     const players = Object.entries(roomSnap.players || {});
     const gMode = roomSnap.gameMode || 'brasileirao';
     const maxSlots = gMode === 'copa' ? 32 : 20;
@@ -5630,6 +5874,7 @@ export default function App() {
             onClickPitchSlot={clickPitchSlot}
             onUnplacePlayer={startReposition}
             onSkipTeam={skipTeam}
+            mustSkip={rolledTeamHasNoFit}
             myTeamColor={myTeamColor}
             captainSlot={captainSlot}
           />
@@ -5716,10 +5961,17 @@ export default function App() {
             onSelectSubStarter={setSubSelectStarter}
             onApplySub={applyLiveSub}
             subbedOutNames={subbedOutNames}
+            bracketAdvance={bracketAdvance}
+            onDismissBracketAdvance={dismissBracketAdvance}
           />
         )}
         {phase === 'results' && (
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={newSeason} onOpenTransferMarket={openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} />
+          /* "Nova temporada" e "Mercado" reconstroem a liga em torno de
+             MY_TEAM_ID, mas dentro de uma sala o time do jogador é o id do
+             peer (ver `myTeamId`) — a temporada nascia sem ele em nenhum
+             confronto e a tela de jogo abria sem botão de jogar. Numa partida
+             com amigos o caminho certo é "Jogar de novo", que encerra a sala. */
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap ? undefined : newSeason} onOpenTransferMarket={roomSnap ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} />
         )}
         {viewingTeam && (
           <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspensions={suspensions} injuries={injuries} />
@@ -5761,6 +6013,7 @@ export default function App() {
           <PenaltyModal
             penaltyPhase={penaltyPhase}
             myTeamColor={myTeamColor}
+            auto={simMode === 'auto'}
             onDismiss={() => {
               // Zera o ref ANTES de chamar goNextRound — setPenaltyPhase(null)
               // só reflete no próximo render, e goNextRound (closure velho)
@@ -5929,7 +6182,7 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ width: '100%', maxWidth: 380, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative' }}>
         {allowClose && (
-          <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+          <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
         )}
 
         {mode === 'choice' && (
@@ -5948,7 +6201,7 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
 
         {(mode === 'signup' || mode === 'login') && (
           <>
-            <button onClick={() => setMode('choice')} style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 14px 0' }}>&#8592; Voltar</button>
+            <button onClick={() => setMode('choice')} className="tap-target-sm" style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 14px', margin: '0 0 0 -2px', minHeight: 34 }}>&#8592; Voltar</button>
             <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 18 }}>
               {mode === 'signup' ? 'Criar conta' : 'Entrar'}
             </div>
@@ -6037,7 +6290,7 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
       <div style={{ width: '100%', maxWidth: 460, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
         <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{user.username}</div>
         <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 20 }}>{user.email}</div>
 
@@ -6349,11 +6602,11 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
           marginTop: 28, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.08)',
         }}>
           {[['como-jogar', 'Como Jogar'], ['termos', 'Termos de Uso'], ['privacidade', 'Política de Privacidade'], ['contato', 'Contato']].map(([id, label]) => (
-            <button key={id} onClick={() => onNavigateInfo(id)} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: 0, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+            <button key={id} onClick={() => onNavigateInfo(id)} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: '6px 2px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
               {label}
             </button>
           ))}
-          <button onClick={onNavigateTeams} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: 0, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+          <button onClick={onNavigateTeams} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: '6px 2px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
             Times Históricos
           </button>
         </div>
@@ -6525,7 +6778,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
       )}
       {showAchievements && <AchievementsModal user={user} onClose={() => setShowAchievements(false)} />}
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '88vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, position: 'relative' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer', zIndex: 1 }}>✕</button>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer', zIndex: 1, padding: 6, lineHeight: 1 }}>✕</button>
         <div style={{ padding: '28px 24px 20px', textAlign: 'center', background: `linear-gradient(180deg, ${hexToRgba(mc, 0.18)}, transparent)`, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
           {myTeamLogo
             ? <img src={myTeamLogo} alt="" style={{ width: 64, height: 64, borderRadius: 16, objectFit: 'cover', marginBottom: 10 }} />
@@ -7239,7 +7492,7 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
   const mc = myTeamColor || '#d4a23c';
   return (
     <div style={styles.card} className="card-mob">
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12 }}>← Voltar</button>
+      <button onClick={onBack} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12, padding: '6px 2px', marginLeft: -2, minHeight: 34 }}>← Voltar</button>
       <div style={styles.eyebrow}>Multiplayer</div>
       <h2 style={styles.h2}>Jogar com Amigos</h2>
 
@@ -7348,7 +7601,7 @@ function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
 
   return (
     <div style={styles.card} className="card-mob">
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12 }}>← Voltar</button>
+      <button onClick={onBack} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12, padding: '6px 2px', marginLeft: -2, minHeight: 34 }}>← Voltar</button>
       <div style={styles.eyebrow}>Multiplayer</div>
       <h2 style={styles.h2}>Salas Abertas</h2>
 
@@ -7725,7 +7978,7 @@ function FormationPicker({ onChoose, onBack }) {
 
   return (
     <div style={styles.card} className="card-mob">
-      {onBack && <button onClick={onBack} style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 10px 0' }}>&#8592; Voltar</button>}
+      {onBack && <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 10px', margin: '0 0 0 -2px', minHeight: 32 }}>&#8592; Voltar</button>}
       <div style={styles.eyebrow}>Passo 1 de 2</div>
       <h2 style={styles.h2}>Escolha o esquema tático</h2>
       <p style={styles.formationIntro}>
@@ -8062,11 +8315,26 @@ const bkBlockY = (r, i) => BK_PITCH * Math.pow(2, r) * (i + 0.5);
 // Coluna de uma fase: lado esquerdo conta da borda pro meio, direito espelhado.
 const bkColOf = (r, side) => (side === 'L' ? r : 8 - r);
 
-function CupBracketModal({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo, myTeamBadge, onViewTeam, onClose }) {
+function CupBracketModal({
+  cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo, myTeamBadge, onViewTeam, onClose,
+  // Transição: `advance` é o momento em que uma fase acabou de ser decidida.
+  // { intoRoundIdx, winnerIds } numa fase comum; { championId } na final.
+  advance = null, simActive = false, simStatus = '', onSimulateAll, onCancelSim,
+}) {
   const mc = myTeamColor || '#d4a23c';
   const wrapRef = useRef(null);
   const [fitScale, setFitScale] = useState(1);
   const [zoomed, setZoomed] = useState(false);
+  const advancingIds = useMemo(() => new Set(advance?.winnerIds || []), [advance]);
+  const intoRoundIdx = advance?.intoRoundIdx ?? -1;
+  const championId = advance?.championId ?? null;
+  const isChampionMoment = !!championId;
+  const championTeam = isChampionMoment ? leagueTeams?.find(t => t.id === championId) : null;
+
+  // Durante a transição o chaveamento se abre já enquadrado na fase que acabou
+  // de ser decidida — no celular a chave inteira cabe minúscula, e o momento
+  // que interessa é justamente o bloco novo.
+  const decidedRoundIdx = isChampionMoment ? BK_SIDE_ROUNDS : intoRoundIdx - 1;
 
   // Encolhe o chaveamento inteiro pra caber na largura disponível — assim o
   // formato clássico aparece de uma vez só, sem rolagem horizontal. No celular
@@ -8126,15 +8394,31 @@ function CupBracketModal({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeam
       { id: m.homeId, agg: out.aggH },
       { id: m.awayId, agg: out.aggA },
     ];
+    // Bloco que acabou de ser preenchido pelos classificados: entra na tela
+    // com um pequeno salto, escalonado por posição pra dar leitura de cima
+    // pra baixo em vez de tudo piscando junto.
+    const isLanding = r === intoRoundIdx && rows.some(row => advancingIds.has(row.id));
+    const isChampionBlock = isChampionMoment && r === BK_SIDE_ROUNDS;
     return (
-      <div key={key} style={{ ...box, border: '1px solid rgba(255,255,255,0.1)' }}>
+      <div
+        key={key}
+        className={isLanding ? 'bk-land' : undefined}
+        style={{
+          ...box,
+          border: `1px solid ${isChampionBlock ? BK_GOLD : 'rgba(255,255,255,0.1)'}`,
+          animationDelay: isLanding ? `${0.35 + posIdx * 0.09}s` : undefined,
+        }}
+      >
         {rows.map((row, ti) => {
           const team = teamOf(row.id);
           const won = out.decided && out.winnerId === row.id;
           const lost = out.decided && out.loserId === row.id;
           const mine = row.id === myTeamId;
+          // Quem passou na fase recém-decidida pisca — é o "resultado saindo",
+          // e é o que amarra a linha dourada ao bloco novo lá na frente.
+          const flashing = r === decidedRoundIdx && won && (isChampionMoment || advancingIds.has(row.id));
           return (
-            <div key={ti} style={{
+            <div key={ti} className={flashing ? 'bk-flash' : undefined} style={{
               display: 'flex', alignItems: 'center', gap: 5, height: '50%', padding: '0 6px',
               borderBottom: ti === 0 ? '1px solid rgba(255,255,255,0.07)' : 'none',
               background: won ? hexToRgba(BK_GOLD, 0.14) : mine ? hexToRgba(mc, 0.14) : 'transparent',
@@ -8194,13 +8478,20 @@ function CupBracketModal({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeam
         const xFrom = side === 'L' ? bkColX(colFrom) + BK_COL_W : bkColX(colFrom);
         const xTo = side === 'L' ? bkColX(colTo) : bkColX(colTo) + BK_COL_W;
         const midX = (xFrom + xTo) / 2;
+        // Na transição, a linha da fase recém-decidida se DESENHA (em vez de
+        // já aparecer pronta) — é ela que "leva" o classificado até o bloco
+        // novo, e o bloco só aterrissa depois que ela chega lá.
+        const drawing = lit && r === decidedRoundIdx && !!advance;
+        const len = Math.abs(midX - xFrom) + Math.abs(targetY - y) + Math.abs(xTo - midX);
         paths.push(
           <path
             key={`p${r}-${side}-${p}`}
+            className={drawing ? 'bk-draw' : undefined}
             d={`M ${xFrom} ${y} H ${midX} V ${targetY} H ${xTo}`}
             fill="none"
             stroke={lit ? BK_GOLD : 'rgba(255,255,255,0.13)'}
             strokeWidth={lit ? 1.8 : 1}
+            style={drawing ? { '--bk-len': len, strokeDasharray: len, animationDelay: `${p * 0.06}s` } : undefined}
           />
         );
       }
@@ -8227,12 +8518,60 @@ function CupBracketModal({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeam
     }}>🏆 Final</div>
   );
 
+  // Troféu sobre o bloco da final — só no instante em que o campeão sai.
+  const trophy = isChampionMoment ? (
+    <div key="trophy" className="bk-trophy" style={{
+      position: 'absolute', left: bkColX(4), top: BK_HEIGHT / 2 - BK_BLOCK_H / 2 - 40,
+      width: BK_COL_W, textAlign: 'center', fontSize: 30, animationDelay: '0.5s', pointerEvents: 'none',
+    }}>🏆</div>
+  ) : null;
+
+  // Os confrontos que a fase nova acabou de formar, em texto. O desenho da
+  // chave conta a história inteira, mas ele é encolhido pra caber na largura —
+  // no celular vira letra de formiga, e é justamente aqui que a pessoa quer
+  // ler UMA coisa: quem eu pego agora. Some no momento do campeão (ali o que
+  // importa é o troféu) e fora da transição.
+  const nextMatchStrip = advance && !isChampionMoment && cupRounds?.[intoRoundIdx]?.matches?.length > 0 ? (
+    <div style={{ marginTop: 14, display: 'grid', gap: 4 }}>
+      {cupRounds[intoRoundIdx].matches.map((m, i) => {
+        const h = teamOf(m.homeId), a = teamOf(m.awayId);
+        const mine = m.homeId === myTeamId || m.awayId === myTeamId;
+        return (
+          <div key={i} style={{
+            display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
+            padding: '6px 10px', borderRadius: 6,
+            background: mine ? hexToRgba(mc, 0.14) : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${mine ? hexToRgba(mc, 0.4) : 'rgba(255,255,255,0.07)'}`,
+            fontWeight: mine ? 700 : 400,
+          }}>
+            <span style={{ flex: 1, minWidth: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h?.label || '?'}</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, opacity: 0.5, flexShrink: 0 }}>×</span>
+            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a?.label || '?'}</span>
+          </div>
+        );
+      })}
+    </div>
+  ) : null;
+
+  // Cabeçalho: fora da transição é só o título; durante, conta o que acabou
+  // de acontecer (é o momento em que a pessoa descobre quem vai pegar).
+  const title = isChampionMoment
+    ? `🏆 ${championTeam?.label || 'Campeão'} — campeão da Copa do Brasil`
+    : advance
+      ? `Classificados para ${CUP_ROUND_NAMES[intoRoundIdx] || 'a fase seguinte'}`
+      : simActive
+        ? (simStatus || 'Simulando a Copa…')
+        : '🏆 Chaveamento — Copa do Brasil';
+  // Durante a transição o fundo fecha por clique só quando não é o momento do
+  // campeão — ali o botão é o caminho, pra ninguém pular o fecho sem querer.
+  const closeOnBackdrop = !simActive && !isChampionMoment ? onClose : undefined;
+
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 1460, maxHeight: '94vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: BK_GOLD, fontWeight: 700 }}>
-            🏆 Chaveamento — Copa do Brasil
+    <div onClick={closeOnBackdrop} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 1460, maxHeight: '94vh', overflowY: 'auto', background: '#0f1f15', border: `1px solid ${isChampionMoment ? hexToRgba(BK_GOLD, 0.45) : 'rgba(255,255,255,0.1)'}`, borderRadius: 16, padding: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: BK_GOLD, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+            {title}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {canZoom && (
@@ -8241,7 +8580,11 @@ function CupBracketModal({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeam
                 style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, color: '#F4F1EA', fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}
               >{zoomed ? '⤢ Ver inteiro' : '🔍 Ampliar'}</button>
             )}
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+            {/* Durante a simulação direta e no momento do campeão o ✕ sai de
+                cena: ali a ação certa é o botão embaixo, não abandonar. */}
+            {!simActive && !isChampionMoment && (
+              <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
+            )}
           </div>
         </div>
 
@@ -8251,9 +8594,12 @@ function CupBracketModal({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeam
               <svg width={BK_WIDTH} height={BK_HEIGHT} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>{paths}</svg>
               {roundLabels}
               {blocks}
+              {trophy}
             </div>
           </div>
         </div>
+
+        {nextMatchStrip}
 
         <div style={{ marginTop: 14, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', fontSize: 10.5, opacity: 0.55 }}>
           <span><span style={{ color: BK_GOLD }}>▬</span> classificado</span>
@@ -8261,9 +8607,30 @@ function CupBracketModal({ cupRounds, leagueTeams, myTeamId, myTeamColor, myTeam
           <span><span style={{ fontFamily: "'Space Mono', monospace" }}>*</span> decidido nos pênaltis</span>
         </div>
 
-        <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', marginTop: 14, background: mc, color: '#0B1A12' }}>
-          Fechar
-        </button>
+        {simActive ? (
+          <>
+            <div style={{ marginTop: 14, textAlign: 'center', fontSize: 12, color: BK_GOLD, fontFamily: "'Space Mono', monospace", minHeight: 18 }}>
+              {simStatus || 'Simulando…'}
+            </div>
+            {onCancelSim && (
+              <button onClick={onCancelSim} style={{ ...styles.btnGhost, width: '100%', marginTop: 10 }}>Parar</button>
+            )}
+          </>
+        ) : (
+          <>
+            {/* Fora da transição, o chaveamento também é de onde dá pra tocar a
+                Copa até o fim — o mesmo papel que o calendário tem no
+                Brasileirão. */}
+            {!advance && onSimulateAll && (
+              <button onClick={onSimulateAll} style={{ ...styles.btnGhost, width: '100%', marginTop: 14 }}>
+                ⏭ Simular até o campeão
+              </button>
+            )}
+            <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', marginTop: advance ? 14 : 8, background: isChampionMoment ? BK_GOLD : mc, color: '#0B1A12' }}>
+              {isChampionMoment ? 'Ver resultado final →' : advance ? 'Continuar →' : 'Fechar'}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
@@ -8466,21 +8833,29 @@ function getZoneInfo(pos, total) {
   return null;
 }
 
-function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack }) {
+function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack, mustSkip = false }) {
   const pct = total > 0 ? (filled / total) * 100 : 0;
-  const canSkip = skipsLeft > 0;
+  // `mustSkip`: nenhum jogador do time sorteado cabe nas vagas restantes. O
+  // pulo continua disponível mesmo com a cota zerada — senão a tela fica sem
+  // ação nenhuma (ver comentário em skipTeam).
+  const canSkip = skipsLeft > 0 || mustSkip;
   return (
     <div style={{ marginBottom: 16 }}>
       <div style={styles.draftTopRow}>
         <div>
-          {onBack && <button onClick={onBack} style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '0 0 6px 0', display: 'block' }}>&#8592; Voltar</button>}
+          {onBack && <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px', margin: '0 0 2px -2px', minHeight: 30, display: 'block' }}>&#8592; Voltar</button>}
           <div style={styles.eyebrow}>{formationLabel}</div>
           <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>{filled} de {total} posições preenchidas</div>
+          {mustSkip && (
+            <div style={{ fontSize: 12, color: '#e0a03c', marginTop: 6, maxWidth: 340 }}>
+              Nenhum jogador deste time cabe nas vagas que sobraram — pule sem gastar seus pulos.
+            </div>
+          )}
         </div>
         <button
           onClick={onSkip}
           disabled={!canSkip}
-          title={canSkip ? 'Pular este time' : 'Sem pulos restantes'}
+          title={!canSkip ? 'Sem pulos restantes' : mustSkip && skipsLeft <= 0 ? 'Pulo livre — nenhum jogador cabe' : 'Pular este time'}
           style={{
             ...styles.skipsBox,
             cursor: canSkip ? 'pointer' : 'not-allowed',
@@ -8490,7 +8865,7 @@ function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack 
             transition: 'background 0.15s, border-color 0.15s',
           }}
         >
-          <span style={{ ...styles.skipsNum, color: canSkip ? '#d4a23c' : 'rgba(255,255,255,0.4)' }}>{skipsLeft}</span>
+          <span style={{ ...styles.skipsNum, color: canSkip ? '#d4a23c' : 'rgba(255,255,255,0.4)' }}>{mustSkip && skipsLeft <= 0 ? '↻' : skipsLeft}</span>
           <span style={{ ...styles.skipsLabel, color: canSkip ? 'rgba(212,162,60,0.8)' : 'rgba(255,255,255,0.35)' }}>pular</span>
         </button>
       </div>
@@ -8511,7 +8886,7 @@ function useIsMobile(bp = 768) {
   return mob;
 }
 
-function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, isPlayerBlockedByFormation, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, myTeamColor, captainSlot }) {
+function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, isPlayerBlockedByFormation, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, mustSkip, myTeamColor, captainSlot }) {
   const isMobile = useIsMobile();
   const filledCount = Object.keys(pitch).length;
   const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
@@ -8557,7 +8932,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
     );
     return (
       <div style={styles.card} className="card-mob">
-        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} />
+        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} onBack={onBack} mustSkip={mustSkip} />
         <div style={isMobile ? mobileLayoutStyle : styles.draftLayout} className="draft-layout-grid">
           {isMobile ? <>{pitchEl}{rollingEl}</> : <>{rollingEl}{pitchEl}</>}
         </div>
@@ -8568,16 +8943,25 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   if (!rolledTeam) {
     return (
       <div style={styles.card} className="card-mob">
+        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} onBack={onBack} />
         <div style={styles.emptyState}>
-          Os times disponíveis se esgotaram. Siga com o que foi escalado até aqui.
+          Os times disponíveis se esgotaram.
         </div>
+        {/* Essa tela já foi um beco sem saída: sem botão nenhum e com o save
+            preso em 'draft', toda recarga voltava pra cá. Hoje o App re-sorteia
+            sozinho ao restaurar, e este botão é a rede de segurança final. */}
+        {onBack && (
+          <button style={{ ...styles.btnPrimary, width: '100%', marginTop: 12 }} onClick={onBack}>
+            Recomeçar a escalação
+          </button>
+        )}
       </div>
     );
   }
 
   return (
     <div style={{ ...styles.card, position: 'relative' }} className="card-mob">
-      <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} />
+      <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} onBack={onBack} mustSkip={mustSkip} />
 
       {selectedPlayer && (
         <div style={styles.selectedPlayerBanner}>
@@ -8994,7 +9378,10 @@ function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, myTeamId
 // ============================================================
 // COMPONENTE: Modal de Pênaltis Interativo
 // ============================================================
-function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
+// `auto`: modo automático — a disputa se resolve sozinha (escolhe o cobrador e
+// fecha no fim), senão o modo automático parava de vez na primeira decisão por
+// pênaltis esperando um clique que nunca vinha.
+function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
   const mc = myTeamColor || '#d4a23c';
   const [inner, setInner] = React.useState(() => ({
     kickNum: 0,     // 0,1,...: even=home, odd=away
@@ -9098,15 +9485,47 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor }) {
     return clearT;
   }, [inner.phase, inner.countdown]);
 
-  const startKickersName = () => {
-    if (inner.phase !== 'pick') return null;
-    // Quem já cobrou não pode cobrar de novo até todo mundo ter cobrado pelo
-    // menos uma vez (só aí a lista reabre, como na disputa de verdade).
+  // Quem ainda pode cobrar: quem já bateu só volta pra fila depois que todo
+  // mundo cobrou uma vez, como na disputa de verdade.
+  const availableKickers = () => {
     const usedNames = new Set(myKickResults.map(r => r.name));
-    const availablePlayers = (usedNames.size >= (myPlayers || []).length
+    return (usedNames.size >= (myPlayers || []).length
       ? (myPlayers || [])
       : (myPlayers || []).filter(p => !usedNames.has(p.name))
     ).slice().sort((a, b) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]));
+  };
+
+  // No modo automático ninguém escolhe o cobrador — a disputa se resolve
+  // sozinha (o melhor batedor disponível vai à marca). Sem isso, o modo
+  // automático parava de vez na primeira decisão por pênaltis, esperando um
+  // clique que nunca vinha.
+  React.useEffect(() => {
+    if (!auto || inner.phase !== 'pick') return;
+    const list = availableKickers();
+    if (list.length === 0) return;
+    const best = list.reduce((a, b) => ((b.ovr || 0) > (a.ovr || 0) ? b : a), list[0]);
+    const t = setTimeout(() => startCountdown(best.name), 700);
+    return () => clearTimeout(t);
+  }, [auto, inner.phase, kickNum]);
+
+  // ...e ninguém fecha o resultado da disputa no fim, pelo mesmo motivo.
+  React.useEffect(() => {
+    if (!auto || inner.phase !== 'done') return;
+    const t = setTimeout(() => onDismiss?.(), 2200);
+    return () => clearTimeout(t);
+  }, [auto, inner.phase, onDismiss]);
+
+  const startKickersName = () => {
+    if (inner.phase !== 'pick') return null;
+    const availablePlayers = availableKickers();
+    if (auto) {
+      return (
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ fontSize: 12, color: mc, marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase', fontWeight: 700 }}>{myTeamLabel}</div>
+          <div>Escolhendo o cobrador...</div>
+        </div>
+      );
+    }
     return (
       <div style={{ maxHeight: 220, overflowY: 'auto' }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: mc, marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>Escolha o cobrador</div>
@@ -9830,7 +10249,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, gap: 8 }}>
         <div style={{ display: 'flex', gap: 4 }}>
           {['manual', 'auto'].map(m => (
-            <button key={m} onClick={() => onSetSimMode(m)} style={{
+            <button key={m} onClick={() => onSetSimMode(m)} className="tap-target-sm" style={{
               fontFamily: "'Space Mono', monospace", fontSize: 11,
               padding: '4px 10px', borderRadius: 6, border: '1px solid', cursor: 'pointer',
               borderColor: simMode === m ? mc : 'rgba(255,255,255,0.18)',
@@ -9953,16 +10372,16 @@ function SeasonCalendarModal({
             📅 Calendário de jogos
           </div>
           {!simActive && (
-            <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer' }}>✕</button>
+            <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
           )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
-          <button onClick={() => shiftMonth(-1)} disabled={simActive} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#F4F1EA', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>‹</button>
+          <button onClick={() => shiftMonth(-1)} disabled={simActive} aria-label="Mês anterior" className="tap-target-sm" style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#F4F1EA', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>‹</button>
           <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 15, fontWeight: 700, minWidth: 150, textAlign: 'center' }}>
             {MONTH_NAMES[view.month]} {view.year}
           </div>
-          <button onClick={() => shiftMonth(1)} disabled={simActive} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#F4F1EA', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>›</button>
+          <button onClick={() => shiftMonth(1)} disabled={simActive} aria-label="Próximo mês" className="tap-target-sm" style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#F4F1EA', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>›</button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
@@ -10049,6 +10468,7 @@ function SeasonCalendarModal({
               <button
                 key={s}
                 onClick={() => onSetSpeed(s)}
+                className="tap-target-sm"
                 style={{
                   fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: speed === s ? 700 : 400,
                   padding: '3px 10px', borderRadius: 6, cursor: 'pointer',
@@ -10082,7 +10502,7 @@ function SeasonCalendarModal({
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance }) {
   const mc = myTeamColor || '#d4a23c';
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -10118,6 +10538,23 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
     { id: 'elenco', label: 'Elenco', icon: '👥' },
     { id: 'estatisticas', label: 'Estatísticas', icon: '🏅' },
   ];
+
+  // Simulação direta da Copa: em vez do overlay genérico de "Simulando…", ela
+  // roda DENTRO do chaveamento — cada fase que fecha acende suas linhas e
+  // preenche a fase seguinte na frente da pessoa. É o mesmo papel que o
+  // calendário faz no Brasileirão, andando dia a dia.
+  if (fastSimActive && gameMode === 'copa' && cupRounds.length > 0) {
+    return (
+      <div style={styles.card} className="card-mob">
+        <CupBracketModal
+          cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc}
+          myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam}
+          simActive simStatus={fastSimStatusMsg} onCancelSim={onCancelFastSim}
+          onClose={() => { }}
+        />
+      </div>
+    );
+  }
 
   // Simulação direta em andamento — sobrepõe qualquer outra tela (Copa ou
   // Brasileirão, eliminado ou não) até chegar no fim ou o usuário cancelar.
@@ -10179,11 +10616,16 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             cardCounts={cardCounts} redCards={redCards} leagueTeams={leagueTeams} mc={mc}
           />
         </div>
-        {showBracket && (
+        {/* Duas portas pro mesmo chaveamento: o botão "Ver chaveamento" (a
+            pessoa quis olhar) e a transição de fase (o jogo mostrou sozinho).
+            A transição manda, porque é ela que tem a animação e o CTA certo. */}
+        {(showBracket || bracketAdvance) && (
           <CupBracketModal
             cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc}
             myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam}
-            onClose={() => setShowBracket(false)}
+            advance={bracketAdvance}
+            onSimulateAll={!bracketAdvance && onSimulateAll ? () => { setShowBracket(false); onSimulateAll(); } : undefined}
+            onClose={bracketAdvance ? onDismissBracketAdvance : () => setShowBracket(false)}
           />
         )}
       </>
@@ -10432,6 +10874,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           {onOpenCalendar && (
             <button
               onClick={onOpenCalendar}
+              className="tap-target-sm"
               style={{ marginTop: 6, background: 'none', border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 8, color: mc, fontSize: 11.5, fontWeight: 600, padding: '4px 10px', cursor: 'pointer' }}
             >
               📅 Ver calendário
@@ -10678,7 +11121,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
 
       {lastMatchRatings?.length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <button onClick={() => setShowRatings(s => !s)} style={{ background: 'none', border: 'none', color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+          <button onClick={() => setShowRatings(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
             {showRatings ? 'v' : '>'} Notas da última partida
           </button>
           {showRatings && (
@@ -10704,7 +11147,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
       {/* Historico de partidas */}
       {matchHistory && matchHistory.length > 0 && (
         <div style={{ marginTop: 12 }}>
-          <button onClick={() => setShowHistory(h => !h)} style={{ background: 'none', border: 'none', color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+          <button onClick={() => setShowHistory(h => !h)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
             {showHistory ? 'v' : '>'} Historico ({matchHistory.length} partida{matchHistory.length !== 1 ? 's' : ''})
           </button>
           {showHistory && (
@@ -11014,14 +11457,56 @@ function GuestConversionBanner({ myTeamColor, onOpenAccount }) {
       <button onClick={onOpenAccount} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '7px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
         Criar conta
       </button>
-      <button onClick={() => setDismissed(true)} title="Dispensar" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 16, cursor: 'pointer', flexShrink: 0, padding: 0 }}>×</button>
+      <button onClick={() => setDismissed(true)} title="Dispensar" aria-label="Dispensar" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, lineHeight: 1, cursor: 'pointer', flexShrink: 0, padding: 0, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
     </div>
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount }) {
+// Linha de ranking da tela de resultado: posição, nome, time e valor. O time
+// é o que separa dois homônimos de elencos diferentes — sem ele os rankings
+// mostravam "Gabigol / Gabigol" em sequência e pareciam quebrados.
+function ResultStatRow({ rank, name, team, value, mc }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13 }}>
+      <span style={{ width: 20, flexShrink: 0, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{rank}.</span>
+      {/* O nome do jogador tem prioridade: quem encolhe primeiro é o nome do
+          time, que só está aqui pra desempatar homônimos. */}
+      <span style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 6, overflow: 'hidden' }}>
+        <span style={{ flexShrink: 0, maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+        {team && (
+          <span style={{ opacity: 0.45, fontSize: 11, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team}</span>
+        )}
+      </span>
+      <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc, flexShrink: 0, whiteSpace: 'nowrap' }}>{value}</span>
+    </div>
+  );
+}
+
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount }) {
   const mc = myTeamColor || '#d4a23c';
   const [showCampaign, setShowCampaign] = useState(false);
+  // Nome do time dono da chave time::nome — jogadores reais se repetem entre
+  // elencos de anos diferentes (Gabigol no Flamengo 2019 e no 2020), e sem
+  // isso os rankings mostravam o mesmo nome duas vezes seguidas, parecendo
+  // bug. O painel de estatísticas durante a temporada já fazia certo.
+  const teamOf = (key, d) => d?.teamLabel || leagueTeams?.find(t => t.id === splitPlayerKey(key).teamId)?.label || '';
+  // Bloco de ranking (artilharia, assistência, notas…). `entries` são pares
+  // [chave time::nome, dado] e `valueFn` formata o número da direita.
+  const statList = (label, entries, valueFn) => entries.length > 0 && (
+    <div style={{ marginBottom: 16 }}>
+      <div style={styles.sectionLabel}>{label}</div>
+      {entries.map(([key, d], i) => (
+        <ResultStatRow
+          key={key}
+          rank={i + 1}
+          name={splitPlayerKey(key).name}
+          team={teamOf(key, d)}
+          value={valueFn(d, key)}
+          mc={mc}
+        />
+      ))}
+    </div>
+  );
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
   const topAssisters = assisters ? Object.entries(assisters).sort((a, b) => b[1].assists - a[1].assists).slice(0, 3) : [];
   const topCleanSheets = cleanSheets
@@ -11053,14 +11538,19 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
   if (gameMode === 'copa') {
     const winner = leagueTeams?.find(t => t.id === cupWinnerId);
     const userWon = cupWinnerId === myTeamId;
+    // Quem perde a DECISÃO é vice-campeão, não "eliminado antes da final".
+    // A mensagem antiga era a mesma pra quem caiu nos 16 avos e pra quem
+    // chegou à final — apagava justamente a melhor campanha possível sem o
+    // título. `eliminationRoundName` já guarda "Final" nesse caso.
+    const wasRunnerUp = !userWon && eliminationRoundName === 'Final';
     const champClub = winner?.club || getMostCommonClub(winner?.players);
     return (
       <div style={styles.card} className="card-mob">
         <div style={{ textAlign: 'center', padding: '12px 0 28px' }}>
-          <div style={{ fontSize: 56, marginBottom: 12 }}>{userWon ? '🏆' : '⚽'}</div>
+          <div style={{ fontSize: 56, marginBottom: 12 }}>{userWon ? '🏆' : wasRunnerUp ? '🥈' : '⚽'}</div>
           <div style={styles.eyebrow}>Copa do Brasil — Resultado Final</div>
           <h1 style={{ ...styles.h1, color: userWon ? mc : '#F4F1EA', marginTop: 8 }}>
-            {userWon ? 'CAMPEAO!' : 'Copa encerrada'}
+            {userWon ? 'CAMPEAO!' : wasRunnerUp ? 'VICE-CAMPEAO' : 'Copa encerrada'}
           </h1>
           <div style={{ fontSize: 15, opacity: 0.7, marginBottom: 20 }}>
             {userWon
@@ -11069,89 +11559,21 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             }
           </div>
           {!userWon && myTeamBadge && (
-            <div style={styles.badgeMuted}>Seu time foi eliminado antes da final. Tente de novo!</div>
+            <div style={styles.badgeMuted}>
+              {wasRunnerUp
+                ? 'Seu time chegou à decisão e perdeu a final. Faltou pouco!'
+                : 'Seu time foi eliminado antes da final. Tente de novo!'}
+            </div>
           )}
           {userWon && <div style={styles.badge}>Copa do Brasil conquistada! Time lendario!</div>}
         </div>
         <ChampionMarquee teamLabel={winner?.label} color={mc} />
         {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
-        {topScorers.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={styles.sectionLabel}>Artilheiro da Copa</div>
-            {topScorers.map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-                <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
-              </div>
-              );
-            })}
-          </div>
-        )}
-        {topAssisters.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={styles.sectionLabel}>Lider de Assistencia da Copa</div>
-            {topAssisters.map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-                <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
-              </div>
-              );
-            })}
-          </div>
-        )}
-        {topCleanSheets.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={styles.sectionLabel}>Goleiro Menos Vazado da Copa</div>
-            {topCleanSheets.map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-                <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
-              </div>
-              );
-            })}
-          </div>
-        )}
-        {topRatings.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={styles.sectionLabel}>Nota Média da Copa</div>
-            {topRatings.map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              const avg = d.sum / d.count;
-              return (
-              <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-                <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>⭐ {avg.toFixed(1)}</span>
-              </div>
-              );
-            })}
-          </div>
-        )}
-        {topCards.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <div style={styles.sectionLabel}>Cartões da Copa</div>
-            {topCards.map(([key, yellows], i) => {
-              const { name } = splitPlayerKey(key);
-              return (
-                <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-                  <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-                  <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-                  {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        {statList('Artilheiro da Copa', topScorers, d => `gol ${d.goals}`)}
+        {statList('Lider de Assistencia da Copa', topAssisters, d => `assist ${d.assists}`)}
+        {statList('Goleiro Menos Vazado da Copa', topCleanSheets, d => `🧤 ${d.clean}`)}
+        {statList('Nota Média da Copa', topRatings, d => `⭐ ${(d.sum / d.count).toFixed(1)}`)}
+        {statList('Cartões da Copa', topCards, (yellows, key) => `${redCards?.[key] > 0 ? `🟥×${redCards[key]}  ` : ''}🟨 ${yellows}`)}
         {seasonAwards?.length > 0 && (
           <div style={{ marginBottom: 16, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 10, padding: '10px 12px' }}>
             <div style={{ ...styles.sectionLabel, marginBottom: 6 }}>🏅 Prêmios da Temporada</div>
@@ -11164,7 +11586,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         )}
         {campaignLines.length > 0 && (
           <div style={{ marginBottom: 16 }}>
-            <button onClick={() => setShowCampaign(s => !s)} style={{ background: 'none', border: 'none', color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+            <button onClick={() => setShowCampaign(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
               {showCampaign ? 'v' : '>'} 📋 Campanha Completa ({campaignLines.length} partida{campaignLines.length !== 1 ? 's' : ''})
             </button>
             {showCampaign && campaignLines.map((l, i) => (
@@ -11174,7 +11596,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         )}
         <AnthemPlayer club={champClub} />
         <ShareResultButton cardData={{
-          title: userWon ? 'CAMPEÃO!' : 'Eliminado',
+          title: userWon ? 'CAMPEÃO!' : wasRunnerUp ? 'VICE-CAMPEÃO' : 'Eliminado',
           subtitle: userWon ? 'Copa do Brasil' : `Copa do Brasil · Campeão: ${winner?.label ?? '-'}`,
           teamLabel: leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time',
           teamBadge: myTeamBadge, teamLogo: myTeamLogo, teamColor: myTeamColor,
@@ -11228,87 +11650,11 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       {!isChampion && podium && <div style={styles.badgeInfo}>Campanha solida — faltou pouco pra vencer!</div>}
       {!podium && <div style={styles.badgeMuted}>Campanha dificil. Tente montar um time mais equilibrado.</div>}
 
-      {topScorers.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={styles.sectionLabel}>Artilheiros</div>
-          {topScorers.map(([key, d], i) => {
-            const { name } = splitPlayerKey(key);
-            return (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-              <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-              <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>gol {d.goals}</span>
-            </div>
-            );
-          })}
-        </div>
-      )}
-
-      {topAssisters.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={styles.sectionLabel}>Lideres de Assistencia</div>
-          {topAssisters.map(([key, d], i) => {
-            const { name } = splitPlayerKey(key);
-            return (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-              <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-              <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>assist {d.assists}</span>
-            </div>
-            );
-          })}
-        </div>
-      )}
-
-      {topCleanSheets.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={styles.sectionLabel}>Goleiro Menos Vazado</div>
-          {topCleanSheets.map(([key, d], i) => {
-            const { name } = splitPlayerKey(key);
-            return (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-              <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-              <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🧤 {d.clean}</span>
-            </div>
-            );
-          })}
-        </div>
-      )}
-
-      {topRatings.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={styles.sectionLabel}>Nota Média da Temporada</div>
-          {topRatings.map(([key, d], i) => {
-            const { name } = splitPlayerKey(key);
-            const avg = d.sum / d.count;
-            return (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-              <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-              <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>⭐ {avg.toFixed(1)}</span>
-            </div>
-            );
-          })}
-        </div>
-      )}
-
-      {topCards.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={styles.sectionLabel}>Cartões</div>
-          {topCards.map(([key, yellows], i) => {
-            const { name } = splitPlayerKey(key);
-            return (
-            <div key={key} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', fontSize: 13 }}>
-              <span style={{ width: 20, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{i + 1}.</span>
-              <span style={{ flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-              {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc }}>🟨 {yellows}</span>
-            </div>
-            );
-          })}
-        </div>
-      )}
+      {statList('Artilheiros', topScorers, d => `gol ${d.goals}`)}
+      {statList('Lideres de Assistencia', topAssisters, d => `assist ${d.assists}`)}
+      {statList('Goleiro Menos Vazado', topCleanSheets, d => `🧤 ${d.clean}`)}
+      {statList('Nota Média da Temporada', topRatings, d => `⭐ ${(d.sum / d.count).toFixed(1)}`)}
+      {statList('Cartões', topCards, (yellows, key) => `${redCards?.[key] > 0 ? `🟥×${redCards[key]}  ` : ''}🟨 ${yellows}`)}
 
       {seasonAwards?.length > 0 && (
         <div style={{ marginBottom: 16, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 10, padding: '10px 12px' }}>
@@ -11375,7 +11721,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
 
       {campaignLines.length > 0 && (
         <div style={{ marginTop: 16, marginBottom: 16 }}>
-          <button onClick={() => setShowCampaign(s => !s)} style={{ background: 'none', border: 'none', color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+          <button onClick={() => setShowCampaign(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
             {showCampaign ? 'v' : '>'} 📋 Campanha Completa ({campaignLines.length} partida{campaignLines.length !== 1 ? 's' : ''})
           </button>
           {showCampaign && campaignLines.map((l, i) => (
@@ -11430,6 +11776,35 @@ const globalCss = `
   @keyframes fadeSlideIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
   @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+
+  /* ── Transição do chaveamento ────────────────────────────────
+     Quando uma fase termina, o chaveamento abre e os classificados "sobem"
+     pros blocos da fase seguinte. Três peças que rodam juntas: a linha que
+     leva o time se desenha, o bloco de destino aparece, e o nome de quem
+     passou pisca em dourado. */
+  @keyframes bkDraw { from { stroke-dashoffset: var(--bk-len); } to { stroke-dashoffset: 0; } }
+  @keyframes bkLand {
+    0%   { opacity: 0; transform: scale(0.9); }
+    60%  { opacity: 1; transform: scale(1.04); }
+    100% { opacity: 1; transform: scale(1); }
+  }
+  @keyframes bkFlash {
+    0%, 100% { box-shadow: inset 0 0 0 1.5px ${'#f0c040'}; }
+    50%      { box-shadow: inset 0 0 0 2.5px ${'#f0c040'}, 0 0 16px ${'rgba(240,192,64,0.65)'}; }
+  }
+  @keyframes bkTrophy {
+    0%   { opacity: 0; transform: translateY(10px) scale(0.7); }
+    70%  { opacity: 1; transform: translateY(0) scale(1.15); }
+    100% { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  .bk-draw  { animation: bkDraw 0.55s ease-out both; }
+  .bk-land  { animation: bkLand 0.45s cubic-bezier(0.2,0.9,0.3,1.2) both; }
+  .bk-flash { animation: bkFlash 0.8s ease-in-out 2; }
+  .bk-trophy { animation: bkTrophy 0.7s cubic-bezier(0.2,0.9,0.3,1.3) both; }
+  @media (prefers-reduced-motion: reduce) {
+    .bk-draw, .bk-land, .bk-flash, .bk-trophy { animation: none !important; }
+  }
+
   .marquee-track { animation: marquee 48s linear infinite; will-change: transform; }
   .marquee-track:hover { animation-play-state: paused; }
   .champion-marquee-track { animation: marquee 10s linear infinite; will-change: transform; }
@@ -11444,11 +11819,15 @@ const globalCss = `
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
-  @media (max-width: 768px) {
-    /* Área de toque mínima recomendada (~44px) sem inflar o botão visualmente
-       — um pseudo-elemento invisível estica a região clicável ao redor. */
+  /* Área de toque mínima recomendada (~44px) sem inflar o botão visualmente —
+     um pseudo-elemento invisível estica a região clicável ao redor. Vale por
+     TIPO DE PONTEIRO, não por largura de tela: um iPad em paisagem tem 1024px
+     e continua sendo dedo. */
+  @media (pointer: coarse) {
     .tap-target-sm { position: relative; }
     .tap-target-sm::after { content: ''; position: absolute; inset: -10px; }
+  }
+  @media (max-width: 768px) {
     .draft-layout-grid { grid-template-columns: 1fr !important; }
     .draft-layout-grid > div:first-child { order: 2; }
     .draft-layout-grid > div:last-child { order: 1; max-height: none !important; position: static !important; }
