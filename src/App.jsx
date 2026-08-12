@@ -8565,13 +8565,28 @@ function CupBracketModal({
     // pra baixo em vez de tudo piscando junto.
     const isLanding = r === intoRoundIdx && rows.some(row => advancingIds.has(row.id));
     const isChampionBlock = isChampionMoment && r === BK_SIDE_ROUNDS;
+    // Confronto que ACABOU de ser decidido — é o único que ganha o anel dourado
+    // cheio. Antes todo classificado de todas as fases levava anel, e com 16
+    // vencedores só nas 16 avos a tela virava uma parede de amarelo onde o
+    // dourado não queria dizer mais nada. Agora: dourado forte = acabou de
+    // acontecer; texto dourado = já passou; e o time do jogador tem a cor DELE,
+    // que é o que ele procura na tela.
+    const isJustDecided = r === decidedRoundIdx && !!advance;
+    const hasMine = rows.some(row => row.id === myTeamId);
+    const ring = isChampionBlock || isJustDecided
+      ? BK_GOLD
+      : hasMine ? hexToRgba(mc, 0.55) : 'rgba(255,255,255,0.1)';
     return (
       <div
         key={key}
         className={isLanding ? 'bk-land' : undefined}
         style={{
           ...box,
-          border: `1px solid ${isChampionBlock ? BK_GOLD : 'rgba(255,255,255,0.1)'}`,
+          border: `1px solid ${ring}`,
+          // O brilho fica no BLOCO (que é arredondado), não na linha de dentro:
+          // a linha é retangular e o anel dela era cortado pelo raio do bloco,
+          // o que deixava os cantos com cara de borda quebrada.
+          boxShadow: isChampionBlock || isJustDecided ? `0 0 0 1px ${hexToRgba(BK_GOLD, 0.35)}` : 'none',
           animationDelay: isLanding ? `${0.35 + posIdx * 0.09}s` : undefined,
         }}
       >
@@ -8580,16 +8595,13 @@ function CupBracketModal({
           const won = out.decided && out.winnerId === row.id;
           const lost = out.decided && out.loserId === row.id;
           const mine = row.id === myTeamId;
-          // Quem passou na fase recém-decidida pisca — é o "resultado saindo",
-          // e é o que amarra a linha dourada ao bloco novo lá na frente.
-          const flashing = r === decidedRoundIdx && won && (isChampionMoment || advancingIds.has(row.id));
+          const flashing = isJustDecided && won && (isChampionMoment || advancingIds.has(row.id));
           return (
             <div key={ti} className={flashing ? 'bk-flash' : undefined} style={{
               display: 'flex', alignItems: 'center', gap: 5, height: '50%', padding: '0 6px',
               borderBottom: ti === 0 ? '1px solid rgba(255,255,255,0.07)' : 'none',
-              background: won ? hexToRgba(BK_GOLD, 0.14) : mine ? hexToRgba(mc, 0.14) : 'transparent',
-              boxShadow: won ? `inset 0 0 0 1.5px ${BK_GOLD}` : 'none',
-              opacity: lost ? 0.34 : 1,
+              background: mine ? hexToRgba(mc, 0.16) : won ? hexToRgba(BK_GOLD, isJustDecided ? 0.16 : 0.07) : 'transparent',
+              opacity: lost ? 0.32 : 1,
             }}>
               <span style={{ ...styles.bracketCrestSlot, width: 16, height: 16 }}>{crestOf(team, row.id)}</span>
               <span
@@ -8597,12 +8609,12 @@ function CupBracketModal({
                 style={{
                   flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   fontSize: 10.5, cursor: mine ? 'default' : 'pointer',
-                  color: won ? BK_GOLD : mine ? mc : '#F4F1EA',
+                  color: mine ? mc : won ? BK_GOLD : '#F4F1EA',
                   fontWeight: won || mine ? 700 : 400,
                 }}
               >{team?.label || '?'}</span>
               {row.agg !== null && row.agg !== undefined && (
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10.5, fontWeight: 700, color: won ? BK_GOLD : 'rgba(255,255,255,0.7)' }}>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10.5, fontWeight: 700, color: mine ? mc : won ? BK_GOLD : 'rgba(255,255,255,0.6)' }}>
                   {row.agg}{out.onPens && won ? '*' : ''}
                 </span>
               )}
@@ -8649,14 +8661,20 @@ function CupBracketModal({
         // novo, e o bloco só aterrissa depois que ela chega lá.
         const drawing = lit && r === decidedRoundIdx && !!advance;
         const len = Math.abs(midX - xFrom) + Math.abs(targetY - y) + Math.abs(xTo - midX);
+        // Três intensidades em vez de duas: a linha da fase que acabou de sair
+        // é ouro cheio, as fases já resolvidas ficam num ouro apagado (contam a
+        // história sem competir com o presente) e o que não foi jogado é
+        // cinza. Antes toda linha decidida era ouro forte e a chave inteira
+        // brigava por atenção.
+        const strokeCor = drawing ? BK_GOLD : lit ? hexToRgba(BK_GOLD, 0.4) : 'rgba(255,255,255,0.13)';
         paths.push(
           <path
             key={`p${r}-${side}-${p}`}
             className={drawing ? 'bk-draw' : undefined}
             d={`M ${xFrom} ${y} H ${midX} V ${targetY} H ${xTo}`}
             fill="none"
-            stroke={lit ? BK_GOLD : 'rgba(255,255,255,0.13)'}
-            strokeWidth={lit ? 1.8 : 1}
+            stroke={strokeCor}
+            strokeWidth={drawing ? 2 : lit ? 1.4 : 1}
             style={drawing ? { '--bk-len': len, strokeDasharray: len, animationDelay: `${p * 0.06}s` } : undefined}
           />
         );
@@ -8721,10 +8739,16 @@ function CupBracketModal({
 
   // Cabeçalho: fora da transição é só o título; durante, conta o que acabou
   // de acontecer (é o momento em que a pessoa descobre quem vai pegar).
+  // "Classificados para Final" ficava sem artigo. As fases têm gênero/número
+  // diferentes ("as Oitavas", "a Final"), então o artigo vem junto do nome.
+  const faseDestino = CUP_ROUND_NAMES[intoRoundIdx];
+  const nomeComArtigo = faseDestino
+    ? `${/^(16 Avos|Oitavas|Quartas)/.test(faseDestino) ? 'as' : 'a'} ${faseDestino}`
+    : 'a fase seguinte';
   const title = isChampionMoment
     ? `🏆 ${championTeam?.label || 'Campeão'} — campeão da Copa do Brasil`
     : advance
-      ? `Classificados para ${CUP_ROUND_NAMES[intoRoundIdx] || 'a fase seguinte'}`
+      ? `Classificados para ${nomeComArtigo}`
       : simActive
         ? (simStatus || 'Simulando a Copa…')
         : '🏆 Chaveamento — Copa do Brasil';
