@@ -25,16 +25,29 @@ const MY_PID = (() => {
 // Configurável via .env (VITE_TURN_URL/VITE_TURN_USERNAME/VITE_TURN_CREDENTIAL)
 // — sem essas variáveis, cai de volta pro STUN público (comportamento atual,
 // nada quebra por não ter TURN configurado).
+// ATENÇÃO: sem TURN configurado, quem estiver no 4G/5G NÃO consegue entrar em
+// sala nenhuma. A operadora põe o celular atrás de CGNAT e a conexão direta
+// não fecha; STUN só descobre o endereço, quem RETRANSMITE o tráfego é o TURN.
+// Testado: com só os STUN abaixo, o navegador gera candidatos `host` e `srflx`
+// e nenhum `relay` — que é exatamente o que falta pro celular na rede móvel.
+// Preencher VITE_TURN_URL/USERNAME/CREDENTIAL (Metered, Twilio, Cloudflare ou
+// um coturn próprio) resolve. Aceita lista separada por vírgula pra cobrir
+// UDP e TCP/443, esse último é o que atravessa rede corporativa/escola.
+const TURN_URLS = (import.meta.env.VITE_TURN_URL || '').split(',').map(u => u.trim()).filter(Boolean);
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  ...(import.meta.env.VITE_TURN_URL ? [{
-    urls: import.meta.env.VITE_TURN_URL,
+  ...(TURN_URLS.length > 0 ? [{
+    urls: TURN_URLS,
     username: import.meta.env.VITE_TURN_USERNAME,
     credential: import.meta.env.VITE_TURN_CREDENTIAL,
   }] : []),
 ];
 const PEER_OPTIONS = { debug: 1, config: { iceServers: ICE_SERVERS } };
+// Tempo até desistir de entrar/criar sala. 12s era curto demais: a negociação
+// WebRTC só com STUN (sem TURN) leva mais que isso em 4G e em Wi-Fi com NAT
+// chato, e a pessoa via "tempo esgotado" numa conexão que ia fechar.
+const MULTI_CONNECT_TIMEOUT_MS = 25000;
 
 // Seeded PRNG (mulberry32) — garante mesmos resultados em todos os clientes
 function makePrng(seed) {
@@ -5307,7 +5320,7 @@ export default function App() {
       setMultiConnecting(false);
       setMultiError('Tempo esgotado — sem resposta do servidor de conexão. Verifique sua internet.');
       try { peer.destroy(); } catch { }
-    }, 12000);
+    }, MULTI_CONNECT_TIMEOUT_MS);
 
     peer.on('open', (id) => {
       clearTimeout(timeout);
@@ -5433,25 +5446,41 @@ export default function App() {
     const peer = new Peer(undefined, PEER_OPTIONS);
     peerRef.current = peer;
 
-    // Mesma rede de segurança do "Criar sala" — sem isso, uma conexão que
-    // trava (rede ruim, sinalização não responde) deixava o botão "Entrar"
-    // sem feedback nenhum pra sempre, sem erro e sem spinner.
-    const timeout = setTimeout(() => {
+    // Entrar numa sala tem DUAS etapas que podem falhar, e elas pedem
+    // recados diferentes:
+    //   1. falar com o servidor de sinalização (o peer "abrir");
+    //   2. abrir a conexão direta com o líder (WebRTC/ICE de verdade).
+    // Antes existia um aviso só, de 12s, dizendo "sem resposta do servidor de
+    // conexão — verifique sua internet". Quando o que falhava era a etapa 2
+    // (rede que bloqueia P2P: Wi-Fi corporativo, 4G com CGNAT), o recado
+    // mandava a pessoa olhar pro lugar errado — a internet dela estava ótima.
+    // A etapa 2 também não tinha tratamento de erro nenhum: se o ICE morresse,
+    // o botão ficava girando até o timeout sem nunca dizer o porquê.
+    let peerOpened = false;
+    let settled = false;
+    const finishWith = (msg) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
       multiConnectingRef.current = false;
       setMultiConnecting(false);
-      setMultiError('Tempo esgotado — sem resposta do servidor de conexão. Verifique sua internet.');
-      try { peer.destroy(); } catch { }
-    }, 12000);
+      if (msg) setMultiError(msg);
+      if (msg) { try { peer.destroy(); } catch { } }
+    };
+    const timeout = setTimeout(() => {
+      finishWith(peerOpened
+        ? 'Não foi possível abrir a conexão com o líder. Costuma ser a rede bloqueando conexão direta (Wi-Fi de empresa/faculdade, ou 4G). Tente outra rede, ou peça pro outro jogador criar a sala.'
+        : 'Tempo esgotado — sem resposta do servidor de conexão. Verifique sua internet.');
+    }, MULTI_CONNECT_TIMEOUT_MS);
 
     peer.on('open', (myPeerId) => {
+      peerOpened = true;
       // O codigo de 6 caracteres digitado pelo jogador É o peerId completo do lider
       // (o lider cria sua sala com esse mesmo codigo como ID via generateRoomCode()).
       const conn = peer.connect(normalizedCode, { reliable: true });
       leaderConnRef.current = conn;
       conn.on('open', () => {
-        clearTimeout(timeout);
-        multiConnectingRef.current = false;
-        setMultiConnecting(false);
+        finishWith(null);
         conn.send({ type: 'join', pid: MY_PID, name: myTeamName || 'Meu Time', color: myTeamColor, logo: myTeamLogo || null, coach: myTeamCoach || '', city: myTeamCity || '' });
         setIsLeader(false);
         setRoomCode(normalizedCode);
@@ -5464,15 +5493,24 @@ export default function App() {
         if (msg.type === 'error') { alert(msg.msg); peer.destroy(); setMultiPhase('lobby'); }
         if (msg.type === 'chat' || msg.type === 'reaction') addLocalChatMessage(msg);
       });
-      conn.on('close', () => alert('Conexão com o líder perdida.'));
+      // Sem isso, uma conexão que morre no meio do caminho não avisava nada —
+      // só o timeout genérico daqui a alguns segundos.
+      conn.on('error', () => {
+        finishWith('A conexão com o líder falhou. Confira se ele ainda está com a sala aberta e tente de novo.');
+      });
+      conn.on('close', () => {
+        if (settled) alert('Conexão com o líder perdida.');
+        else finishWith('A conexão com o líder caiu antes de entrar na sala. Tente de novo.');
+      });
     });
     peer.on('error', (e) => {
-      clearTimeout(timeout);
-      multiConnectingRef.current = false;
-      setMultiConnecting(false);
-      if (e.type === 'peer-unavailable') setMultiError('Sala não encontrada. Verifique o código.');
-      else setMultiError('Erro: ' + e.message);
-      try { peer.destroy(); } catch { }
+      // `network` é a queda temporária do socket com o servidor de sinalização
+      // — o PeerJS reconecta sozinho. Derrubar o peer aqui matava uma entrada
+      // que ainda ia dar certo (e, depois de conectado, matava a sala inteira).
+      if (e.type === 'network' && !settled) { try { peer.reconnect(); } catch { } return; }
+      if (settled) return; // já está na sala: um erro avulso não pode derrubá-la
+      if (e.type === 'peer-unavailable') finishWith('Sala não encontrada. Confira o código com quem criou a sala — ela também some se o criador fechar a aba.');
+      else finishWith('Erro de conexão: ' + (e.message || e.type));
     });
   };
 
