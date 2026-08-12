@@ -186,17 +186,32 @@ router.post('/season-result', async (req, res) => {
     const seasonGoalDiff = goalsScored - goalsConceded;
     const bestGoalDiff = current.best_goal_diff == null ? seasonGoalDiff : Math.max(current.best_goal_diff, seasonGoalDiff);
 
-    // Pontos da temporada = campanha + ataque - defesa.
+    // Pontos da temporada = campanha × dificuldade + gols feitos - gols sofridos.
     //
-    // A parte da campanha (título/colocação) é o piso; os gols é que fazem a
-    // diferença de verdade, porque numa temporada de 38 rodadas eles vêm às
-    // dezenas enquanto a colocação vale no máximo 50. Quem marca muito sobe,
-    // quem leva goleada desce — e o saldo pode ficar NEGATIVO numa campanha
-    // ruim (é essa a intenção; `ranking_points` é INT com sinal).
+    // Os gols valem 1:1 em qualquer dificuldade: são o sinal de time e tática,
+    // e numa temporada de 38 rodadas vêm às dezenas, então é o que mais pesa.
+    // Quem marca muito sobe, quem leva goleada desce — e o saldo pode ficar
+    // NEGATIVO numa campanha ruim (é essa a intenção; ranking_points é INT
+    // com sinal).
+    //
+    // O multiplicador cai só sobre a campanha (título/colocação) porque medimos
+    // que, sem ele, a regra dos gols PUNIA quem jogava difícil: no Lendário a
+    // média era 16º lugar com 48 gols feitos e 61 sofridos (-7,7 pts por
+    // temporada), enquanto no Fácil dava 5,5º com 62x51 (+26). Farmar o Fácil
+    // rendia mais que encarar o Lendário. Com o peso, um título no Lendário
+    // vale ~4x um no Fácil e uma campanha ruim lá fica perto de zero em vez de
+    // negativa — arriscar a dificuldade alta deixa de ser prejuízo.
+    const DIFFICULTY_WEIGHT: Record<string, number> = {
+      facil: 0.5, normal: 1, dificil: 1.75, lendario: 3,
+    };
+    const difficulty = typeof body.difficulty === 'string' ? body.difficulty : 'normal';
+    const weight = DIFFICULTY_WEIGHT[difficulty] ?? 1;
+
     let campaignPoints = 5; // participação
     if (champion) campaignPoints = gameMode === 'brasileirao' ? 50 : 40;
     else if (gameMode === 'brasileirao' && position != null) campaignPoints = Math.max(5, 21 - position);
-    const pointsEarned = campaignPoints + goalsScored - goalsConceded;
+    // Arredonda só a campanha (o peso gera fração); os gols já são inteiros.
+    const pointsEarned = Math.round(campaignPoints * weight) + goalsScored - goalsConceded;
     const rankingPoints = current.ranking_points + pointsEarned;
 
     const newBestTeamOvr = teamOvr != null ? Math.max(Number(current.best_team_ovr) || 0, teamOvr) : current.best_team_ovr;

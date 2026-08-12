@@ -4536,6 +4536,11 @@ export default function App() {
       gameMode, champion, position, losses, wins: campaignWins, draws: campaignDraws, gotTopScorerAward,
       goalsScored, goalsConceded, assistsMade, unbeaten, multiplayer: !!roomSnap,
       teamOvr, bestPlayerOvr,
+      // Dificuldade vale multiplicador no ranking. No multiplayer os times de
+      // IA entram sem ajuste de dificuldade nenhum (ver o efeito de simulação
+      // da sala), então mandar o valor guardado no localStorage daria pontos
+      // de Lendário numa partida que não foi de Lendário.
+      difficulty: roomSnap ? 'normal' : difficulty,
     })
       .then(({ user, newlyUnlocked }) => {
         setCurrentUser(user);
@@ -9918,18 +9923,28 @@ function PontosDoRanking() {
           {linha('Brasileirão, do 2º ao 15º lugar', '19 a 6 pts')}
           {linha('Do 16º pra baixo, ou Copa sem título', '5 pts')}
 
-          <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5, margin: '10px 0 6px' }}>2 · Gols</div>
+          <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5, margin: '10px 0 6px' }}>2 · Dificuldade (multiplica a campanha)</div>
+          {linha('Fácil', '× 0,5')}
+          {linha('Normal', '× 1')}
+          {linha('Difícil', '× 1,75')}
+          {linha('Lendário', '× 3')}
+
+          <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5, margin: '10px 0 6px' }}>3 · Gols (valem igual em toda dificuldade)</div>
           {linha('Cada gol que seu time marcou', '+1 pt')}
           {linha('Cada gol que seu time sofreu', '−1 pt')}
 
           <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', opacity: 0.8 }}>
-            Exemplo: campeão do Brasileirão com 60 gols marcados e 47 sofridos faz{' '}
-            <b style={{ color: '#d4a23c' }}>50 + 60 − 47 = 63 pts</b> na temporada.
+            Exemplo: campeão do Brasileirão no <b>Difícil</b>, com 60 gols marcados e 47 sofridos:{' '}
+            <b style={{ color: '#d4a23c' }}>50 × 1,75 + 60 − 47 = 101 pts</b>. O mesmo título no Fácil daria 38.
           </div>
           <div style={{ marginTop: 8, opacity: 0.8 }}>
             Numa temporada de 38 rodadas os gols pesam mais que a colocação — quem ataca sobe,
             quem leva goleada desce. Uma campanha ruim pode render <b>saldo negativo</b> e
             derrubar seus pontos. Os totais somam de uma temporada pra outra.
+          </div>
+          <div style={{ marginTop: 8, opacity: 0.8 }}>
+            É por isso que o Lendário compensa: lá a IA joga muito acima do papel, o título é raro
+            e vale o triplo. No Fácil o título sai fácil e vale metade.
           </div>
           <div style={{ marginTop: 8, opacity: 0.8 }}>
             Empatou? Fica na frente quem tem mais títulos do Brasileirão; depois, mais títulos de Copa.
