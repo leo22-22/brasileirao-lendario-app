@@ -1869,7 +1869,14 @@ const DIFFICULTY_LEVELS = {
   facil: { label: 'Fácil', short: 'Fácil', desc: 'IA joga abaixo do seu nível de papel.', aiOvrAdjust: -2 },
   normal: { label: 'Normal', short: 'Normal', desc: 'IA joga com o OVR original dos times sorteados.', aiOvrAdjust: 0 },
   dificil: { label: 'Difícil', short: 'Difícil', desc: 'IA joga acima do seu nível de papel.', aiOvrAdjust: 2 },
-  lendario: { label: 'Lendário', short: 'Lendário', desc: 'IA bem mais forte — só para quem já domina o jogo.', aiOvrAdjust: 5 },
+  // +3, não +5. Com +5 o Lendário era um muro, não uma dificuldade: a IA
+  // ficava com 87,2 de média e o título exigia ~99 de OVR de time, enquanto o
+  // MELHOR XI possível da base inteira (vendo os 56 times e escolhendo o
+  // ótimo) dá 94 — ou seja, era matematicamente inalcançável pelo draft.
+  // Medido no jogo: com OVR 95 deu 0 título em 3 temporadas; só com 99 saíram
+  // 2 em 3. Com +3 um draft excelente (92) ganha ~43% das vezes e um draft
+  // normal (85) quase nunca (2%) — difícil de verdade, mas possível.
+  lendario: { label: 'Lendário', short: 'Lendário', desc: 'IA bem mais forte — precisa de um elenco excepcional.', aiOvrAdjust: 3 },
 };
 function applyDifficultyToPlayers(players, difficultyKey) {
   const adjust = DIFFICULTY_LEVELS[difficultyKey]?.aiOvrAdjust || 0;
