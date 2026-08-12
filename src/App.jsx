@@ -9888,6 +9888,49 @@ const LEADERBOARD_PAGE_SIZE = 30;
 // fixo), filtrável por UF e por escudo do time, e com um botão "Ver minha
 // classificação" que pula direto pra posição do jogador (com uma animação de
 // contagem rápida até o número real, tipo velocímetro) e destaca a linha dele.
+// Explicação da pontuação, dentro do próprio ranking — é onde a pergunta
+// nasce ("por que fulano está na minha frente?"). Fechada por padrão pra não
+// empurrar a tabela pra baixo de quem só quer ver as posições.
+// Os números aqui espelham o cálculo do servidor em routes/me.ts
+// (POST /me/season-result): mexeu lá, mexe aqui.
+function PontosDoRanking() {
+  const [aberto, setAberto] = useState(false);
+  const linha = (oQue, quanto) => (
+    <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '3px 0' }}>
+      <span style={{ flex: 1, minWidth: 0 }}>{oQue}</span>
+      <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: '#d4a23c', whiteSpace: 'nowrap' }}>{quanto}</span>
+    </div>
+  );
+  return (
+    <div style={{ marginBottom: 12 }}>
+      <button
+        onClick={() => setAberto(a => !a)}
+        className="tap-target-sm"
+        style={{ background: 'none', border: 'none', minHeight: 34, color: '#d4a23c', fontFamily: "'Space Mono', monospace", fontSize: 11.5, cursor: 'pointer', padding: '4px 0' }}
+      >
+        {aberto ? 'v' : '>'} Como funcionam os pontos
+      </button>
+      {aberto && (
+        <div style={{ fontSize: 12, lineHeight: 1.55, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', marginTop: 4 }}>
+          <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5, marginBottom: 6 }}>A cada temporada terminada</div>
+          {linha('Campeão do Brasileirão', '50 pts')}
+          {linha('Campeão da Copa do Brasil', '40 pts')}
+          {linha('Brasileirão, do 2º ao 15º lugar', '19 a 6 pts')}
+          {linha('Do 16º pra baixo, ou Copa sem título', '5 pts')}
+          <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', opacity: 0.8 }}>
+            No Brasileirão cada posição vale um ponto a menos: o 2º lugar dá 19, o 3º dá 18, e assim por diante até o piso de 5.
+            Os pontos <b>somam</b> a cada temporada e nunca diminuem — jogar mais sempre ajuda.
+            Empatou? Fica na frente quem tem mais títulos do Brasileirão; depois, mais títulos de Copa.
+          </div>
+          <div style={{ marginTop: 8, fontSize: 11.5, opacity: 0.6 }}>
+            Só entra no ranking quem termina a temporada <b>logado</b>. Como convidado nada é registrado.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LeaderboardModal({ onClose, myUsername }) {
   const [rows, setRows] = useState(null);
   const [baseOffset, setBaseOffset] = useState(0);
@@ -9993,6 +10036,8 @@ function LeaderboardModal({ onClose, myUsername }) {
             <span>🟢 {stats.activePlayers30d} ativos (30d)</span>
           </div>
         )}
+
+        <PontosDoRanking />
 
         {finding ? (
           <div style={{ textAlign: 'center', padding: '34px 0' }}>
