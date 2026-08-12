@@ -186,9 +186,17 @@ router.post('/season-result', async (req, res) => {
     const seasonGoalDiff = goalsScored - goalsConceded;
     const bestGoalDiff = current.best_goal_diff == null ? seasonGoalDiff : Math.max(current.best_goal_diff, seasonGoalDiff);
 
-    let pointsEarned = 5; // participação
-    if (champion) pointsEarned = gameMode === 'brasileirao' ? 50 : 40;
-    else if (gameMode === 'brasileirao' && position != null) pointsEarned = Math.max(5, 21 - position);
+    // Pontos da temporada = campanha + ataque - defesa.
+    //
+    // A parte da campanha (título/colocação) é o piso; os gols é que fazem a
+    // diferença de verdade, porque numa temporada de 38 rodadas eles vêm às
+    // dezenas enquanto a colocação vale no máximo 50. Quem marca muito sobe,
+    // quem leva goleada desce — e o saldo pode ficar NEGATIVO numa campanha
+    // ruim (é essa a intenção; `ranking_points` é INT com sinal).
+    let campaignPoints = 5; // participação
+    if (champion) campaignPoints = gameMode === 'brasileirao' ? 50 : 40;
+    else if (gameMode === 'brasileirao' && position != null) campaignPoints = Math.max(5, 21 - position);
+    const pointsEarned = campaignPoints + goalsScored - goalsConceded;
     const rankingPoints = current.ranking_points + pointsEarned;
 
     const newBestTeamOvr = teamOvr != null ? Math.max(Number(current.best_team_ovr) || 0, teamOvr) : current.best_team_ovr;

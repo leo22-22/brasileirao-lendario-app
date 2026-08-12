@@ -9912,14 +9912,26 @@ function PontosDoRanking() {
       </button>
       {aberto && (
         <div style={{ fontSize: 12, lineHeight: 1.55, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', marginTop: 4 }}>
-          <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5, marginBottom: 6 }}>A cada temporada terminada</div>
+          <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5, marginBottom: 6 }}>1 · Campanha</div>
           {linha('Campeão do Brasileirão', '50 pts')}
           {linha('Campeão da Copa do Brasil', '40 pts')}
           {linha('Brasileirão, do 2º ao 15º lugar', '19 a 6 pts')}
           {linha('Do 16º pra baixo, ou Copa sem título', '5 pts')}
-          <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', opacity: 0.8 }}>
-            No Brasileirão cada posição vale um ponto a menos: o 2º lugar dá 19, o 3º dá 18, e assim por diante até o piso de 5.
-            Os pontos <b>somam</b> a cada temporada e nunca diminuem — jogar mais sempre ajuda.
+
+          <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5, margin: '10px 0 6px' }}>2 · Gols</div>
+          {linha('Cada gol que seu time marcou', '+1 pt')}
+          {linha('Cada gol que seu time sofreu', '−1 pt')}
+
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', opacity: 0.8 }}>
+            Exemplo: campeão do Brasileirão com 60 gols marcados e 47 sofridos faz{' '}
+            <b style={{ color: '#d4a23c' }}>50 + 60 − 47 = 63 pts</b> na temporada.
+          </div>
+          <div style={{ marginTop: 8, opacity: 0.8 }}>
+            Numa temporada de 38 rodadas os gols pesam mais que a colocação — quem ataca sobe,
+            quem leva goleada desce. Uma campanha ruim pode render <b>saldo negativo</b> e
+            derrubar seus pontos. Os totais somam de uma temporada pra outra.
+          </div>
+          <div style={{ marginTop: 8, opacity: 0.8 }}>
             Empatou? Fica na frente quem tem mais títulos do Brasileirão; depois, mais títulos de Copa.
           </div>
           <div style={{ marginTop: 8, fontSize: 11.5, opacity: 0.6 }}>
