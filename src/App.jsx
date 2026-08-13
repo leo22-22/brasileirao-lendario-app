@@ -3049,6 +3049,45 @@ const DIFFICULTY_LEVELS = {
   // normal (85) quase nunca (2%) — difícil de verdade, mas possível.
   lendario: { label: 'Lendário', short: 'Lendário', desc: 'IA bem mais forte — precisa de um elenco excepcional.', aiOvrAdjust: 3 },
 };
+// Cor e peso no ranking de cada nível, num lugar só. O multiplicador estava
+// escrito à mão no explicador de pontos; com o selo abaixo mostrando o mesmo
+// número em outra tela, dois textos soltos acabariam discordando um dia.
+// Precisa bater com DIFFICULTY_WEIGHT em server/routes/me.ts, que é quem de
+// fato calcula os pontos.
+const DIFFICULTY_UI = {
+  facil: { tone: '#7fd99a', mult: '× 0,5' },
+  normal: { tone: '#9fb3a8', mult: '× 1' },
+  dificil: { tone: '#e8a33d', mult: '× 1,75' },
+  lendario: { tone: '#e0593f', mult: '× 3' },
+};
+
+// Selo da dificuldade, pra ficar à vista durante a temporada inteira. Não é
+// enfeite: a dificuldade multiplica os pontos de ranking da campanha, então
+// é ela que diz quanto o título vai valer. Sem isso dava pra jogar 38
+// rodadas sem lembrar em que nível a temporada tinha começado.
+function DifficultyBadge({ difficulty, style }) {
+  const level = DIFFICULTY_LEVELS[difficulty];
+  const ui = DIFFICULTY_UI[difficulty];
+  if (!level || !ui) return null;
+  return (
+    <span
+      title={`Dificuldade ${level.label} — campanha vale ${ui.mult} no ranking. ${level.desc}`}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0,
+        fontFamily: "'Space Mono', monospace", fontSize: 10, fontWeight: 700,
+        letterSpacing: 0.5, textTransform: 'uppercase', lineHeight: 1,
+        padding: '4px 8px', borderRadius: 999, whiteSpace: 'nowrap',
+        color: ui.tone, background: hexToRgba(ui.tone, 0.12),
+        border: `1px solid ${hexToRgba(ui.tone, 0.4)}`,
+        ...style,
+      }}
+    >
+      {level.short}
+      <span style={{ opacity: 0.65, fontWeight: 400 }}>{ui.mult}</span>
+    </span>
+  );
+}
+
 function applyDifficultyToPlayers(players, difficultyKey) {
   const adjust = DIFFICULTY_LEVELS[difficultyKey]?.aiOvrAdjust || 0;
   if (adjust === 0) return players;
@@ -7103,11 +7142,12 @@ export default function App() {
             ) : (
               <button
                 onClick={() => setShowAccountModal(true)}
-                className="header-account-btn"
+                className="header-account-btn tap-target-sm"
                 style={{
                   flexShrink: 0, whiteSpace: 'nowrap',
                   background: 'none', border: '1px solid rgba(212,162,60,0.35)',
-                  borderRadius: 999, padding: '6px 14px', cursor: 'pointer',
+                  // 30px de altura no celular — abaixo do que o dedo acerta bem.
+                  borderRadius: 999, padding: '8px 14px', minHeight: 36, cursor: 'pointer',
                   color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 600,
                 }}
               >
@@ -7320,6 +7360,7 @@ export default function App() {
             subbedOutNames={subbedOutNames}
             bracketAdvance={bracketAdvance}
             onDismissBracketAdvance={dismissBracketAdvance}
+            difficulty={difficulty}
           />
         )}
         {phase === 'results' && (
@@ -9663,6 +9704,9 @@ const BK_SIDE_ROUNDS = 4;
 const BK_GOLD = '#f0c040';
 const BK_HEIGHT = BK_PITCH * 8;                     // 8 confrontos por lado
 const BK_WIDTH = 9 * BK_COL_W + 8 * BK_COL_GAP;
+// Abaixo desta escala os nomes dos times deixam de ser legíveis (no celular a
+// chave inteira cabe em ~0,24, virando um borrão cinza bonito e inútil).
+const BK_LEGIBLE_SCALE = 0.55;
 
 const bkColX = (col) => col * (BK_COL_W + BK_COL_GAP);
 // Centro vertical do bloco `i` da fase `r` (r=0 nas 16 avos). A cada fase o
@@ -9680,6 +9724,7 @@ function CupBracketModal({
 }) {
   const mc = myTeamColor || '#d4a23c';
   const wrapRef = useRef(null);
+  const autoZoomedRef = useRef(false);
   const [fitScale, setFitScale] = useState(1);
   const [zoomed, setZoomed] = useState(false);
   const advancingIds = useMemo(() => new Set(advance?.winnerIds || []), [advance]);
@@ -9700,7 +9745,18 @@ function CupBracketModal({
   useEffect(() => {
     const fit = () => {
       const w = wrapRef.current?.clientWidth;
-      if (w) setFitScale(Math.min(1, w / BK_WIDTH));
+      if (!w) return;
+      const s = Math.min(1, w / BK_WIDTH);
+      setFitScale(s);
+      // No celular a chave inteira cabe numa escala de ~0,24: o desenho fica
+      // bonito e os nomes dos times viram borrão cinza. Nesse caso não adianta
+      // "caber" — abre já ampliado e rolado até a fase que interessa, em vez
+      // de mostrar algo ilegível e esperar a pessoa descobrir o "Ampliar".
+      // Só na primeira medição, pra não desfazer o que a pessoa escolheu.
+      if (s < BK_LEGIBLE_SCALE && !autoZoomedRef.current) {
+        autoZoomedRef.current = true;
+        setZoomed(true);
+      }
     };
     fit();
     window.addEventListener('resize', fit);
@@ -9708,6 +9764,28 @@ function CupBracketModal({
   }, []);
   const scale = zoomed ? Math.max(fitScale, 0.8) : fitScale;
   const canZoom = fitScale < 0.8;
+
+  // Ampliado, o chaveamento é mais largo que a tela. Rolar sozinho até a fase
+  // recém-decidida (ou a final, no momento do campeão) evita abrir o modal
+  // encarando as 16 avos enquanto o que acabou de acontecer está fora da tela.
+  // Coluna que a rolagem persegue: a fase recém-decidida quando o modal abriu
+  // por uma transição; senão, a fase mais avançada que já tem confronto — que
+  // é onde a Copa está agora. Sem esse segundo caso, abrir o chaveamento na
+  // semifinal (ou durante a simulação) começava encarando as 16 avos.
+  const focusCol = useMemo(() => {
+    if (decidedRoundIdx >= BK_SIDE_ROUNDS) return 4;
+    if (decidedRoundIdx >= 0) return decidedRoundIdx;
+    let last = 0;
+    (cupRounds || []).forEach((r, i) => { if (r?.matches?.length) last = i; });
+    return last >= BK_SIDE_ROUNDS ? 4 : last;
+  }, [decidedRoundIdx, cupRounds]);
+
+  useEffect(() => {
+    const el = wrapRef.current;
+    if (!el || !zoomed) return;
+    const alvo = (bkColX(focusCol) + BK_COL_W / 2) * scale - el.clientWidth / 2;
+    el.scrollTo({ left: Math.max(0, alvo), behavior: 'smooth' });
+  }, [zoomed, scale, focusCol]);
 
   const teamOf = (id) => leagueTeams?.find(t => t.id === id);
   const crestOf = (team, id) => {
@@ -11110,10 +11188,7 @@ function PontosDoRanking() {
           {linha('Do 16º pra baixo, ou Copa sem título', '5 pts')}
 
           <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5, margin: '10px 0 6px' }}>2 · Dificuldade (multiplica a campanha)</div>
-          {linha('Fácil', '× 0,5')}
-          {linha('Normal', '× 1')}
-          {linha('Difícil', '× 1,75')}
-          {linha('Lendário', '× 3')}
+          {Object.entries(DIFFICULTY_LEVELS).map(([k, lv]) => linha(lv.label, DIFFICULTY_UI[k].mult))}
 
           <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5, margin: '10px 0 6px' }}>3 · Gols (valem igual em toda dificuldade)</div>
           {linha('Cada gol que seu time marcou', '+1 pt')}
@@ -11759,6 +11834,44 @@ const RESULT_COLORS = { V: '#7fd99a', D: '#e05050', E: 'rgba(255,255,255,0.45)' 
 // Calendário da temporada — grade do mês com as rodadas marcadas, resultado
 // de cada uma (selo V/D/E + placar) e a simulação "dia a dia" até a rodada
 // que a pessoa escolher.
+// Escudo pequeno de um time da liga, com dois cuidados que o <img> cru não
+// tem: nem todo time tem imagem (o time do próprio jogador pode ter só um
+// emblema de texto), e a URL vem do TheSportsDB, que pode falhar. Nos dois
+// casos cai nas iniciais do clube em vez de deixar um buraco no layout.
+// `ring` desenha o resultado em volta do escudo — assim o calendário mostra
+// QUEM foi o adversário e COMO terminou sem precisar de duas linhas.
+function TinyCrest({ team, size = 20, ring = null, title }) {
+  const [failed, setFailed] = useState(false);
+  const src = team?.clubLogo || team?.logo || null;
+  const box = {
+    width: size, height: size, borderRadius: '50%', flexShrink: 0,
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    boxSizing: 'border-box',
+    ...(ring ? { border: `2px solid ${ring}` } : {}),
+  };
+  if (src && !failed) {
+    return (
+      <span style={{ ...box, overflow: 'hidden', background: 'rgba(255,255,255,0.06)' }} title={title}>
+        <img
+          src={src} alt={team?.club || ''} onError={() => setFailed(true)}
+          style={{ width: size - (ring ? 6 : 2), height: size - (ring ? 6 : 2), objectFit: 'contain' }}
+        />
+      </span>
+    );
+  }
+  const nome = team?.club || team?.label || '?';
+  return (
+    <span
+      title={title}
+      style={{
+        ...box, background: hexToRgba(team?.color || '#9fb3a8', 0.22),
+        color: team?.color || '#cfd8d2', fontFamily: "'Space Mono', monospace",
+        fontSize: Math.max(7, Math.round(size * 0.4)), fontWeight: 700, letterSpacing: -0.3,
+      }}
+    >{nome.slice(0, 3).toUpperCase()}</span>
+  );
+}
+
 function SeasonCalendarModal({
   fixtures, seasonDates, currentRound, roundHistory, leagueTeams, myTeamId, myTeamColor,
   simActive, cursorDate, speed, onSetSpeed, onSimulateTo, onSimulateAll, onStop, onClose,
@@ -11813,7 +11926,23 @@ function SeasonCalendarModal({
     if (round > currentRound) onSimulateTo(round);
   };
 
-  const teamLabel = (id) => leagueTeams?.find(t => t.id === id)?.label || '—';
+  const teamById = (id) => leagueTeams?.find(t => t.id === id) || null;
+  const teamLabel = (id) => teamById(id)?.label || '—';
+
+  // Adversário do jogador em cada rodada — é o que dá sentido ao escudo no
+  // dia. Sem isso o calendário só dizia "R30", que não conta nada sobre o
+  // jogo que vem.
+  const roundOpponent = useMemo(() => {
+    const map = {};
+    (fixtures || []).forEach((matches, r) => {
+      const m = (matches || []).find(x => x.homeId === myTeamId || x.awayId === myTeamId);
+      if (!m) return;
+      const isHome = m.homeId === myTeamId;
+      map[r] = { team: leagueTeams?.find(t => t.id === (isHome ? m.awayId : m.homeId)) || null, isHome };
+    });
+    return map;
+  }, [fixtures, leagueTeams, myTeamId]);
+
   const selectedMatches = fixtures[selectedRound] || [];
   const selectedResults = roundHistory?.[selectedRound] || null;
   const cursorKey = cursorDate ? dateKey(cursorDate) : null;
@@ -11854,30 +11983,48 @@ function SeasonCalendarModal({
             const result = played ? userRoundResult(roundHistory[round], myTeamId) : null;
             const isCursor = cursorKey === key;
             const isSelected = hasRound && round === selectedRound;
+            const opponent = hasRound ? roundOpponent[round] : null;
             return (
               <button
                 key={key}
                 onClick={() => handleDayClick(day)}
                 title={hasRound ? `Rodada ${round + 1}` : 'Sem jogo'}
                 style={{
-                  minHeight: 62, padding: '5px 3px', borderRadius: 8, textAlign: 'center', cursor: simActive ? 'default' : 'pointer',
+                  minHeight: 70, padding: '5px 3px', borderRadius: 8, textAlign: 'center', cursor: simActive ? 'default' : 'pointer',
                   border: `1px solid ${isCursor ? mc : isSelected ? hexToRgba(mc, 0.5) : hasRound ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}`,
                   background: isCursor ? hexToRgba(mc, 0.22) : hasRound ? 'rgba(255,255,255,0.04)' : 'transparent',
                   color: '#F4F1EA', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                 }}
               >
                 <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", opacity: hasRound ? 0.85 : 0.35 }}>{day.getDate()}</span>
+                {/* O escudo do adversário vale mais que o número da rodada:
+                    diz de cara contra quem é o jogo. O anel em volta carrega o
+                    resultado, o que evita gastar uma linha só com o selo V/D/E
+                    — a célula tem ~40px de largura no celular. */}
+                {hasRound && (
+                  <TinyCrest
+                    team={opponent?.team}
+                    size={22}
+                    ring={result ? RESULT_COLORS[result.res] : null}
+                    title={opponent?.team
+                      ? `Rodada ${round + 1} · ${opponent.isHome ? 'em casa contra' : 'fora contra'} ${opponent.team.label}`
+                      : `Rodada ${round + 1}`}
+                  />
+                )}
                 {hasRound && !result && (
-                  <span style={{ fontSize: 9.5, color: mc, fontWeight: 700, lineHeight: 1 }}>R{round + 1}</span>
+                  <span style={{ fontSize: 9, color: mc, fontWeight: 700, lineHeight: 1, fontFamily: "'Space Mono', monospace" }}>
+                    {/* Tinha um "@" aqui pra marcar jogo fora. A 9px, em Space
+                        Mono, ele lia como "a" — "a R2" em vez de "@ R2". Mando
+                        fica no tooltip do dia e na lista de jogos abaixo, que é
+                        onde dá pra mostrar sem ambiguidade. */}
+                    R{round + 1}
+                  </span>
                 )}
                 {result && (
-                  <>
-                    <span style={{
-                      width: 19, height: 19, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: RESULT_COLORS[result.res], color: '#0B1A12', fontSize: 11, fontWeight: 800, lineHeight: 1,
-                    }}>{result.res}</span>
-                    <span style={{ fontSize: 9.5, opacity: 0.65, fontFamily: "'Space Mono', monospace", lineHeight: 1 }}>{result.gf}-{result.ga}</span>
-                  </>
+                  <span style={{ fontSize: 9.5, fontFamily: "'Space Mono', monospace", lineHeight: 1, display: 'flex', gap: 3 }}>
+                    <span style={{ fontWeight: 800, color: RESULT_COLORS[result.res] }}>{result.res}</span>
+                    <span style={{ opacity: 0.6 }}>{result.gf}-{result.ga}</span>
+                  </span>
                 )}
               </button>
             );
@@ -11903,11 +12050,17 @@ function SeasonCalendarModal({
                 background: isMine ? hexToRgba(mc, 0.08) : 'transparent',
                 fontWeight: isMine ? 700 : 400,
               }}>
-                <span style={{ flex: 1, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel(m.homeId)}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", minWidth: 34, textAlign: 'center', color: r ? mc : 'rgba(255,255,255,0.3)' }}>
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel(m.homeId)}</span>
+                  <TinyCrest team={teamById(m.homeId)} size={16} />
+                </span>
+                <span style={{ fontFamily: "'Space Mono', monospace", minWidth: 34, textAlign: 'center', flexShrink: 0, color: r ? mc : 'rgba(255,255,255,0.3)' }}>
                   {r ? `${r.homeGoals}-${r.awayGoals}` : 'x'}
                 </span>
-                <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel(m.awayId)}</span>
+                <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <TinyCrest team={teamById(m.awayId)} size={16} />
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel(m.awayId)}</span>
+                </span>
               </div>
             );
           })}
@@ -11956,7 +12109,7 @@ function SeasonCalendarModal({
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty }) {
   const mc = myTeamColor || '#d4a23c';
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -12021,10 +12174,11 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             {fastSimStatusMsg || 'Simulando...'}
           </div>
           {gameMode === 'brasileirao' && (
-            <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 26 }}>
+            <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 10 }}>
               Rodada {currentRound + 1} de {fixtures.length}
             </div>
           )}
+          <div style={{ marginBottom: 22 }}><DifficultyBadge difficulty={difficulty} /></div>
           <div style={{ ...styles.clockPulse, margin: '0 auto' }} />
           {onCancelFastSim && (
             <button style={{ ...styles.btnGhost, marginTop: 28 }} onClick={onCancelFastSim}>Cancelar</button>
@@ -12174,7 +12328,10 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         <div style={styles.draftTopRow}>
           <div>
             <div style={styles.eyebrow}>Copa do Brasil · {legLabel}</div>
-            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginTop: 2 }}>{roundName}</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+              <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700 }}>{roundName}</span>
+              <DifficultyBadge difficulty={difficulty} />
+            </div>
           </div>
           {roundDone && userInCup && simMode === 'manual' && (
             <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12' }} onClick={onNextRound}>
@@ -12324,7 +12481,10 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
       <div style={styles.draftTopRow}>
         <div>
           <div style={styles.eyebrow}>Brasileirão · Série A</div>
-          <div style={{ fontSize: 13, opacity: 0.6, marginTop: 2 }}>Rodada {currentRound + 1} de {totalRounds}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3 }}>
+            <span style={{ fontSize: 13, opacity: 0.6 }}>Rodada {currentRound + 1} de {totalRounds}</span>
+            <DifficultyBadge difficulty={difficulty} />
+          </div>
           {onOpenCalendar && (
             <button
               onClick={onOpenCalendar}
