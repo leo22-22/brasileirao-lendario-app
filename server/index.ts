@@ -8,6 +8,7 @@ import authRoutes from './routes/auth.js';
 import meRoutes from './routes/me.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import roomsRoutes from './routes/rooms.js';
+import turnRoutes from './routes/turn.js';
 import { ensureSchema } from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -67,11 +68,15 @@ app.use('/api/auth', rateLimiter(10, 15 * 60 * 1000));
 // Cobre PUT (heartbeat do líder a cada 15s) e GET (poll da lista a cada
 // 6-8s) de uma sala só, com folga — igual ao limitador de /api/auth acima.
 app.use('/api/rooms', rateLimiter(30, 60 * 1000));
+// O front pede as credenciais de TURN uma vez por sessão (e guarda em cache).
+// Folga pra quem recarrega a página várias vezes tentando entrar numa sala.
+app.use('/api/turn', rateLimiter(20, 60 * 1000));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/rooms', roomsRoutes);
+app.use('/api/turn', turnRoutes);
 
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Rota não encontrada.' });

@@ -33,33 +33,60 @@ const MY_PID = (() => {
 // Preencher VITE_TURN_URL/USERNAME/CREDENTIAL (Metered, Twilio, Cloudflare ou
 // um coturn próprio) resolve. Aceita lista separada por vírgula pra cobrir
 // UDP e TCP/443, esse último é o que atravessa rede corporativa/escola.
-// O PeerJS já vem com um TURN público de fábrica na config PADRÃO dele. Só que
-// passar `config` pra ele SUBSTITUI essa config inteira — então, ao declarar só
-// os STUN aqui, a gente estava JOGANDO FORA o único relay que existia, e
-// ficando numa situação pior do que não ter configurado nada. Medido no site em
-// produção: cada peer cria uma conexão com a config do PeerJS (com TURN) e
-// outra com a nossa (sem), e a que vale é a nossa. Mantê-lo na lista é de graça
-// e só pode adicionar caminho — se estiver fora do ar, o navegador ignora.
-const PEERJS_FALLBACK_TURN = {
-  urls: ['turn:eu-0.turn.peerjs.com:3478', 'turn:us-0.turn.peerjs.com:3478'],
-  username: 'peerjs',
-  credential: 'peerjsp',
-};
-const TURN_URLS = (import.meta.env.VITE_TURN_URL || '').split(',').map(u => u.trim()).filter(Boolean);
-const ICE_SERVERS = [
+// Existia aqui um fallback pro TURN gratuito do PeerJS (eu-0/us-0.turn.
+// peerjs.com). Ele foi REMOVIDO porque não existe mais: o projeto descontinuou
+// o serviço gratuito e tirou os hostnames do DNS. Medido: as duas máquinas
+// respondem ENOTFOUND, e o Chromium só devolve erro ICE 701 ("host lookup
+// received error") pra elas. Ou seja, o jogo estava rodando com relay NENHUM —
+// o que explica exatamente o 4G e o Wi-Fi de faculdade nunca conectarem.
+// Manter servidor morto na lista não é neutro: o navegador gasta tempo de
+// gathering tentando resolvê-los antes de desistir.
+const STUN_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
-  ...(TURN_URLS.length > 0 ? [{
-    urls: TURN_URLS,
-    username: import.meta.env.VITE_TURN_USERNAME,
-    credential: import.meta.env.VITE_TURN_CREDENTIAL,
-  }] : []),
-  // Último recurso, sempre presente: é grátis e compartilhado, então não dá pra
-  // contar com ele — um TURN próprio via VITE_TURN_URL continua sendo o que
-  // resolve o 4G de verdade. Mas é melhor que relay nenhum.
-  PEERJS_FALLBACK_TURN,
 ];
-const PEER_OPTIONS = { debug: 1, config: { iceServers: ICE_SERVERS } };
+// Compatibilidade: TURN fixo embutido no build. Continua funcionando pra quem
+// já tinha .env configurado, mas o caminho recomendado agora é o /api/turn
+// abaixo — credencial que expira sozinha, com o segredo ficando no servidor.
+const TURN_URLS = (import.meta.env.VITE_TURN_URL || '').split(',').map(u => u.trim()).filter(Boolean);
+const BUILD_TIME_TURN = TURN_URLS.length > 0 ? [{
+  urls: TURN_URLS,
+  username: import.meta.env.VITE_TURN_USERNAME,
+  credential: import.meta.env.VITE_TURN_CREDENTIAL,
+}] : [];
+
+// Busca os servidores de retransmissão no backend. STUN sozinho não fecha
+// conexão pra quem está em 4G (CGNAT) nem em rede que bloqueia UDP — nesses
+// casos o tráfego PRECISA passar por um TURN, e a credencial dele é emitida
+// pelo servidor porque tem prazo de validade.
+// Memoizado: a credencial vale horas, não faz sentido pedir a cada sala.
+// Nunca deixa a busca travar a entrada em sala — se o backend demorar ou
+// estiver fora, segue com STUN (que é o que já acontecia antes) em vez de
+// deixar a pessoa esperando.
+let iceServersPromise = null;
+let hasRelay = null; // null = ainda não sabemos
+function loadIceServers() {
+  if (iceServersPromise) return iceServersPromise;
+  iceServersPromise = (async () => {
+    try {
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 5000);
+      const r = await fetch('/api/turn', { signal: ctrl.signal }).finally(() => clearTimeout(timer));
+      if (!r.ok) throw new Error(String(r.status));
+      const data = await r.json();
+      const fromServer = Array.isArray(data.iceServers) ? data.iceServers : [];
+      hasRelay = fromServer.length > 0 || BUILD_TIME_TURN.length > 0;
+      return [...STUN_SERVERS, ...fromServer, ...BUILD_TIME_TURN];
+    } catch {
+      hasRelay = BUILD_TIME_TURN.length > 0;
+      return [...STUN_SERVERS, ...BUILD_TIME_TURN];
+    }
+  })();
+  return iceServersPromise;
+}
+async function peerOptions() {
+  return { debug: 1, config: { iceServers: await loadIceServers() } };
+}
 // Tempo até desistir de entrar/criar sala. 12s era curto demais: a negociação
 // WebRTC só com STUN (sem TURN) leva mais que isso em 4G e em Wi-Fi com NAT
 // chato, e a pessoa via "tempo esgotado" numa conexão que ia fechar.
@@ -6593,7 +6620,7 @@ export default function App() {
     const code = generateRoomCode();
     let peer;
     try {
-      peer = new Peer(code, PEER_OPTIONS);
+      peer = new Peer(code, await peerOptions());
       peerRef.current = peer;
     } catch (e) {
       multiConnectingRef.current = false;
@@ -6730,7 +6757,7 @@ export default function App() {
     multiConnectingRef.current = true;
     setMultiConnecting(true);
     setMultiError('');
-    const peer = new Peer(undefined, PEER_OPTIONS);
+    const peer = new Peer(undefined, await peerOptions());
     peerRef.current = peer;
 
     // Entrar numa sala tem DUAS etapas que podem falhar, e elas pedem
@@ -6755,8 +6782,13 @@ export default function App() {
       if (msg) { try { peer.destroy(); } catch { } }
     };
     const timeout = setTimeout(() => {
+      // Quando não há relay disponível, "tente outra rede" é o único conselho
+      // honesto: em 4G ou Wi-Fi de faculdade a conexão não vai fechar por
+      // tentativa nenhuma, e mandar a pessoa insistir só faz perder tempo.
       finishWith(peerOpened
-        ? 'Não foi possível abrir a conexão com o líder. Costuma ser a rede bloqueando conexão direta (Wi-Fi de empresa/faculdade, ou 4G). Tente outra rede, ou peça pro outro jogador criar a sala.'
+        ? (hasRelay === false
+          ? 'Não foi possível abrir a conexão com o líder. Esta rede (4G ou Wi-Fi de faculdade/empresa) bloqueia conexão direta, e o servidor de retransmissão não está configurado. Tente pelo Wi-Fi de casa.'
+          : 'Não foi possível abrir a conexão com o líder. Costuma ser a rede bloqueando conexão direta (Wi-Fi de empresa/faculdade, ou 4G). Tente outra rede, ou peça pro outro jogador criar a sala.')
         : 'Tempo esgotado — sem resposta do servidor de conexão. Verifique sua internet.');
     }, MULTI_CONNECT_TIMEOUT_MS);
 
