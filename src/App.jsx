@@ -4102,6 +4102,7 @@ const POS_COMPAT = {
 const CLUB_LOGOS = {
   // Times no jogo (66 equipes históricas)
   'Santos': 'https://r2.thesportsdb.com/images/media/team/badge/j8xk9g1679447486.png',
+  'Sao Caetano': 'https://r2.thesportsdb.com/images/media/team/badge/e72hdi1593453914.png',
   'Botafogo': 'https://r2.thesportsdb.com/images/media/team/badge/bs5mbw1733004596.png',
   'Palmeiras': 'https://r2.thesportsdb.com/images/media/team/badge/vsqwqp1473538105.png',
   'Internacional': 'https://r2.thesportsdb.com/images/media/team/badge/yprvxx1473538097.png',
@@ -4150,6 +4151,7 @@ const GOAL_AUDIO_FILES = {
   'Fluminense': ['/gol/Fluminense.mp3'],
   'Atletico-MG': ['/gol/Atletico-MG.mp3'],
   'Santos': ['/gol/Santos.mp3'],
+  'Sao Caetano': ['/gol/Sao-Caetano.mp3'],
   'Athletico-PR': ['/gol/Athletico-PR.mp3'],
   'Bahia': ['/gol/Bahia.mp3'],
   'Botafogo': ['/gol/Botafogo-1.mp3', '/gol/Botafogo-2.mp3'],
@@ -4211,6 +4213,7 @@ function playGoalAudio(club, customUrl, onEnd) {
 // IDs YouTube dos hinos oficiais — tocam na tela de campeão
 const CLUB_ANTHEMS = {
   'Santos': 'QXs6kGLVL_0',
+  'Sao Caetano': 'YqPaxCODcPI',
   'Flamengo': 'pFvX3lHujn8',
   'Corinthians': 'g6M8oJq-dEA',
   'Palmeiras': 'n47Y8-xNDPo',
