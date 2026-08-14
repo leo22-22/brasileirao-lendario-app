@@ -4164,6 +4164,18 @@ const POS_COMPAT = {
   ATA: ['ATA', 'PD', 'PE'],
 };
 
+// Números do conteúdo do jogo (clubes, elencos, jogadores) — usados como
+// selo de "isso aqui é grande" na home e no ranking. Preferido a mostrar
+// contagem de contas cadastradas/ativas: aquele número é pequeno num site
+// novo e cai quando ninguém abre o jogo num período, enquanto o acervo de
+// times históricos só cresce. Derivado de TEAMS, nunca escrito à mão — não
+// tem como ficar desatualizado a cada leva de times nova.
+const GAME_STATS = {
+  clubs: new Set(TEAMS.map(t => t.club)).size,
+  squads: TEAMS.length,
+  players: TEAMS.reduce((n, t) => n + t.players.length, 0),
+};
+
 // Logos via TheSportsDB (r2.thesportsdb.com — free, sem autenticação)
 const CLUB_LOGOS = {
   // Times no jogo (66 equipes históricas)
@@ -7780,32 +7792,30 @@ function SponsorBanner({ compact = false }) {
   );
 }
 
+// Selo de tamanho do acervo: quantos clubes, elencos e jogadores dá pra
+// sortear. Substitui contagem de contas cadastradas/ativas (ver GAME_STATS
+// acima) nos dois lugares em que a home e o ranking mostravam esse tipo de
+// número de cara.
+function GameStatsBar({ style }) {
+  return (
+    <div style={style}>
+      <b>{GAME_STATS.clubs}</b> clubes · <b>{GAME_STATS.squads}</b> elencos históricos · <b>{GAME_STATS.players.toLocaleString('pt-BR')}</b> jogadores
+    </div>
+  );
+}
+
 function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
-  // Números REAIS da comunidade (nunca inventados) — mesma fonte do Ranking
-  // Global, só num lugar mais visível (topo da home), pra dar uma noção
-  // honesta de tamanho pra quem chega no site pela primeira vez.
-  const [communityStats, setCommunityStats] = useState(null);
-  useEffect(() => {
-    api.fetchLeaderboard({ limit: 1 })
-      .then(({ stats }) => { if (stats) setCommunityStats(stats); })
-      .catch(() => { });
-  }, []);
 
   return (
     <>
       <div style={styles.introCard} className="intro-card-mob">
         <div style={{ ...styles.introTopBar, background: `linear-gradient(90deg, transparent, ${mc}, transparent)` }} />
         <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2024</div>
-        {communityStats && (
-          <div style={styles.communityStatsBar}>
-            <span>👥 <b>{communityStats.totalPlayers}</b> jogadores cadastrados</span>
-            <span>🟢 <b>{communityStats.activePlayers30d}</b> ativos nos últimos 30 dias</span>
-          </div>
-        )}
+        <GameStatsBar style={styles.gameStatsBar} />
         <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
         <p style={styles.introLead}>
           Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
@@ -11222,7 +11232,6 @@ function PontosDoRanking() {
 function LeaderboardModal({ onClose, myUsername }) {
   const [rows, setRows] = useState(null);
   const [baseOffset, setBaseOffset] = useState(0);
-  const [stats, setStats] = useState(null);
   const [total, setTotal] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [uf, setUf] = useState('');
@@ -11238,12 +11247,11 @@ function LeaderboardModal({ onClose, myUsername }) {
     const effectiveUf = 'uf' in overrides ? overrides.uf : uf;
     const effectiveLogo = 'logo' in overrides ? overrides.logo : logo;
     api.fetchLeaderboard({ limit: LEADERBOARD_PAGE_SIZE, offset, uf: effectiveUf, logo: effectiveLogo })
-      .then(({ leaderboard, total: t, hasMore: hm, stats: s }) => {
+      .then(({ leaderboard, total: t, hasMore: hm }) => {
         setRows(prev => reset || !prev ? leaderboard : [...prev, ...leaderboard]);
         if (reset) setBaseOffset(offset);
         setTotal(t);
         setHasMore(hm);
-        if (s) setStats(s);
         setError('');
       })
       .catch(() => setError('Não foi possível carregar o ranking agora.'))
@@ -11318,12 +11326,7 @@ function LeaderboardModal({ onClose, myUsername }) {
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 18, cursor: 'pointer' }}>×</button>
         </div>
 
-        {stats && (
-          <div style={{ display: 'flex', gap: 12, fontSize: 11, opacity: 0.6, marginBottom: 12 }}>
-            <span>👥 {stats.totalPlayers} jogadores registrados</span>
-            <span>🟢 {stats.activePlayers30d} ativos (30d)</span>
-          </div>
-        )}
+        <GameStatsBar style={{ fontSize: 11, opacity: 0.6, marginBottom: 12 }} />
 
         <PontosDoRanking />
 
@@ -13653,8 +13656,8 @@ const styles = {
   // padrão do sistema) — sem uma cor sólida explícita aqui, o texto claro
   // herdado ficava quase ilegível em cima de um fundo claro.
   selectOption: { background: '#14261a', color: '#F4F1EA' },
-  communityStatsBar: {
-    display: 'flex', flexWrap: 'wrap', gap: '6px 16px', fontSize: 11.5, opacity: 0.7,
+  gameStatsBar: {
+    fontSize: 11.5, opacity: 0.7,
     marginBottom: 16, marginTop: -8,
   },
 
