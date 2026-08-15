@@ -4644,6 +4644,16 @@ export default function App() {
     let title = 'Brasileirão Lendário — Monte seu time com lendas do futebol brasileiro';
     let description = `Simulador de futebol grátis: monte seu elenco com craques históricos de ${TEAMS.length} times do futebol brasileiro (1959-2024), escale a formação e dispute o Brasileirão ou a Copa do Brasil sozinho ou com amigos no multiplayer.`;
     let path = '/';
+    // As 100 páginas de time individuais (/times/{id}) são quase idênticas
+    // entre si — uma frase-modelo trocando só o nome do time, mais a lista de
+    // jogadores. Conteúdo gerado em massa com pouca variação é exatamente o
+    // que a política de "conteúdo de baixo valor" do AdSense cita. noindex
+    // tira elas da avaliação de qualidade do site sem tirar do ar: continuam
+    // funcionando normalmente pra quem chega por um link ou navega pelo
+    // índice em /times (que segue indexável, por ser uma página real de
+    // listagem). `follow` mantém o Google encontrando as outras páginas do
+    // site a partir daqui.
+    let robots = 'index, follow';
     if (infoPage) {
       title = `${INFO_TABS.find(t => t.id === infoPage)?.label} — Brasileirão Lendário`;
       path = canonicalPathFor(infoPage);
@@ -4657,8 +4667,16 @@ export default function App() {
       title = `${team.label} — Elenco completo | Brasileirão Lendário`;
       description = `Monte o ${baseName}${achievement ? ` (${achievement})` : ''} no Brasileirão Lendário: elenco completo com ${team.players.length} jogadores reais, técnico ${team.coach}, e dispute o Brasileirão ou a Copa do Brasil.`;
       path = canonicalTeamsPath(teamsPage);
+      robots = 'noindex, follow';
     }
     document.title = title;
+    let robotsTag = document.querySelector('meta[name="robots"]');
+    if (!robotsTag) {
+      robotsTag = document.createElement('meta');
+      robotsTag.name = 'robots';
+      document.head.appendChild(robotsTag);
+    }
+    robotsTag.content = robots;
     // A <meta name="description"> do index.html é estática — sem atualizar
     // aqui, toda página (institucional ou de time) mantém o snippet
     // genérico da home nos resultados de busca, perdendo a chance de um
@@ -7754,32 +7772,6 @@ function parseYouTubeId(input) {
 // título invicto) com metas quantitativas (com barra, via getAchievementProgress).
 const FEATURED_ACHIEVEMENT_IDS = ['unbeaten_league_champion', 'goals_1000', 'dynasty', 'veteran'];
 
-// Faixa de patrocínio estilo placa de LED de estádio (rodapé do gramado) —
-// por enquanto só placeholders decorativos + um convite pra patrocinar de
-// verdade, que abre um email pronto pro contato. Reaproveita o mesmo
-// mecanismo de "esteira" (marquee) do carrossel de times acima.
-const SPONSOR_SLOTS = ['⭐ Sua marca aqui', '⭐ Sua marca aqui', '⭐ Sua marca aqui', '⭐ Sua marca aqui'];
-// `compact` encolhe a faixa pra caber em espaços apertados (dentro do
-// campinho, sob o placar da partida ao vivo) — mesmo conteúdo/mecanismo,
-// só menor.
-function SponsorBanner({ compact = false }) {
-  const slots = [...SPONSOR_SLOTS, ...SPONSOR_SLOTS]; // duplicado pra loop contínuo, igual ao carrossel de times
-  return (
-    <div style={compact ? styles.sponsorBannerWrapCompact : styles.sponsorBannerWrap}>
-      <div style={styles.sponsorBannerTrack} className="sponsor-marquee-track">
-        <EmailLink
-          subject="Quero patrocinar o Brasileirão Lendário"
-          style={compact ? styles.sponsorCtaCompact : styles.sponsorCta}
-          label="📢 Patrocine aqui"
-        />
-        {slots.map((label, i) => (
-          <span key={i} style={compact ? styles.sponsorSlotCompact : styles.sponsorSlot}>{label}</span>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 // Selo de tamanho do acervo: quantos clubes, elencos e jogadores dá pra
 // sortear. Substitui contagem de contas cadastradas/ativas (ver GAME_STATS
 // acima) nos dois lugares em que a home e o ranking mostravam esse tipo de
@@ -7989,8 +7981,6 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
         <button style={{ ...styles.btnIntro, background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: '#0B1A12', boxShadow: `0 8px 24px ${hexToRgba(mc, 0.35)}` }} onClick={onStart}>
           {gameMode === 'copa' ? 'Escolher formação — Copa →' : 'Escolher formação — Brasileirão →'}
         </button>
-
-        <SponsorBanner />
 
         {/* Rodapé institucional */}
         <div style={{
@@ -9601,9 +9591,6 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
             </div>
           );
         })}
-      </div>
-      <div style={{ width: '100%', maxWidth: 380 }}>
-        <SponsorBanner compact />
       </div>
     </div>
   );
@@ -11610,8 +11597,6 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
         </div>
       </div>
 
-      <SponsorBanner compact />
-
       {(isSimulating || roundDone) && (
         <div style={{ ...styles.clockRow, flexWrap: 'wrap', gap: 8 }}>
           <div style={{ ...styles.clock, color: isSimulating ? '#7fd99a' : '#F4F1EA', minWidth: 52, textAlign: 'center' }}>{clockDisplay}</div>
@@ -13413,8 +13398,6 @@ const globalCss = `
   .marquee-track { animation: marquee 48s linear infinite; will-change: transform; }
   .marquee-track:hover { animation-play-state: paused; }
   .champion-marquee-track { animation: marquee 10s linear infinite; will-change: transform; }
-  .sponsor-marquee-track { animation: marquee 22s linear infinite; will-change: transform; }
-  .sponsor-marquee-track:hover { animation-play-state: paused; }
   @keyframes suspensePulse {
     0%, 100% { opacity: 0.55; transform: scale(0.97); text-shadow: 0 0 0 rgba(212,162,60,0); }
     50% { opacity: 1; transform: scale(1.04); text-shadow: 0 0 20px rgba(212,162,60,0.65); }
@@ -13671,40 +13654,6 @@ const styles = {
   introMarqueeTrack: { display: 'flex', gap: 10, width: 'max-content' },
   introTeamChip: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap', opacity: 0.75, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, padding: '5px 14px 5px 8px' },
   introTeamChipCrest: { width: 16, height: 16, objectFit: 'contain', borderRadius: '50%', flexShrink: 0 },
-  // Placa de LED de estádio — fundo bem escuro, texto âmbar tipo scoreboard,
-  // moldura sutil pra parecer um painel de verdade cravado no rodapé.
-  sponsorBannerWrap: {
-    overflow: 'hidden', marginTop: 20,
-    background: '#0a1710', border: '1px solid rgba(212,162,60,0.25)', borderRadius: 8,
-    padding: '9px 0',
-    maskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
-    WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
-  },
-  sponsorBannerTrack: { display: 'flex', alignItems: 'center', gap: 28, width: 'max-content' },
-  sponsorSlot: {
-    fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase',
-    color: 'rgba(212,162,60,0.55)', whiteSpace: 'nowrap',
-  },
-  sponsorCta: {
-    fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase',
-    color: '#d4a23c', fontWeight: 700, whiteSpace: 'nowrap', textDecoration: 'none',
-    border: '1px solid rgba(212,162,60,0.5)', borderRadius: 999, padding: '3px 12px',
-  },
-  sponsorBannerWrapCompact: {
-    overflow: 'hidden', background: 'rgba(10,23,16,0.92)', border: '1px solid rgba(212,162,60,0.3)',
-    borderRadius: 5, padding: '4px 0',
-    maskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
-    WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
-  },
-  sponsorSlotCompact: {
-    fontFamily: "'Space Mono', monospace", fontSize: 8.5, letterSpacing: 1, textTransform: 'uppercase',
-    color: 'rgba(212,162,60,0.55)', whiteSpace: 'nowrap',
-  },
-  sponsorCtaCompact: {
-    fontFamily: "'Space Mono', monospace", fontSize: 8.5, letterSpacing: 1, textTransform: 'uppercase',
-    color: '#d4a23c', fontWeight: 700, whiteSpace: 'nowrap', textDecoration: 'none',
-    border: '1px solid rgba(212,162,60,0.5)', borderRadius: 999, padding: '2px 8px',
-  },
   btnIntro: { background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 12, padding: '16px 40px', fontSize: 17, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3 },
 
   // Draft side-by-side layout
