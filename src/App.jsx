@@ -4436,14 +4436,6 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Primeira visita: sem sessão e sem escolha prévia de "convidado" → mostra o modal.
-  useEffect(() => {
-    if (authLoading) return;
-    if (!authToken && localStorage.getItem('brl_guest_ack') !== '1') {
-      setShowAccountModal(true);
-    }
-  }, [authLoading, authToken]);
-
   // Ao logar/cadastrar/restaurar sessão, o time do usuário passa a vir da conta.
   useEffect(() => {
     if (!currentUser) return;
@@ -4464,15 +4456,11 @@ export default function App() {
     setAuthToken(token);
     setCurrentUser(user);
     setAuthError('');
-    try { localStorage.setItem('brl_guest_ack', '1'); } catch { /* ignore */ }
     setShowAccountModal(false);
     if (mode === 'signup') trackEvent('sign_up');
   };
 
-  const handleGuestChoice = () => {
-    try { localStorage.setItem('brl_guest_ack', '1'); } catch { /* ignore */ }
-    setShowAccountModal(false);
-  };
+  const handleGuestChoice = () => setShowAccountModal(false);
 
   const handleLogout = () => {
     api.clearToken();
@@ -7441,7 +7429,6 @@ export default function App() {
           onGuestChoice={handleGuestChoice}
           onAuthSuccess={handleAuthSuccess}
           onClose={() => setShowAccountModal(false)}
-          allowClose={localStorage.getItem('brl_guest_ack') === '1' || !!currentUser}
         />
       )}
       {showAccountPanel && currentUser && (
@@ -7565,7 +7552,10 @@ function ImageCropModal({ src, onConfirm, onCancel }) {
 // ============================================================
 // CONTA — modal de entrada (cadastro / login / convidado)
 // ============================================================
-function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSuccess, onClose, allowClose }) {
+// Só abre por ação explícita (botão "Entrar / Criar conta" no cabeçalho, ou
+// convite contextual no fim de temporada) — nunca mais sozinho ao carregar a
+// página. Por isso sempre pode ser fechado: quem abriu, decide quando sair.
+function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSuccess, onClose }) {
   const [mode, setMode] = useState(initialMode);
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
@@ -7589,11 +7579,9 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div style={{ width: '100%', maxWidth: 380, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative' }}>
-        {allowClose && (
-          <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
-        )}
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative' }}>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
 
         {mode === 'choice' && (
           <>
