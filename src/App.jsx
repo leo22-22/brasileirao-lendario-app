@@ -6489,6 +6489,27 @@ export default function App() {
     setViewingTeam(null);
   };
 
+  // Descrição curta de onde a pessoa está, pra mostrar na confirmação de
+  // saída — null quando não há nada em risco (intro, ou resultado já
+  // encerrado). Sem isso, "voltar ao menu" apagava uma temporada em
+  // andamento com um clique só, no título clicável do cabeçalho (visível a
+  // qualquer momento do jogo) e sem aviso nenhum.
+  const activeGameLabel = () => {
+    if (phase === 'intro' || phase === 'results') return null;
+    if (phase === 'playing') {
+      return gameMode === 'copa'
+        ? (CUP_ROUND_NAMES[cupRoundIdx] || 'Copa do Brasil')
+        : `Rodada ${currentRound + 1} de ${fixtures.length}`;
+    }
+    if (phase === 'transfer') return 'o mercado de transferências';
+    return 'a escalação do seu time'; // formation / draft / squad
+  };
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
+  const requestGoHome = () => {
+    if (!activeGameLabel()) { restart(); return; }
+    setShowLeaveConfirm(true);
+  };
+
   // Nova temporada com o mesmo elenco
   const newSeason = useCallback(() => {
     setIsTransferSeason(false);
@@ -7070,7 +7091,7 @@ export default function App() {
               style={{ ...styles.title, cursor: 'pointer' }}
               className="header-title-h"
               title="Voltar ao menu inicial"
-              onClick={restart}
+              onClick={requestGoHome}
             >BRASILEIRÃO LENDÁRIO</div>
             <div style={styles.subtitle} className="header-subtitle-h">monte · escale · seja campeão</div>
           </div>
@@ -7441,6 +7462,22 @@ export default function App() {
           />
         )}
       </main>
+      {showLeaveConfirm && (
+        <div onClick={() => setShowLeaveConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Voltar ao menu inicial?</div>
+            <p style={{ fontSize: 13, opacity: 0.65, lineHeight: 1.5, marginBottom: 6 }}>
+              Você está em <b>{activeGameLabel()}</b>. Ao sair agora, essa temporada é encerrada e não pode ser retomada depois.
+            </p>
+            <button onClick={() => { setShowLeaveConfirm(false); restart(); }} style={{ ...styles.btnPrimary, width: '100%', background: '#e05050', color: '#fff', marginTop: 16 }}>
+              Sim, voltar ao menu
+            </button>
+            <button onClick={() => setShowLeaveConfirm(false)} style={{ ...styles.btnGhost, marginTop: 10 }}>
+              Cancelar, continuar jogando
+            </button>
+          </div>
+        </div>
+      )}
       {showAccountModal && (
         <AccountModal
           mode={accountModalMode}
