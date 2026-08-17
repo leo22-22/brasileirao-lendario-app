@@ -4361,8 +4361,24 @@ export default function App() {
   const _sv = (() => {
     try { const s = localStorage.getItem('brl_save'); return s ? JSON.parse(s) : null; } catch { return null; }
   })();
+  const _hasSave = !!(_sv?.phase && _sv.phase !== 'intro');
+  // Primeira visita de verdade (nunca jogou nesse navegador, sem save
+  // nenhum) — pula a home e cai direto no "Escolher formação", pra dar
+  // interação com o jogo já de cara em vez de só texto de marketing. Só
+  // acontece UMA vez: `brl_returning` é marcado logo abaixo (useEffect), e
+  // depois disso a pessoa sempre vê a home normal, mesmo sem save ativo.
+  const _isFirstVisit = !_hasSave && (() => {
+    try { return localStorage.getItem('brl_returning') !== '1'; } catch { return false; }
+  })();
 
-  const [phase, setPhase] = useState(_sv?.phase && _sv.phase !== 'intro' ? _sv.phase : 'intro');
+  const [phase, setPhase] = useState(_hasSave ? 'intro' : (_isFirstVisit ? 'formation' : 'intro'));
+  // Fase do jogo salvo, guardada à parte de `phase`: com save, a tela
+  // inicial mostra a home (não pula direto pro jogo) com um botão
+  // "Continuar" visível — em vez de reabrir sozinho sem avisar, que é
+  // menos confiável quando a pessoa volta só no dia seguinte. Os outros
+  // estados (pitch, fixtures, currentRound etc.) abaixo já carregam do save
+  // normalmente; só `phase` fica em 'intro' até a pessoa escolher.
+  const [savedPhase, setSavedPhase] = useState(_hasSave ? _sv.phase : null);
   const [formationKey, setFormationKey] = useState(_sv?.formationKey ?? null);
   const [pitchSlots, setPitchSlots] = useState(_sv?.pitchSlots ?? []);
   const [usedTeamIds, setUsedTeamIds] = useState(_sv?.usedTeamIds ?? []);
@@ -4433,6 +4449,16 @@ export default function App() {
       .catch(() => { if (!cancelled) { api.clearToken(); setAuthToken(null); } })
       .finally(() => { if (!cancelled) setAuthLoading(false); });
     return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Marca o navegador como "já visitou" — feito aqui (efeito, depois do
+  // primeiro render) e não junto da leitura de `_isFirstVisit` acima, pra não
+  // escrever no localStorage durante a renderização. Sem isso o pulo direto
+  // pro draft aconteceria de novo a cada vez que a pessoa clicasse em
+  // "Voltar" sem chegar a jogar.
+  useEffect(() => {
+    if (_isFirstVisit) { try { localStorage.setItem('brl_returning', '1'); } catch { } }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -4841,8 +4867,6 @@ export default function App() {
 
   const filledSlots = Object.keys(pitch);
   const remainingSlots = pitchSlots.filter(s => !filledSlots.includes(s.key));
-
-  const goToFormationPicker = () => setPhase('formation');
 
   const rollWithAnimation = useCallback((finalTeam, pool) => {
     setIsRolling(true);
@@ -6316,7 +6340,11 @@ export default function App() {
 
   // Auto-save to localStorage
   useEffect(() => {
-    if (phase === 'intro') { try { localStorage.removeItem('brl_save'); } catch { } return; }
+    // Estar na home NÃO apaga o save — só para de escrever nele. Isso é o
+    // que permite "voltar ao menu" sem perder o jogo: quem apaga de
+    // propósito é só restart() (jogar de novo / confirmar um jogo novo por
+    // cima de um save existente), nunca só passar pela tela inicial.
+    if (phase === 'intro') return;
     if (multiPhase || roomSnap) return; // don't persist multiplayer sessions
     try {
       const save = {
@@ -6430,6 +6458,7 @@ export default function App() {
     setIsLeader(false);
     setJoinInput('');
     setPhase('intro');
+    setSavedPhase(null);
     setFormationKey(null);
     setPitchSlots([]);
     setPitch({});
@@ -6489,25 +6518,76 @@ export default function App() {
     setViewingTeam(null);
   };
 
-  // Descrição curta de onde a pessoa está, pra mostrar na confirmação de
-  // saída — null quando não há nada em risco (intro, ou resultado já
-  // encerrado). Sem isso, "voltar ao menu" apagava uma temporada em
-  // andamento com um clique só, no título clicável do cabeçalho (visível a
-  // qualquer momento do jogo) e sem aviso nenhum.
-  const activeGameLabel = () => {
-    if (phase === 'intro' || phase === 'results') return null;
-    if (phase === 'playing') {
+  // Descrição curta de uma fase salva, pro botão "Continuar" na home e (se
+  // um dia precisar) qualquer outro lugar que queira dizer onde a pessoa
+  // parou. `p` é a fase (não necessariamente a `phase` atual — o botão
+  // "Continuar" descreve `savedPhase` enquanto a tela ainda está em 'intro').
+  const describePhase = (p) => {
+    if (!p || p === 'intro' || p === 'results') return null;
+    if (p === 'playing') {
       return gameMode === 'copa'
         ? (CUP_ROUND_NAMES[cupRoundIdx] || 'Copa do Brasil')
         : `Rodada ${currentRound + 1} de ${fixtures.length}`;
     }
-    if (phase === 'transfer') return 'o mercado de transferências';
+    if (p === 'transfer') return 'o mercado de transferências';
     return 'a escalação do seu time'; // formation / draft / squad
   };
+
+  // "Voltar ao menu" (título do cabeçalho) por si só NUNCA apaga nada — só
+  // troca a tela pra home, deixando o jogo intacto em memória e no save,
+  // pronto pra retomar pelo botão "Continuar". Antes disso ser assim, um
+  // clique nesse título (visível o tempo todo, inclusive no meio de uma
+  // partida) chamava restart() na hora e apagava a temporada sem avisar.
+  // A única coisa que realmente precisa de confirmação aqui é sair de uma
+  // sala multiplayer com gente de verdade esperando do outro lado — não há
+  // "save" nenhum em risco no solo, só a pergunta de ficar ou sair da sala.
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false);
   const requestGoHome = () => {
-    if (!activeGameLabel()) { restart(); return; }
-    setShowLeaveConfirm(true);
+    if (roomSnap) { setShowLeaveConfirm(true); return; }
+    if (phase === 'intro') return;
+    // Pausa a simulação/animação em andamento antes de sair — sem isso o
+    // relógio da partida ou a animação do draft continuavam rodando em
+    // segundo plano enquanto a pessoa via a home, e ao voltar o estado
+    // estaria fora de sincronia com o que apareceu na tela.
+    if (timerRef.current) clearTimeout(timerRef.current);
+    if (clockRef.current) clearTimeout(clockRef.current);
+    isPausedRef.current = true;
+    setIsPaused(true);
+    // Guarda a fase atual pra reaparecer o botão "Continuar" na home — sem
+    // isso, só o save do MOUNT original (savedPhase inicial) alimentava o
+    // botão; depois de usá-lo uma vez (continueSavedGame zera savedPhase),
+    // "voltar ao menu" de novo mostrava a home sem nenhum jeito de retomar.
+    setSavedPhase(phase);
+    setPhase('intro');
+  };
+
+  // Retoma exatamente de onde parou — todo o estado (pitch, fixtures,
+  // rodada, tabela etc.) já está carregado desde o mount a partir do save;
+  // só falta trocar a fase visível de volta.
+  const continueSavedGame = () => {
+    const p = savedPhase;
+    setSavedPhase(null);
+    setPhase(p);
+  };
+
+  // Começar um jogo novo por cima de um save existente pede confirmação — é
+  // a outra ponta do mesmo cuidado do "voltar ao menu": o botão mais visível
+  // da home ("Escolher formação") não pode apagar uma temporada em
+  // andamento com um clique só. Reaproveita restart() (que já zera TUDO
+  // direito, inclusive coisas que um `setPhase` sozinho deixaria penduradas
+  // de antes — cartões, lesões, histórico da temporada anterior) e, na
+  // sequência síncrona, já avança pra 'formation': as duas chamadas de
+  // setPhase são batelhadas pelo React, então a tela nunca chega a piscar
+  // em 'intro'.
+  const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+  const goToFormationPicker = () => {
+    if (savedPhase) { setShowOverwriteConfirm(true); return; }
+    setPhase('formation');
+  };
+  const confirmNewGameOverSave = () => {
+    setShowOverwriteConfirm(false);
+    restart();
+    setPhase('formation');
   };
 
   // Nova temporada com o mesmo elenco
@@ -7273,6 +7353,8 @@ export default function App() {
         {phase === 'intro' && !multiPhase && (
           <Intro
             onStart={goToFormationPicker}
+            savedGameLabel={describePhase(savedPhase)}
+            onContinue={continueSavedGame}
             gameMode={gameMode} onSetGameMode={setGameMode}
             difficulty={difficulty} onSetDifficulty={setDifficulty}
             myTeamColor={myTeamColor} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge}
@@ -7465,15 +7547,31 @@ export default function App() {
       {showLeaveConfirm && (
         <div onClick={() => setShowLeaveConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, textAlign: 'center' }}>
-            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Voltar ao menu inicial?</div>
+            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Sair da sala?</div>
             <p style={{ fontSize: 13, opacity: 0.65, lineHeight: 1.5, marginBottom: 6 }}>
-              Você está em <b>{activeGameLabel()}</b>. Ao sair agora, essa temporada é encerrada e não pode ser retomada depois.
+              Você está numa partida com outros jogadores. Voltar ao menu agora desconecta você da sala.
             </p>
             <button onClick={() => { setShowLeaveConfirm(false); restart(); }} style={{ ...styles.btnPrimary, width: '100%', background: '#e05050', color: '#fff', marginTop: 16 }}>
-              Sim, voltar ao menu
+              Sim, sair da sala
             </button>
             <button onClick={() => setShowLeaveConfirm(false)} style={{ ...styles.btnGhost, marginTop: 10 }}>
               Cancelar, continuar jogando
+            </button>
+          </div>
+        </div>
+      )}
+      {showOverwriteConfirm && (
+        <div onClick={() => setShowOverwriteConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, textAlign: 'center' }}>
+            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Começar um jogo novo?</div>
+            <p style={{ fontSize: 13, opacity: 0.65, lineHeight: 1.5, marginBottom: 6 }}>
+              Você tem uma partida salva em <b>{describePhase(savedPhase)}</b>. Começar de novo substitui ela — não dá pra retomar depois.
+            </p>
+            <button onClick={confirmNewGameOverSave} style={{ ...styles.btnPrimary, width: '100%', background: '#e05050', color: '#fff', marginTop: 16 }}>
+              Começar mesmo assim
+            </button>
+            <button onClick={() => setShowOverwriteConfirm(false)} style={{ ...styles.btnGhost, marginTop: 10 }}>
+              Cancelar, continuar meu jogo salvo
             </button>
           </div>
         </div>
@@ -7821,7 +7919,7 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams }) {
+function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
@@ -7833,6 +7931,30 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
         <div style={{ ...styles.introTopBar, background: `linear-gradient(90deg, transparent, ${mc}, transparent)` }} />
         <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2024</div>
         <GameStatsBar style={styles.gameStatsBar} />
+        {/* "Carregar jogo" — o primeiro botão que quem tem uma partida salva
+            vê, antes até do título de marketing. É o que garante que dá pra
+            voltar no dia seguinte e continuar exatamente de onde parou, sem
+            depender de lembrar de não fechar a aba. */}
+        {savedGameLabel && (
+          <button
+            onClick={onContinue}
+            className="mode-card-hover"
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
+              padding: '16px 18px', marginBottom: 20, borderRadius: 14, color: '#0B1A12',
+              border: 'none', cursor: 'pointer',
+              background: `linear-gradient(135deg, ${mc}, ${mc}cc)`,
+              boxShadow: `0 8px 24px ${hexToRgba(mc, 0.35)}`,
+            }}
+          >
+            <span style={{ fontSize: 26, flexShrink: 0 }}>▶</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 15 }}>Continuar jogo salvo</div>
+              <div style={{ fontSize: 12, opacity: 0.75 }}>{savedGameLabel}</div>
+            </div>
+            <span style={{ fontSize: 20, opacity: 0.6, flexShrink: 0 }}>→</span>
+          </button>
+        )}
         <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
         <p style={styles.introLead}>
           Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
