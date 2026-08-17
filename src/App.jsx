@@ -4306,7 +4306,7 @@ const CLUB_ANTHEMS = {
   'Sport': 'PVcqbeerC8k',
   'Athletico-PR': 'kNd1BbWicMc',
   'Coritiba': 'NZki289dBz4',
-  'Atletico-MG': 'dD4IPCN4o5I',
+  'Atletico-MG': 'SeERcAA-CJw',
   'Guarani': 'b6KGAtvKhoQ',
 };
 
@@ -13104,45 +13104,116 @@ function ShareResultButton({ cardData }) {
   );
 }
 
+// Carrega o script da API de verdade do YouTube uma única vez por sessão
+// (mesmo que vários AnthemPlayer sejam montados ao longo do jogo — Copa e
+// Brasileirão podem terminar na mesma sessão). `window.onYouTubeIframeAPIReady`
+// é o callback que a própria API do YouTube chama sozinha quando carrega.
+let _ytApiPromise = null;
+function loadYouTubeApi() {
+  if (window.YT?.Player) return Promise.resolve(window.YT);
+  if (_ytApiPromise) return _ytApiPromise;
+  _ytApiPromise = new Promise((resolve) => {
+    const prev = window.onYouTubeIframeAPIReady;
+    window.onYouTubeIframeAPIReady = () => { prev?.(); resolve(window.YT); };
+    const tag = document.createElement('script');
+    tag.src = 'https://www.youtube.com/iframe_api';
+    document.head.appendChild(tag);
+  });
+  return _ytApiPromise;
+}
+
+// Antes disso era um <iframe src="...&autoplay=1"> cru, sem mute — e por
+// isso NENHUM hino tocava de verdade: testado direto, os 18 ficavam parados
+// em t=0.00 (paused=true). Navegador nenhum autoriza autoplay COM SOM num
+// iframe de terceiro sem gesto do usuário; a barrinha animada "tocando"
+// era só estado local do React, não refletia áudio nenhum saindo da caixa.
+// O único jeito de tocar som de verdade é: 1) autoplay MUDO (isso sim é
+// permitido sempre) via API de verdade do YouTube (não dá pra silenciar um
+// iframe cru depois de carregado, só via API), e 2) um clique real da
+// pessoa pra desmutar — o clique É o gesto que libera o som.
 function AnthemPlayer({ club }) {
-  const [playing, setPlaying] = React.useState(true);
   const videoId = CLUB_ANTHEMS[club];
-  if (!videoId) return null;
+  const containerRef = useRef(null);
+  const playerRef = useRef(null);
+  // 'loading' | 'ready' | 'error' — 'error' cobre tanto vídeo removido
+  // quanto incorporação desativada pelo dono; nesses casos não mostra nada
+  // fingindo tocar, igual ao !videoId já fazia.
+  const [status, setStatus] = useState('loading');
+  const [muted, setMuted] = useState(true);
+  const [userPaused, setUserPaused] = useState(false);
+
+  useEffect(() => {
+    if (!videoId) return;
+    let cancelled = false;
+    let player = null;
+    loadYouTubeApi().then((YT) => {
+      if (cancelled || !containerRef.current) return;
+      player = new YT.Player(containerRef.current, {
+        videoId,
+        playerVars: { autoplay: 1, mute: 1, controls: 0, playsinline: 1 },
+        events: {
+          onReady: (e) => { e.target.playVideo(); setStatus('ready'); },
+          onError: () => setStatus('error'),
+        },
+      });
+      playerRef.current = player;
+    });
+    return () => {
+      cancelled = true;
+      try { player?.destroy(); } catch { }
+      playerRef.current = null;
+    };
+  }, [videoId]);
+
+  const ativarSom = () => {
+    try { playerRef.current?.unMute(); playerRef.current?.setVolume(100); } catch { }
+    setMuted(false);
+  };
+  const togglePause = () => {
+    try { userPaused ? playerRef.current?.playVideo() : playerRef.current?.pauseVideo(); } catch { }
+    setUserPaused(p => !p);
+  };
+
+  if (!videoId || status === 'error') return null;
+  const playing = status === 'ready' && !userPaused;
   return (
     <div style={{ marginTop: 24, borderRadius: 12, border: '1px solid rgba(212,162,60,0.3)', background: '#0a1a0f', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
-      {/* iframe escondido — só áudio */}
+      {/* Player de verdade, escondido — só áudio */}
       <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
-        {playing && (
-          <iframe
-            key={videoId}
-            width="1"
-            height="1"
-            src={`https://www.youtube.com/embed/${videoId}?autoplay=1&controls=0`}
-            allow="autoplay; encrypted-media"
-            title={`Hino ${club}`}
-          />
-        )}
+        <div ref={containerRef} />
       </div>
 
       {/* Indicador visual */}
       <div style={{ fontSize: 28 }}>🎵</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#d4a23c' }}>Hino do Campeão</div>
-        <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>{club}</div>
+        <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>{club}{playing && muted ? ' · mudo até você ativar o som' : ''}</div>
         {playing && (
           <div style={{ display: 'flex', gap: 3, marginTop: 6, alignItems: 'flex-end', height: 16 }}>
             {[8, 14, 10, 16, 6, 12, 10, 14, 8].map((h, i) => (
-              <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: '#d4a23c', animation: `pulse ${0.6 + i * 0.1}s ease-in-out infinite alternate`, opacity: 0.8 }} />
+              <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: '#d4a23c', animation: `pulse ${0.6 + i * 0.1}s ease-in-out infinite alternate`, opacity: muted ? 0.35 : 0.8 }} />
             ))}
           </div>
         )}
       </div>
-      <button
-        onClick={() => setPlaying(p => !p)}
-        style={{ background: playing ? 'rgba(212,162,60,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${playing ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 8, color: playing ? '#d4a23c' : '#aaa', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 600 }}
-      >
-        {playing ? '⏸ Pausar' : '▶ Tocar'}
-      </button>
+      {/* Enquanto está mudo, "ativar som" é a ação que importa — é o clique
+          que os navegadores exigem pra liberar áudio. Só depois disso faz
+          sentido oferecer pausar/retomar. */}
+      {status === 'ready' && muted && !userPaused ? (
+        <button
+          onClick={ativarSom}
+          style={{ background: 'rgba(212,162,60,0.15)', border: '1px solid rgba(212,162,60,0.5)', borderRadius: 8, color: '#d4a23c', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 700 }}
+        >
+          🔊 Ativar som
+        </button>
+      ) : status === 'ready' && (
+        <button
+          onClick={togglePause}
+          style={{ background: playing ? 'rgba(212,162,60,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${playing ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 8, color: playing ? '#d4a23c' : '#aaa', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 600 }}
+        >
+          {playing ? '⏸ Pausar' : '▶ Tocar'}
+        </button>
+      )}
     </div>
   );
 }
