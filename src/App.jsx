@@ -4308,6 +4308,21 @@ const CLUB_ANTHEMS = {
   'Coritiba': 'NZki289dBz4',
   'Atletico-MG': 'SeERcAA-CJw',
   'Guarani': 'b6KGAtvKhoQ',
+  // Times "extras" (não jogáveis no draft, só disponíveis como emblema
+  // pessoal — ver CLUB_LOGOS) — antes não tinham hino, então escolher um
+  // desses como emblema não liberava a opção "Hino" no áudio ambiente.
+  'Fortaleza': 'BHSAxofET5I',
+  'Ceara': 'GYERpERV5EE',
+  'America-MG': 'V8vErmpMs2U',
+  'Goias': 'Otjv3Zt8oGU',
+  'Vitoria': 'XveVhtInOrM',
+  'Bragantino': 'tIAWfcA6fKg',
+  'Criciuma': 'e93zsWdcByE',
+  'Chapecoense': 'LF3SY2RXcxA',
+  'Ponte Preta': 'lXsg_HiCua0',
+  'Juventude': 'yuSxwQ8FJng',
+  'Avai': 'QtPwQKg4aF0',
+  'Atletico-GO': 'GHZsE4wLGMQ',
 };
 
 function expandPlayerPositions(playerPos) {
@@ -8207,6 +8222,12 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
 
   const anthemClub = clubFromLogo(myTeamLogo);
   const anthemId = anthemClub && CLUB_ANTHEMS[anthemClub];
+  // Só um dos três modos toca por vez ('hino' ou 'youtube' — 'default' é o
+  // <audio> local, sem esse problema), então um hook só, apontado pro vídeo
+  // do modo ativo, cobre os dois. Mesmo bug do hino do campeão: um <iframe
+  // autoplay=1> cru nunca tocava som de verdade em navegador nenhum.
+  const ambientVideoId = audioMode === 'hino' ? (anthemId || null) : audioMode === 'youtube' ? ytId : null;
+  const ambientPlayer = useMutedAutoplayYouTube(ambientVideoId);
 
   useEffect(() => {
     setName(user?.team_name || '');
@@ -8559,7 +8580,17 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       <div style={{ fontWeight: 700, fontSize: 13 }}>Hino {anthemClub ? `do ${anthemClub.replace(/-/g, ' ')}` : 'do seu time'}</div>
                       <div style={{ fontSize: 11, opacity: 0.55 }}>{anthemId ? 'Hino oficial do clube' : 'Escolha um emblema oficial acima pra liberar'}</div>
                     </div>
-                    {audioMode === 'hino' && anthemId && <EqBars color={mc} />}
+                    {audioMode === 'hino' && anthemId && (
+                      ambientPlayer.playing && ambientPlayer.muted ? (
+                        <span
+                          onClick={e => { e.stopPropagation(); ambientPlayer.activate(); }}
+                          title="Autoplay só é permitido sem som — clique pra ativar"
+                          style={{ fontSize: 10.5, fontWeight: 700, color: mc, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.5)}`, borderRadius: 999, padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          🔊 Ativar som
+                        </span>
+                      ) : ambientPlayer.playing ? <EqBars color={mc} /> : null
+                    )}
                   </button>
 
                   <button
@@ -8577,7 +8608,17 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       <div style={{ fontWeight: 700, fontSize: 13 }}>Link personalizado</div>
                       <div style={{ fontSize: 11, opacity: 0.55 }}>Cole um link do YouTube</div>
                     </div>
-                    {audioMode === 'youtube' && ytId && <EqBars color={mc} />}
+                    {audioMode === 'youtube' && ytId && (
+                      ambientPlayer.playing && ambientPlayer.muted ? (
+                        <span
+                          onClick={e => { e.stopPropagation(); ambientPlayer.activate(); }}
+                          title="Autoplay só é permitido sem som — clique pra ativar"
+                          style={{ fontSize: 10.5, fontWeight: 700, color: mc, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.5)}`, borderRadius: 999, padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}
+                        >
+                          🔊 Ativar som
+                        </span>
+                      ) : ambientPlayer.playing ? <EqBars color={mc} /> : null
+                    )}
                   </button>
                 </div>
 
@@ -8600,14 +8641,12 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                 {audioMode === 'default' && (
                   <audio key="club-default-bg" src="/audio.mp3" autoPlay loop style={{ display: 'none' }} />
                 )}
-                {audioMode === 'hino' && anthemId && (
+                {/* Um container só pro modo ativo (hino OU link — nunca os
+                    dois ao mesmo tempo). O hook decide sozinho qual vídeo
+                    carregar a partir de `ambientVideoId`. */}
+                {ambientVideoId && (
                   <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
-                    <iframe key={anthemId} width="1" height="1" src={`https://www.youtube.com/embed/${anthemId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title={`Hino ${anthemClub}`} />
-                  </div>
-                )}
-                {audioMode === 'youtube' && ytId && (
-                  <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
-                    <iframe key={ytId} width="1" height="1" src={`https://www.youtube.com/embed/${ytId}?autoplay=1&controls=0`} allow="autoplay; encrypted-media" title="Áudio ambiente" />
+                    <div ref={ambientPlayer.containerRef} />
                   </div>
                 )}
               </div>
@@ -13123,26 +13162,33 @@ function loadYouTubeApi() {
 }
 
 // Antes disso era um <iframe src="...&autoplay=1"> cru, sem mute — e por
-// isso NENHUM hino tocava de verdade: testado direto, os 18 ficavam parados
-// em t=0.00 (paused=true). Navegador nenhum autoriza autoplay COM SOM num
-// iframe de terceiro sem gesto do usuário; a barrinha animada "tocando"
-// era só estado local do React, não refletia áudio nenhum saindo da caixa.
-// O único jeito de tocar som de verdade é: 1) autoplay MUDO (isso sim é
-// permitido sempre) via API de verdade do YouTube (não dá pra silenciar um
-// iframe cru depois de carregado, só via API), e 2) um clique real da
-// pessoa pra desmutar — o clique É o gesto que libera o som.
-function AnthemPlayer({ club }) {
-  const videoId = CLUB_ANTHEMS[club];
+// isso NENHUM áudio via YouTube tocava de verdade neste jogo: testado
+// direto, os 18 hinos ficavam parados em t=0.00 (paused=true). Navegador
+// nenhum autoriza autoplay COM SOM num iframe de terceiro sem gesto do
+// usuário; a barrinha animada "tocando" era só estado local do React, não
+// refletia áudio nenhum saindo da caixa. O único jeito de tocar som de
+// verdade é: 1) autoplay MUDO (isso sim é permitido sempre) via API de
+// verdade do YouTube (não dá pra silenciar um iframe cru depois de
+// carregado, só via API), e 2) um clique real da pessoa pra desmutar — o
+// clique É o gesto que libera o som.
+//
+// Um hook só, usado pelos TRÊS lugares que tocam áudio via YouTube no jogo
+// (hino do campeão, hino no painel de áudio ambiente, link personalizado no
+// mesmo painel) — os três tinham exatamente esse bug, cada um com seu
+// próprio <iframe> cru.
+function useMutedAutoplayYouTube(videoId) {
   const containerRef = useRef(null);
   const playerRef = useRef(null);
   // 'loading' | 'ready' | 'error' — 'error' cobre tanto vídeo removido
-  // quanto incorporação desativada pelo dono; nesses casos não mostra nada
-  // fingindo tocar, igual ao !videoId já fazia.
+  // quanto incorporação desativada pelo dono.
   const [status, setStatus] = useState('loading');
   const [muted, setMuted] = useState(true);
   const [userPaused, setUserPaused] = useState(false);
 
   useEffect(() => {
+    setStatus('loading');
+    setMuted(true);
+    setUserPaused(false);
     if (!videoId) return;
     let cancelled = false;
     let player = null;
@@ -13165,7 +13211,7 @@ function AnthemPlayer({ club }) {
     };
   }, [videoId]);
 
-  const ativarSom = () => {
+  const activate = () => {
     try { playerRef.current?.unMute(); playerRef.current?.setVolume(100); } catch { }
     setMuted(false);
   };
@@ -13174,8 +13220,14 @@ function AnthemPlayer({ club }) {
     setUserPaused(p => !p);
   };
 
+  return { containerRef, status, muted, userPaused, activate, togglePause, playing: status === 'ready' && !userPaused };
+}
+
+function AnthemPlayer({ club }) {
+  const videoId = CLUB_ANTHEMS[club];
+  const { containerRef, status, muted, activate, togglePause, playing } = useMutedAutoplayYouTube(videoId);
+
   if (!videoId || status === 'error') return null;
-  const playing = status === 'ready' && !userPaused;
   return (
     <div style={{ marginTop: 24, borderRadius: 12, border: '1px solid rgba(212,162,60,0.3)', background: '#0a1a0f', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
       {/* Player de verdade, escondido — só áudio */}
@@ -13199,9 +13251,9 @@ function AnthemPlayer({ club }) {
       {/* Enquanto está mudo, "ativar som" é a ação que importa — é o clique
           que os navegadores exigem pra liberar áudio. Só depois disso faz
           sentido oferecer pausar/retomar. */}
-      {status === 'ready' && muted && !userPaused ? (
+      {status === 'ready' && muted && playing ? (
         <button
-          onClick={ativarSom}
+          onClick={activate}
           style={{ background: 'rgba(212,162,60,0.15)', border: '1px solid rgba(212,162,60,0.5)', borderRadius: 8, color: '#d4a23c', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 700 }}
         >
           🔊 Ativar som
