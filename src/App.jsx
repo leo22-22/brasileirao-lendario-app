@@ -7380,7 +7380,7 @@ export default function App() {
             onNavigateTeams={navigateToTeamsIndex}
           />
         )}
-        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} />}
+        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase ? setGameMode : undefined} />}
         {phase === 'transfer' && (
           <TransferMarket
             pitch={pitch}
@@ -9552,7 +9552,7 @@ const FORMATION_GROUPS = [
   { prefix: '5', title: 'Linha de 5 zagueiros', icon: '🔒', hint: 'Retranca — prioriza solidez defensiva' },
 ];
 
-function FormationPicker({ onChoose, onBack }) {
+function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode }) {
   const groups = useMemo(() => (
     FORMATION_GROUPS
       .map(g => ({ ...g, items: Object.entries(FORMATIONS).filter(([key]) => key.split('-')[0] === g.prefix) }))
@@ -9563,6 +9563,32 @@ function FormationPicker({ onChoose, onBack }) {
   return (
     <div style={styles.card} className="card-mob">
       {onBack && <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 10px', margin: '0 0 0 -2px', minHeight: 32 }}>&#8592; Voltar</button>}
+      {/* Quem chega direto aqui (primeira visita pula a home) nunca via o
+          seletor de campeonato — sem isso, ficava preso no Brasileirão
+          (o padrão) sem jeito nenhum de escolher a Copa do Brasil. */}
+      {onSetGameMode && (
+        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
+          {[
+            { id: 'brasileirao', label: 'Brasileirão' },
+            { id: 'copa', label: 'Copa do Brasil' },
+          ].map(m => (
+            <button
+              key={m.id}
+              onClick={() => onSetGameMode(m.id)}
+              aria-pressed={gameMode === m.id}
+              className="mode-card-hover"
+              style={{
+                flex: 1, padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
+                border: `2px solid ${gameMode === m.id ? '#d4a23c' : 'rgba(255,255,255,0.12)'}`,
+                background: gameMode === m.id ? 'rgba(212,162,60,0.12)' : 'rgba(255,255,255,0.03)',
+                color: gameMode === m.id ? '#d4a23c' : '#F4F1EA', fontWeight: 700, fontSize: 13,
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
       <div style={styles.eyebrow}>Passo 1 de 2</div>
       <h2 style={styles.h2}>Escolha o esquema tático</h2>
       <p style={styles.formationIntro}>
@@ -13334,6 +13360,100 @@ function GuestConversionBanner({ myTeamColor, onOpenAccount }) {
   );
 }
 
+// Bloco agrupador da tela de fim de campeonato — moldura com a cor do time,
+// igual ao padrão já usado no painel de conta (🎙️ Transmissão, ⚽ Comemoração).
+// Antes a tela inteira (Copa e Brasileirão) era uma pilha de ~12 blocos soltos
+// no mesmo fundo, sem nada separando um do outro visualmente — daí a
+// confusão. Cada ResultSection é um "cartão" próprio, com título e ícone.
+function ResultSection({ icon, label, mc, children, style }) {
+  return (
+    <div style={{
+      background: `linear-gradient(135deg, ${hexToRgba(mc, 0.1)}, rgba(0,0,0,0.35))`,
+      border: `1px solid ${hexToRgba(mc, 0.28)}`,
+      borderRadius: 14, padding: '16px 18px', marginTop: 16,
+      ...style,
+    }}>
+      {label && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.3, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>
+          {icon && <span style={{ fontSize: 14 }}>{icon}</span>}{label}
+        </div>
+      )}
+      {children}
+    </div>
+  );
+}
+
+// Artilharia/assistências/defesa/notas/cartões viravam 5 blocos empilhados
+// com o mesmo rótulo — o trecho mais poluído da tela antiga. Agora é um
+// cartão só, com abas: só uma categoria por vez, trocada por clique.
+// `categories` já entram com os dados formatados (não crus), pra este
+// componente não precisar saber nada sobre a forma dos dados do jogo.
+function ResultStatsTabs({ mc, title, categories }) {
+  const available = categories.filter(c => c.entries.length > 0);
+  const [tabId, setTabId] = useState(available[0]?.id);
+  if (available.length === 0) return null;
+  const active = available.find(c => c.id === tabId) || available[0];
+  return (
+    <ResultSection icon="🏅" label={title} mc={mc}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
+        {available.map(c => (
+          <button
+            key={c.id}
+            onClick={() => setTabId(c.id)}
+            className="tap-target-sm"
+            style={{
+              fontFamily: "'Space Mono', monospace", fontSize: 11.5, fontWeight: 700,
+              padding: '6px 11px', borderRadius: 999, cursor: 'pointer',
+              border: `1px solid ${active.id === c.id ? mc : 'rgba(255,255,255,0.15)'}`,
+              background: active.id === c.id ? hexToRgba(mc, 0.16) : 'rgba(255,255,255,0.03)',
+              color: active.id === c.id ? mc : 'rgba(244,241,234,0.6)',
+            }}
+          >
+            {c.icon} {c.label}
+          </button>
+        ))}
+      </div>
+      {active.entries.map((row, i) => (
+        <ResultStatRow key={row.key} rank={i + 1} name={row.name} team={row.team} value={row.value} mc={mc} />
+      ))}
+    </ResultSection>
+  );
+}
+
+// Rodapé de ações da tela de fim de campeonato. Antes eram 3 botões
+// empilhados (2 "ghost" + 1 "primary") sem deixar claro qual era a ação
+// principal — e o mais provável de continuar jogando ("Nova temporada com
+// o mesmo elenco") vinha estilizado como secundário, enquanto "Jogar de
+// novo" (começar um time do ZERO) é que levava o destaque visual. Invertido
+// aqui: continuar é o CTA principal; recomeçar do zero fica disponível mas
+// discreto. Em multiplayer (onNewSeason indisponível) "Jogar de novo" vira
+// o principal, por ser a única opção.
+function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart }) {
+  return (
+    <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {onNewSeason ? (
+        <>
+          <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onNewSeason}>
+            ▶ Nova temporada com o mesmo elenco
+          </button>
+          {onOpenTransferMarket && (
+            <button style={{ ...styles.btnGhost, width: '100%', marginTop: 0 }} onClick={onOpenTransferMarket}>
+              🔁 Mercado de transferências (trocar até 2)
+            </button>
+          )}
+          <button style={{ ...styles.btnGhost, width: '100%', marginTop: 0, opacity: 0.75 }} onClick={onRestart}>
+            Jogar de novo (time novo, do zero)
+          </button>
+        </>
+      ) : (
+        <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
+          Jogar de novo
+        </button>
+      )}
+    </div>
+  );
+}
+
 // Linha de ranking da tela de resultado: posição, nome, time e valor. O time
 // é o que separa dois homônimos de elencos diferentes — sem ele os rankings
 // mostravam "Gabigol / Gabigol" em sequência e pareciam quebrados.
@@ -13362,23 +13482,11 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
   // isso os rankings mostravam o mesmo nome duas vezes seguidas, parecendo
   // bug. O painel de estatísticas durante a temporada já fazia certo.
   const teamOf = (key, d) => d?.teamLabel || leagueTeams?.find(t => t.id === splitPlayerKey(key).teamId)?.label || '';
-  // Bloco de ranking (artilharia, assistência, notas…). `entries` são pares
-  // [chave time::nome, dado] e `valueFn` formata o número da direita.
-  const statList = (label, entries, valueFn) => entries.length > 0 && (
-    <div style={{ marginBottom: 16 }}>
-      <div style={styles.sectionLabel}>{label}</div>
-      {entries.map(([key, d], i) => (
-        <ResultStatRow
-          key={key}
-          rank={i + 1}
-          name={splitPlayerKey(key).name}
-          team={teamOf(key, d)}
-          value={valueFn(d, key)}
-          mc={mc}
-        />
-      ))}
-    </div>
-  );
+  // Formata uma lista [chave, dado] pro formato que ResultStatsTabs espera —
+  // já com nome/time resolvidos, não a chave crua.
+  const toRows = (entries, valueFn) => entries.map(([key, d]) => ({
+    key, name: splitPlayerKey(key).name, team: teamOf(key, d), value: valueFn(d, key),
+  }));
   const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
   const topAssisters = assisters ? Object.entries(assisters).sort((a, b) => b[1].assists - a[1].assists).slice(0, 3) : [];
   const topCleanSheets = cleanSheets
@@ -13388,6 +13496,16 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
     ? Object.entries(seasonRatings).filter(([, d]) => d.count >= 3).sort((a, b) => (b[1].sum / b[1].count) - (a[1].sum / a[1].count)).slice(0, 3)
     : [];
   const topCards = cardCounts ? Object.entries(cardCounts).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
+  // As 5 categorias que antes eram 5 blocos empilhados na tela — agora
+  // abas de um cartão só (ResultStatsTabs), compartilhado por Copa e
+  // Brasileirão.
+  const statCategories = [
+    { id: 'artilharia', icon: '⚽', label: 'Artilharia', entries: toRows(topScorers, d => `gol ${d.goals}`) },
+    { id: 'assist', icon: '🎯', label: 'Assistências', entries: toRows(topAssisters, d => `assist ${d.assists}`) },
+    { id: 'defesa', icon: '🧤', label: 'Defesa', entries: toRows(topCleanSheets, d => `🧤 ${d.clean}`) },
+    { id: 'notas', icon: '⭐', label: 'Notas', entries: toRows(topRatings, d => `⭐ ${(d.sum / d.count).toFixed(1)}`) },
+    { id: 'cartoes', icon: '🟨', label: 'Cartões', entries: toRows(topCards, (yellows, key) => `${redCards?.[key] > 0 ? `🟥×${redCards[key]}  ` : ''}🟨 ${yellows}`) },
+  ];
 
   // Campanha completa (todas as partidas do usuario nesta temporada/copa, na ordem) —
   // usada tanto na tela de resultado quanto no card compartilhavel.
@@ -13441,45 +13559,43 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         </div>
         <ChampionMarquee teamLabel={winner?.label} color={mc} />
         {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
-        {statList('Artilheiro da Copa', topScorers, d => `gol ${d.goals}`)}
-        {statList('Lider de Assistencia da Copa', topAssisters, d => `assist ${d.assists}`)}
-        {statList('Goleiro Menos Vazado da Copa', topCleanSheets, d => `🧤 ${d.clean}`)}
-        {statList('Nota Média da Copa', topRatings, d => `⭐ ${(d.sum / d.count).toFixed(1)}`)}
-        {statList('Cartões da Copa', topCards, (yellows, key) => `${redCards?.[key] > 0 ? `🟥×${redCards[key]}  ` : ''}🟨 ${yellows}`)}
+
         {seasonAwards?.length > 0 && (
-          <div style={{ marginBottom: 16, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 10, padding: '10px 12px' }}>
-            <div style={{ ...styles.sectionLabel, marginBottom: 6 }}>🏅 Prêmios da Temporada</div>
+          <ResultSection icon="🏆" label="Prêmios da Temporada" mc={mc}>
             {seasonAwards.map(a => (
               <div key={a.reason} style={{ fontSize: 13, padding: '3px 0' }}>
                 <b>{a.name}</b> — {a.reason} <span style={{ color: mc, fontWeight: 700 }}>(+{SEASON_AWARD_BONUS} OVR)</span>
               </div>
             ))}
-          </div>
+          </ResultSection>
         )}
+
+        <ResultStatsTabs mc={mc} title="Destaques da Copa" categories={statCategories} />
+
+        <AnthemPlayer club={champClub} />
+
         {campaignLines.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
+          <ResultSection icon="📋" label="Campanha" mc={mc}>
             <button onClick={() => setShowCampaign(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
-              {showCampaign ? 'v' : '>'} 📋 Campanha Completa ({campaignLines.length} partida{campaignLines.length !== 1 ? 's' : ''})
+              {showCampaign ? '▾' : '▸'} Ver todas as partidas ({campaignLines.length})
             </button>
             {showCampaign && campaignLines.map((l, i) => (
               <div key={i} style={{ fontSize: 13, padding: '3px 0', color: l.result === 'v' ? '#7fd99a' : l.result === 'd' ? '#e0593f' : '#F4F1EA' }}>{l.text}</div>
             ))}
-          </div>
+          </ResultSection>
         )}
-        <AnthemPlayer club={champClub} />
-        <ShareResultButton cardData={{
-          title: userWon ? 'CAMPEÃO!' : wasRunnerUp ? 'VICE-CAMPEÃO' : 'Eliminado',
-          subtitle: userWon ? 'Copa do Brasil' : `Copa do Brasil · Campeão: ${winner?.label ?? '-'}`,
-          teamLabel: leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time',
-          teamBadge: myTeamBadge, teamLogo: myTeamLogo, teamColor: myTeamColor,
-          awards: seasonAwards?.map(a => `${a.name} — ${a.reason}`),
-          campaign: campaignLines,
-        }} />
-        {onNewSeason && <button style={{ ...styles.btnGhost, marginTop: 10, width: '100%' }} onClick={onNewSeason}>Nova temporada com mesmo elenco</button>}
-        {onOpenTransferMarket && <button style={{ ...styles.btnGhost, marginTop: 8, width: '100%' }} onClick={onOpenTransferMarket}>Mercado de transferências (trocar até 2)</button>}
-        <button style={{ ...styles.btnPrimary, marginTop: 10, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
-          Jogar de novo
-        </button>
+
+        <div style={{ marginTop: 16 }}>
+          <ShareResultButton cardData={{
+            title: userWon ? 'CAMPEÃO!' : wasRunnerUp ? 'VICE-CAMPEÃO' : 'Eliminado',
+            subtitle: userWon ? 'Copa do Brasil' : `Copa do Brasil · Campeão: ${winner?.label ?? '-'}`,
+            teamLabel: leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time',
+            teamBadge: myTeamBadge, teamLogo: myTeamLogo, teamColor: myTeamColor,
+            awards: seasonAwards?.map(a => `${a.name} — ${a.reason}`),
+            campaign: campaignLines,
+          }} />
+        </div>
+        <ResultActions mc={mc} onNewSeason={onNewSeason} onOpenTransferMarket={onOpenTransferMarket} onRestart={onRestart} />
       </div>
     );
   }
@@ -13503,46 +13619,43 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       <ChampionMarquee teamLabel={champion?.label} color={mc} />
       {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
 
-      {!isChampion && (
-        <div style={styles.championBox}>
-          Campeao: <b>{champion?.label}</b> — {champion?.pts} pts
+      <ResultSection icon="📊" label="Seu Desempenho" mc={mc}>
+        {!isChampion && (
+          <div style={{ ...styles.championBox, marginBottom: 14 }}>
+            Campeao: <b>{champion?.label}</b> — {champion?.pts} pts
+          </div>
+        )}
+        <div style={{ ...styles.finalStats, marginBottom: 0 }} className="stats-grid-3">
+          <Stat label="Pontos" value={myRow.pts ?? 0} />
+          <Stat label="Vitorias" value={myRow.v ?? 0} />
+          <Stat label="Empates" value={myRow.e ?? 0} />
+          <Stat label="Derrotas" value={myRow.d ?? 0} />
+          <Stat label="Gols pro" value={myRow.gp ?? 0} />
+          <Stat label="Gols contra" value={myRow.gc ?? 0} />
         </div>
-      )}
-
-      <div style={styles.finalStats} className="stats-grid-3">
-        <Stat label="Pontos" value={myRow.pts ?? 0} />
-        <Stat label="Vitorias" value={myRow.v ?? 0} />
-        <Stat label="Empates" value={myRow.e ?? 0} />
-        <Stat label="Derrotas" value={myRow.d ?? 0} />
-        <Stat label="Gols pro" value={myRow.gp ?? 0} />
-        <Stat label="Gols contra" value={myRow.gc ?? 0} />
-      </div>
-
-      {isChampion && <div style={styles.badge}>Brasileirao conquistado! Voce montou um time lendario.</div>}
-      {!isChampion && podium && <div style={styles.badgeInfo}>Campanha solida — faltou pouco pra vencer!</div>}
-      {!podium && <div style={styles.badgeMuted}>Campanha dificil. Tente montar um time mais equilibrado.</div>}
-
-      {statList('Artilheiros', topScorers, d => `gol ${d.goals}`)}
-      {statList('Lideres de Assistencia', topAssisters, d => `assist ${d.assists}`)}
-      {statList('Goleiro Menos Vazado', topCleanSheets, d => `🧤 ${d.clean}`)}
-      {statList('Nota Média da Temporada', topRatings, d => `⭐ ${(d.sum / d.count).toFixed(1)}`)}
-      {statList('Cartões', topCards, (yellows, key) => `${redCards?.[key] > 0 ? `🟥×${redCards[key]}  ` : ''}🟨 ${yellows}`)}
+        <div style={{ marginTop: 12, fontSize: 13, opacity: 0.85 }}>
+          {isChampion && '🏆 Brasileirão conquistado! Você montou um time lendário.'}
+          {!isChampion && podium && '🥉 Campanha sólida — faltou pouco pra vencer!'}
+          {!podium && 'Campanha difícil. Tente montar um time mais equilibrado.'}
+        </div>
+      </ResultSection>
 
       {seasonAwards?.length > 0 && (
-        <div style={{ marginBottom: 16, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 10, padding: '10px 12px' }}>
-          <div style={{ ...styles.sectionLabel, marginBottom: 6 }}>🏅 Prêmios da Temporada</div>
+        <ResultSection icon="🏆" label="Prêmios da Temporada" mc={mc}>
           {seasonAwards.map(a => (
             <div key={a.reason} style={{ fontSize: 13, padding: '3px 0' }}>
               <b>{a.name}</b> — {a.reason} <span style={{ color: mc, fontWeight: 700 }}>(+{SEASON_AWARD_BONUS} OVR)</span>
             </div>
           ))}
-        </div>
+        </ResultSection>
       )}
+
+      <ResultStatsTabs mc={mc} title="Destaques da Temporada" categories={statCategories} />
 
       <AnthemPlayer club={champClub} />
 
+      <ResultSection icon="📈" label="Classificação Final" mc={mc}>
       <div className="table-scroll">
-        <div style={{ ...styles.sectionLabel, marginTop: 24 }}>Classificacao Final</div>
         <div style={styles.tableHeaderRow}>
           <span style={styles.tablePos}>#</span>
           <span style={{ flex: 1 }}>Time</span>
@@ -13590,37 +13703,36 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           );
         })}
       </div>{/* /table-scroll */}
+      </ResultSection>
 
       {campaignLines.length > 0 && (
-        <div style={{ marginTop: 16, marginBottom: 16 }}>
+        <ResultSection icon="📋" label="Campanha" mc={mc}>
           <button onClick={() => setShowCampaign(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
-            {showCampaign ? 'v' : '>'} 📋 Campanha Completa ({campaignLines.length} partida{campaignLines.length !== 1 ? 's' : ''})
+            {showCampaign ? '▾' : '▸'} Ver todas as partidas ({campaignLines.length})
           </button>
           {showCampaign && campaignLines.map((l, i) => (
             <div key={i} style={{ fontSize: 13, padding: '3px 0', color: l.result === 'v' ? '#7fd99a' : l.result === 'd' ? '#e0593f' : '#F4F1EA' }}>{l.text}</div>
           ))}
-        </div>
+        </ResultSection>
       )}
 
-      <ShareResultButton cardData={{
-        title: isChampion ? 'CAMPEÃO!' : `${pos}º lugar`,
-        subtitle: 'Brasileirão · Série A',
-        teamLabel: leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time',
-        teamBadge: myTeamBadge, teamLogo: myTeamLogo, teamColor: myTeamColor,
-        campaign: campaignLines,
-        stats: [
-          { label: 'PTS', value: myRow.pts ?? 0 },
-          { label: 'V', value: myRow.v ?? 0 },
-          { label: 'E', value: myRow.e ?? 0 },
-          { label: 'D', value: myRow.d ?? 0 },
-        ],
-        awards: seasonAwards?.map(a => `${a.name} — ${a.reason}`),
-      }} />
-      {onNewSeason && <button style={{ ...styles.btnGhost, marginTop: 20, width: '100%' }} onClick={onNewSeason}>Nova temporada com mesmo elenco</button>}
-      {onOpenTransferMarket && <button style={{ ...styles.btnGhost, marginTop: 8, width: '100%' }} onClick={onOpenTransferMarket}>Mercado de transferências (trocar até 2)</button>}
-      <button style={{ ...styles.btnPrimary, marginTop: 10, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
-        Jogar de novo
-      </button>
+      <div style={{ marginTop: 16 }}>
+        <ShareResultButton cardData={{
+          title: isChampion ? 'CAMPEÃO!' : `${pos}º lugar`,
+          subtitle: 'Brasileirão · Série A',
+          teamLabel: leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time',
+          teamBadge: myTeamBadge, teamLogo: myTeamLogo, teamColor: myTeamColor,
+          campaign: campaignLines,
+          stats: [
+            { label: 'PTS', value: myRow.pts ?? 0 },
+            { label: 'V', value: myRow.v ?? 0 },
+            { label: 'E', value: myRow.e ?? 0 },
+            { label: 'D', value: myRow.d ?? 0 },
+          ],
+          awards: seasonAwards?.map(a => `${a.name} — ${a.reason}`),
+        }} />
+      </div>
+      <ResultActions mc={mc} onNewSeason={onNewSeason} onOpenTransferMarket={onOpenTransferMarket} onRestart={onRestart} />
     </div>
   );
 }
