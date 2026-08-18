@@ -9481,8 +9481,8 @@ function TeamDetailPage({ team, onBack, onOpenIndex, myTeamColor, onPlayWithTeam
         )}
 
         <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>Titulares</div>
-        {starters.map(p => (
-          <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12.5 }}>
+        {starters.map((p, i) => (
+          <div key={`${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12.5 }}>
             <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.[0] || '-'}</span>
             <span style={{ flex: 1 }}>{p.name}</span>
             <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }} title="Força no simulador, não é uma estatística histórica oficial">{p.ovr}</span>
@@ -9491,8 +9491,8 @@ function TeamDetailPage({ team, onBack, onOpenIndex, myTeamColor, onPlayWithTeam
         {bench.length > 0 && (
           <>
             <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 14, marginBottom: 6 }}>Banco</div>
-            {bench.map(p => (
-              <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12.5 }}>
+            {bench.map((p, i) => (
+              <div key={`${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12.5 }}>
                 <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.[0] || '-'}</span>
                 <span style={{ flex: 1 }}>{p.name}</span>
                 <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }} title="Força no simulador, não é uma estatística histórica oficial">{p.ovr}</span>
@@ -10111,7 +10111,7 @@ function TeamPickerModal({ onClose, onPick }) {
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px 16px 0 0', padding: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 14 }}>Escolha um time pronto</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 18, cursor: 'pointer' }}>×</button>
+          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
         </div>
         <input
           autoFocus
@@ -10966,15 +10966,15 @@ function TeamViewModal({ team, onClose, myTeamColor, suspensions, injuries }) {
   const { starters, bench, unavailable } = buildSquadView(team, suspensions, injuries);
   const understaffed = unavailable.some(p => p.shortOnSubs);
   const players = team.players || [];
-  const renderRow = (p) => (
-    <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
+  const renderRow = (p, i) => (
+    <div key={`${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
       <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.[0] || '-'}</span>
       <span style={{ flex: 1 }}>{p.name}</span>
       <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
     </div>
   );
-  const renderUnavailableRow = (p) => (
-    <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, opacity: 0.5 }}>
+  const renderUnavailableRow = (p, i) => (
+    <div key={`${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, opacity: 0.5 }}>
       <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.[0] || '-'}</span>
       <span style={{ flex: 1 }}>
         {p.name}
@@ -11528,8 +11528,8 @@ function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, myTeamId
   const col = (list, side, teamLabel) => (
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: side === 'away' ? 'right' : 'left', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel}</div>
-      {list.map(r => (
-        <div key={r.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12.5, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+      {list.map((r, i) => (
+        <div key={`${r.name}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12.5, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: side === 'away' ? 'right' : 'left', flex: 1 }}>{r.name}</span>
           <span style={{
             fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0,
@@ -13416,7 +13416,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         // verdade na simulação da rodada (teamsForRound), só pra exibição.
         const { starters, bench, unavailable } = buildSquadView(myTeam, suspensions, injuries);
         const understaffed = unavailable.some(p => p.shortOnSubs);
-        const renderRow = (p) => {
+        const renderRow = (p, i) => {
           // p.pos é a lista de posições que o jogador PODE jogar, não onde ele
           // foi escalado (um LD com pos ['LD','MD'] pode estar num slot MD) —
           // pra mostrar a posição real usada, busca a vaga pelo slotKey salvo
@@ -13428,7 +13428,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           const assignedPos = !p.isBench && pitchSlots.find(s => s.key === p.slotKey && !s.isBench)?.realPos;
           const posLabel = assignedPos || p.pos?.[0] || '-';
           return (
-            <div key={p.name} style={styles.squadRow}>
+            <div key={`${p.name}-${i}`} style={styles.squadRow}>
               <span style={{ ...styles.squadPos, color: p.isCaptain ? '#d4a23c' : undefined }}>{p.isCaptain ? 'C' : posLabel}</span>
               <span style={styles.squadName}>{p.name}</span>
               <span style={styles.squadTeam}>{p.club || ''}</span>
@@ -13436,8 +13436,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             </div>
           );
         };
-        const renderUnavailableRow = (p) => (
-          <div key={p.name} style={{ ...styles.squadRow, opacity: 0.5 }}>
+        const renderUnavailableRow = (p, i) => (
+          <div key={`${p.name}-${i}`} style={{ ...styles.squadRow, opacity: 0.5 }}>
             <span style={styles.squadPos}>{p.pos?.[0] || '-'}</span>
             <span style={styles.squadName}>
               {p.name}
@@ -13496,8 +13496,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#e05050', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
                   Desfalques no seu time{hasInjury && <span style={{ textTransform: 'none', fontWeight: 400, opacity: 0.7 }}> — boletim de {MEDICAL_CHIEF_NAME}</span>}
                 </div>
-                {desfalques.map(d => (
-                  <div key={d.name} style={{ fontSize: 13, padding: '2px 0' }}>{d.name} <span style={{ opacity: 0.6, fontSize: 11 }}>({d.reason})</span></div>
+                {desfalques.map((d, i) => (
+                  <div key={`${d.name}-${i}`} style={{ fontSize: 13, padding: '2px 0' }}>{d.name} <span style={{ opacity: 0.6, fontSize: 11 }}>({d.reason})</span></div>
                 ))}
               </div>
             );
@@ -13512,8 +13512,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px', marginTop: 6 }}>
                   {[activeUserMatch?.homeId, activeUserMatch?.awayId].map((tid, side) => (
                     <div key={side}>
-                      {[...lastMatchRatings].filter(r => r.teamId === tid).sort((a, b) => b.rating - a.rating).map(r => (
-                        <div key={r.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12, padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                      {[...lastMatchRatings].filter(r => r.teamId === tid).sort((a, b) => b.rating - a.rating).map((r, i) => (
+                        <div key={`${r.name}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12, padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
                           <span style={{
                             fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0,
