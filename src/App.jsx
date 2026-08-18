@@ -4664,7 +4664,7 @@ export default function App() {
   };
 
   // Modo de jogo
-  const [gameMode, setGameMode] = useState(_sv?.gameMode ?? 'brasileirao'); // 'brasileirao' | 'copa' | 'serieab' | 'multi'
+  const [gameMode, setGameMode] = useState(_sv?.gameMode ?? 'serieab'); // 'brasileirao' (legado, so em saves antigos) | 'copa' | 'serieab' | 'multi'
 
   // Série A/B — divisão que o jogador está disputando nesta temporada, e a
   // divisão espelho (só IA) que avança junto pra existir de verdade (o
@@ -8366,24 +8366,18 @@ function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, d
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {[
               {
-                id: 'brasileirao',
+                // O Brasileirão sem divisão única saiu de circulação — agora
+                // "Brasileirão" JÁ é a Série A/B, com acesso e queda embutidos.
+                id: 'serieab',
                 trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/02ftjh1684945323.png',
                 title: 'Brasileirão',
-                sub: '20 times · 38 rodadas · Pontos corridos',
+                sub: '40 times · Série A e B · Acesso e queda a cada temporada',
               },
               {
                 id: 'copa',
                 trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/jv27c41776553182.png',
                 title: 'Copa do Brasil',
                 sub: '32 times · Mata-mata · Ida e volta',
-              },
-              {
-                id: 'serieab',
-                // Mesmo troféu do Brasileirão — é a mesma competição, só com
-                // acesso/queda entre as duas divisões.
-                trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/02ftjh1684945323.png',
-                title: 'Brasileirão (Série A/B)',
-                sub: '40 times · Duas divisões · Acesso e queda a cada temporada',
               },
             ].map(m => (
               <button
@@ -8397,7 +8391,6 @@ function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, d
                   background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
                   color: '#F4F1EA', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s',
                   boxShadow: gameMode === m.id ? `0 0 0 1px ${hexToRgba(mc, 0.15)} inset` : 'none',
-                  ...(m.id === 'serieab' ? { gridColumn: '1 / -1' } : {}),
                 }}
               >
                 {gameMode === m.id && (
@@ -8463,7 +8456,7 @@ function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, d
         </button>
 
         <button style={{ ...styles.btnIntro, background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: '#0B1A12', boxShadow: `0 8px 24px ${hexToRgba(mc, 0.35)}` }} onClick={onStart}>
-          {gameMode === 'copa' ? 'Escolher formação — Copa →' : gameMode === 'serieab' ? 'Escolher formação — Série A/B →' : 'Escolher formação — Brasileirão →'}
+          {gameMode === 'copa' ? 'Escolher formação — Copa →' : 'Escolher formação — Brasileirão →'}
         </button>
 
         {/* Rodapé institucional */}
@@ -9884,9 +9877,8 @@ function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode }) {
       {onSetGameMode && (
         <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
           {[
-            { id: 'brasileirao', label: 'Brasileirão' },
+            { id: 'serieab', label: 'Brasileirão' },
             { id: 'copa', label: 'Copa do Brasil' },
-            { id: 'serieab', label: 'Série A/B' },
           ].map(m => (
             <button
               key={m.id}
@@ -11950,6 +11942,12 @@ function LeaderboardModal({ onClose, myUsername }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-08-serie-ab',
+    date: 'Agosto de 2026',
+    title: 'O Brasileirão agora é Série A e B',
+    desc: 'O modo "Brasileirão" avulso saiu de cena: agora é direto Série A e B, com 40 times sorteados desde o início (20 em cada divisão). No fim de cada temporada, os 2 últimos colocados da Série A caem e os 2 primeiros da Série B sobem direto — quem fica entre 3º e 6º na Série B disputa um mata-mata de acesso, ida e volta. A divisão em que você está persiste de uma temporada pra outra, e o ranking global agora também reflete isso: pontos de campanha na Série B valem metade dos da Série A.',
+  },
   {
     id: '2026-08-100-times',
     date: 'Agosto de 2026',
@@ -14143,7 +14141,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       <div style={{ marginTop: 16 }}>
         <ShareResultButton cardData={{
           title: isChampion ? 'CAMPEÃO!' : `${pos}º lugar`,
-          subtitle: 'Brasileirão · Série A',
+          subtitle: gameMode === 'serieab' ? `Brasileirão · Série ${myDivision}` : 'Brasileirão · Série A',
           teamLabel: leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time',
           teamBadge: myTeamBadge, teamLogo: myTeamLogo, teamColor: myTeamColor,
           campaign: campaignLines,
