@@ -7749,6 +7749,14 @@ export default function App() {
     setMultiPhase(null);
   }, [roomSnap?.phase, roomSnap?.seed]);
 
+  // Fases com painel de jogadores à esquerda + campinho fixo à direita
+  // (Draft/Squad/Mercado) também sofriam com os 760px de sempre. Não usa o
+  // mesmo 1400 da home: nessas telas a lista de jogadores é quem sobra de
+  // espaço do grid (`1fr 380px`, o campinho já cresceu pro tamanho máximo
+  // dele), e 1400 deixava cada linha da lista enorme, com um vão vazio à
+  // direita do nome/overall — 1100 dá folga real sem esvaziar as linhas.
+  const wideMainMaxWidth = multiPhase ? null : phase === 'intro' ? 1400 : ['draft', 'squad', 'transfer'].includes(phase) ? 1100 : null;
+
   return (
     <div style={styles.page}>
       <style>{globalCss}</style>
@@ -7774,7 +7782,7 @@ export default function App() {
         />
       )}
       <header style={styles.header}>
-        <div style={{ ...styles.headerInner, maxWidth: (phase === 'intro' && !multiPhase) ? 1400 : styles.headerInner.maxWidth }} className="header-inner-pad">
+        <div style={{ ...styles.headerInner, maxWidth: wideMainMaxWidth || styles.headerInner.maxWidth }} className="header-inner-pad">
           <div style={styles.crest}>🏆</div>
           <div>
             <div
@@ -7964,7 +7972,7 @@ export default function App() {
         <AchievementToast achievements={newAchievements} onClose={() => setNewAchievements([])} />
       )}
 
-      <main style={{ ...styles.main, maxWidth: (phase === 'intro' && !multiPhase) ? 1400 : styles.main.maxWidth }} className="main-pad">
+      <main style={{ ...styles.main, maxWidth: wideMainMaxWidth || styles.main.maxWidth }} className="main-pad">
         {/* TELAS MULTIPLAYER */}
         {multiPhase === 'lobby' && (
           <MultiLobby
@@ -15106,7 +15114,9 @@ const styles = {
   btnIntro: { background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 12, padding: '16px 40px', fontSize: 17, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3 },
 
   // Draft side-by-side layout
-  draftLayout: { display: 'grid', gridTemplateColumns: '1fr 260px', gap: 20, marginTop: 16, alignItems: 'start' },
+  // 380px = o maxWidth do próprio campinho (`pitchField`) — dar mais que
+  // isso à coluna não deixaria ele maior, só sobraria vão vazio ao lado.
+  draftLayout: { display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, marginTop: 16, alignItems: 'start' },
   draftLeft: { display: 'flex', flexDirection: 'column', gap: 0, maxHeight: '72vh', overflowY: 'auto', paddingRight: 4 },
   draftRight: { position: 'sticky', top: 16 },
   teamHeaderCard: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '14px 16px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 },
