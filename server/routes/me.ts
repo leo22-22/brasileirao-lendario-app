@@ -231,43 +231,80 @@ router.post('/season-result', async (req, res) => {
     if (totalTitles >= 3) after.add('dynasty');
     if (seasonsPlayed >= 10) after.add('veteran');
     if (bestPosition != null && bestPosition <= 3) after.add('podium_finish');
+    if (bestPosition != null && bestPosition <= 5) after.add('top5_finish');
+    if (bestPosition != null && bestPosition <= 10) after.add('top10_finish');
     if (gameMode === 'brasileirao' && losses === 0) after.add('unbeaten_season');
     if (gotTopScorerAward) after.add('golden_boot');
+    // Campanha turbulenta (humor) e artilharia de uma única temporada — usam
+    // o resultado DESSA temporada, não o total acumulado de carreira.
+    if (lossesCount >= 15) after.add('turbulent_season');
+    if (goalsScored >= 50) after.add('season_goals_50');
+    if (goalsScored >= 100) after.add('season_goals_100');
+    if (goalsScored >= 150) after.add('season_goals_150');
+    // Título por dificuldade — o multiplicador de pontos já existia, mas
+    // nenhuma conquista reconhecia especificamente ter encarado (e vencido)
+    // no nível mais duro.
+    if (champion) after.add(`champion_${difficulty}`);
+    if (champion && unbeaten && (difficulty === 'dificil' || difficulty === 'lendario')) after.add(`unbeaten_${difficulty}`);
+    // Série A/B: subiu de divisão ou foi campeão da Série B.
+    if (body.divisionMove === 'promoted') after.add('serieab_promoted');
+    if (champion && isSerieB) after.add('serieab_champion_b');
+
+    // Gera os `after.add` de uma família de marcos por contador (mesmo campo
+    // pra todos os thresholds) — evita repetir o mesmo `.forEach` de novo pra
+    // cada família (gols, assistências, partidas, etc.), que só mudavam a
+    // lista de números e o prefixo do id.
+    const addTiers = (value: number, prefix: string, thresholds: number[]) => {
+      thresholds.forEach(n => { if (value >= n) after.add(`${prefix}_${n}`); });
+    };
+    // Mesmas listas do catálogo no cliente (App.jsx, ACHIEVEMENT_CATALOG) —
+    // manter os dois em sincronia é o que faz uma conquista existir E
+    // conseguir ser desbloqueada.
+    const CAREER_TIERS = [10, 25, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7500, 10000, 12500, 15000, 17500, 20000, 25000, 30000, 40000, 50000, 75000, 100000];
+    const VOLUME_TIERS = [10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
+    const SQUAD_OVR_TIERS = Array.from({ length: 25 }, (_, i) => 75 + i); // 75..99
+    const TEAM_OVR_TIERS = Array.from({ length: 20 }, (_, i) => 80 + i); // 80..99
+    const GOAL_DIFF_TIERS = [10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 100, 120, 150, 200];
+    const TITLE_TIERS = [5, 10, 15, 25, 50, 100];
+    const SEASON_TIERS = [15, 20, 25, 50, 75, 100, 150, 200];
+    const MP_WINS_TIERS = [5, 15, 25, 50, 100, 250];
 
     // Marcos de carreira (gols/assistências/gols sofridos acumulados)
-    const GOAL_TIERS: [number, string][] = [[100, 'goals_100'], [1000, 'goals_1000'], [2500, 'goals_2500'], [5000, 'goals_5000'], [10000, 'goals_10000'], [20000, 'goals_20000']];
-    GOAL_TIERS.forEach(([n, id]) => { if (careerGoals >= n) after.add(id); });
-    const ASSIST_TIERS: [number, string][] = [[100, 'assists_100'], [1000, 'assists_1000'], [2500, 'assists_2500'], [5000, 'assists_5000'], [10000, 'assists_10000'], [20000, 'assists_20000']];
-    ASSIST_TIERS.forEach(([n, id]) => { if (careerAssists >= n) after.add(id); });
-    const CONCEDED_TIERS: [number, string][] = [[100, 'conceded_100'], [1000, 'conceded_1000'], [2500, 'conceded_2500'], [5000, 'conceded_5000'], [10000, 'conceded_10000'], [20000, 'conceded_20000']];
-    CONCEDED_TIERS.forEach(([n, id]) => { if (careerConceded >= n) after.add(id); });
+    addTiers(careerGoals, 'goals', CAREER_TIERS);
+    addTiers(careerAssists, 'assists', CAREER_TIERS);
+    addTiers(careerConceded, 'conceded', CAREER_TIERS);
 
     // Saldo de gols (melhor campanha individual)
-    if (bestGoalDiff >= 30) after.add('goal_diff_30');
-    if (bestGoalDiff >= 50) after.add('goal_diff_50');
-    if (bestGoalDiff >= 80) after.add('goal_diff_80');
+    addTiers(Math.max(0, bestGoalDiff), 'goal_diff', GOAL_DIFF_TIERS);
 
     // Campeão invicto (Brasileirão e/ou Copa do Brasil) e o "dose dupla" das duas
     if (champion && unbeaten && gameMode === 'brasileirao') after.add('unbeaten_league_champion');
     if (champion && unbeaten && gameMode === 'copa') after.add('unbeaten_cup_champion');
     if (unbeatenTitlesBr > 0 && unbeatenTitlesCopa > 0) after.add('perfect_double');
+    addTiers(unbeatenTitlesBr, 'unbeaten_br', [5, 10]);
+    addTiers(unbeatenTitlesCopa, 'unbeaten_copa', [5, 10]);
 
     // Multiplayer
     if (isMultiplayer && champion) after.add('multiplayer_win');
     if (multiplayerWins >= 10) after.add('multiplayer_veteran');
+    addTiers(multiplayerWins, 'mpwins', MP_WINS_TIERS);
 
     // Elenco de encher os olhos (melhor jogador individual já escalado) e
     // time de encher os olhos (melhor overall médio do XI já alcançado)
-    const SQUAD_OVR_TIERS: [number, string][] = [85, 86, 87, 88, 89, 90, 91, 92].map(n => [n, `squad_ovr_${n}`]);
-    SQUAD_OVR_TIERS.forEach(([n, id]) => { if (newBestPlayerOvr != null && newBestPlayerOvr >= n) after.add(id); });
-    const TEAM_OVR_TIERS: [number, string][] = [90, 91, 92, 93, 94, 95].map(n => [n, `team_ovr_${n}`]);
-    TEAM_OVR_TIERS.forEach(([n, id]) => { if (newBestTeamOvr != null && newBestTeamOvr >= n) after.add(id); });
+    if (newBestPlayerOvr != null) addTiers(newBestPlayerOvr, 'squad_ovr', SQUAD_OVR_TIERS);
+    if (newBestTeamOvr != null) addTiers(newBestTeamOvr, 'team_ovr', TEAM_OVR_TIERS);
 
-    // Volume de carreira (jogos disputados e vitórias acumuladas)
-    const MATCHES_TIERS: [number, string][] = [[50, 'matches_50'], [100, 'matches_100'], [250, 'matches_250'], [500, 'matches_500']];
-    MATCHES_TIERS.forEach(([n, id]) => { if (totalMatchesPlayed >= n) after.add(id); });
-    const WINS_TIERS: [number, string][] = [[50, 'wins_50'], [100, 'wins_100'], [250, 'wins_250']];
-    WINS_TIERS.forEach(([n, id]) => { if (totalWins >= n) after.add(id); });
+    // Volume de carreira (jogos disputados, vitórias, empates e derrotas)
+    const totalDraws = current.career_draws + draws;
+    const totalLosses = current.career_losses + lossesCount;
+    addTiers(totalMatchesPlayed, 'matches', VOLUME_TIERS);
+    addTiers(totalWins, 'wins', VOLUME_TIERS);
+    addTiers(totalDraws, 'draws', VOLUME_TIERS);
+    addTiers(totalLosses, 'losses', VOLUME_TIERS);
+
+    // Títulos e temporadas em maior escala (as versões "uma vez" já existem acima)
+    addTiers(totalTitles, 'titles', TITLE_TIERS);
+    addTiers(seasonsPlayed, 'seasons', SEASON_TIERS);
 
     const newlyUnlocked = [...after].filter(a => !before.has(a));
 

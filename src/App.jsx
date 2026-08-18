@@ -3371,6 +3371,18 @@ function advanceMirrorDivision(division, seed) {
   return { ...division, table: applyRoundToTable(division.table, results), round: division.round + 1 };
 }
 
+// Sorteia o confronto do Desafio do Dia — semeado pela DATA (não por
+// Math.random), então todo mundo que abrir o jogo no mesmo dia vê o mesmo
+// confronto, e ele muda sozinho à meia-noite (hora local de cada um; sem
+// ranking pra comparar, não precisa ser o mesmo instante pra todo mundo).
+function getDailyChallengeTeams() {
+  const now = new Date();
+  const dateKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
+  const prng = makePrng(hashSeed(`daily-${dateKey}`));
+  const shuffled = [...TEAMS].sort(() => prng() - 0.5);
+  return { dateKey, teamA: shuffled[0], teamB: shuffled[1] };
+}
+
 // ── Calendário da temporada ──────────────────────────────────────────────
 // Datas das rodadas do Brasileirão: derivadas só do número de rodadas e do
 // ano (função pura e determinística), então nada disso precisa ser salvo —
@@ -4204,76 +4216,126 @@ const ACHIEVEMENT_CATALOG = {
   wins_50: { icon: '✅', label: 'Começando a Vencer', desc: 'Venceu 50 partidas com a conta.' },
   wins_100: { icon: '🥇', label: 'Máquina de Vencer', desc: 'Venceu 100 partidas com a conta.' },
   wins_250: { icon: '🏅', label: 'Imbatível na Estatística', desc: 'Venceu 250 partidas com a conta.' },
+  // Títulos por dificuldade — o multiplicador de pontos já existe pra
+  // dificuldade, mas nenhuma conquista reconhecia especificamente ter
+  // encarado (e vencido) no nível mais duro.
+  champion_facil: { icon: '🟢', label: 'Campeão no Fácil', desc: 'Foi campeão do Brasileirão, Copa ou Série A/B na dificuldade Fácil.' },
+  champion_normal: { icon: '🔵', label: 'Campeão no Normal', desc: 'Foi campeão do Brasileirão, Copa ou Série A/B na dificuldade Normal.' },
+  champion_dificil: { icon: '🟠', label: 'Campeão no Difícil', desc: 'Foi campeão do Brasileirão, Copa ou Série A/B na dificuldade Difícil.' },
+  champion_lendario: { icon: '🔴', label: 'Campeão no Lendário', desc: 'Foi campeão do Brasileirão, Copa ou Série A/B na dificuldade Lendário — a mais dura do jogo.' },
+  unbeaten_dificil: { icon: '🛡️🟠', label: 'Perfeito no Difícil', desc: 'Foi campeão invicto jogando no Difícil.' },
+  unbeaten_lendario: { icon: '🛡️🔴', label: 'Perfeito no Lendário', desc: 'Foi campeão invicto jogando no Lendário.' },
+  // Série A/B
+  serieab_promoted: { icon: '⬆️', label: 'Acesso Garantido', desc: 'Subiu da Série B pra Série A.' },
+  serieab_champion_b: { icon: '🏆', label: 'Rei da Segundona', desc: 'Foi campeão da Série B.' },
+  // Quase lá — campanhas boas que não chegaram no pódio
+  top5_finish: { icon: '5️⃣', label: 'Entre os 5 Melhores', desc: 'Terminou o Brasileirão entre os 5 primeiros.' },
+  top10_finish: { icon: '🔟', label: 'Primeira Metade', desc: 'Terminou o Brasileirão entre os 10 primeiros.' },
+  // Invencibilidade em maior escala (a versão "uma vez" já existe acima)
+  unbeaten_br_5: { icon: '🛡️', label: 'Invencibilidade Rotineira', desc: 'Foi campeão invicto do Brasileirão 5 vezes.' },
+  unbeaten_br_10: { icon: '🛡️👑', label: 'Império Invicto', desc: 'Foi campeão invicto do Brasileirão 10 vezes.' },
+  unbeaten_copa_5: { icon: '🏆🛡️', label: 'Copa Sempre Perfeita', desc: 'Foi campeão invicto da Copa do Brasil 5 vezes.' },
+  unbeaten_copa_10: { icon: '🏆👑', label: 'Dominação na Copa', desc: 'Foi campeão invicto da Copa do Brasil 10 vezes.' },
+  // Campanha turbulenta — pro lado engraçado das estatísticas
+  turbulent_season: { icon: '🌀', label: 'Temporada Turbulenta', desc: 'Perdeu 15 ou mais partidas numa única temporada.' },
+  // Artilharia de uma temporada só (não é carreira, é o pico de uma vez)
+  season_goals_50: { icon: '⚽', label: 'Ataque Afiado', desc: 'Marcou 50 gols numa única temporada ou copa.' },
+  season_goals_100: { icon: '🎯', label: 'Ataque Devastador', desc: 'Marcou 100 gols numa única temporada ou copa.' },
+  season_goals_150: { icon: '🚀', label: 'Ataque Absurdo', desc: 'Marcou 150 gols numa única temporada ou copa.' },
 };
+
+// Gera dezenas de marcos por contador (gols, assistências, partidas etc.) em
+// cima do catálogo escrito à mão acima — os marcos que já existiam mantêm o
+// nome/ícone especial de antes; os novos usam o mesmo texto-modelo, só
+// variando o número. É assim que todo sistema de conquista por "milestone"
+// funciona (Steam, apps de hábito etc.) — ninguém espera um nome exclusivo
+// pra cada marco de uma progressão numérica, e escrever à mão umas 250
+// descrições assim não deixaria nenhuma mais especial, só mais devagar.
+function addTierAchievements(catalog, prefix, thresholds, icon, labelFor, descFor) {
+  thresholds.forEach(n => {
+    const id = `${prefix}_${n}`;
+    if (catalog[id]) return; // já definido à mão acima — não sobrescreve
+    catalog[id] = { icon, label: labelFor(n), desc: descFor(n) };
+  });
+}
+
+const ACH_FMT = n => n.toLocaleString('pt-BR');
+const CAREER_TIERS = [10, 25, 50, 75, 100, 150, 200, 300, 400, 500, 750, 1000, 1500, 2000, 2500, 3000, 4000, 5000, 6000, 7500, 10000, 12500, 15000, 17500, 20000, 25000, 30000, 40000, 50000, 75000, 100000];
+const VOLUME_TIERS = [10, 25, 50, 75, 100, 150, 200, 250, 300, 400, 500, 750, 1000, 1500, 2000, 3000, 5000];
+const SQUAD_OVR_TIERS_FULL = Array.from({ length: 25 }, (_, i) => 75 + i); // 75..99
+const TEAM_OVR_TIERS_FULL = Array.from({ length: 20 }, (_, i) => 80 + i); // 80..99
+const GOAL_DIFF_TIERS_FULL = [10, 15, 20, 25, 30, 40, 50, 60, 70, 80, 100, 120, 150, 200];
+const TITLE_TIERS = [5, 10, 15, 25, 50, 100];
+const SEASON_TIERS = [15, 20, 25, 50, 75, 100, 150, 200];
+const MP_WINS_TIERS = [5, 15, 25, 50, 100, 250];
+
+addTierAchievements(ACHIEVEMENT_CATALOG, 'goals', CAREER_TIERS, '⚽', n => `${ACH_FMT(n)} Gols na Carreira`, n => `Marcou ${ACH_FMT(n)} gols com a conta.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'assists', CAREER_TIERS, '🤝', n => `${ACH_FMT(n)} Assistências na Carreira`, n => `Deu ${ACH_FMT(n)} assistências com a conta.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'conceded', CAREER_TIERS, '🥅', n => `${ACH_FMT(n)} Gols Sofridos`, n => `Sofreu ${ACH_FMT(n)} gols com a conta.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'matches', VOLUME_TIERS, '📋', n => `${ACH_FMT(n)} Partidas na Carreira`, n => `Disputou ${ACH_FMT(n)} partidas com a conta.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'wins', VOLUME_TIERS, '✅', n => `${ACH_FMT(n)} Vitórias na Carreira`, n => `Venceu ${ACH_FMT(n)} partidas com a conta.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'draws', VOLUME_TIERS, '🟰', n => `${ACH_FMT(n)} Empates na Carreira`, n => `Empatou ${ACH_FMT(n)} partidas com a conta.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'losses', VOLUME_TIERS, '📉', n => `${ACH_FMT(n)} Derrotas na Carreira`, n => `Perdeu ${ACH_FMT(n)} partidas com a conta.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'squad_ovr', SQUAD_OVR_TIERS_FULL, '⭐', n => `Craque ${n} OVR no Elenco`, n => `Teve um jogador de overall ${n}+ no elenco.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'team_ovr', TEAM_OVR_TIERS_FULL, '🛡️', n => `Time Médio ${n} OVR`, n => `Montou um time com overall médio ${n}+.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'goal_diff', GOAL_DIFF_TIERS_FULL, '📈', n => `Saldo +${n}`, n => `Fechou uma temporada ou copa com saldo de gols +${n}.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'titles', TITLE_TIERS, '👑', n => `${n} Títulos na Conta`, n => `Alcançou ${n} títulos com a conta.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'seasons', SEASON_TIERS, '📅', n => `${n} Temporadas Jogadas`, n => `Completou ${n} temporadas.`);
+addTierAchievements(ACHIEVEMENT_CATALOG, 'mpwins', MP_WINS_TIERS, '🎮', n => `${n} Vitórias no Multiplayer`, n => `Venceu ${n} temporadas jogando com amigos.`);
 
 // Agrupamento por categoria pra galeria completa (AchievementsModal).
 const ACHIEVEMENT_CATEGORIES = [
-  { label: 'Títulos e Carreira', ids: ['first_title', 'dynasty', 'veteran', 'podium_finish', 'unbeaten_season', 'golden_boot'] },
-  { label: 'Gols', ids: ['goals_100', 'goals_1000', 'goals_2500', 'goals_5000', 'goals_10000', 'goals_20000'] },
-  { label: 'Assistências', ids: ['assists_100', 'assists_1000', 'assists_2500', 'assists_5000', 'assists_10000', 'assists_20000'] },
-  { label: 'Gols Sofridos', ids: ['conceded_100', 'conceded_1000', 'conceded_2500', 'conceded_5000', 'conceded_10000', 'conceded_20000'] },
-  { label: 'Saldo de Gols', ids: ['goal_diff_30', 'goal_diff_50', 'goal_diff_80'] },
-  { label: 'Elenco', ids: ['squad_ovr_85', 'squad_ovr_86', 'squad_ovr_87', 'squad_ovr_88', 'squad_ovr_89', 'squad_ovr_90', 'squad_ovr_91', 'squad_ovr_92'] },
-  { label: 'Time', ids: ['team_ovr_90', 'team_ovr_91', 'team_ovr_92', 'team_ovr_93', 'team_ovr_94', 'team_ovr_95'] },
-  { label: 'Volume de Carreira', ids: ['matches_50', 'matches_100', 'matches_250', 'matches_500', 'wins_50', 'wins_100', 'wins_250'] },
-  { label: 'Campanhas Invictas', ids: ['unbeaten_league_champion', 'unbeaten_cup_champion', 'perfect_double'] },
-  { label: 'Multiplayer', ids: ['multiplayer_win', 'multiplayer_veteran'] },
+  { label: 'Títulos e Carreira', ids: ['first_title', 'dynasty', ...TITLE_TIERS.map(n => `titles_${n}`), 'veteran', ...SEASON_TIERS.map(n => `seasons_${n}`), 'podium_finish', 'top5_finish', 'top10_finish', 'unbeaten_season', 'golden_boot', 'turbulent_season'] },
+  { label: 'Dificuldade', ids: ['champion_facil', 'champion_normal', 'champion_dificil', 'champion_lendario', 'unbeaten_dificil', 'unbeaten_lendario'] },
+  { label: 'Série A/B', ids: ['serieab_promoted', 'serieab_champion_b'] },
+  { label: 'Gols', ids: CAREER_TIERS.map(n => `goals_${n}`) },
+  { label: 'Artilharia de uma Temporada', ids: ['season_goals_50', 'season_goals_100', 'season_goals_150'] },
+  { label: 'Assistências', ids: CAREER_TIERS.map(n => `assists_${n}`) },
+  { label: 'Gols Sofridos', ids: CAREER_TIERS.map(n => `conceded_${n}`) },
+  { label: 'Saldo de Gols', ids: GOAL_DIFF_TIERS_FULL.map(n => `goal_diff_${n}`) },
+  { label: 'Elenco', ids: SQUAD_OVR_TIERS_FULL.map(n => `squad_ovr_${n}`) },
+  { label: 'Time', ids: TEAM_OVR_TIERS_FULL.map(n => `team_ovr_${n}`) },
+  { label: 'Volume de Carreira', ids: [...VOLUME_TIERS.map(n => `matches_${n}`), ...VOLUME_TIERS.map(n => `wins_${n}`), ...VOLUME_TIERS.map(n => `draws_${n}`), ...VOLUME_TIERS.map(n => `losses_${n}`)] },
+  { label: 'Campanhas Invictas', ids: ['unbeaten_league_champion', 'unbeaten_br_5', 'unbeaten_br_10', 'unbeaten_cup_champion', 'unbeaten_copa_5', 'unbeaten_copa_10', 'perfect_double'] },
+  { label: 'Multiplayer', ids: ['multiplayer_win', 'multiplayer_veteran', ...MP_WINS_TIERS.map(n => `mpwins_${n}`)] },
 ];
+
+// Contador de cada família de conquista por "milestone" — o mesmo campo do
+// usuário serve pra TODOS os thresholds daquela família, então não precisa
+// mais de um `case` por id: só extrai o prefixo e o número (ver
+// getAchievementProgress abaixo).
+const ACH_FIELD_BY_PREFIX = {
+  goals: u => u.career_goals || 0,
+  assists: u => u.career_assists || 0,
+  conceded: u => u.career_conceded || 0,
+  matches: u => u.career_matches_played || 0,
+  wins: u => u.career_wins || 0,
+  draws: u => u.career_draws || 0,
+  losses: u => u.career_losses || 0,
+  squad_ovr: u => u.best_player_ovr || 0,
+  team_ovr: u => u.best_team_ovr || 0,
+  goal_diff: u => Math.max(0, u.best_goal_diff || 0),
+  titles: u => (u.titles_brasileirao || 0) + (u.titles_copa || 0),
+  seasons: u => u.seasons_played || 0,
+  mpwins: u => u.multiplayer_wins || 0,
+};
+const ACH_TIER_ID_RE = /^(goals|assists|conceded|matches|wins|draws|losses|squad_ovr|team_ovr|goal_diff|titles|seasons|mpwins)_(\d+)$/;
 
 // Progresso numérico das conquistas que têm um contador persistido na conta
 // (server/db.ts) — usado pra desenhar a barra na galeria. Conquistas binárias
 // sem contador de carreira (ex.: invicto, artilheiro da temporada) voltam null.
 function getAchievementProgress(id, user) {
   const totalTitles = (user.titles_brasileirao || 0) + (user.titles_copa || 0);
-  switch (id) {
-    case 'first_title': return { current: totalTitles, target: 1 };
-    case 'dynasty': return { current: totalTitles, target: 3 };
-    case 'veteran': return { current: user.seasons_played || 0, target: 10 };
-    case 'goals_100': return { current: user.career_goals || 0, target: 100 };
-    case 'goals_1000': return { current: user.career_goals || 0, target: 1000 };
-    case 'goals_2500': return { current: user.career_goals || 0, target: 2500 };
-    case 'goals_5000': return { current: user.career_goals || 0, target: 5000 };
-    case 'goals_10000': return { current: user.career_goals || 0, target: 10000 };
-    case 'goals_20000': return { current: user.career_goals || 0, target: 20000 };
-    case 'assists_100': return { current: user.career_assists || 0, target: 100 };
-    case 'assists_1000': return { current: user.career_assists || 0, target: 1000 };
-    case 'assists_2500': return { current: user.career_assists || 0, target: 2500 };
-    case 'assists_5000': return { current: user.career_assists || 0, target: 5000 };
-    case 'assists_10000': return { current: user.career_assists || 0, target: 10000 };
-    case 'assists_20000': return { current: user.career_assists || 0, target: 20000 };
-    case 'conceded_100': return { current: user.career_conceded || 0, target: 100 };
-    case 'conceded_1000': return { current: user.career_conceded || 0, target: 1000 };
-    case 'conceded_2500': return { current: user.career_conceded || 0, target: 2500 };
-    case 'conceded_5000': return { current: user.career_conceded || 0, target: 5000 };
-    case 'conceded_10000': return { current: user.career_conceded || 0, target: 10000 };
-    case 'conceded_20000': return { current: user.career_conceded || 0, target: 20000 };
-    case 'goal_diff_30': return { current: Math.max(0, user.best_goal_diff || 0), target: 30 };
-    case 'goal_diff_50': return { current: Math.max(0, user.best_goal_diff || 0), target: 50 };
-    case 'goal_diff_80': return { current: Math.max(0, user.best_goal_diff || 0), target: 80 };
-    case 'multiplayer_veteran': return { current: user.multiplayer_wins || 0, target: 10 };
-    case 'squad_ovr_85': return { current: user.best_player_ovr || 0, target: 85 };
-    case 'squad_ovr_86': return { current: user.best_player_ovr || 0, target: 86 };
-    case 'squad_ovr_87': return { current: user.best_player_ovr || 0, target: 87 };
-    case 'squad_ovr_88': return { current: user.best_player_ovr || 0, target: 88 };
-    case 'squad_ovr_89': return { current: user.best_player_ovr || 0, target: 89 };
-    case 'squad_ovr_90': return { current: user.best_player_ovr || 0, target: 90 };
-    case 'squad_ovr_91': return { current: user.best_player_ovr || 0, target: 91 };
-    case 'squad_ovr_92': return { current: user.best_player_ovr || 0, target: 92 };
-    case 'team_ovr_90': return { current: user.best_team_ovr || 0, target: 90 };
-    case 'team_ovr_91': return { current: user.best_team_ovr || 0, target: 91 };
-    case 'team_ovr_92': return { current: user.best_team_ovr || 0, target: 92 };
-    case 'team_ovr_93': return { current: user.best_team_ovr || 0, target: 93 };
-    case 'team_ovr_94': return { current: user.best_team_ovr || 0, target: 94 };
-    case 'team_ovr_95': return { current: user.best_team_ovr || 0, target: 95 };
-    case 'matches_50': return { current: user.career_matches_played || 0, target: 50 };
-    case 'matches_100': return { current: user.career_matches_played || 0, target: 100 };
-    case 'matches_250': return { current: user.career_matches_played || 0, target: 250 };
-    case 'matches_500': return { current: user.career_matches_played || 0, target: 500 };
-    case 'wins_50': return { current: user.career_wins || 0, target: 50 };
-    case 'wins_100': return { current: user.career_wins || 0, target: 100 };
-    case 'wins_250': return { current: user.career_wins || 0, target: 250 };
-    default: return null;
+  if (id === 'first_title') return { current: totalTitles, target: 1 };
+  if (id === 'dynasty') return { current: totalTitles, target: 3 };
+  if (id === 'veteran') return { current: user.seasons_played || 0, target: 10 };
+  if (id === 'multiplayer_veteran') return { current: user.multiplayer_wins || 0, target: 10 };
+  const m = id.match(ACH_TIER_ID_RE);
+  if (m) {
+    const [, prefix, n] = m;
+    return { current: ACH_FIELD_BY_PREFIX[prefix](user), target: Number(n) };
   }
+  return null;
 }
 
 // Card de uma conquista (ícone + label + desc + barra de progresso ou selo de
@@ -4779,6 +4841,14 @@ export default function App() {
   // de startSeason (jogo novo do zero).
   const [isTransferSeason, setIsTransferSeason] = useState(false);
 
+  // Desafio do Dia — partida única contra o confronto sorteado por data (o
+  // mesmo pra todo mundo que abrir o jogo hoje), sem entrar no ranking nem
+  // nas conquistas (não é uma temporada de verdade). Reaproveita o motor do
+  // Brasileirão com fixtures de 1 rodada só — vira "última rodada" sozinho.
+  const [isDailyChallenge, setIsDailyChallenge] = useState(_sv?.isDailyChallenge ?? false);
+  const [showDailyChallenge, setShowDailyChallenge] = useState(false);
+  const dailyChallengeTeams = useMemo(() => getDailyChallengeTeams(), []);
+
   // Multiplayer (PeerJS)
   const [multiPhase, setMultiPhase] = useState(null); // null|'lobby'|'room'
   const [multiGameMode, setMultiGameMode] = useState('serieab');
@@ -5193,6 +5263,80 @@ export default function App() {
     setCaptainSlot(null);
     setRolledTeam(null);
     setPhase('squad');
+  };
+
+  // Desafio do Dia: escolheu um dos 2 times do confronto de hoje — mesmo
+  // atalho de elenco pronto de cima, só que guarda quem é o adversário (o
+  // outro time do par) pra montar o confronto quando a escalação for
+  // confirmada (ver `confirmDailyChallenge`, o onConfirm da tela de Squad).
+  const [dailyOpponent, setDailyOpponent] = useState(_sv?.dailyOpponent ?? null);
+  const startDailyChallenge = (team, opponent) => {
+    const built = autoFillSquadFromTeam(team);
+    if (!built) return;
+    setFormationKey(built.formationKey);
+    setPitchSlots(built.pitchSlots);
+    setPitch(built.pitch);
+    setUsedTeamIds([]);
+    setSkipsLeft(MAX_SKIPS);
+    setLog([]);
+    setSelectedPlayer(null);
+    setRepositioningSlot(null);
+    setCaptainSlot(null);
+    setRolledTeam(null);
+    setDailyOpponent(opponent);
+    setIsDailyChallenge(true);
+    setShowDailyChallenge(false);
+    setPhase('squad');
+  };
+
+  // onConfirm da tela de Squad quando isDailyChallenge — em vez de sortear
+  // 19 adversários (startSeason), monta só o confronto de hoje: eu vs o
+  // outro time do par, 1 rodada só. O motor do Brasileirão já entende "1
+  // rodada = última rodada" sozinho (ver `regularRounds` em Playing), então
+  // não precisa de nada especial daqui pra frente além da tela de resultado.
+  const confirmDailyChallenge = () => {
+    const pitchWithCaptain = captainSlot && pitch[captainSlot]
+      ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
+      : pitch;
+    const userOvr = teamStrength(pitchWithCaptain);
+    const userPlayers = partitionStartersFirst(Object.values(pitchWithCaptain));
+    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, club: clubFromLogo(myTeamLogo), ovr: userOvr, players: userPlayers };
+    const opp = dailyOpponent;
+    const oppPlayers = applyDifficultyToPlayers(
+      opp.players.map(p => ({ ...p, club: opp.club, year: opp.year, nat: p.nat || 'BRA' })),
+      difficulty
+    );
+    const oppTeamObj = {
+      id: opp.id, label: opp.label, club: opp.club, clubLogo: CLUB_LOGOS[opp.club] || null,
+      ovr: teamStrength(Object.fromEntries(oppPlayers.map((p, i) => [i, p]))),
+      players: oppPlayers,
+    };
+    setLeagueTeams([myTeamObj, oppTeamObj]);
+    setLeagueTable([myTeamObj, oppTeamObj].map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 })));
+    setFixtures([[{ homeId: MY_TEAM_ID, awayId: opp.id }]]);
+    setCurrentRound(0);
+    setGameMode('brasileirao');
+    setClockMinute(0);
+    setIsSimulating(false);
+    setLiveEvents([]);
+    setLiveScore({ home: 0, away: 0 });
+    setRoundResults(null);
+    setActiveUserMatch(null);
+    setMatchHistory([]);
+    setRoundHistory({});
+    setScorers({});
+    setAssisters({});
+    setCleanSheets({});
+    setSeasonRatings({});
+    setCardCounts({});
+    setRedCards({});
+    setSuspensions({});
+    setInjuries({});
+    setLastRoundDiscipline(null);
+    setLastMatchRatings(null);
+    setTeamForm({});
+    setSeasonAwards([]);
+    setPhase('playing');
   };
 
   const openTransferMarket = () => setPhase('transfer');
@@ -6020,7 +6164,7 @@ export default function App() {
   // Calcula e aplica os prêmios de fim de temporada — só o elenco do próprio
   // usuário recebe o bônus permanente (é o único que atravessa pra próxima
   // temporada; os adversários são sorteados de novo em "newSeason").
-  const applySeasonAwards = (copaChampionId, tableOverride, scorersOverride, assistersOverride, matchHistoryOverride, ratingsOverride) => {
+  const applySeasonAwards = (copaChampionId, tableOverride, scorersOverride, assistersOverride, matchHistoryOverride, ratingsOverride, divisionMoveOverride) => {
     const myTeam = leagueTeams.find(t => t.id === myTeamId);
     // Overrides evitam closure velha quando chamado de dentro da simulação
     // direta (fastForward*): o estado real (scorers/assisters/leagueTable) só
@@ -6046,7 +6190,9 @@ export default function App() {
 
     // Ranking global e conquistas só fazem sentido pra quem está logado (só a
     // conta persiste entre sessões — convidado joga normal, sem entrar no ranking).
-    if (!currentUser) return;
+    // Desafio do Dia também não entra: é uma partida avulsa pra divertir, não
+    // uma temporada de verdade — não deveria contar título/gol de carreira.
+    if (!currentUser || isDailyChallenge) return;
     const isCopa = gameMode === 'copa';
     const finalTable = tableOverride || leagueTable;
     const champion = isCopa ? copaChampionId === myTeamId : finalTable[0]?.id === myTeamId;
@@ -6090,6 +6236,10 @@ export default function App() {
       // o servidor decide o peso, aqui só avisa em qual divisão a temporada
       // rolou (só faz sentido no modo serieab).
       division: gameMode === 'serieab' ? myDivision : undefined,
+      // Idem: só faz sentido no modo serieab, e só quando essa chamada é
+      // justamente a de fim de temporada (senão fica undefined — não é toda
+      // chamada de applySeasonAwards que decide promoção/queda).
+      divisionMove: gameMode === 'serieab' ? (divisionMoveOverride ?? divisionMove) : undefined,
       // Dificuldade vale multiplicador no ranking. No multiplayer os times de
       // IA entram sem ajuste de dificuldade nenhum (ver o efeito de simulação
       // da sala), então mandar o valor guardado no localStorage daria pontos
@@ -6268,7 +6418,7 @@ export default function App() {
         setDivisionMove(move);
       }
       setShowCalendar(false);
-      applySeasonAwards(undefined, table, scorersAcc, assistersAcc, history, ratingsAcc);
+      applySeasonAwards(undefined, table, scorersAcc, assistersAcc, history, ratingsAcc, gameMode === 'serieab' ? move : undefined);
       setPhase('results');
     } else {
       // Cancelado no meio do caminho: roundResults ficou com o resultado da
@@ -6560,7 +6710,7 @@ export default function App() {
         }
         setDivisionMove(promoted ? 'promoted' : 'stayed');
         setPromotionTie(t => ({ ...t, leg: null, aggMine, aggOpp, promoted }));
-        applySeasonAwards();
+        applySeasonAwards(undefined, undefined, undefined, undefined, undefined, undefined, promoted ? 'promoted' : 'stayed');
         setPhase('results');
         return;
       }
@@ -6580,7 +6730,7 @@ export default function App() {
           setActiveUserMatch(null);
         } else {
           setDivisionMove(move);
-          applySeasonAwards();
+          applySeasonAwards(undefined, undefined, undefined, undefined, undefined, undefined, move);
           setPhase('results');
         }
       } else {
@@ -6751,10 +6901,11 @@ export default function App() {
         cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
         matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards,
         myDivision, otherDivision, divisionMove, promotionTie,
+        isDailyChallenge, dailyOpponent,
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -6861,6 +7012,8 @@ export default function App() {
     setOtherDivision(null);
     setDivisionMove(null);
     setPromotionTie(null);
+    setIsDailyChallenge(false);
+    setDailyOpponent(null);
     setFormationKey(null);
     setPitchSlots([]);
     setPitch({});
@@ -6926,6 +7079,7 @@ export default function App() {
   // "Continuar" descreve `savedPhase` enquanto a tela ainda está em 'intro').
   const describePhase = (p) => {
     if (!p || p === 'intro' || p === 'results') return null;
+    if (isDailyChallenge) return 'o Desafio do Dia';
     if (p === 'playing') {
       if (gameMode === 'copa') return CUP_ROUND_NAMES[cupRoundIdx] || 'Copa do Brasil';
       if (gameMode === 'serieab') {
@@ -7798,6 +7952,17 @@ export default function App() {
             onMultiPlayer={() => setMultiPhase('lobby')}
             onNavigateInfo={navigateToInfo}
             onNavigateTeams={navigateToTeamsIndex}
+            dailyChallengeTeams={dailyChallengeTeams}
+            onOpenDailyChallenge={() => setShowDailyChallenge(true)}
+          />
+        )}
+        {showDailyChallenge && (
+          <DailyChallengeModal
+            teamA={dailyChallengeTeams.teamA}
+            teamB={dailyChallengeTeams.teamB}
+            myTeamColor={myTeamColor}
+            onPick={startDailyChallenge}
+            onClose={() => setShowDailyChallenge(false)}
           />
         )}
         {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase ? setGameMode : undefined} onPlayReadyMade={useReadyMadeSquad} />}
@@ -7837,8 +8002,8 @@ export default function App() {
             pitch={pitch} pitchSlots={pitchSlots}
             formationLabel={formationKey ? FORMATIONS[formationKey].label : ''}
             captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
-            onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : (isTransferSeason ? newSeason : startSeason)}
-            onRedo={!isTransferSeason ? () => { setPhase('formation'); setCaptainSlot(null); } : undefined}
+            onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : isDailyChallenge ? confirmDailyChallenge : (isTransferSeason ? newSeason : startSeason)}
+            onRedo={!isTransferSeason && !isDailyChallenge ? () => { setPhase('formation'); setCaptainSlot(null); } : undefined}
             myTeamColor={myTeamColor}
             selectedPlayer={selectedPlayer}
             repositioningSlot={repositioningSlot}
@@ -7897,10 +8062,11 @@ export default function App() {
             teamForm={teamForm}
             viewingTeam={viewingTeam}
             onViewTeam={setViewingTeam}
-            onSimulateAll={gameMode === 'copa' ? fastForwardCopa : (gameMode === 'serieab' && promotionTie?.leg) ? undefined : simulateSeasonOnCalendar}
-            onOpenCalendar={(gameMode === 'brasileirao' || gameMode === 'serieab') ? openCalendar : undefined}
+            onSimulateAll={isDailyChallenge ? () => fastForwardBrasileirao(null, { onCalendar: false }) : gameMode === 'copa' ? fastForwardCopa : (gameMode === 'serieab' && promotionTie?.leg) ? undefined : simulateSeasonOnCalendar}
+            onOpenCalendar={!isDailyChallenge && (gameMode === 'brasileirao' || gameMode === 'serieab') ? openCalendar : undefined}
             myDivision={myDivision}
             promotionTie={promotionTie}
+            isDailyChallenge={isDailyChallenge}
             // Durante a simulação pelo calendário o modal já mostra o
             // progresso — o overlay genérico "Simulando…" só atrapalharia.
             fastSimActive={fastSimActive && !calendarSimActive}
@@ -7921,7 +8087,10 @@ export default function App() {
             difficulty={difficulty}
           />
         )}
-        {phase === 'results' && (
+        {phase === 'results' && isDailyChallenge && (
+          <DailyChallengeResults leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} leagueTeams={leagueTeams} onRestart={restart} />
+        )}
+        {phase === 'results' && !isDailyChallenge && (
           /* "Nova temporada" e "Mercado" reconstroem a liga em torno de
              MY_TEAM_ID, mas dentro de uma sala o time do jogador é o id do
              peer (ver `myTeamId`) — a temporada nascia sem ele em nenhum
@@ -8339,6 +8508,52 @@ function parseYouTubeId(input) {
   return null;
 }
 
+// Escolha de time do Desafio do Dia — mostra os 2 times do confronto de
+// hoje e deixa escolher qual dos dois jogar (o outro vira o adversário).
+function DailyChallengeModal({ teamA, teamB, myTeamColor, onPick, onClose }) {
+  const mc = myTeamColor || '#d4a23c';
+  const renderTeamOption = (team, opponent) => {
+    const { baseName, achievement } = parseTeamLabel(team.label);
+    return (
+      <button
+        key={team.id}
+        onClick={() => onPick(team, opponent)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12,
+          border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)',
+          color: '#F4F1EA', textAlign: 'left', cursor: 'pointer', width: '100%',
+        }}
+      >
+        {CLUB_LOGOS[team.club] && (
+          <img src={CLUB_LOGOS[team.club]} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+        )}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
+          {achievement && <div style={{ fontSize: 11, color: mc, marginTop: 1 }}>{achievement}</div>}
+          <div style={{ fontSize: 11.5, color: mc, marginTop: 4, fontWeight: 600 }}>Jogar com este time →</div>
+        </div>
+      </button>
+    );
+  };
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>🔥 Desafio do Dia</div>
+          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
+        </div>
+        <p style={{ fontSize: 12.5, opacity: 0.6, lineHeight: 1.5, marginBottom: 16 }}>
+          Escolha um dos dois times de hoje pra escalar — o outro vira seu adversário nessa partida única. O confronto muda todo dia, e não entra no ranking, é só pra jogar.
+        </p>
+        <div style={{ display: 'grid', gap: 10 }}>
+          {renderTeamOption(teamA, teamB)}
+          {renderTeamOption(teamB, teamA)}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Objetivos em destaque na home — curadoria de 4 (não a galeria de 25 inteira,
 // pra não poluir a primeira tela). Mistura metas binárias (sem barra, ex.:
 // título invicto) com metas quantitativas (com barra, via getAchievementProgress).
@@ -8356,7 +8571,7 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams }) {
+function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, dailyChallengeTeams, onOpenDailyChallenge }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
@@ -8390,6 +8605,30 @@ function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, d
               <div style={{ fontSize: 12, opacity: 0.75 }}>{savedGameLabel}</div>
             </div>
             <span style={{ fontSize: 20, opacity: 0.6, flexShrink: 0 }}>→</span>
+          </button>
+        )}
+        {/* Desafio do Dia — o mesmo confronto pra quem abrir o jogo hoje,
+            trocando à meia-noite. Sem ranking, é só um joguinho extra rápido
+            (uma partida só), então fica logo no topo pra ser bem visível. */}
+        {dailyChallengeTeams && (
+          <button
+            onClick={onOpenDailyChallenge}
+            className="mode-card-hover"
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
+              padding: '14px 16px', marginBottom: 20, borderRadius: 14, color: '#F4F1EA',
+              border: `2px solid ${hexToRgba(mc, 0.4)}`, cursor: 'pointer',
+              background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(255,255,255,0.02))`,
+            }}
+          >
+            <span style={{ fontSize: 26, flexShrink: 0 }}>🔥</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: 14, color: mc }}>Desafio do Dia</div>
+              <div style={{ fontSize: 12.5, opacity: 0.75, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {parseTeamLabel(dailyChallengeTeams.teamA.label).baseName} × {parseTeamLabel(dailyChallengeTeams.teamB.label).baseName}
+              </div>
+            </div>
+            <span style={{ fontSize: 18, opacity: 0.5, flexShrink: 0 }}>→</span>
           </button>
         )}
         <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
@@ -12872,7 +13111,7 @@ function SeasonCalendarModal({
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, promotionTie }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, promotionTie, isDailyChallenge }) {
   const mc = myTeamColor || '#d4a23c';
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -13257,11 +13496,13 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
       <div style={styles.draftTopRow}>
         <div>
           <div style={styles.eyebrow}>
-            {inPromotionTie ? 'Série A/B · Mata-mata de Acesso' : gameMode === 'serieab' ? `Brasileirão · Série ${myDivision}` : 'Brasileirão · Série A'}
+            {isDailyChallenge ? '🔥 Desafio do Dia' : inPromotionTie ? 'Série A/B · Mata-mata de Acesso' : gameMode === 'serieab' ? `Brasileirão · Série ${myDivision}` : 'Brasileirão · Série A'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3 }}>
             <span style={{ fontSize: 13, opacity: 0.6 }}>
-              {inPromotionTie
+              {isDailyChallenge
+                ? `vs ${leagueTeams.find(t => t.id !== myTeamId)?.label || 'adversário de hoje'}`
+                : inPromotionTie
                 ? `${promotionTie.leg === 1 ? 'Jogo de Ida' : 'Jogo de Volta'} vs ${promotionTie.opponentLabel}`
                 : `Rodada ${currentRound + 1} de ${regularRounds}`}
             </span>
@@ -14095,6 +14336,48 @@ function ResultStatRow({ rank, name, team, value, mc }) {
         )}
       </span>
       <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc, flexShrink: 0, whiteSpace: 'nowrap' }}>{value}</span>
+    </div>
+  );
+}
+
+// Resultado do Desafio do Dia — tela própria, mais simples que a de uma
+// temporada de verdade (sem tabela, sem prêmios, sem "Nova Temporada"): é
+// uma partida avulsa só pra divertir, então o placar e um "volte amanhã"
+// já contam a história inteira.
+function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge, leagueTeams, onRestart }) {
+  const mc = myTeamColor || '#d4a23c';
+  const myRow = leagueTable.find(t => t.id === myTeamId) || {};
+  const oppRow = leagueTable.find(t => t.id !== myTeamId) || {};
+  const oppTeam = leagueTeams?.find(t => t.id !== myTeamId);
+  const myGoals = myRow.gp ?? 0;
+  const oppGoals = oppRow.gp ?? 0;
+  const result = myGoals > oppGoals ? 'win' : myGoals < oppGoals ? 'loss' : 'draw';
+  return (
+    <div style={styles.card} className="card-mob">
+      <div style={{ textAlign: 'center' }}>
+        <ChampionCrest
+          logoUrl={oppTeam?.clubLogo}
+          badgeEmoji={result === 'win' ? myTeamBadge : null}
+          fallback={result === 'win' ? '🔥' : result === 'draw' ? '🤝' : '😮'}
+          mc={mc}
+        />
+      </div>
+      <div style={styles.eyebrow}>Desafio do Dia</div>
+      <h1 style={styles.h1} className="h1-mob">
+        {result === 'win' ? 'VITÓRIA!' : result === 'draw' ? 'EMPATE' : 'DERROTA'}
+      </h1>
+      <div style={{ textAlign: 'center', fontSize: 26, fontWeight: 700, margin: '10px 0 4px', fontFamily: "'Space Mono', monospace", color: mc }}>
+        {myGoals} × {oppGoals}
+      </div>
+      <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.6, marginBottom: 20 }}>vs {oppTeam?.label}</div>
+      <p style={{ fontSize: 13, opacity: 0.7, textAlign: 'center', lineHeight: 1.5, marginBottom: 22 }}>
+        {result === 'win' && 'Levou a melhor no confronto de hoje!'}
+        {result === 'draw' && 'Ficou tudo igual hoje — tenta desempatar amanhã, com outro confronto.'}
+        {result === 'loss' && 'Hoje não deu — volta amanhã pra outro confronto e tenta de novo.'}
+      </p>
+      <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
+        Voltar à home →
+      </button>
     </div>
   );
 }
