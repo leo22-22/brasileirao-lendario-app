@@ -2996,6 +2996,66 @@ function buildPitchSlots(formationKey) {
   return slots;
 }
 
+// Monta um "pitch" completo (11 titulares + 5 banco) a partir do elenco real
+// de UM time histórico — usado por "Jogar com este time pronto", o atalho
+// que pula o sorteio/draft inteiro. Testa as formações em ordem até achar
+// uma que os 16 jogadores fechem por completo (banco aceita qualquer
+// posição; titular exige que a posição do slot esteja entre as do jogador).
+// Jogador mais "engessado" (menos posições possíveis nessa formação) entra
+// primeiro — sem isso, um jogador flexível podia ocupar a única vaga que um
+// mais rígido precisava, e a formação falhava à toa por causa da ordem.
+function autoFillSquadFromTeam(team) {
+  // Cada elenco tem 20 jogadores (100 times × 20 = os "2.000 jogadores" do
+  // catálogo) pro campo de só 16 vagas. Testa o elenco INTEIRO como pool —
+  // restringir aos 16 primeiros (os titulares+banco "pretendidos") derrubava
+  // times inteiros: alguns têm só 1 jogador tag ATA entre os 16 primeiros
+  // (reserva de ataque de verdade só aparece do 17º em diante), o que
+  // impedia QUALQUER formação de 2 atacantes de fechar. Ordenar por
+  // flexibilidade com a posição original como desempate faz o time só
+  // "puxar" alguém depois do 16º quando os 16 primeiros realmente não dão
+  // conta de fechar os titulares daquela formação.
+  const players = team.players;
+  if (!players || players.length < 16) return null;
+  for (const formationKey of Object.keys(FORMATIONS)) {
+    const starterSlots = buildPitchSlots(formationKey);
+    const benchSlots = ['bench1', 'bench2', 'bench3', 'bench4', 'bench5'].map((k, i) => ({
+      key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0,
+    }));
+    const order = players
+      .map((p, i) => ({ p, i, flex: p.pos.filter(pos => starterSlots.some(s => s.realPos === pos)).length }))
+      .sort((a, b) => a.flex - b.flex || a.i - b.i);
+    const usedSlots = new Set();
+    const usedPlayers = new Set();
+    const starterAssign = {};
+    order.forEach(({ p, i }) => {
+      const slot = starterSlots.find(s => !usedSlots.has(s.key) && p.pos.includes(s.realPos));
+      if (slot) { starterAssign[slot.key] = p; usedSlots.add(slot.key); usedPlayers.add(i); }
+    });
+    if (usedSlots.size !== starterSlots.length) continue; // essa formação não fecha com esse elenco — tenta a próxima
+    // Banco: os primeiros do elenco que sobraram (a ordem original já reflete
+    // titulares+banco pretendidos) — só pega alguém depois do 16º se precisou
+    // dele pra fechar um titular acima, o que já reduziu o "sobrou" adequado.
+    const leftover = players.filter((_, i) => !usedPlayers.has(i)).slice(0, 5);
+    const pitch = {};
+    starterSlots.forEach(slot => {
+      const raw = starterAssign[slot.key];
+      pitch[slot.key] = {
+        ...raw, teamLabel: team.label, teamId: team.id, club: team.club, year: team.year,
+        nat: raw.nat || 'BRA', isBench: false, slotKey: slot.key,
+      };
+    });
+    benchSlots.forEach((slot, idx) => {
+      const raw = leftover[idx];
+      pitch[slot.key] = {
+        ...raw, teamLabel: team.label, teamId: team.id, club: team.club, year: team.year,
+        nat: raw.nat || 'BRA', isBench: true, slotKey: slot.key,
+      };
+    });
+    return { formationKey, pitchSlots: [...starterSlots, ...benchSlots], pitch };
+  }
+  return null; // não deveria acontecer com os elencos reais do jogo, mas por segurança
+}
+
 // Fisher-Yates. `rand` é injetável porque o multiplayer precisa embaralhar de
 // forma DETERMINÍSTICA (mesma seed em todos os peers → mesmo resultado); com
 // Math.random cada cliente geraria uma ordem diferente e o campeonato inteiro
@@ -5092,6 +5152,28 @@ export default function App() {
     setCaptainSlot(null);
     setPhase('draft');
     rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
+  };
+
+  // Atalho "Jogar com este time pronto" — pula o sorteio inteiro e usa o
+  // elenco real de UM time histórico como titulares+banco. Nome/escudo/cor
+  // continuam sendo os seus (não vira o clube) — só o elenco é emprestado.
+  // Mesmo fluxo funciona em sala com amigos: reaproveita o `phase='squad'`
+  // que o draft normal (solo ou multiplayer) já termina nele, então o
+  // capitão e o "Pronto!"/`multiConfirmDraft` seguem exatamente iguais.
+  const useReadyMadeSquad = (team) => {
+    const built = autoFillSquadFromTeam(team);
+    if (!built) return; // não deveria acontecer com os elencos reais do jogo
+    setFormationKey(built.formationKey);
+    setPitchSlots(built.pitchSlots);
+    setPitch(built.pitch);
+    setUsedTeamIds([]);
+    setSkipsLeft(MAX_SKIPS);
+    setLog([]);
+    setSelectedPlayer(null);
+    setRepositioningSlot(null);
+    setCaptainSlot(null);
+    setRolledTeam(null);
+    setPhase('squad');
   };
 
   const openTransferMarket = () => setPhase('transfer');
@@ -7631,7 +7713,13 @@ export default function App() {
       {infoPage && <InfoPage tab={infoPage} onNavigate={navigateToInfo} onClose={closeInfoPage} myTeamColor={myTeamColor} />}
       {teamsPage === 'index' && <TeamsIndexPage onBack={closeTeamsPage} onOpenTeam={navigateToTeam} myTeamColor={myTeamColor} />}
       {teamsPage && teamsPage !== 'index' && (
-        <TeamDetailPage team={TEAMS.find(t => t.id === teamsPage)} onBack={closeTeamsPage} onOpenIndex={navigateToTeamsIndex} myTeamColor={myTeamColor} />
+        <TeamDetailPage
+          team={TEAMS.find(t => t.id === teamsPage)}
+          onBack={closeTeamsPage}
+          onOpenIndex={navigateToTeamsIndex}
+          myTeamColor={myTeamColor}
+          onPlayWithTeam={team => { useReadyMadeSquad(team); closeTeamsPage(); }}
+        />
       )}
       {newAchievements.length > 0 && (
         <AchievementToast achievements={newAchievements} onClose={() => setNewAchievements([])} />
@@ -7693,7 +7781,7 @@ export default function App() {
             onNavigateTeams={navigateToTeamsIndex}
           />
         )}
-        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase ? setGameMode : undefined} />}
+        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase ? setGameMode : undefined} onPlayReadyMade={useReadyMadeSquad} />}
         {phase === 'transfer' && (
           <TransferMarket
             pitch={pitch}
@@ -9318,7 +9406,7 @@ function TeamsIndexPage({ onBack, onOpenTeam, myTeamColor }) {
   );
 }
 
-function TeamDetailPage({ team, onBack, onOpenIndex, myTeamColor }) {
+function TeamDetailPage({ team, onBack, onOpenIndex, myTeamColor, onPlayWithTeam }) {
   const mc = myTeamColor || '#d4a23c';
   if (!team) return null;
   const { baseName, achievement } = parseTeamLabel(team.label);
@@ -9357,9 +9445,21 @@ function TeamDetailPage({ team, onBack, onOpenIndex, myTeamColor }) {
             🏟️ {CLUB_STADIUMS[team.club]}
           </div>
         )}
-        <p style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.6, marginBottom: 18 }}>
+        <p style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.6, marginBottom: 14 }}>
           Monte o {baseName}{achievement ? ` (${achievement})` : ''} no Brasileirão Lendário: elenco completo com {team.players.length} jogadores reais, técnico {team.coach}, e dispute o Brasileirão ou a Copa do Brasil sozinho ou com amigos.
         </p>
+
+        {onPlayWithTeam && (
+          <button
+            onClick={() => onPlayWithTeam(team)}
+            style={{
+              width: '100%', padding: '12px 16px', borderRadius: 10, border: 'none', cursor: 'pointer',
+              background: mc, color: '#0B1A12', fontWeight: 700, fontSize: 14, marginBottom: 18,
+            }}
+          >
+            ▶ Jogar com este time
+          </button>
+        )}
 
         <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginBottom: 6 }}>Titulares</div>
         {starters.map(p => (
@@ -9877,13 +9977,17 @@ const FORMATION_GROUPS = [
   { prefix: '5', title: 'Linha de 5 zagueiros', icon: '🔒', hint: 'Retranca — prioriza solidez defensiva' },
 ];
 
-function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode }) {
+function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode, onPlayReadyMade }) {
   const groups = useMemo(() => (
     FORMATION_GROUPS
       .map(g => ({ ...g, items: Object.entries(FORMATIONS).filter(([key]) => key.split('-')[0] === g.prefix) }))
       .filter(g => g.items.length > 0)
   ), []);
   const total = Object.keys(FORMATIONS).length;
+  // Atalho pra quem já sabe qual time histórico quer usar — funciona igual
+  // no solo e numa sala com amigos, já que os dois passam por essa mesma
+  // tela antes do draft.
+  const [showTeamPicker, setShowTeamPicker] = useState(false);
 
   return (
     <div style={styles.card} className="card-mob">
@@ -9921,6 +10025,30 @@ function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode }) {
         já mostra a cor da função — goleiro, zaga, meio ou ataque.
       </p>
 
+      {onPlayReadyMade && (
+        <button
+          onClick={() => setShowTeamPicker(true)}
+          style={{
+            width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10,
+            padding: '12px 14px', borderRadius: 10, marginBottom: 24, cursor: 'pointer',
+            border: '1px dashed rgba(212,162,60,0.4)', background: 'rgba(212,162,60,0.06)', color: '#F4F1EA',
+          }}
+        >
+          <span style={{ fontSize: 18 }}>🏆</span>
+          <span style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#d4a23c' }}>Já sei qual time eu quero</div>
+            <div style={{ fontSize: 11.5, opacity: 0.6, marginTop: 1 }}>Pula o sorteio — usa o elenco pronto de um time histórico</div>
+          </span>
+          <span style={{ fontSize: 14, opacity: 0.5 }}>→</span>
+        </button>
+      )}
+      {showTeamPicker && (
+        <TeamPickerModal
+          onClose={() => setShowTeamPicker(false)}
+          onPick={team => { setShowTeamPicker(false); onPlayReadyMade(team); }}
+        />
+      )}
+
       {groups.map(g => (
         <div key={g.prefix} style={{ marginBottom: 28 }}>
           <div style={styles.formationSectionHead}>
@@ -9943,6 +10071,62 @@ function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode }) {
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// Modal de busca pra escolher um dos 100 times históricos e jogar direto com
+// o elenco pronto deles — usado tanto no solo quanto numa sala com amigos
+// (FormationPicker é a mesma tela nos dois casos).
+function TeamPickerModal({ onClose, onPick }) {
+  const [query, setQuery] = useState('');
+  const sorted = useMemo(() => [...TEAMS].sort((a, b) => b.year - a.year), []);
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter(t => t.label.toLowerCase().includes(q) || String(t.year).includes(q));
+  }, [sorted, query]);
+
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px 16px 0 0', padding: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Escolha um time pronto</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 18, cursor: 'pointer' }}>×</button>
+        </div>
+        <input
+          autoFocus
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Buscar por time ou ano..."
+          style={{ ...styles.teamInput, marginBottom: 12 }}
+        />
+        <div style={{ overflowY: 'auto', display: 'grid', gap: 6 }}>
+          {filtered.length === 0 && (
+            <div style={{ fontSize: 12, opacity: 0.5, textAlign: 'center', padding: 16 }}>Nenhum time encontrado.</div>
+          )}
+          {filtered.map(team => {
+            const { baseName, achievement } = parseTeamLabel(team.label);
+            return (
+              <button
+                key={team.id}
+                onClick={() => onPick(team)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
+                  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
+                  color: '#F4F1EA', textAlign: 'left', cursor: 'pointer',
+                }}
+              >
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
+                  {achievement && <div style={{ fontSize: 11, color: '#d4a23c', marginTop: 1 }}>{achievement}</div>}
+                </div>
+                <span style={{ fontSize: 14, opacity: 0.4, flexShrink: 0 }}>→</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }
@@ -11959,6 +12143,12 @@ function LeaderboardModal({ onClose, myUsername }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-08-time-pronto',
+    date: 'Agosto de 2026',
+    title: 'Novo atalho: jogar direto com um time histórico pronto',
+    desc: 'Não quer sortear? Agora dá pra pular o draft inteiro e jogar com o elenco real de um dos 100 times históricos, titulares e banco já escalados — seu nome, escudo e cor continuam os seus, só o time em campo muda. É só clicar em "Já sei qual time eu quero" na escolha de esquema tático (funciona também nas salas com amigos), ou entrar em "Times Históricos" e clicar em "Jogar com este time" na página de qualquer clube.',
+  },
   {
     id: '2026-08-serie-ab',
     date: 'Agosto de 2026',
