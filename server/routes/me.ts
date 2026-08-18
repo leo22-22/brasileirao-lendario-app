@@ -322,6 +322,12 @@ router.post('/season-result', async (req, res) => {
         userId,
       ]
     );
+    // Um evento por temporada, com os pontos ganhos NESSA hora — é o que
+    // sustenta o ranking diário/semanal/mensal (soma dos eventos numa janela
+    // de tempo, ver GET /api/leaderboard). Grava até quando pointsEarned é
+    // zero ou negativo (campanha ruim): uma semana fraca tem que puxar a
+    // soma da janela pra baixo igual puxa o total vitalício.
+    await pool.query('INSERT INTO ranking_events (user_id, points) VALUES (?, ?)', [userId, pointsEarned]);
 
     const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE id = ?', [userId]);
     return res.json({ user: toPublicUser(rows[0]), newlyUnlocked });

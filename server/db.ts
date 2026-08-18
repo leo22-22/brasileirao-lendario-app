@@ -93,6 +93,33 @@ export async function ensureSchema() {
     const code = (err as { code?: string })?.code;
     if (code !== 'ER_DUP_KEYNAME') throw err;
   }
+
+  // Um evento por temporada registrada (POST /me/season-result), com os
+  // pontos ganhos NAQUELE momento — é o que dá pra montar ranking diário/
+  // semanal/mensal (soma dos eventos numa janela de tempo), já que
+  // `users.ranking_points` sozinho só guarda o total vitalício, sem nenhuma
+  // noção de QUANDO cada ponto foi ganho.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS ranking_events (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      points INT NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+  try {
+    await pool.query('CREATE INDEX idx_ranking_events_created_at ON ranking_events (created_at)');
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code !== 'ER_DUP_KEYNAME') throw err;
+  }
+  try {
+    await pool.query('CREATE INDEX idx_ranking_events_user_id ON ranking_events (user_id)');
+  } catch (err) {
+    const code = (err as { code?: string })?.code;
+    if (code !== 'ER_DUP_KEYNAME') throw err;
+  }
 }
 
 export interface UserRow {
