@@ -12701,8 +12701,11 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           </button>
         )}
         {roundDone && simMode === 'auto' && autoCountdown !== null && (
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc }}>
-            Avançando em {autoCountdown}s…
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc, fontWeight: isLastRound ? 700 : 400 }}>
+            {/* Era o mesmo texto genérico de qualquer rodada ("Avançando em
+                3s...") bem na hora de revelar o campeão — sem clima nenhum
+                pro momento mais importante da temporada. */}
+            {isLastRound ? `🏆 Revelando o campeão em ${autoCountdown}s…` : `Avançando em ${autoCountdown}s…`}
           </div>
         )}
       </div>
@@ -13116,6 +13119,19 @@ function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamC
 
     if (teamLogo) {
       const img = new Image();
+      // Escudos oficiais vêm de r2.thesportsdb.com, que não manda cabeçalho
+      // CORS nenhum — sem `crossOrigin`, o navegador carrega a imagem numa
+      // boa (ela aparece na tela normalmente), mas desenhá-la no canvas
+      // "contamina" ele: `canvas.toBlob()` passa a devolver `null` sempre,
+      // sem lançar erro nenhum. Era por isso que "Compartilhar resultado"
+      // simplesmente não fazia nada — o botão de quem tinha escolhido um
+      // escudo oficial (o caso mais comum) sempre caía nesse `null`.
+      // `crossOrigin='anonymous'` pede a imagem em modo CORS: como o
+      // servidor não responde com o cabeçalho, ela falha (cai no onerror
+      // abaixo, que já tinha um fallback pronto pro emblema em texto) em
+      // vez de carregar "suja" — pior fica sem o escudo na imagem
+      // compartilhada, melhor que o botão inteiro não funcionar.
+      img.crossOrigin = 'anonymous';
       img.onload = () => {
         ctx.save();
         ctx.beginPath();
@@ -13296,13 +13312,40 @@ function AnthemPlayer({ club }) {
   );
 }
 
+// Escudo do campeão no topo da tela de resultado — antes desse ponto era só
+// um emoji genérico (🏆/🥈/⚽), a mesma coisa pra qualquer time. Prioriza o
+// escudo de verdade (do próprio jogador se ele venceu, ou do rival
+// histórico); cai pro emblema em emoji e por último pro emoji genérico.
+function ChampionCrest({ logoUrl, badgeEmoji, fallback, mc }) {
+  const [failed, setFailed] = useState(false);
+  const size = 104;
+  const box = {
+    width: size, height: size, borderRadius: '50%', margin: '0 auto 14px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+    background: hexToRgba(mc, 0.12), border: `2px solid ${hexToRgba(mc, 0.6)}`,
+    boxShadow: `0 0 24px ${hexToRgba(mc, 0.25)}`, overflow: 'hidden',
+  };
+  if (logoUrl && !failed) {
+    return (
+      <div style={box}>
+        <img src={logoUrl} alt="" onError={() => setFailed(true)} style={{ width: '78%', height: '78%', objectFit: 'contain' }} />
+      </div>
+    );
+  }
+  return <div style={box}><span style={{ fontSize: 52 }}>{badgeEmoji || fallback}</span></div>;
+}
+
 // Faixa de comemoração do campeão — segura um instante em suspense (tipo
 // abertura de envelope) antes de soltar a frase em loop tipo painel de
 // estádio, pra dar um clímax maior que só cravar o texto na tela de cara.
 function ChampionMarquee({ teamLabel, color }) {
   const [revealed, setRevealed] = useState(false);
   useEffect(() => {
-    const t = setTimeout(() => setRevealed(true), 1800);
+    // Era 1800ms — mas pra quem chegou aqui pela rodada 38 (auto), já tinha
+    // acabado de ver "🏆 Revelando o campeão em 3s...2s...1s..." antes
+    // disso. Duas esperas seguidas fazendo o mesmo trabalho (criar
+    // suspense) só davam a sensação de trava; um respiro curto basta.
+    const t = setTimeout(() => setRevealed(true), 700);
     return () => clearTimeout(t);
   }, []);
   const mc = color || '#d4a23c';
@@ -13534,10 +13577,14 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
     // título. `eliminationRoundName` já guarda "Final" nesse caso.
     const wasRunnerUp = !userWon && eliminationRoundName === 'Final';
     const champClub = winner?.club || getMostCommonClub(winner?.players);
+    // Escudo de verdade no lugar do emoji genérico — o campeão pode ser o
+    // PRÓPRIO time do jogador (emblema escolhido por ele) ou um rival
+    // histórico (escudo oficial do clube, vindo de leagueTeams).
+    const championLogo = userWon ? myTeamLogo : winner?.clubLogo;
     return (
       <div style={styles.card} className="card-mob">
         <div style={{ textAlign: 'center', padding: '12px 0 28px' }}>
-          <div style={{ fontSize: 56, marginBottom: 12 }}>{userWon ? '🏆' : wasRunnerUp ? '🥈' : '⚽'}</div>
+          <ChampionCrest logoUrl={championLogo} badgeEmoji={userWon ? myTeamBadge : null} fallback={userWon ? '🏆' : wasRunnerUp ? '🥈' : '⚽'} mc={mc} />
           <div style={styles.eyebrow}>Copa do Brasil — Resultado Final</div>
           <h1 style={{ ...styles.h1, color: userWon ? mc : '#F4F1EA', marginTop: 8 }}>
             {userWon ? 'CAMPEAO!' : wasRunnerUp ? 'VICE-CAMPEAO' : 'Copa encerrada'}
@@ -13558,6 +13605,10 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           {userWon && <div style={styles.badge}>Copa do Brasil conquistada! Time lendario!</div>}
         </div>
         <ChampionMarquee teamLabel={winner?.label} color={mc} />
+        {/* O hino sobe pra logo abaixo da faixa de revelação — antes ficava
+            no meio da tela, sem nenhuma ligação com o momento em que o
+            campeão é anunciado. */}
+        <AnthemPlayer club={champClub} />
         {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
 
         {seasonAwards?.length > 0 && (
@@ -13571,8 +13622,6 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         )}
 
         <ResultStatsTabs mc={mc} title="Destaques da Copa" categories={statCategories} />
-
-        <AnthemPlayer club={champClub} />
 
         {campaignLines.length > 0 && (
           <ResultSection icon="📋" label="Campanha" mc={mc}>
@@ -13608,15 +13657,23 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
   const podium = pos <= 3;
   const champTeam = leagueTeams?.find(t => t.id === champion?.id);
   const champClub = champTeam?.club || getMostCommonClub(champTeam?.players);
+  const championLogo = isChampion ? myTeamLogo : champTeam?.clubLogo;
 
   return (
     <div style={styles.card} className="card-mob">
+      <div style={{ textAlign: 'center' }}>
+        <ChampionCrest logoUrl={championLogo} badgeEmoji={isChampion ? myTeamBadge : null} fallback={isChampion ? '🏆' : podium ? '🥉' : '⚽'} mc={mc} />
+      </div>
       <div style={styles.eyebrow}>Fim do Brasileirao · Serie A</div>
       <h1 style={styles.h1} className="h1-mob">
         {isChampion ? 'CAMPEAO!' : podium ? `${pos}o lugar — podio!` : `${pos}o lugar`}
       </h1>
 
       <ChampionMarquee teamLabel={champion?.label} color={mc} />
+      {/* O hino sobe pra logo abaixo da faixa de revelação — antes ficava
+          no meio da tela, sem nenhuma ligação com o momento em que o
+          campeão é anunciado. */}
+      <AnthemPlayer club={champClub} />
       {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
 
       <ResultSection icon="📊" label="Seu Desempenho" mc={mc}>
@@ -13651,8 +13708,6 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       )}
 
       <ResultStatsTabs mc={mc} title="Destaques da Temporada" categories={statCategories} />
-
-      <AnthemPlayer club={champClub} />
 
       <ResultSection icon="📈" label="Classificação Final" mc={mc}>
       <div className="table-scroll">
