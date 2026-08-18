@@ -337,6 +337,38 @@ router.post('/season-result', async (req, res) => {
   }
 });
 
+// Vitória no Desafio do Dia — pontos fixos de ranking (não passa pelas
+// conquistas/estatísticas de carreira do season-result, é só uma partida
+// avulsa). `dateKey` vem do cliente (mesmo usado pra sortear o confronto do
+// dia, na hora local de cada um) — o servidor só usa pra travar em uma
+// premiação por dia, comparando com a última data já premiada.
+const DAILY_CHALLENGE_POINTS = 50;
+router.post('/daily-challenge-result', async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const current = await getUserOr404(userId, res);
+    if (!current) return;
+
+    const dateKey = typeof req.body?.dateKey === 'string' ? req.body.dateKey.slice(0, 10) : null;
+    if (!dateKey) {
+      return res.status(400).json({ error: 'dateKey inválido.' });
+    }
+    if (current.last_daily_points_date === dateKey) {
+      return res.json({ user: toPublicUser(current), alreadyClaimed: true });
+    }
+
+    const rankingPoints = current.ranking_points + DAILY_CHALLENGE_POINTS;
+    await pool.query('UPDATE users SET ranking_points=?, last_daily_points_date=? WHERE id=?', [rankingPoints, dateKey, userId]);
+    await pool.query('INSERT INTO ranking_events (user_id, points) VALUES (?, ?)', [userId, DAILY_CHALLENGE_POINTS]);
+
+    const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE id = ?', [userId]);
+    return res.json({ user: toPublicUser(rows[0]), pointsEarned: DAILY_CHALLENGE_POINTS });
+  } catch (err) {
+    console.error('[daily-challenge-result]', err);
+    return res.status(500).json({ error: 'Erro interno ao registrar o Desafio do Dia.' });
+  }
+});
+
 router.delete('/', async (req, res) => {
   try {
     const userId = req.userId!;

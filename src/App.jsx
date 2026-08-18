@@ -4850,12 +4850,22 @@ export default function App() {
   const [isTransferSeason, setIsTransferSeason] = useState(false);
 
   // Desafio do Dia — partida única contra o confronto sorteado por data (o
-  // mesmo pra todo mundo que abrir o jogo hoje), sem entrar no ranking nem
-  // nas conquistas (não é uma temporada de verdade). Reaproveita o motor do
-  // Brasileirão com fixtures de 1 rodada só — vira "última rodada" sozinho.
+  // mesmo pra todo mundo que abrir o jogo hoje), sem entrar nas conquistas
+  // nem nas estatísticas de carreira (não é uma temporada de verdade) — só
+  // vencer dá +50 pontos soltos de ranking (ver bloco isolado dentro de
+  // applySeasonAwards). Reaproveita o motor do Brasileirão com fixtures de
+  // 1 rodada só — vira "última rodada" sozinho.
   const [isDailyChallenge, setIsDailyChallenge] = useState(_sv?.isDailyChallenge ?? false);
   const [showDailyChallenge, setShowDailyChallenge] = useState(false);
   const dailyChallengeTeams = useMemo(() => getDailyChallengeTeams(), []);
+  // Só dá pra JOGAR (confirmar escalação e entrar em campo) uma vez por dia
+  // — guardado por data (não por resultado), então nem perder/desistir libera
+  // outra tentativa no mesmo dia. Marcado em `confirmDailyChallenge`, não ao
+  // abrir o modal (só escolher/ver o confronto não deveria "gastar" o dia).
+  const [dailyChallengeDoneDate, setDailyChallengeDoneDate] = useState(() => {
+    try { return localStorage.getItem('brl_daily_done_date'); } catch { return null; }
+  });
+  const dailyChallengeAlreadyPlayed = dailyChallengeDoneDate === dailyChallengeTeams.dateKey;
 
   // Multiplayer (PeerJS)
   const [multiPhase, setMultiPhase] = useState(null); // null|'lobby'|'room'
@@ -5322,6 +5332,10 @@ export default function App() {
   // rodada = última rodada" sozinho (ver `regularRounds` em Playing), então
   // não precisa de nada especial daqui pra frente além da tela de resultado.
   const confirmDailyChallenge = () => {
+    // Marca o dia como "gasto" já ao entrar em campo — nem perder ou
+    // desistir no meio libera outra tentativa hoje.
+    try { localStorage.setItem('brl_daily_done_date', dailyChallengeTeams.dateKey); } catch { /* ignore */ }
+    setDailyChallengeDoneDate(dailyChallengeTeams.dateKey);
     const pitchWithCaptain = captainSlot && pitch[captainSlot]
       ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
       : pitch;
@@ -6215,11 +6229,27 @@ export default function App() {
       });
     }
 
+    // Desafio do Dia é uma partida avulsa pra divertir, não uma temporada de
+    // verdade — não conta título/conquista/estatística de carreira. Só dá
+    // +50 pontos soltos de ranking se vencer (endpoint dedicado, sem passar
+    // pelas conquistas/temporada abaixo).
+    if (isDailyChallenge) {
+      if (currentUser) {
+        const dailyTable = tableOverride || leagueTable;
+        const myDailyRow = dailyTable.find(t => t.id === myTeamId);
+        const oppDailyRow = dailyTable.find(t => t.id !== myTeamId);
+        const wonDaily = (myDailyRow?.gp ?? 0) > (oppDailyRow?.gp ?? 0);
+        if (wonDaily) {
+          api.submitDailyChallengeResult({ dateKey: dailyChallengeTeams.dateKey })
+            .then(({ user }) => setCurrentUser(user))
+            .catch(() => { /* ranking é bônus — falha aqui não deve travar a tela de resultado */ });
+        }
+      }
+      return;
+    }
     // Ranking global e conquistas só fazem sentido pra quem está logado (só a
     // conta persiste entre sessões — convidado joga normal, sem entrar no ranking).
-    // Desafio do Dia também não entra: é uma partida avulsa pra divertir, não
-    // uma temporada de verdade — não deveria contar título/gol de carreira.
-    if (!currentUser || isDailyChallenge) return;
+    if (!currentUser) return;
     const isCopa = gameMode === 'copa';
     const finalTable = tableOverride || leagueTable;
     const champion = isCopa ? copaChampionId === myTeamId : finalTable[0]?.id === myTeamId;
@@ -7750,12 +7780,14 @@ export default function App() {
   }, [roomSnap?.phase, roomSnap?.seed]);
 
   // Fases com painel de jogadores à esquerda + campinho fixo à direita
-  // (Draft/Squad/Mercado) também sofriam com os 760px de sempre. Não usa o
-  // mesmo 1400 da home: nessas telas a lista de jogadores é quem sobra de
-  // espaço do grid (`1fr 380px`, o campinho já cresceu pro tamanho máximo
-  // dele), e 1400 deixava cada linha da lista enorme, com um vão vazio à
-  // direita do nome/overall — 1100 dá folga real sem esvaziar as linhas.
-  const wideMainMaxWidth = multiPhase ? null : phase === 'intro' ? 1400 : ['draft', 'squad', 'transfer'].includes(phase) ? 1100 : null;
+  // (Draft/Squad/Mercado) também sofriam com os 760px de sempre. Não usa
+  // "sem limite" como a home: nessas telas a lista de jogadores é quem
+  // sobra de espaço do grid (`1fr 380px`, o campinho já cresceu pro
+  // tamanho máximo dele), e liberar o limite deixava cada linha da lista
+  // enorme, com um vão vazio à direita do nome/overall — 1100 dá folga
+  // real sem esvaziar as linhas. Já a home ('intro') vai sem limite mesmo
+  // — é a tela de marketing/menu, pediram pra ocupar o espaço todo do PC.
+  const wideMainMaxWidth = multiPhase ? null : phase === 'intro' ? 'none' : ['draft', 'squad', 'transfer'].includes(phase) ? 1100 : null;
 
   return (
     <div style={styles.page}>
@@ -7818,16 +7850,21 @@ export default function App() {
                 )}
                 {dailyChallengeTeams && (
                   <button
-                    onClick={() => setShowDailyChallenge(true)}
-                    className="mode-card-hover tap-target-sm"
-                    title={`${parseTeamLabel(dailyChallengeTeams.teamA.label).baseName} × ${parseTeamLabel(dailyChallengeTeams.teamB.label).baseName}`}
+                    onClick={() => !dailyChallengeAlreadyPlayed && setShowDailyChallenge(true)}
+                    className={dailyChallengeAlreadyPlayed ? '' : 'mode-card-hover tap-target-sm'}
+                    disabled={dailyChallengeAlreadyPlayed}
+                    title={dailyChallengeAlreadyPlayed
+                      ? 'Você já jogou o Desafio do Dia de hoje — volta amanhã pra outro confronto.'
+                      : `${parseTeamLabel(dailyChallengeTeams.teamA.label).baseName} × ${parseTeamLabel(dailyChallengeTeams.teamB.label).baseName} · vencer dá +50 pontos no ranking`}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
-                      padding: '7px 12px', borderRadius: 999, color: myTeamColor || '#d4a23c', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                      border: `1.5px solid ${hexToRgba(myTeamColor || '#d4a23c', 0.4)}`, background: hexToRgba(myTeamColor || '#d4a23c', 0.1),
+                      padding: '7px 12px', borderRadius: 999, cursor: dailyChallengeAlreadyPlayed ? 'default' : 'pointer', fontSize: 12, fontWeight: 700,
+                      color: dailyChallengeAlreadyPlayed ? 'rgba(244,241,234,0.4)' : (myTeamColor || '#d4a23c'),
+                      border: `1.5px solid ${dailyChallengeAlreadyPlayed ? 'rgba(255,255,255,0.12)' : hexToRgba(myTeamColor || '#d4a23c', 0.4)}`,
+                      background: dailyChallengeAlreadyPlayed ? 'transparent' : hexToRgba(myTeamColor || '#d4a23c', 0.1),
                     }}
                   >
-                    🔥 Desafio do Dia
+                    {dailyChallengeAlreadyPlayed ? '✅ Desafio de hoje feito' : '🔥 Desafio do Dia'}
                   </button>
                 )}
                 <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
@@ -8024,6 +8061,9 @@ export default function App() {
             onMultiPlayer={() => setMultiPhase('lobby')}
             onNavigateInfo={navigateToInfo}
             onNavigateTeams={navigateToTeamsIndex}
+            dailyChallengeTeams={dailyChallengeTeams}
+            dailyChallengeAlreadyPlayed={dailyChallengeAlreadyPlayed}
+            onOpenDailyChallenge={() => setShowDailyChallenge(true)}
           />
         )}
         {showDailyChallenge && (
@@ -8158,7 +8198,7 @@ export default function App() {
           />
         )}
         {phase === 'results' && isDailyChallenge && (
-          <DailyChallengeResults leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} leagueTeams={leagueTeams} onRestart={restart} />
+          <DailyChallengeResults leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} leagueTeams={leagueTeams} currentUser={currentUser} onRestart={restart} />
         )}
         {phase === 'results' && !isDailyChallenge && (
           /* "Nova temporada" e "Mercado" reconstroem a liga em torno de
@@ -8613,7 +8653,7 @@ function DailyChallengeModal({ teamA, teamB, myTeamColor, onPick, onClose }) {
           <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
         </div>
         <p style={{ fontSize: 12.5, opacity: 0.6, lineHeight: 1.5, marginBottom: 16 }}>
-          Escolha um dos dois times de hoje pra escalar — o outro vira seu adversário nessa partida única. O confronto muda todo dia, e não entra no ranking, é só pra jogar.
+          Escolha um dos dois times de hoje pra escalar — o outro vira seu adversário nessa partida única. Vencer dá +50 pontos no ranking global. O confronto muda todo dia, e só dá pra jogar uma vez — escolha bem!
         </p>
         <div style={{ display: 'grid', gap: 10 }}>
           {renderTeamOption(teamA, teamB)}
@@ -8641,7 +8681,7 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams }) {
+function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, dailyChallengeTeams, dailyChallengeAlreadyPlayed, onOpenDailyChallenge }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
@@ -8857,6 +8897,21 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
           <button onClick={onNavigateTeams} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: '6px 2px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
             Times Históricos
           </button>
+          {dailyChallengeTeams && (
+            <button
+              onClick={() => !dailyChallengeAlreadyPlayed && onOpenDailyChallenge()}
+              className="tap-target-sm"
+              disabled={dailyChallengeAlreadyPlayed}
+              title={dailyChallengeAlreadyPlayed ? 'Você já jogou hoje — volta amanhã.' : 'Vencer dá +50 pontos no ranking global'}
+              style={{
+                background: 'none', border: 'none', cursor: dailyChallengeAlreadyPlayed ? 'default' : 'pointer', fontSize: 11.5, padding: '6px 2px',
+                textDecoration: 'underline', textUnderlineOffset: 3,
+                color: dailyChallengeAlreadyPlayed ? 'rgba(244,241,234,0.3)' : 'rgba(244,241,234,0.45)',
+              }}
+            >
+              🔥 Desafio do Dia {!dailyChallengeAlreadyPlayed && '(+50 pts)'}
+            </button>
+          )}
         </div>
       </div>
 
@@ -12520,6 +12575,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-08-desafio-do-dia-pontos',
+    date: 'Agosto de 2026',
+    title: 'Desafio do Dia agora vale ranking — e só dá pra jogar 1x por dia',
+    desc: 'Vencer o Desafio do Dia agora soma +50 pontos direto no seu ranking global (pra quem tem conta) — antes era só uma partida avulsa, sem nenhum efeito fora dela. Em troca, agora só dá pra jogar o desafio uma vez por dia: depois de confirmar a escalação, o confronto de hoje fica marcado como usado até virar a data (mesmo desistindo ou perdendo no meio). O atalho pra ele também apareceu de novo no rodapé da home, além do cabeçalho.',
+  },
+  {
     id: '2026-08-ranking-periodos',
     date: 'Agosto de 2026',
     title: 'Ranking Global ganha página própria e 4 períodos',
@@ -14453,7 +14514,7 @@ function ResultStatRow({ rank, name, team, value, mc }) {
 // temporada de verdade (sem tabela, sem prêmios, sem "Nova Temporada"): é
 // uma partida avulsa só pra divertir, então o placar e um "volte amanhã"
 // já contam a história inteira.
-function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge, leagueTeams, onRestart }) {
+function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, leagueTeams, currentUser, onRestart }) {
   const mc = myTeamColor || '#d4a23c';
   const myRow = leagueTable.find(t => t.id === myTeamId) || {};
   const oppRow = leagueTable.find(t => t.id !== myTeamId) || {};
@@ -14461,11 +14522,14 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
   const myGoals = myRow.gp ?? 0;
   const oppGoals = oppRow.gp ?? 0;
   const result = myGoals > oppGoals ? 'win' : myGoals < oppGoals ? 'loss' : 'draw';
+  // Vitória mostra o MEU escudo (fui campeão do confronto), não o do
+  // adversário — mesmo padrão do Results de temporada (championLogo).
+  const crestLogo = result === 'win' ? myTeamLogo : oppTeam?.clubLogo;
   return (
     <div style={styles.card} className="card-mob">
       <div style={{ textAlign: 'center' }}>
         <ChampionCrest
-          logoUrl={oppTeam?.clubLogo}
+          logoUrl={crestLogo}
           badgeEmoji={result === 'win' ? myTeamBadge : null}
           fallback={result === 'win' ? '🔥' : result === 'draw' ? '🤝' : '😮'}
           mc={mc}
@@ -14479,11 +14543,19 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
         {myGoals} × {oppGoals}
       </div>
       <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.6, marginBottom: 20 }}>vs {oppTeam?.label}</div>
-      <p style={{ fontSize: 13, opacity: 0.7, textAlign: 'center', lineHeight: 1.5, marginBottom: 22 }}>
+      <p style={{ fontSize: 13, opacity: 0.7, textAlign: 'center', lineHeight: 1.5, marginBottom: 8 }}>
         {result === 'win' && 'Levou a melhor no confronto de hoje!'}
         {result === 'draw' && 'Ficou tudo igual hoje — tenta desempatar amanhã, com outro confronto.'}
         {result === 'loss' && 'Hoje não deu — volta amanhã pra outro confronto e tenta de novo.'}
       </p>
+      {result === 'win' && currentUser && (
+        <div style={{ textAlign: 'center', fontSize: 12.5, fontWeight: 700, color: mc, marginBottom: 8 }}>
+          +50 pontos no ranking global 🏆
+        </div>
+      )}
+      <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.5, marginBottom: 22 }}>
+        Só dá pra jogar o Desafio do Dia uma vez por dia — volta amanhã pra outro confronto.
+      </div>
       <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
         Voltar à home →
       </button>

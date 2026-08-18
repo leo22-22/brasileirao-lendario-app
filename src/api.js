@@ -68,6 +68,12 @@ export function submitSeasonResult(payload) {
   return request('/me/season-result', { method: 'POST', body: payload, auth: true });
 }
 
+// Vitória no Desafio do Dia — pontos fixos de ranking, uma vez por dia (o
+// servidor guarda a última data premiada e ignora chamadas repetidas).
+export function submitDailyChallengeResult({ dateKey }) {
+  return request('/me/daily-challenge-result', { method: 'POST', body: { dateKey }, auth: true });
+}
+
 export function fetchLeaderboard({ limit = 30, offset = 0, uf = '', logo = '', period = 'geral' } = {}) {
   const params = new URLSearchParams({ limit, offset });
   if (uf) params.set('uf', uf);

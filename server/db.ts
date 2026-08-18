@@ -87,6 +87,10 @@ export async function ensureSchema() {
   // Última vez que a conta esteve ativa (login ou GET /me) — alimenta a
   // contagem de "jogadores ativos" no ranking global.
   await ensureColumn('last_active_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP');
+  // Data (string YYYY-M-D, mesmo formato do dateKey do cliente) da última
+  // vitória premiada no Desafio do Dia — trava os +50 pontos em uma vez por
+  // dia mesmo que o cliente tente mandar a mesma vitória de novo.
+  await ensureColumn('last_daily_points_date VARCHAR(10)');
   try {
     await pool.query('CREATE INDEX idx_users_team_uf ON users (team_uf)');
   } catch (err) {
@@ -155,6 +159,7 @@ export interface UserRow {
   best_player_ovr: number | null;
   created_at: string;
   last_active_at: string;
+  last_daily_points_date: string | null;
 }
 
 export interface PublicUser {
