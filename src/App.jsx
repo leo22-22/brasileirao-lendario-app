@@ -2996,18 +2996,38 @@ function buildPitchSlots(formationKey) {
   return slots;
 }
 
-// Tenta encaixar os titulares de UMA formação numa ORDEM de prioridade dada
-// (quem vem primeiro na lista "escolhe" vaga primeiro, entre as compatíveis
-// e ainda livres). null se sobrar alguma vaga titular sem ninguém pra ela.
-function tryAssignStarters(starterSlots, priorityOrder) {
-  const usedSlots = new Set();
-  const usedPlayers = new Set();
+// Encaixa os titulares de UMA formação maximizando o overall total — não é
+// "primeiro que couber, serve": processa por overall decrescente e, se a
+// vaga que o jogador serve já está ocupada por alguém mais fraco, tenta
+// REALOCAR esse ocupante pra outra vaga livre que ele também sirva (busca
+// em profundidade — o "caminho aumentante" do algoritmo de Kuhn), abrindo
+// espaço pro craque de cima. Sem isso, um jogador fraco que "chegou primeiro"
+// numa vaga rara (tipo o único MEI livre) travava ali pra sempre, mesmo
+// sobrando banco com gente melhor que só não tinha essa tag específica —
+// era exatamente o caso do Santos: Geraldino (77) titular numa vaga de MEI
+// enquanto Lima (86) e Calvet (84) ficavam de fora, sem o sistema nunca
+// tentar a troca. Por processar do maior overall pro menor, o resultado
+// final é o conjunto de titulares que maximiza a soma dos overalls — não só
+// "alguém que serve" em cada vaga.
+function tryAssignStarters(starterSlots, playersByOvrDesc) {
+  const slotOwner = new Map(); // slot.key -> { p, i }
+  const tryPlace = (candidate, visitedSlots) => {
+    for (const slot of starterSlots) {
+      if (visitedSlots.has(slot.key) || !candidate.p.pos.includes(slot.realPos)) continue;
+      visitedSlots.add(slot.key);
+      const occupant = slotOwner.get(slot.key);
+      if (!occupant || tryPlace(occupant, visitedSlots)) {
+        slotOwner.set(slot.key, candidate);
+        return true;
+      }
+    }
+    return false;
+  };
+  playersByOvrDesc.forEach(candidate => tryPlace(candidate, new Set()));
+  if (slotOwner.size !== starterSlots.length) return null; // formação não fecha com esse elenco
   const assign = {};
-  priorityOrder.forEach(({ p, i }) => {
-    const slot = starterSlots.find(s => !usedSlots.has(s.key) && p.pos.includes(s.realPos));
-    if (slot) { assign[slot.key] = p; usedSlots.add(slot.key); usedPlayers.add(i); }
-  });
-  if (usedSlots.size !== starterSlots.length) return null;
+  const usedPlayers = new Set();
+  slotOwner.forEach((candidate, slotKey) => { assign[slotKey] = candidate.p; usedPlayers.add(candidate.i); });
   return { assign, usedPlayers };
 }
 
@@ -3033,19 +3053,7 @@ function autoFillSquadFromTeam(team) {
     const benchSlots = ['bench1', 'bench2', 'bench3', 'bench4', 'bench5'].map((k, i) => ({
       key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0,
     }));
-    // 1ª tentativa: melhor overall primeiro, pra sair com os craques titulares.
-    let result = tryAssignStarters(starterSlots, byOvrDesc);
-    // Se essa ordem não fechou a formação (um jogador flexível "roubou" a
-    // única vaga que um mais engessado precisava), tenta priorizar quem tem
-    // menos posições possíveis nessa formação — só existe pra não descartar
-    // à toa uma formação que teria fechado numa ordem diferente; se ela vencer
-    // por overall total, ótimo, senão outra formação (fechada de cara) ganha.
-    if (!result) {
-      const byFlex = players
-        .map((p, i) => ({ p, i, flex: p.pos.filter(pos => starterSlots.some(s => s.realPos === pos)).length }))
-        .sort((a, b) => a.flex - b.flex || a.i - b.i);
-      result = tryAssignStarters(starterSlots, byFlex);
-    }
+    const result = tryAssignStarters(starterSlots, byOvrDesc);
     if (!result) continue; // essa formação não fecha com esse elenco de jeito nenhum
     const totalOvr = Object.values(result.assign).reduce((sum, p) => sum + p.ovr, 0);
     if (!best || totalOvr > best.totalOvr) {
@@ -8581,56 +8589,50 @@ function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, d
     <>
       <div style={styles.introCard} className="intro-card-mob">
         <div style={{ ...styles.introTopBar, background: `linear-gradient(90deg, transparent, ${mc}, transparent)` }} />
-        <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2024</div>
-        <GameStatsBar style={styles.gameStatsBar} />
-        {/* "Carregar jogo" — o primeiro botão que quem tem uma partida salva
-            vê, antes até do título de marketing. É o que garante que dá pra
-            voltar no dia seguinte e continuar exatamente de onde parou, sem
-            depender de lembrar de não fechar a aba. */}
-        {savedGameLabel && (
-          <button
-            onClick={onContinue}
-            className="mode-card-hover"
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
-              padding: '16px 18px', marginBottom: 20, borderRadius: 14, color: '#0B1A12',
-              border: 'none', cursor: 'pointer',
-              background: `linear-gradient(135deg, ${mc}, ${mc}cc)`,
-              boxShadow: `0 8px 24px ${hexToRgba(mc, 0.35)}`,
-            }}
-          >
-            <span style={{ fontSize: 26, flexShrink: 0 }}>▶</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 15 }}>Continuar jogo salvo</div>
-              <div style={{ fontSize: 12, opacity: 0.75 }}>{savedGameLabel}</div>
+        {/* Badge + estatísticas do acervo de um lado, "Continuar"/"Desafio do
+            Dia" do outro — dois botões pequenos em vez de duas barras
+            enormes empilhadas, pra não competir com o título de marketing
+            logo abaixo. Em telas estreitas o `flexWrap` já joga os botões
+            pra uma linha própria, centralizados como o resto do card. */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '10px 18px', marginBottom: 24 }}>
+          <div>
+            <div style={{ ...styles.introBadge, marginBottom: 8 }}>⚽ Futebol Brasileiro · 1959–2024</div>
+            <GameStatsBar style={{ ...styles.gameStatsBar, marginTop: 0, marginBottom: 0 }} />
+          </div>
+          {(savedGameLabel || dailyChallengeTeams) && (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+              {savedGameLabel && (
+                <button
+                  onClick={onContinue}
+                  className="mode-card-hover tap-target-sm"
+                  title={savedGameLabel}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                    padding: '8px 14px', borderRadius: 999, color: '#0B1A12',
+                    border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
+                    background: `linear-gradient(135deg, ${mc}, ${mc}cc)`,
+                  }}
+                >
+                  ▶ Continuar
+                </button>
+              )}
+              {dailyChallengeTeams && (
+                <button
+                  onClick={onOpenDailyChallenge}
+                  className="mode-card-hover tap-target-sm"
+                  title={`${parseTeamLabel(dailyChallengeTeams.teamA.label).baseName} × ${parseTeamLabel(dailyChallengeTeams.teamB.label).baseName}`}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
+                    padding: '8px 14px', borderRadius: 999, color: mc, cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
+                    border: `1.5px solid ${hexToRgba(mc, 0.4)}`, background: hexToRgba(mc, 0.1),
+                  }}
+                >
+                  🔥 Desafio do Dia
+                </button>
+              )}
             </div>
-            <span style={{ fontSize: 20, opacity: 0.6, flexShrink: 0 }}>→</span>
-          </button>
-        )}
-        {/* Desafio do Dia — o mesmo confronto pra quem abrir o jogo hoje,
-            trocando à meia-noite. Sem ranking, é só um joguinho extra rápido
-            (uma partida só), então fica logo no topo pra ser bem visível. */}
-        {dailyChallengeTeams && (
-          <button
-            onClick={onOpenDailyChallenge}
-            className="mode-card-hover"
-            style={{
-              width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
-              padding: '14px 16px', marginBottom: 20, borderRadius: 14, color: '#F4F1EA',
-              border: `2px solid ${hexToRgba(mc, 0.4)}`, cursor: 'pointer',
-              background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(255,255,255,0.02))`,
-            }}
-          >
-            <span style={{ fontSize: 26, flexShrink: 0 }}>🔥</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 800, fontSize: 14, color: mc }}>Desafio do Dia</div>
-              <div style={{ fontSize: 12.5, opacity: 0.75, marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {parseTeamLabel(dailyChallengeTeams.teamA.label).baseName} × {parseTeamLabel(dailyChallengeTeams.teamB.label).baseName}
-              </div>
-            </div>
-            <span style={{ fontSize: 18, opacity: 0.5, flexShrink: 0 }}>→</span>
-          </button>
-        )}
+          )}
+        </div>
         <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
         <p style={styles.introLead}>
           Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
@@ -12420,7 +12422,7 @@ const WHATS_NEW = [
     id: '2026-08-time-pronto',
     date: 'Agosto de 2026',
     title: 'Novo atalho: jogar direto com um time histórico pronto',
-    desc: 'Não quer sortear? Agora dá pra pular o draft inteiro e jogar com o elenco real de um dos 100 times históricos, titulares e banco já escalados — seu nome, escudo e cor continuam os seus, só o time em campo muda. É só clicar em "Já sei qual time eu quero" na escolha de esquema tático (funciona também nas salas com amigos), ou entrar em "Times Históricos" e clicar em "Jogar com este time" na página de qualquer clube.',
+    desc: 'Não quer sortear? Agora dá pra pular o draft inteiro e jogar com o elenco real de um dos 100 times históricos, titulares e banco já escalados — seu nome, escudo e cor continuam os seus, só o time em campo muda. A escalação escolhida é sempre a que mais soma overall entre os 16 do elenco, então ninguém fraco entra só por sorte de posição enquanto um craque melhor fica no banco. É só clicar em "Já sei qual time eu quero" na escolha de esquema tático (funciona também nas salas com amigos), ou entrar em "Times Históricos" e clicar em "Jogar com este time" na página de qualquer clube.',
   },
   {
     id: '2026-08-serie-ab',
