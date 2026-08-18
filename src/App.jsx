@@ -4968,7 +4968,6 @@ export default function App() {
       window.removeEventListener('offline', goOffline);
     };
   }, []);
-  const [showLeaderboard, setShowLeaderboard] = useState(false);
   const [showNews, setShowNews] = useState(false);
   // Quantas novidades o jogador ainda não viu (não só um "tem ou não tem") —
   // itens antes do último visto na lista (mais recente primeiro) são novos.
@@ -4988,10 +4987,12 @@ export default function App() {
   // aqui a gente só lê window.location.pathname pra saber qual página mostrar.
   const [infoPage, setInfoPage] = useState(() => INFO_ROUTES[window.location.pathname] || null);
   const [teamsPage, setTeamsPage] = useState(() => parseTeamsPathname(window.location.pathname));
+  const [rankingPage, setRankingPage] = useState(() => window.location.pathname === '/ranking');
   useEffect(() => {
     const onPopState = () => {
       setInfoPage(INFO_ROUTES[window.location.pathname] || null);
       setTeamsPage(parseTeamsPathname(window.location.pathname));
+      setRankingPage(window.location.pathname === '/ranking');
     };
     window.addEventListener('popstate', onPopState);
     return () => window.removeEventListener('popstate', onPopState);
@@ -5024,6 +5025,14 @@ export default function App() {
       description = `Monte o ${baseName}${achievement ? ` (${achievement})` : ''} no Brasileirão Lendário: elenco completo com ${team.players.length} jogadores reais, técnico ${team.coach}, e dispute o Brasileirão ou a Copa do Brasil.`;
       path = canonicalTeamsPath(teamsPage);
       robots = 'noindex, follow';
+    } else if (rankingPage) {
+      // Conteúdo 100% dinâmico/pessoal (muda por período e a cada temporada
+      // registrada) — sem valor de busca nenhum, então noindex, mas ainda
+      // com URL própria (compartilhável, funciona com voltar/avançar).
+      title = 'Ranking Global — Brasileirão Lendário';
+      description = 'Classificação de todos os jogadores do Brasileirão Lendário — diária, semanal, mensal ou geral.';
+      path = '/ranking';
+      robots = 'noindex, follow';
     }
     document.title = title;
     let robotsTag = document.querySelector('meta[name="robots"]');
@@ -5051,7 +5060,7 @@ export default function App() {
       document.head.appendChild(link);
     }
     link.href = `https://brasileiraolendario.com.br${path}`;
-  }, [infoPage, teamsPage]);
+  }, [infoPage, teamsPage, rankingPage]);
   const navigateToInfo = (tab) => {
     window.history.pushState(null, '', canonicalPathFor(tab));
     setInfoPage(tab);
@@ -5074,6 +5083,16 @@ export default function App() {
   const closeTeamsPage = () => {
     window.history.pushState(null, '', '/');
     setTeamsPage(null);
+  };
+  const navigateToRanking = () => {
+    window.history.pushState(null, '', '/ranking');
+    setRankingPage(true);
+    setInfoPage(null);
+    setTeamsPage(null);
+  };
+  const closeRankingPage = () => {
+    window.history.pushState(null, '', '/');
+    setRankingPage(false);
   };
 
   // Compartilhar o jogo com amigos (não é o convite de sala — é o app em si).
@@ -7839,7 +7858,7 @@ export default function App() {
               )}
             </button>
             <button
-              onClick={() => setShowLeaderboard(true)}
+              onClick={navigateToRanking}
               title="Ranking global"
               className="tap-target-sm"
               style={{
@@ -7928,7 +7947,7 @@ export default function App() {
           <button onClick={dismissInstallBanner} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.4)', fontSize: 12, cursor: 'pointer' }}>Agora não</button>
         </div>
       )}
-      {showLeaderboard && <LeaderboardModal onClose={() => setShowLeaderboard(false)} myUsername={currentUser?.username} />}
+      {rankingPage && <RankingPage onBack={closeRankingPage} myUsername={currentUser?.username} myTeamColor={myTeamColor} />}
       {showNews && <NewsModal onClose={() => setShowNews(false)} />}
       {infoPage && <InfoPage tab={infoPage} onNavigate={navigateToInfo} onClose={closeInfoPage} myTeamColor={myTeamColor} />}
       {teamsPage === 'index' && <TeamsIndexPage onBack={closeTeamsPage} onOpenTeam={navigateToTeam} myTeamColor={myTeamColor} />}
@@ -12208,7 +12227,24 @@ function PontosDoRanking() {
   );
 }
 
-function LeaderboardModal({ onClose, myUsername }) {
+const RANKING_PERIODS = [
+  { id: 'geral', label: 'Geral' },
+  { id: 'monthly', label: 'Mensal' },
+  { id: 'weekly', label: 'Semanal' },
+  { id: 'daily', label: 'Diário' },
+];
+
+// Ranking global — página própria (URL /ranking, não modal), pública (não
+// exige login pra ver). 4 abas de período: geral (ranking_points vitalício)
+// ou diário/semanal/mensal (soma de ranking_events dentro da janela — só
+// aparece quem pontuou alguma coisa nela). Paginado com "carregar mais" (dá
+// pra ver todo mundo, não só um top fixo), filtrável por UF e por escudo do
+// time, e com um botão "Ver minha classificação" que pula direto pra posição
+// do jogador (com uma animação de contagem rápida até o número real, tipo
+// velocímetro) e destaca a linha dele.
+function RankingPage({ onBack, myUsername, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
+  const [period, setPeriod] = useState('geral');
   const [rows, setRows] = useState(null);
   const [baseOffset, setBaseOffset] = useState(0);
   const [total, setTotal] = useState(0);
@@ -12219,13 +12255,15 @@ function LeaderboardModal({ onClose, myUsername }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [finding, setFinding] = useState(false);
   const [findDisplay, setFindDisplay] = useState(1);
+  const [notRanked, setNotRanked] = useState(false);
   const [highlightRank, setHighlightRank] = useState(null);
   const rowRefs = useRef({});
 
   const load = (reset, offset, overrides = {}) => {
     const effectiveUf = 'uf' in overrides ? overrides.uf : uf;
     const effectiveLogo = 'logo' in overrides ? overrides.logo : logo;
-    api.fetchLeaderboard({ limit: LEADERBOARD_PAGE_SIZE, offset, uf: effectiveUf, logo: effectiveLogo })
+    const effectivePeriod = 'period' in overrides ? overrides.period : period;
+    api.fetchLeaderboard({ limit: LEADERBOARD_PAGE_SIZE, offset, uf: effectiveUf, logo: effectiveLogo, period: effectivePeriod })
       .then(({ leaderboard, total: t, hasMore: hm }) => {
         setRows(prev => reset || !prev ? leaderboard : [...prev, ...leaderboard]);
         if (reset) setBaseOffset(offset);
@@ -12238,7 +12276,7 @@ function LeaderboardModal({ onClose, myUsername }) {
   };
 
   useEffect(() => {
-    load(true, 0, { uf: '', logo: '' });
+    load(true, 0, { uf: '', logo: '', period });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -12246,8 +12284,20 @@ function LeaderboardModal({ onClose, myUsername }) {
     setUf(nextUf);
     setLogo(nextLogo);
     setHighlightRank(null);
+    setNotRanked(false);
     setRows(null);
-    load(true, 0, { uf: nextUf, logo: nextLogo });
+    load(true, 0, { uf: nextUf, logo: nextLogo, period });
+  };
+
+  const changePeriod = (nextPeriod) => {
+    if (nextPeriod === period) return;
+    setPeriod(nextPeriod);
+    setUf('');
+    setLogo('');
+    setHighlightRank(null);
+    setNotRanked(false);
+    setRows(null);
+    load(true, 0, { uf: '', logo: '', period: nextPeriod });
   };
 
   const loadMore = () => {
@@ -12258,12 +12308,19 @@ function LeaderboardModal({ onClose, myUsername }) {
   // "Efeito de velocidade": conta rápido do 1 até a colocação real (com
   // desaceleração no final), depois busca a janela do ranking em volta dela
   // e rola/realça a linha do jogador — sem filtro nenhum ativo, é sobre o
-  // campeonato inteiro, não faria sentido misturar com uma fatia filtrada.
+  // recorte inteiro daquele período, não faria sentido misturar com uma
+  // fatia filtrada. Num período (não geral), quem não pontuou nada ali
+  // simplesmente não tem posição — `rank` vem null, sem número pra animar.
   const findMe = async () => {
     if (finding) return;
     setError('');
     try {
-      const { rank } = await api.fetchMyRank();
+      const { rank } = await api.fetchMyRank({ period });
+      if (rank == null) {
+        setNotRanked(true);
+        return;
+      }
+      setNotRanked(false);
       setFinding(true);
       setFindDisplay(1);
       const startedAt = performance.now();
@@ -12280,7 +12337,7 @@ function LeaderboardModal({ onClose, myUsername }) {
           setLogo('');
           setHighlightRank(rank);
           setRows(null);
-          load(true, Math.max(0, rank - 4), { uf: '', logo: '' });
+          load(true, Math.max(0, rank - 4), { uf: '', logo: '', period });
         }
       };
       requestAnimationFrame(animate);
@@ -12298,21 +12355,56 @@ function LeaderboardModal({ onClose, myUsername }) {
   }, [rows, highlightRank]);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
-      <div style={{ background: '#0B1A12', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 420, maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#d4a23c', letterSpacing: 1, textTransform: 'uppercase' }}>🏆 Ranking Global</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 18, cursor: 'pointer' }}>×</button>
-        </div>
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
+      <button
+        onClick={onBack}
+        title="Voltar pro app"
+        style={{
+          position: 'fixed', top: 14, left: 14, zIndex: 10001,
+          display: 'flex', alignItems: 'center', gap: 6,
+          background: 'rgba(15,31,21,0.95)', border: `1px solid ${hexToRgba(mc, 0.4)}`,
+          borderRadius: 999, padding: '8px 14px', color: mc,
+          fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
+        }}
+      >
+        ← Voltar pro app
+      </button>
+      <div style={{ width: '100%', maxWidth: 640, margin: '0 auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: mc, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>🏆 Ranking Global</div>
+        <GameStatsBar style={{ fontSize: 11, opacity: 0.6, marginBottom: 14 }} />
 
-        <GameStatsBar style={{ fontSize: 11, opacity: 0.6, marginBottom: 12 }} />
+        <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+          {RANKING_PERIODS.map(p => (
+            <button
+              key={p.id}
+              onClick={() => changePeriod(p.id)}
+              aria-pressed={period === p.id}
+              style={{
+                flex: '1 1 0%', minWidth: 76, padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
+                border: `2px solid ${period === p.id ? mc : 'rgba(255,255,255,0.12)'}`,
+                background: period === p.id ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
+                color: period === p.id ? mc : '#F4F1EA', fontWeight: 700, fontSize: 13,
+              }}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+        {period !== 'geral' && (
+          <div style={{ fontSize: 11.5, opacity: 0.55, marginBottom: 14, lineHeight: 1.4 }}>
+            {period === 'daily' && 'Pontos de campanha ganhos nas últimas 24h.'}
+            {period === 'weekly' && 'Pontos de campanha ganhos nos últimos 7 dias.'}
+            {period === 'monthly' && 'Pontos de campanha ganhos nos últimos 30 dias.'}
+            {' '}Só entra quem terminou alguma temporada logado nessa janela.
+          </div>
+        )}
 
         <PontosDoRanking />
 
         {finding ? (
           <div style={{ textAlign: 'center', padding: '34px 0' }}>
             <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Buscando sua posição...</div>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 42, fontWeight: 700, color: '#d4a23c' }}>#{findDisplay}</div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 42, fontWeight: 700, color: mc }}>#{findDisplay}</div>
           </div>
         ) : (
           <>
@@ -12321,12 +12413,17 @@ function LeaderboardModal({ onClose, myUsername }) {
                 onClick={findMe}
                 style={{
                   width: '100%', marginBottom: 12, padding: '9px 0', borderRadius: 8,
-                  background: 'rgba(212,162,60,0.14)', border: '1px solid rgba(212,162,60,0.4)',
-                  color: '#d4a23c', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+                  background: hexToRgba(mc, 0.14), border: `1px solid ${hexToRgba(mc, 0.4)}`,
+                  color: mc, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
                 }}
               >
                 📍 Ver minha classificação
               </button>
+            )}
+            {notRanked && (
+              <div style={{ fontSize: 12.5, opacity: 0.7, textAlign: 'center', marginBottom: 12, padding: '8px 0' }}>
+                Você ainda não pontuou nesse período — termine uma temporada logado pra entrar.
+              </div>
             )}
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -12375,8 +12472,8 @@ function LeaderboardModal({ onClose, myUsername }) {
                     borderRadius: 8,
                     borderBottom: '1px solid rgba(255,255,255,0.06)',
                     fontWeight: isMe ? 700 : 400,
-                    color: isMe ? '#d4a23c' : '#F4F1EA',
-                    background: isHighlighted ? 'rgba(212,162,60,0.18)' : 'transparent',
+                    color: isMe ? mc : '#F4F1EA',
+                    background: isHighlighted ? hexToRgba(mc, 0.18) : 'transparent',
                     transition: 'background 0.4s ease',
                   }}
                 >
@@ -12394,8 +12491,8 @@ function LeaderboardModal({ onClose, myUsername }) {
                 disabled={loadingMore}
                 style={{
                   width: '100%', marginTop: 12, padding: '9px 0', borderRadius: 8,
-                  background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)',
-                  color: '#d4a23c', fontSize: 12.5, fontWeight: 600, cursor: loadingMore ? 'default' : 'pointer',
+                  background: hexToRgba(mc, 0.1), border: `1px solid ${hexToRgba(mc, 0.3)}`,
+                  color: mc, fontSize: 12.5, fontWeight: 600, cursor: loadingMore ? 'default' : 'pointer',
                   opacity: loadingMore ? 0.6 : 1,
                 }}
               >
@@ -12414,6 +12511,12 @@ function LeaderboardModal({ onClose, myUsername }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-08-ranking-periodos',
+    date: 'Agosto de 2026',
+    title: 'Ranking Global ganha página própria e 4 períodos',
+    desc: 'O Ranking Global deixou de ser um modal pequeno e virou uma página inteira (com URL própria, /ranking) — mais espaço pra ver a lista. E agora tem 4 abas: Geral (o total de sempre), Mensal, Semanal e Diário — cada um mostra só quem pontuou alguma campanha logada dentro daquela janela de tempo. De brinde, o cabeçalho ficou menos apertado: "Continuar" e "Desafio do Dia" saíram do corpo da home e foram pra lá, ao lado dos ícones de compartilhar/áudio/ranking/novidades — que em telas bem largas agora mostram o nome ao lado do ícone.',
+  },
   {
     id: '2026-08-time-pronto',
     date: 'Agosto de 2026',

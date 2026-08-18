@@ -68,15 +68,19 @@ export function submitSeasonResult(payload) {
   return request('/me/season-result', { method: 'POST', body: payload, auth: true });
 }
 
-export function fetchLeaderboard({ limit = 30, offset = 0, uf = '', logo = '' } = {}) {
+export function fetchLeaderboard({ limit = 30, offset = 0, uf = '', logo = '', period = 'geral' } = {}) {
   const params = new URLSearchParams({ limit, offset });
   if (uf) params.set('uf', uf);
   if (logo) params.set('logo', logo);
+  if (period && period !== 'geral') params.set('period', period);
   return request(`/leaderboard?${params.toString()}`);
 }
 
-export function fetchMyRank() {
-  return request('/leaderboard/me', { auth: true });
+export function fetchMyRank({ period = 'geral' } = {}) {
+  const params = new URLSearchParams();
+  if (period && period !== 'geral') params.set('period', period);
+  const qs = params.toString();
+  return request(`/leaderboard/me${qs ? `?${qs}` : ''}`, { auth: true });
 }
 
 // Registro público de salas de multiplayer (só metadados — o jogo em si
