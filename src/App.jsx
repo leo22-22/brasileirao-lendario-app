@@ -4325,6 +4325,32 @@ const CLUB_ANTHEMS = {
   'Atletico-GO': 'GHZsE4wLGMQ',
 };
 
+// Estádio de cada clube jogável (não cobre os "extras", que são só emblema
+// pessoal e nunca mandam uma partida de verdade). Nome atual — clubes que
+// vendem naming rights (Corinthians, Palmeiras, São Paulo, Atlético-MG,
+// Athletico-PR) mudam de nome de tempos em tempos; o resto usa o nome
+// tradicional, que já É o nome oficial atual.
+const CLUB_STADIUMS = {
+  'Santos': 'Vila Belmiro',
+  'Sao Caetano': 'Anacleto Campanella',
+  'Flamengo': 'Maracanã',
+  'Corinthians': 'Neo Química Arena',
+  'Palmeiras': 'Nubank Parque',
+  'Internacional': 'Beira-Rio',
+  'Sao Paulo': 'MorumBIS',
+  'Vasco': 'São Januário',
+  'Gremio': 'Arena do Grêmio',
+  'Cruzeiro': 'Mineirão',
+  'Botafogo': 'Nilton Santos',
+  'Fluminense': 'Maracanã',
+  'Bahia': 'Arena Fonte Nova',
+  'Sport': 'Ilha do Retiro',
+  'Athletico-PR': 'Arena da Baixada',
+  'Coritiba': 'Couto Pereira',
+  'Atletico-MG': 'Arena MRV',
+  'Guarani': 'Brinco de Ouro da Princesa',
+};
+
 function expandPlayerPositions(playerPos) {
   const result = new Set(playerPos);
   Object.entries(POS_COMPAT).forEach(([slotType, accepts]) => {
@@ -9035,6 +9061,11 @@ function TeamDetailPage({ team, onBack, onOpenIndex, myTeamColor }) {
             🏆 {achievement}
           </div>
         )}
+        {CLUB_STADIUMS[team.club] && (
+          <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 12 }}>
+            🏟️ {CLUB_STADIUMS[team.club]}
+          </div>
+        )}
         <p style={{ fontSize: 13, opacity: 0.7, lineHeight: 1.6, marginBottom: 18 }}>
           Monte o {baseName}{achievement ? ` (${achievement})` : ''} no Brasileirão Lendário: elenco completo com {team.players.length} jogadores reais, técnico {team.coach}, e dispute o Brasileirão ou a Copa do Brasil sozinho ou com amigos.
         </p>
@@ -11787,6 +11818,14 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#e0a83c', background: 'rgba(224,168,60,0.12)', border: '1px solid rgba(224,168,60,0.35)', borderRadius: 999, padding: '3px 12px' }}>
             🔥 Clássico
           </span>
+        </div>
+      )}
+      {/* Estádio do mandante — só clima, sem afetar simulação nenhuma. O
+          time do próprio jogador não vem de TEAMS (é montado do zero), então
+          não tem `club`/estádio conhecido; times de IA têm. */}
+      {CLUB_STADIUMS[homeTeam.club] && (
+        <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.45, marginBottom: 6 }}>
+          🏟️ {CLUB_STADIUMS[homeTeam.club]}
         </div>
       )}
       <div style={styles.liveTeamsRow} className="live-teams-row">
