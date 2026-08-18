@@ -5985,6 +5985,10 @@ export default function App() {
       gameMode, champion, position, losses, wins: campaignWins, draws: campaignDraws, gotTopScorerAward,
       goalsScored, goalsConceded, assistsMade, unbeaten, multiplayer: !!roomSnap,
       teamOvr, bestPlayerOvr,
+      // Série B vale metade dos pontos de campanha da Série A no ranking —
+      // o servidor decide o peso, aqui só avisa em qual divisão a temporada
+      // rolou (só faz sentido no modo serieab).
+      division: gameMode === 'serieab' ? myDivision : undefined,
       // Dificuldade vale multiplicador no ranking. No multiplayer os times de
       // IA entram sem ajuste de dificuldade nenhum (ver o efeito de simulação
       // da sala), então mandar o valor guardado no localStorage daria pontos

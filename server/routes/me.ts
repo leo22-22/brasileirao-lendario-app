@@ -135,7 +135,11 @@ router.post('/season-result', async (req, res) => {
     if (!current) return;
 
     const body = req.body ?? {};
+    // Série B (modo "serieab") entra no ranking como um Brasileirão normal —
+    // títulos, posição e conquistas contam do mesmo jeito — mas os pontos de
+    // campanha valem metade: é uma divisão mais fraca que a Série A.
     const gameMode = body.gameMode === 'copa' ? 'copa' : 'brasileirao';
+    const isSerieB = body.gameMode === 'serieab' && body.division === 'B';
     const champion = !!body.champion;
     const position = Number.isFinite(body.position) ? Number(body.position) : null;
     const losses = Number.isFinite(body.losses) ? Number(body.losses) : null;
@@ -210,6 +214,7 @@ router.post('/season-result', async (req, res) => {
     let campaignPoints = 5; // participação
     if (champion) campaignPoints = gameMode === 'brasileirao' ? 50 : 40;
     else if (gameMode === 'brasileirao' && position != null) campaignPoints = Math.max(5, 21 - position);
+    if (isSerieB) campaignPoints *= 0.5;
     // Arredonda só a campanha (o peso gera fração); os gols já são inteiros.
     const pointsEarned = Math.round(campaignPoints * weight) + goalsScored - goalsConceded;
     const rankingPoints = current.ranking_points + pointsEarned;
