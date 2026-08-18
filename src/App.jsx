@@ -2996,64 +2996,83 @@ function buildPitchSlots(formationKey) {
   return slots;
 }
 
+// Tenta encaixar os titulares de UMA formação numa ORDEM de prioridade dada
+// (quem vem primeiro na lista "escolhe" vaga primeiro, entre as compatíveis
+// e ainda livres). null se sobrar alguma vaga titular sem ninguém pra ela.
+function tryAssignStarters(starterSlots, priorityOrder) {
+  const usedSlots = new Set();
+  const usedPlayers = new Set();
+  const assign = {};
+  priorityOrder.forEach(({ p, i }) => {
+    const slot = starterSlots.find(s => !usedSlots.has(s.key) && p.pos.includes(s.realPos));
+    if (slot) { assign[slot.key] = p; usedSlots.add(slot.key); usedPlayers.add(i); }
+  });
+  if (usedSlots.size !== starterSlots.length) return null;
+  return { assign, usedPlayers };
+}
+
 // Monta um "pitch" completo (11 titulares + 5 banco) a partir do elenco real
 // de UM time histórico — usado por "Jogar com este time pronto", o atalho
-// que pula o sorteio/draft inteiro. Testa as formações em ordem até achar
-// uma que os 16 jogadores fechem por completo (banco aceita qualquer
-// posição; titular exige que a posição do slot esteja entre as do jogador).
-// Jogador mais "engessado" (menos posições possíveis nessa formação) entra
-// primeiro — sem isso, um jogador flexível podia ocupar a única vaga que um
-// mais rígido precisava, e a formação falhava à toa por causa da ordem.
+// que pula o sorteio/draft inteiro. Testa TODAS as formações (não só a
+// primeira que fechar) e fica com a que dá o maior overall titular somado —
+// sem isso, uma formação que exigisse 2 MEI podia forçar um reserva fraco
+// (única opção com a tag certa) pra titular enquanto um meio-campista muito
+// melhor, mas só tagueado MC/VOL, ficava de fora por falta de vaga - mesmo
+// existindo outra formação onde os dois craques cabiam perfeitamente.
 function autoFillSquadFromTeam(team) {
   // Cada elenco tem 20 jogadores (100 times × 20 = os "2.000 jogadores" do
-  // catálogo) pro campo de só 16 vagas. Testa o elenco INTEIRO como pool —
-  // restringir aos 16 primeiros (os titulares+banco "pretendidos") derrubava
-  // times inteiros: alguns têm só 1 jogador tag ATA entre os 16 primeiros
-  // (reserva de ataque de verdade só aparece do 17º em diante), o que
-  // impedia QUALQUER formação de 2 atacantes de fechar. Ordenar por
-  // flexibilidade com a posição original como desempate faz o time só
-  // "puxar" alguém depois do 16º quando os 16 primeiros realmente não dão
-  // conta de fechar os titulares daquela formação.
+  // catálogo) pro campo de só 16 vagas — o elenco INTEIRO entra como pool
+  // (não só os 16 "titulares+banco pretendidos" da ordem original): alguns
+  // times só têm o 2º/3º melhor atacante a partir do 17º jogador listado.
   const players = team.players;
   if (!players || players.length < 16) return null;
+  const byOvrDesc = players.map((p, i) => ({ p, i })).sort((a, b) => b.p.ovr - a.p.ovr);
+  let best = null;
   for (const formationKey of Object.keys(FORMATIONS)) {
     const starterSlots = buildPitchSlots(formationKey);
     const benchSlots = ['bench1', 'bench2', 'bench3', 'bench4', 'bench5'].map((k, i) => ({
       key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0,
     }));
-    const order = players
-      .map((p, i) => ({ p, i, flex: p.pos.filter(pos => starterSlots.some(s => s.realPos === pos)).length }))
-      .sort((a, b) => a.flex - b.flex || a.i - b.i);
-    const usedSlots = new Set();
-    const usedPlayers = new Set();
-    const starterAssign = {};
-    order.forEach(({ p, i }) => {
-      const slot = starterSlots.find(s => !usedSlots.has(s.key) && p.pos.includes(s.realPos));
-      if (slot) { starterAssign[slot.key] = p; usedSlots.add(slot.key); usedPlayers.add(i); }
-    });
-    if (usedSlots.size !== starterSlots.length) continue; // essa formação não fecha com esse elenco — tenta a próxima
-    // Banco: os primeiros do elenco que sobraram (a ordem original já reflete
-    // titulares+banco pretendidos) — só pega alguém depois do 16º se precisou
-    // dele pra fechar um titular acima, o que já reduziu o "sobrou" adequado.
-    const leftover = players.filter((_, i) => !usedPlayers.has(i)).slice(0, 5);
-    const pitch = {};
-    starterSlots.forEach(slot => {
-      const raw = starterAssign[slot.key];
-      pitch[slot.key] = {
-        ...raw, teamLabel: team.label, teamId: team.id, club: team.club, year: team.year,
-        nat: raw.nat || 'BRA', isBench: false, slotKey: slot.key,
-      };
-    });
-    benchSlots.forEach((slot, idx) => {
-      const raw = leftover[idx];
-      pitch[slot.key] = {
-        ...raw, teamLabel: team.label, teamId: team.id, club: team.club, year: team.year,
-        nat: raw.nat || 'BRA', isBench: true, slotKey: slot.key,
-      };
-    });
-    return { formationKey, pitchSlots: [...starterSlots, ...benchSlots], pitch };
+    // 1ª tentativa: melhor overall primeiro, pra sair com os craques titulares.
+    let result = tryAssignStarters(starterSlots, byOvrDesc);
+    // Se essa ordem não fechou a formação (um jogador flexível "roubou" a
+    // única vaga que um mais engessado precisava), tenta priorizar quem tem
+    // menos posições possíveis nessa formação — só existe pra não descartar
+    // à toa uma formação que teria fechado numa ordem diferente; se ela vencer
+    // por overall total, ótimo, senão outra formação (fechada de cara) ganha.
+    if (!result) {
+      const byFlex = players
+        .map((p, i) => ({ p, i, flex: p.pos.filter(pos => starterSlots.some(s => s.realPos === pos)).length }))
+        .sort((a, b) => a.flex - b.flex || a.i - b.i);
+      result = tryAssignStarters(starterSlots, byFlex);
+    }
+    if (!result) continue; // essa formação não fecha com esse elenco de jeito nenhum
+    const totalOvr = Object.values(result.assign).reduce((sum, p) => sum + p.ovr, 0);
+    if (!best || totalOvr > best.totalOvr) {
+      const leftover = players
+        .filter((_, i) => !result.usedPlayers.has(i))
+        .sort((a, b) => b.ovr - a.ovr)
+        .slice(0, 5);
+      best = { formationKey, starterSlots, benchSlots, assign: result.assign, leftover, totalOvr };
+    }
   }
-  return null; // não deveria acontecer com os elencos reais do jogo, mas por segurança
+  if (!best) return null; // não deveria acontecer com os elencos reais do jogo, mas por segurança
+  const pitch = {};
+  best.starterSlots.forEach(slot => {
+    const raw = best.assign[slot.key];
+    pitch[slot.key] = {
+      ...raw, teamLabel: team.label, teamId: team.id, club: team.club, year: team.year,
+      nat: raw.nat || 'BRA', isBench: false, slotKey: slot.key,
+    };
+  });
+  best.benchSlots.forEach((slot, idx) => {
+    const raw = best.leftover[idx];
+    pitch[slot.key] = {
+      ...raw, teamLabel: team.label, teamId: team.id, club: team.club, year: team.year,
+      nat: raw.nat || 'BRA', isBench: true, slotKey: slot.key,
+    };
+  });
+  return { formationKey: best.formationKey, pitchSlots: [...best.starterSlots, ...best.benchSlots], pitch };
 }
 
 // Fisher-Yates. `rand` é injetável porque o multiplayer precisa embaralhar de
