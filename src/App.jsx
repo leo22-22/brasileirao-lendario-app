@@ -3244,9 +3244,9 @@ function resolveDivisionEnd(finalTable, myTeamId, myDivision) {
 // precisa de DUAS levas (uma por divisão) na mesma hora. `idxOffset` evita
 // ids repetidos entre as duas levas (sem ele, a leva da Série B reiniciava
 // o índice do zero e podia colidir com um id já usado na Série A).
-function drawAiTeams(count, difficulty, idxOffset = 0) {
+function drawAiTeams(count, difficulty, idxOffset = 0, rand = Math.random) {
   let pool = [];
-  while (pool.length < count) pool = [...pool, ...shuffle2([...TEAMS])];
+  while (pool.length < count) pool = [...pool, ...shuffle2([...TEAMS], rand)];
   return pool.slice(0, count).map((t, i) => {
     const idx = idxOffset + i;
     const playersWithMeta = applyDifficultyToPlayers(
@@ -3269,9 +3269,9 @@ function drawAiTeams(count, difficulty, idxOffset = 0) {
 // "outras 20 vagas" existindo de verdade, mesmo o jogador nunca jogando lá
 // diretamente (ela avança sozinha, um round por vez, junto da divisão do
 // jogador — ver o novo trecho de goNextRound).
-function buildMirrorDivision(difficulty, idxOffset) {
-  const teams = drawAiTeams(20, difficulty, idxOffset);
-  const fixtures = generateDoubleRoundRobin(shuffle2(teams.map(t => t.id)));
+function buildMirrorDivision(difficulty, idxOffset, rand = Math.random) {
+  const teams = drawAiTeams(20, difficulty, idxOffset, rand);
+  const fixtures = generateDoubleRoundRobin(shuffle2(teams.map(t => t.id), rand));
   const table = teams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
   return { teams, fixtures, table, round: 0 };
 }
@@ -4702,7 +4702,7 @@ export default function App() {
 
   // Multiplayer (PeerJS)
   const [multiPhase, setMultiPhase] = useState(null); // null|'lobby'|'room'
-  const [multiGameMode, setMultiGameMode] = useState('brasileirao');
+  const [multiGameMode, setMultiGameMode] = useState('serieab');
   const [roomCode, setRoomCode] = useState('');
   const [isLeader, setIsLeader] = useState(false);
   const [roomSnap, setRoomSnap] = useState(null); // estado da sala (mantido pelo líder)
@@ -7418,7 +7418,7 @@ export default function App() {
     const allTeams = [...humanTeams, ...aiTeams];
     setGameMode(gMode);
     setLeagueTeams(allTeams);
-    if (gMode === 'brasileirao') {
+    if (gMode === 'brasileirao' || gMode === 'serieab') {
       // Mesma correção do single player (a posição no array decide em que
       // rodada cada dupla se enfrenta), mas aqui o embaralhamento PRECISA ser
       // semeado: com os humanos sempre nos primeiros índices, dois jogadores
@@ -7432,6 +7432,20 @@ export default function App() {
       setCupRounds([]);
       setCupLeg(1);
       setUserInCup(true);
+      if (gMode === 'serieab') {
+        // Série B da sala é só enfeite (sempre A pra todo mundo, ninguém joga
+        // "na B" de verdade) — mas precisa nascer IDÊNTICA em todos os peers,
+        // daí o `rand` semeado (+3, pra não repetir nenhuma sequência já usada
+        // acima) em vez do Math.random cru que o singleplayer usa. Dificuldade
+        // fixa em 'normal' pelo mesmo motivo do resto do preenchimento de IA
+        // da sala (ver aiTeams acima): é lida do localStorage de cada peer,
+        // então não é a mesma em todo mundo — usar teria feito essa Série B
+        // "de mentira" simular resultados diferentes pra cada pessoa na sala.
+        setMyDivision('A');
+        setOtherDivision(buildMirrorDivision('normal', maxSlots - 1, makePrng(roomSnap.seed + 3)));
+        setDivisionMove(null);
+        setPromotionTie(null);
+      }
     } else {
       // Copa do Brasil multiplayer
       const prng2 = makePrng(roomSnap.seed + 1);
@@ -9392,7 +9406,10 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
         <div style={styles.teamEditLabel}>Modo de jogo</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
           {[
-            { id: 'brasileirao', label: 'Brasileirão', sub: 'Até 20 jogadores', trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/02ftjh1684945323.png' },
+            // Mesma mudança do singleplayer: "Brasileirão" já É a Série A/B —
+            // a divisão B roda só de enfeite (100% IA), ninguém da sala joga
+            // nela de verdade, mas o acesso/queda aparece no fim da temporada.
+            { id: 'serieab', label: 'Brasileirão', sub: 'Até 20 jogadores · Série A e B', trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/02ftjh1684945323.png' },
             { id: 'copa', label: 'Copa do Brasil', sub: 'Até 32 jogadores', trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/jv27c41776553182.png' },
           ].map(m => (
             <button
@@ -11946,7 +11963,7 @@ const WHATS_NEW = [
     id: '2026-08-serie-ab',
     date: 'Agosto de 2026',
     title: 'O Brasileirão agora é Série A e B',
-    desc: 'O modo "Brasileirão" avulso saiu de cena: agora é direto Série A e B, com 40 times sorteados desde o início (20 em cada divisão). No fim de cada temporada, os 2 últimos colocados da Série A caem e os 2 primeiros da Série B sobem direto — quem fica entre 3º e 6º na Série B disputa um mata-mata de acesso, ida e volta. A divisão em que você está persiste de uma temporada pra outra, e o ranking global agora também reflete isso: pontos de campanha na Série B valem metade dos da Série A.',
+    desc: 'O modo "Brasileirão" avulso saiu de cena: agora é direto Série A e B, com 40 times sorteados desde o início (20 em cada divisão), no solo e também nas salas com amigos. No fim de cada temporada, os 2 últimos colocados da Série A caem e os 2 primeiros da Série B sobem direto — quem fica entre 3º e 6º na Série B disputa um mata-mata de acesso, ida e volta. A divisão em que você está persiste de uma temporada pra outra, e o ranking global agora também reflete isso: pontos de campanha na Série B valem metade dos da Série A.',
   },
   {
     id: '2026-08-100-times',
@@ -14162,7 +14179,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
 function Stat({ label, value }) {
   return (
     <div style={styles.statBox}>
-      <div style={styles.statValue}>{value}</div>
+      <div style={styles.finalStatValue}>{value}</div>
       <div style={styles.statLabel}>{label}</div>
     </div>
   );
@@ -14422,7 +14439,7 @@ const styles = {
   // Resultado final
   finalStats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20, marginTop: 8 },
   statBox: { background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '14px 10px', textAlign: 'center' },
-  statValue: { fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: '#d4a23c' },
+  finalStatValue: { fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: '#d4a23c' },
   statLabel: { fontSize: 11, opacity: 0.6, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
   badge: { background: 'rgba(212,162,60,0.15)', border: '1px solid #d4a23c', borderRadius: 10, padding: '14px 18px', marginBottom: 16, fontWeight: 600 },
   badgeInfo: { background: 'rgba(127,217,154,0.08)', border: '1px solid rgba(127,217,154,0.3)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, fontSize: 14 },

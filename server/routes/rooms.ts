@@ -11,7 +11,7 @@ const router = Router();
 interface RoomEntry {
   code: string;
   label: string;
-  gameMode: 'brasileirao' | 'copa';
+  gameMode: 'brasileirao' | 'copa' | 'serieab';
   playerCount: number;
   maxPlayers: number;
   status: 'lobby' | 'in_progress';
@@ -34,7 +34,7 @@ function purgeStale() {
   }
 }
 
-function maxPlayersFor(gameMode: 'brasileirao' | 'copa') {
+function maxPlayersFor(gameMode: 'brasileirao' | 'copa' | 'serieab') {
   return gameMode === 'copa' ? 32 : 20;
 }
 
@@ -45,7 +45,7 @@ router.put('/:code', (req, res) => {
   }
 
   const body = req.body ?? {};
-  const gameMode = body.gameMode === 'copa' ? 'copa' : 'brasileirao';
+  const gameMode: RoomEntry['gameMode'] = body.gameMode === 'copa' ? 'copa' : body.gameMode === 'serieab' ? 'serieab' : 'brasileirao';
   const maxPlayers = maxPlayersFor(gameMode);
 
   if (typeof body.label !== 'string' || !body.label.trim()) {
