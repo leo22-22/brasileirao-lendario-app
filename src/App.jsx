@@ -9376,7 +9376,13 @@ function InfoPage({ tab, onNavigate, onClose, myTeamColor }) {
 // pro app" fixo), pra manter consistência.
 function TeamsIndexPage({ onBack, onOpenTeam, myTeamColor }) {
   const mc = myTeamColor || '#d4a23c';
-  const sorted = [...TEAMS].sort((a, b) => a.year - b.year);
+  const sorted = useMemo(() => [...TEAMS].sort((a, b) => a.year - b.year), []);
+  const [query, setQuery] = useState('');
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return sorted;
+    return sorted.filter(t => t.label.toLowerCase().includes(q) || String(t.year).includes(q));
+  }, [sorted, query]);
   return (
     <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
       <button
@@ -9394,11 +9400,20 @@ function TeamsIndexPage({ onBack, onOpenTeam, myTeamColor }) {
       </button>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, margin: '0 auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
         <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 6 }}>Times Históricos</h1>
-        <p style={{ fontSize: 13, opacity: 0.6, lineHeight: 1.6, marginBottom: 18 }}>
+        <p style={{ fontSize: 13, opacity: 0.6, lineHeight: 1.6, marginBottom: 14 }}>
           Os {TEAMS.length} times que você pode sortear no draft do Brasileirão Lendário, cada um com o elenco real da época.
         </p>
+        <input
+          value={query}
+          onChange={e => setQuery(e.target.value)}
+          placeholder="Buscar time por nome ou ano..."
+          style={{ ...styles.teamInput, marginBottom: 14 }}
+        />
         <div style={{ display: 'grid', gap: 8 }}>
-          {sorted.map(team => {
+          {filtered.length === 0 && (
+            <div style={{ fontSize: 12, opacity: 0.5, textAlign: 'center', padding: 16 }}>Nenhum time encontrado.</div>
+          )}
+          {filtered.map(team => {
             const { baseName, achievement } = parseTeamLabel(team.label);
             return (
               <button
