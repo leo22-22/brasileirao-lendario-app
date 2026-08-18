@@ -3178,6 +3178,120 @@ function generateDoubleRoundRobin(teamIds) {
   return [...first, ...second];
 }
 
+// Mesma conta de pontos/saldo usada pra atualizar a tabela do Brasileirão
+// (3/1/0, desempate por saldo então gols pró) — extraída aqui pra dar pra
+// avançar a tabela da divisão espelho da Série B sem duplicar a lógica de
+// pontuação em dois lugares que podiam divergir.
+function applyRoundToTable(table, results) {
+  const tbl = table.map(r => ({ ...r }));
+  results.forEach(res => {
+    const h = tbl.find(t => t.id === res.homeId);
+    const a = tbl.find(t => t.id === res.awayId);
+    if (!h || !a) return;
+    h.pj++; a.pj++;
+    h.gp += res.homeGoals; h.gc += res.awayGoals;
+    a.gp += res.awayGoals; a.gc += res.homeGoals;
+    if (res.homeGoals > res.awayGoals) { h.v++; h.pts += 3; a.d++; }
+    else if (res.homeGoals < res.awayGoals) { a.v++; a.pts += 3; h.d++; }
+    else { h.e++; h.pts++; a.e++; a.pts++; }
+  });
+  return [...tbl].sort((a, b) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp);
+}
+
+// Quantos times sobem/descem por temporada na Série A/B — 1º e 2º da Série B
+// sobem direto; 3ºx6º e 4ºx5º jogam mata-mata de acesso (ida e volta) pela
+// vaga. Isso soma 4 subindo, batendo com os 4 últimos da Série A caindo —
+// as duas divisões continuam com 20 times na temporada seguinte.
+const RELEGATION_SPOTS = 4;
+const DIRECT_PROMOTION_SPOTS = 2;
+const PLAYOFF_ZONE = [3, 4, 5, 6]; // posições (1-based) que disputam o mata-mata
+
+// A quem cada posição da zona de playoff enfrenta: 3ºx6º, 4ºx5º.
+function playoffOpponentPosition(pos) {
+  if (pos === 3) return 6; if (pos === 6) return 3;
+  if (pos === 4) return 5; if (pos === 5) return 4;
+  return null;
+}
+
+// Decide o que acontece no fim da fase regular da Série A/B, a partir da
+// tabela final e da divisão atual — sem efeito colateral nenhum, só a
+// resposta. Usada tanto pelo avanço rodada a rodada (goNextRound) quanto
+// pela simulação direta (fastForwardBrasileirao), que sem isso tinham cada
+// uma sua própria lógica de fim de temporada e a segunda nunca soube de
+// promoção/rebaixamento.
+function resolveDivisionEnd(finalTable, myTeamId, myDivision) {
+  const myPos = finalTable.findIndex(t => t.id === myTeamId) + 1;
+  if (myDivision === 'A') {
+    return { move: myPos > 20 - RELEGATION_SPOTS ? 'relegated' : 'stayed', tie: null };
+  }
+  if (myPos <= DIRECT_PROMOTION_SPOTS) return { move: 'promoted', tie: null };
+  if (PLAYOFF_ZONE.includes(myPos)) {
+    const oppPos = playoffOpponentPosition(myPos);
+    const opponent = finalTable[oppPos - 1];
+    // Quem está melhor colocado joga a volta em casa — mesma vantagem de
+    // quem fez a fase regular melhor que a Copa já dá pro melhor cabeça de
+    // chave (aqui não tem "cabeça de chave" formal, mas a lógica é a mesma).
+    const betterPos = Math.min(myPos, oppPos);
+    const leg1Match = betterPos === myPos ? { homeId: opponent.id, awayId: myTeamId } : { homeId: myTeamId, awayId: opponent.id };
+    return { move: null, tie: { opponentId: opponent.id, opponentLabel: opponent.label, myPos, oppPos, leg1Match } };
+  }
+  return { move: 'stayed', tie: null };
+}
+
+// Sorteia `count` elencos de IA (com reposição se precisar) e monta os times
+// completos, já com dificuldade aplicada — mesma lógica que startSeason e
+// newSeason já tinham cada um a sua cópia; extraída aqui porque a Série A/B
+// precisa de DUAS levas (uma por divisão) na mesma hora. `idxOffset` evita
+// ids repetidos entre as duas levas (sem ele, a leva da Série B reiniciava
+// o índice do zero e podia colidir com um id já usado na Série A).
+function drawAiTeams(count, difficulty, idxOffset = 0) {
+  let pool = [];
+  while (pool.length < count) pool = [...pool, ...shuffle2([...TEAMS])];
+  return pool.slice(0, count).map((t, i) => {
+    const idx = idxOffset + i;
+    const playersWithMeta = applyDifficultyToPlayers(
+      t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' })),
+      difficulty
+    );
+    return {
+      id: `${t.id}_${idx}`,
+      label: t.label,
+      club: t.club,
+      clubLogo: CLUB_LOGOS[t.club] || null,
+      ovr: teamStrength(Object.fromEntries(playersWithMeta.map((p, i2) => [i2, p]))),
+      players: playersWithMeta,
+    };
+  });
+}
+
+// Monta o pacote da divisão espelho (só IA, sem o jogador) — sorteia os 20
+// times, gera as 38 rodadas e a tabela zerada. Usado pra Série A/B ter as
+// "outras 20 vagas" existindo de verdade, mesmo o jogador nunca jogando lá
+// diretamente (ela avança sozinha, um round por vez, junto da divisão do
+// jogador — ver o novo trecho de goNextRound).
+function buildMirrorDivision(difficulty, idxOffset) {
+  const teams = drawAiTeams(20, difficulty, idxOffset);
+  const fixtures = generateDoubleRoundRobin(shuffle2(teams.map(t => t.id)));
+  const table = teams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
+  return { teams, fixtures, table, round: 0 };
+}
+
+// Avança a divisão espelho em UM round (chamado toda vez que a divisão do
+// jogador avança uma rodada, pra ficar em lockstep — ela não fica pra trás
+// nem termina antes). `rand` determinístico por partida, mesmo padrão usado
+// pros jogos que a IA resolve sozinha no resto da rodada do jogador.
+function advanceMirrorDivision(division, seed) {
+  if (!division || division.round >= division.fixtures.length) return division;
+  const round = division.fixtures[division.round];
+  const results = round.map(m => {
+    const h = division.teams.find(t => t.id === m.homeId);
+    const a = division.teams.find(t => t.id === m.awayId);
+    const sim = simAiMatch(h, a, matchPrng(seed, `mirror-${division.round}`, m.homeId, m.awayId));
+    return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
+  });
+  return { ...division, table: applyRoundToTable(division.table, results), round: division.round + 1 };
+}
+
 // ── Calendário da temporada ──────────────────────────────────────────────
 // Datas das rodadas do Brasileirão: derivadas só do número de rodadas e do
 // ano (função pura e determinística), então nada disso precisa ser salvo —
@@ -3909,7 +4023,7 @@ function computeSeasonAwards({ myTeamId, myPlayers, leagueTable, scorers, assist
     push(topAssistInfo.name, 'Líder de assistências', { assists: topAssist[1].assists });
   }
 
-  if (gameMode === 'brasileirao' && leagueTable?.length) {
+  if ((gameMode === 'brasileirao' || gameMode === 'serieab') && leagueTable?.length) {
     const bestDefense = [...leagueTable].sort((a, b) => a.gc - b.gc)[0];
     if (bestDefense?.id === myTeamId) {
       const gk = (myPlayers || []).find(p => p.pos?.[0] === 'GOL');
@@ -4550,7 +4664,25 @@ export default function App() {
   };
 
   // Modo de jogo
-  const [gameMode, setGameMode] = useState(_sv?.gameMode ?? 'brasileirao'); // 'brasileirao' | 'copa' | 'multi'
+  const [gameMode, setGameMode] = useState(_sv?.gameMode ?? 'brasileirao'); // 'brasileirao' | 'copa' | 'serieab' | 'multi'
+
+  // Série A/B — divisão que o jogador está disputando nesta temporada, e a
+  // divisão espelho (só IA) que avança junto pra existir de verdade (o
+  // "40 times, 20 na A e 20 na B" pedido) sem precisar ficar interativa.
+  // `myDivision` persiste entre "Nova Temporada"; os times de cada lado são
+  // sorteados de novo a cada temporada nova, igual já acontece hoje com os
+  // adversários do Brasileirão normal (não há "elenco fixo" pra time de IA
+  // nenhum nesse jogo, só o do próprio jogador).
+  const [myDivision, setMyDivision] = useState(_sv?.myDivision ?? 'A'); // 'A' | 'B'
+  const [otherDivision, setOtherDivision] = useState(_sv?.otherDivision ?? null); // { teams, fixtures, table } — espelho, só IA
+  // Resultado da promoção/rebaixamento decidido no fim da temporada — usado
+  // pra avisar na tela de resultado e decidir a divisão da temporada seguinte.
+  const [divisionMove, setDivisionMove] = useState(_sv?.divisionMove ?? null); // null | 'promoted' | 'relegated' | 'stayed'
+  // Mata-mata de acesso (3ºx6º, 4ºx5º da Série B) — só existe quando o
+  // jogador termina a temporada nessa faixa. Mesma lógica de agregado +
+  // pênaltis que a Copa já usa, só que pra um confronto só, não um chaveamento
+  // inteiro — jogado como duas rodadas extras anexadas ao fim de `fixtures`.
+  const [promotionTie, setPromotionTie] = useState(_sv?.promotionTie ?? null); // { opponentId, leg, leg1Result }
 
   // Dificuldade (curva de OVR da IA) — preferência do dispositivo, independente
   // de save em andamento (uma temporada já iniciada mantém o OVR que já baixou).
@@ -5269,7 +5401,7 @@ export default function App() {
     const userOvr = teamStrength(pitchWithCaptain);
     const userPlayers = partitionStartersFirst(Object.values(pitchWithCaptain));
 
-    const neededAI = gameMode === 'brasileirao' ? 19 : 31;
+    const neededAI = (gameMode === 'brasileirao' || gameMode === 'serieab') ? 19 : 31;
     // Gera pool com repetição se necessário
     let pool = [];
     while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
@@ -5319,7 +5451,7 @@ export default function App() {
     setBracketAdvance(null);
     resultsAfterBracketRef.current = false;
 
-    if (gameMode === 'brasileirao') {
+    if (gameMode === 'brasileirao' || gameMode === 'serieab') {
       // Embaralha só a ordem passada pro gerador de tabela: o método do
       // círculo mantém o índice 0 fixo, então a POSIÇÃO no array determina em
       // que rodada cada dupla se enfrenta. Com o time do usuário sempre no
@@ -5334,6 +5466,18 @@ export default function App() {
       setCupLeg(1);
       setUserInCup(true);
       setCupWinnerId(null);
+      if (gameMode === 'serieab') {
+        // Começo de carreira sempre entra pela Série A — só a partir da
+        // segunda temporada (via "Nova Temporada", depois de um rebaixamento)
+        // é que da pra estar na B. idxOffset=19: os 19 adversários da divisão
+        // do jogador já usaram os índices 0-18 no sorteio acima, então a
+        // divisão espelho começa do 19 — sem isso os dois sorteios podiam
+        // gerar o mesmo id de time em divisões diferentes.
+        setMyDivision('A');
+        setOtherDivision(buildMirrorDivision(difficulty, 19));
+        setDivisionMove(null);
+        setPromotionTie(null);
+      }
     } else {
       // Copa do Brasil
       const firstMatches = generateCupFirstRound(allTeams.map(t => t.id));
@@ -5567,7 +5711,9 @@ export default function App() {
           ag: finalAs,
           isUser: true,
           gameMode,
-          legLabel: gameMode === 'copa' ? (cupLegRef.current === 1 ? 'Ida' : 'Volta') : undefined,
+          legLabel: gameMode === 'copa' ? (cupLegRef.current === 1 ? 'Ida' : 'Volta')
+            : (gameMode === 'serieab' && promotionTie?.leg) ? (promotionTie.leg === 1 ? 'Ida — Acesso' : 'Volta — Acesso')
+            : undefined,
           ratings,
         }]);
 
@@ -5612,7 +5758,7 @@ export default function App() {
         });
         setLastRoundDiscipline(occurrences.length > 0 ? occurrences : null);
 
-        if (gameMode === 'brasileirao') {
+        if (gameMode === 'brasileirao' || gameMode === 'serieab') {
           setLeagueTable(prev => {
             const tbl = prev.map(r => ({ ...r }));
             results.forEach(res => {
@@ -5864,6 +6010,12 @@ export default function App() {
   // e nesse caso o 1º argumento é o evento de clique — daí a checagem de tipo.
   const fastForwardBrasileirao = async (targetRound = null, { onCalendar = false } = {}) => {
     if (fastSimActive || isSimulating) return;
+    // Mata-mata de acesso em andamento: ida/volta viram uma "rodada" extra
+    // nesse mesmo `fixtures`, mas o placar agregado e o pênaltis dependem da
+    // lógica turno-a-turno de `goNextRound` — simular batido aqui trataria
+    // essas 2 partidas como jogos de tabela normais e corromperia a
+    // classificação. Por isso essas 2 partidas só rolam ao vivo.
+    if (gameMode === 'serieab' && promotionTie?.leg) return;
     const target = typeof targetRound === 'number' ? Math.min(targetRound, fixtures.length) : fixtures.length;
     if (currentRound >= target) return;
     setFastSimActive(true);
@@ -5875,6 +6027,7 @@ export default function App() {
 
     let round = currentRound;
     let table = leagueTable.map(r => ({ ...r }));
+    let otherDiv = otherDivision;
     let cards = { ...cardCounts };
     let susp = { ...suspensions };
     let inj = { ...injuries };
@@ -5924,7 +6077,7 @@ export default function App() {
         if (m.homeId === myTeamId || m.awayId === myTeamId) {
           history.push({
             round: round + 1, homeLabel: h.label, awayLabel: a.label,
-            hg: sim.homeGoals, ag: sim.awayGoals, isUser: true, gameMode: 'brasileirao',
+            hg: sim.homeGoals, ag: sim.awayGoals, isUser: true, gameMode,
           });
         }
         return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
@@ -5956,6 +6109,14 @@ export default function App() {
       occurrences.forEach(o => { if (o.type === 'red') { const k = playerKey(o.teamId, o.player); redCardsAcc[k] = (redCardsAcc[k] || 0) + 1; } });
       form = updateFormFromResults(form, results);
       round++;
+      // A divisão espelho tem que andar junto mesmo na simulação direta —
+      // sem isso, "Simulação direta" (o jeito mais comum de jogar uma
+      // temporada inteira) deixava a Série A/B espelho parada na rodada 0
+      // o tempo todo, e a promoção/rebaixamento do lado da IA nunca existia.
+      if (gameMode === 'serieab') {
+        otherDiv = advanceMirrorDivision(otherDiv, roomSnap?.seed);
+        setOtherDivision(otherDiv);
+      }
 
       setLeagueTable(table);
       setCardCounts(cards);
@@ -5986,6 +6147,21 @@ export default function App() {
     // no root com z-index alto, e a tela de resultado apareceria atrás dele —
     // era o "cheguei no fim e não acontece nada".
     if (round >= fixtures.length) {
+      if (gameMode === 'serieab') {
+        const { move, tie } = resolveDivisionEnd(table, myTeamId, myDivision);
+        if (tie) {
+          // Mata-mata de acesso pela frente — não é algo pra passar batido
+          // dentro da simulação direta; fecha o calendário e deixa a pessoa
+          // jogar essas duas partidas de verdade, igual qualquer outro jogo.
+          setShowCalendar(false);
+          setPromotionTie({ opponentId: tie.opponentId, opponentLabel: tie.opponentLabel, myPos: tie.myPos, oppPos: tie.oppPos, leg: 1 });
+          setFixtures(f => [...f, [tie.leg1Match]]);
+          setCurrentRound(round);
+          setRoundResults(null);
+          return;
+        }
+        setDivisionMove(move);
+      }
       setShowCalendar(false);
       applySeasonAwards(undefined, table, scorersAcc, assistersAcc, history, ratingsAcc);
       setPhase('results');
@@ -6238,6 +6414,81 @@ export default function App() {
       return;
     }
 
+    if (gameMode === 'serieab') {
+      // A divisão espelho (só IA) avança em lockstep com a do jogador —
+      // é isso que faz ela "existir de verdade" (os 40 times, 20 e 20) sem
+      // precisar de tela nenhuma pra ela.
+      setOtherDivision(prev => advanceMirrorDivision(prev, roomSnap?.seed));
+
+      // Já dentro do mata-mata de acesso — a ida/volta foi anexada ao fim de
+      // `fixtures` quando a fase regular (38 rodadas) terminou, abaixo.
+      if (promotionTie?.leg) {
+        const legMatch = fixtures[currentRound][0];
+        const legRes = (roundResults || [])[0] || { homeGoals: 0, awayGoals: 0 };
+        const myGoals = legMatch.homeId === myTeamId ? legRes.homeGoals : legRes.awayGoals;
+        const oppGoals = legMatch.homeId === myTeamId ? legRes.awayGoals : legRes.homeGoals;
+
+        if (promotionTie.leg === 1) {
+          // Fim da ida: guarda o placar e monta a volta com o mando
+          // invertido — mesma convenção que a Copa já usa entre as pernas.
+          const leg2Match = { homeId: legMatch.awayId, awayId: legMatch.homeId };
+          setFixtures(f => [...f, [leg2Match]]);
+          setPromotionTie(t => ({ ...t, leg: 2, myLeg1Goals: myGoals, oppLeg1Goals: oppGoals }));
+          setCurrentRound(next);
+          setRoundResults(null);
+          setLiveEvents([]);
+          setLiveScore({ home: 0, away: 0 });
+          setClockMinute(0);
+          setActiveUserMatch(null);
+          return;
+        }
+
+        // Fim da volta: agregado decide; empatado, pênaltis (mesma regra
+        // da Copa — sem gol fora, que foi extinta).
+        const aggMine = promotionTie.myLeg1Goals + myGoals;
+        const aggOpp = promotionTie.oppLeg1Goals + oppGoals;
+        let promoted;
+        if (aggMine !== aggOpp) promoted = aggMine > aggOpp;
+        else {
+          const pen = simulatePenalties(myTeamId, promotionTie.opponentId, leagueTeams, matchPrng(roomSnap?.seed, 'promotion-pen', myTeamId, promotionTie.opponentId));
+          promoted = pen.winner === myTeamId;
+        }
+        setDivisionMove(promoted ? 'promoted' : 'stayed');
+        setPromotionTie(t => ({ ...t, leg: null, aggMine, aggOpp, promoted }));
+        applySeasonAwards();
+        setPhase('results');
+        return;
+      }
+
+      if (next >= fixtures.length) {
+        // Fase regular terminou — decide promoção/rebaixamento (ou o
+        // mata-mata, se a colocação cair na zona 3º-6º da Série B).
+        const { move, tie } = resolveDivisionEnd(leagueTable, myTeamId, myDivision);
+        if (tie) {
+          setPromotionTie({ opponentId: tie.opponentId, opponentLabel: tie.opponentLabel, myPos: tie.myPos, oppPos: tie.oppPos, leg: 1 });
+          setFixtures(f => [...f, [tie.leg1Match]]);
+          setCurrentRound(next);
+          setRoundResults(null);
+          setLiveEvents([]);
+          setLiveScore({ home: 0, away: 0 });
+          setClockMinute(0);
+          setActiveUserMatch(null);
+        } else {
+          setDivisionMove(move);
+          applySeasonAwards();
+          setPhase('results');
+        }
+      } else {
+        setCurrentRound(next);
+        setRoundResults(null);
+        setLiveEvents([]);
+        setLiveScore({ home: 0, away: 0 });
+        setClockMinute(0);
+        setActiveUserMatch(null);
+      }
+      return;
+    }
+
     // Copa — jogo de ida → jogo de volta → próxima fase.
     //
     // Tudo abaixo roda DIRETO, não dentro de um `setCupRounds(prev => …)`.
@@ -6355,7 +6606,7 @@ export default function App() {
       // se classifica, então não faz sentido interromper o jogo ali.
       setBracketAdvance({ intoRoundIdx: cupRoundIdx + 1, winnerIds: aggregateWinners });
     }
-  }, [currentRound, fixtures, gameMode, cupRounds, cupRoundIdx, cupLeg, roundResults, leagueTeams, myTeamId, roomSnap?.seed, leagueTable, scorers, assisters]);
+  }, [currentRound, fixtures, gameMode, cupRounds, cupRoundIdx, cupLeg, roundResults, leagueTeams, myTeamId, roomSnap?.seed, leagueTable, scorers, assisters, promotionTie, myDivision]);
 
   // Sai da transição do chaveamento. Na final é aqui que a tela de resultado
   // finalmente entra — o troféu no chaveamento vem primeiro.
@@ -6394,10 +6645,11 @@ export default function App() {
         leagueTeams, leagueTable, fixtures, currentRound, roundHistory,
         cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
         matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards,
+        myDivision, otherDivision, divisionMove, promotionTie,
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -6500,6 +6752,10 @@ export default function App() {
     setJoinInput('');
     setPhase('intro');
     setSavedPhase(null);
+    setMyDivision('A');
+    setOtherDivision(null);
+    setDivisionMove(null);
+    setPromotionTie(null);
     setFormationKey(null);
     setPitchSlots([]);
     setPitch({});
@@ -6566,9 +6822,12 @@ export default function App() {
   const describePhase = (p) => {
     if (!p || p === 'intro' || p === 'results') return null;
     if (p === 'playing') {
-      return gameMode === 'copa'
-        ? (CUP_ROUND_NAMES[cupRoundIdx] || 'Copa do Brasil')
-        : `Rodada ${currentRound + 1} de ${fixtures.length}`;
+      if (gameMode === 'copa') return CUP_ROUND_NAMES[cupRoundIdx] || 'Copa do Brasil';
+      if (gameMode === 'serieab') {
+        if (promotionTie?.leg) return `Mata-mata de Acesso · Série ${myDivision}`;
+        return `Rodada ${currentRound + 1} de 38 · Série ${myDivision}`;
+      }
+      return `Rodada ${currentRound + 1} de ${fixtures.length}`;
     }
     if (p === 'transfer') return 'o mercado de transferências';
     return 'a escalação do seu time'; // formation / draft / squad
@@ -6671,7 +6930,7 @@ export default function App() {
     setTeamForm({});
     setSeasonAwards([]);
 
-    const neededAI = gameMode === 'brasileirao' ? 19 : 31;
+    const neededAI = (gameMode === 'brasileirao' || gameMode === 'serieab') ? 19 : 31;
     let pool = [];
     while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
     const opps = pool.slice(0, neededAI).map((t, idx) => {
@@ -6693,7 +6952,7 @@ export default function App() {
     const allTeams = [myTeamObj, ...opps];
     setLeagueTeams(allTeams);
 
-    if (gameMode === 'brasileirao') {
+    if (gameMode === 'brasileirao' || gameMode === 'serieab') {
       // Embaralha só a ordem passada pro gerador de tabela: o método do
       // círculo mantém o índice 0 fixo, então a POSIÇÃO no array determina em
       // que rodada cada dupla se enfrenta. Com o time do usuário sempre no
@@ -6703,6 +6962,16 @@ export default function App() {
       setFixtures(rounds);
       setLeagueTable(table);
       setCurrentRound(0);
+      if (gameMode === 'serieab') {
+        // Aplica o resultado da temporada que acabou de terminar ANTES de
+        // sortear a próxima — é isso que faz a promoção/rebaixamento
+        // persistir de uma temporada pra outra, mesmo os adversários sendo
+        // sorteados de novo (não tem "elenco fixo" de IA nesse jogo).
+        setMyDivision(prev => divisionMove === 'promoted' ? 'A' : divisionMove === 'relegated' ? 'B' : prev);
+        setOtherDivision(buildMirrorDivision(difficulty, 19));
+        setDivisionMove(null);
+        setPromotionTie(null);
+      }
     } else {
       const firstMatches = generateCupFirstRound(allTeams.map(t => t.id));
       const firstRound = { name: CUP_ROUND_NAMES[0], matches: firstMatches, leg1Results: [], results: [] };
@@ -6714,7 +6983,7 @@ export default function App() {
       setLeagueTable([]);
     }
     setPhase('playing');
-  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo, difficulty]);
+  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo, difficulty, divisionMove]);
 
   // Simula todas as fases restantes da Copa até o campeão (usuário eliminado)
   // ── MULTIPLAYER (PeerJS) ──────────────────────────────────────────────────
@@ -7503,8 +7772,10 @@ export default function App() {
             teamForm={teamForm}
             viewingTeam={viewingTeam}
             onViewTeam={setViewingTeam}
-            onSimulateAll={gameMode === 'copa' ? fastForwardCopa : simulateSeasonOnCalendar}
-            onOpenCalendar={gameMode === 'brasileirao' ? openCalendar : undefined}
+            onSimulateAll={gameMode === 'copa' ? fastForwardCopa : (gameMode === 'serieab' && promotionTie?.leg) ? undefined : simulateSeasonOnCalendar}
+            onOpenCalendar={(gameMode === 'brasileirao' || gameMode === 'serieab') ? openCalendar : undefined}
+            myDivision={myDivision}
+            promotionTie={promotionTie}
             // Durante a simulação pelo calendário o modal já mostra o
             // progresso — o overlay genérico "Simulando…" só atrapalharia.
             fastSimActive={fastSimActive && !calendarSimActive}
@@ -7531,14 +7802,14 @@ export default function App() {
              peer (ver `myTeamId`) — a temporada nascia sem ele em nenhum
              confronto e a tela de jogo abria sem botão de jogar. Numa partida
              com amigos o caminho certo é "Jogar de novo", que encerra a sala. */
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap ? undefined : newSeason} onOpenTransferMarket={roomSnap ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap ? undefined : newSeason} onOpenTransferMarket={roomSnap ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} />
         )}
         {viewingTeam && (
           <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspensions={suspensions} injuries={injuries} />
         )}
         {/* `phase === 'playing'` é rede de segurança: o calendário nunca pode
             ficar por cima da tela de resultado no fim da temporada. */}
-        {showCalendar && phase === 'playing' && gameMode === 'brasileirao' && fixtures.length > 0 && (
+        {showCalendar && phase === 'playing' && (gameMode === 'brasileirao' || gameMode === 'serieab') && fixtures.length > 0 && (
           <SeasonCalendarModal
             fixtures={fixtures}
             seasonDates={seasonDates}
@@ -8102,6 +8373,14 @@ function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, d
                 title: 'Copa do Brasil',
                 sub: '32 times · Mata-mata · Ida e volta',
               },
+              {
+                id: 'serieab',
+                // Mesmo troféu do Brasileirão — é a mesma competição, só com
+                // acesso/queda entre as duas divisões.
+                trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/02ftjh1684945323.png',
+                title: 'Brasileirão (Série A/B)',
+                sub: '40 times · Duas divisões · Acesso e queda a cada temporada',
+              },
             ].map(m => (
               <button
                 key={m.id}
@@ -8114,6 +8393,7 @@ function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, d
                   background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
                   color: '#F4F1EA', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s',
                   boxShadow: gameMode === m.id ? `0 0 0 1px ${hexToRgba(mc, 0.15)} inset` : 'none',
+                  ...(m.id === 'serieab' ? { gridColumn: '1 / -1' } : {}),
                 }}
               >
                 {gameMode === m.id && (
@@ -8179,7 +8459,7 @@ function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, d
         </button>
 
         <button style={{ ...styles.btnIntro, background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: '#0B1A12', boxShadow: `0 8px 24px ${hexToRgba(mc, 0.35)}` }} onClick={onStart}>
-          {gameMode === 'copa' ? 'Escolher formação — Copa →' : 'Escolher formação — Brasileirão →'}
+          {gameMode === 'copa' ? 'Escolher formação — Copa →' : gameMode === 'serieab' ? 'Escolher formação — Série A/B →' : 'Escolher formação — Brasileirão →'}
         </button>
 
         {/* Rodapé institucional */}
@@ -9602,6 +9882,7 @@ function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode }) {
           {[
             { id: 'brasileirao', label: 'Brasileirão' },
             { id: 'copa', label: 'Copa do Brasil' },
+            { id: 'serieab', label: 'Série A/B' },
           ].map(m => (
             <button
               key={m.id}
@@ -12348,7 +12629,7 @@ function SeasonCalendarModal({
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, promotionTie }) {
   const mc = myTeamColor || '#d4a23c';
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -12412,7 +12693,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 19, fontWeight: 700, color: mc, marginBottom: 10, minHeight: 26 }}>
             {fastSimStatusMsg || 'Simulando...'}
           </div>
-          {gameMode === 'brasileirao' && (
+          {(gameMode === 'brasileirao' || gameMode === 'serieab') && (
             <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 10 }}>
               Rodada {currentRound + 1} de {fixtures.length}
             </div>
@@ -12713,15 +12994,34 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
 
   // ── BRASILEIRÃO ─────────────────────────────────────────────
   const totalRounds = fixtures.length;
-  const isLastRound = currentRound + 1 >= totalRounds;
+  // Série A/B pode ter 39 ou 40 "rodadas" quando o jogador cai no mata-mata
+  // de acesso (2 rodadas extras anexadas no fim) — sem tratar isso à parte,
+  // a última rodada regular mostraria "Rodada 38 de 40" (confuso) em vez de
+  // avisar que virou mata-mata.
+  const inPromotionTie = gameMode === 'serieab' && promotionTie?.leg;
+  const regularRounds = gameMode === 'serieab' ? 38 : totalRounds;
+  // A última rodada regular pode levar direto pro resultado OU pro jogo de
+  // ida do mata-mata — só se sabe depois que ela termina de verdade (a
+  // colocação final decide). O rótulo do botão assume "resultado final" nos
+  // dois casos; quem cai no mata-mata vê a rodada seguinte já anunciada como
+  // tal, então o desencontro dura só um clique.
+  const isFinalRegularRound = !inPromotionTie && currentRound + 1 >= regularRounds;
+  const isFinalPlayoffLeg = inPromotionTie && promotionTie.leg === 2;
+  const isLastRound = isFinalRegularRound || isFinalPlayoffLeg;
 
   return (
     <div style={styles.card} className="card-mob">
       <div style={styles.draftTopRow}>
         <div>
-          <div style={styles.eyebrow}>Brasileirão · Série A</div>
+          <div style={styles.eyebrow}>
+            {inPromotionTie ? 'Série A/B · Mata-mata de Acesso' : gameMode === 'serieab' ? `Brasileirão · Série ${myDivision}` : 'Brasileirão · Série A'}
+          </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3 }}>
-            <span style={{ fontSize: 13, opacity: 0.6 }}>Rodada {currentRound + 1} de {totalRounds}</span>
+            <span style={{ fontSize: 13, opacity: 0.6 }}>
+              {inPromotionTie
+                ? `${promotionTie.leg === 1 ? 'Jogo de Ida' : 'Jogo de Volta'} vs ${promotionTie.opponentLabel}`
+                : `Rodada ${currentRound + 1} de ${regularRounds}`}
+            </span>
             <DifficultyBadge difficulty={difficulty} />
           </div>
           {onOpenCalendar && (
@@ -12736,7 +13036,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         </div>
         {roundDone && simMode === 'manual' && (
           <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12' }} onClick={onNextRound}>
-            {isLastRound ? 'Ver resultado final →' : 'Próxima rodada →'}
+            {isLastRound ? 'Ver resultado final →' : inPromotionTie ? 'Jogo de Volta →' : 'Próxima rodada →'}
           </button>
         )}
         {roundDone && simMode === 'auto' && autoCountdown !== null && (
@@ -13556,7 +13856,7 @@ function ResultStatRow({ rank, name, team, value, mc }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision }) {
   const mc = myTeamColor || '#d4a23c';
   const [showCampaign, setShowCampaign] = useState(false);
   // Nome do time dono da chave time::nome — jogadores reais se repetem entre
@@ -13602,7 +13902,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       const oppLabel = isHome ? m.awayLabel : m.homeLabel;
       const roundLabel = gameMode === 'copa'
         ? `${CUP_ROUND_NAMES[Math.min((m.round || 1) - 1, CUP_ROUND_NAMES.length - 1)]}${m.legLabel ? ` (${m.legLabel})` : ''}`
-        : `Rodada ${m.round}`;
+        : m.legLabel ? m.legLabel : `Rodada ${m.round}`;
       return { result, text: `${roundLabel}: ${isHome ? 'vs' : '@'} ${oppLabel} ${my}-${opp}` };
     });
 
@@ -13703,7 +14003,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       <div style={{ textAlign: 'center' }}>
         <ChampionCrest logoUrl={championLogo} badgeEmoji={isChampion ? myTeamBadge : null} fallback={isChampion ? '🏆' : podium ? '🥉' : '⚽'} mc={mc} />
       </div>
-      <div style={styles.eyebrow}>Fim do Brasileirao · Serie A</div>
+      <div style={styles.eyebrow}>{gameMode === 'serieab' ? `Fim da Série ${myDivision}` : 'Fim do Brasileirao · Serie A'}</div>
       <h1 style={styles.h1} className="h1-mob">
         {isChampion ? 'CAMPEAO!' : podium ? `${pos}o lugar — podio!` : `${pos}o lugar`}
       </h1>
@@ -13714,6 +14014,32 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           campeão é anunciado. */}
       <AnthemPlayer club={champClub} />
       {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
+
+      {/* Acesso/queda — o aviso que faltava pra "Série A/B" fazer sentido de
+          verdade: sem ele, promoção e rebaixamento aconteciam por baixo dos
+          panos e só se refletiam na temporada seguinte, sem nenhum
+          reconhecimento na hora. */}
+      {gameMode === 'serieab' && divisionMove && (
+        <ResultSection
+          icon={divisionMove === 'promoted' ? '🎉' : divisionMove === 'relegated' ? '📉' : '📋'}
+          label={divisionMove === 'promoted' ? 'Promovido!' : divisionMove === 'relegated' ? 'Rebaixado' : 'Situação na Tabela'}
+          mc={mc}
+        >
+          <div style={{ fontSize: 14, lineHeight: 1.5 }}>
+            {divisionMove === 'relegated' && `Terminou em ${pos}º lugar na Série A e caiu para a Série B na próxima temporada.`}
+            {divisionMove === 'promoted' && promotionTie?.aggMine != null &&
+              `Venceu o mata-mata de acesso contra ${promotionTie.opponentLabel} (agregado ${promotionTie.aggMine}-${promotionTie.aggOpp}) e subiu para a Série A!`}
+            {divisionMove === 'promoted' && promotionTie?.aggMine == null &&
+              `Terminou em ${pos}º lugar na Série B — acesso direto à Série A na próxima temporada!`}
+            {divisionMove === 'stayed' && myDivision === 'B' && promotionTie?.aggMine != null &&
+              `Perdeu o mata-mata de acesso contra ${promotionTie.opponentLabel} (agregado ${promotionTie.aggMine}-${promotionTie.aggOpp}) — segue na Série B.`}
+            {divisionMove === 'stayed' && myDivision === 'B' && promotionTie?.aggMine == null &&
+              `Terminou em ${pos}º lugar na Série B — segue na mesma divisão na próxima temporada.`}
+            {divisionMove === 'stayed' && myDivision === 'A' &&
+              `Terminou em ${pos}º lugar na Série A — segue na mesma divisão na próxima temporada.`}
+          </div>
+        </ResultSection>
+      )}
 
       <ResultSection icon="📊" label="Seu Desempenho" mc={mc}>
         {!isChampion && (
