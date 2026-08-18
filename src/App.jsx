@@ -7755,7 +7755,7 @@ export default function App() {
         />
       )}
       <header style={styles.header}>
-        <div style={styles.headerInner} className="header-inner-pad">
+        <div style={{ ...styles.headerInner, maxWidth: (phase === 'intro' && !multiPhase) ? 1400 : styles.headerInner.maxWidth }} className="header-inner-pad">
           <div style={styles.crest}>🏆</div>
           <div>
             <div
@@ -7767,31 +7767,70 @@ export default function App() {
             <div style={styles.subtitle} className="header-subtitle-h">monte · escale · seja campeão</div>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} className="header-actions-h">
+            {/* "Continuar"/"Desafio do Dia" só fazem sentido na home (o resto
+                do tempo já se está dentro de um jogo) — moveram pra cá pra
+                tirar da frente do título de marketing no corpo da Intro. Uma
+                divisória visual separa "ações da sessão" dos ícones utilitários,
+                pra não virar uma fileira confusa de botões sem hierarquia. */}
+            {phase === 'intro' && !multiPhase && (describePhase(savedPhase) || dailyChallengeTeams) && (
+              <>
+                {describePhase(savedPhase) && (
+                  <button
+                    onClick={continueSavedGame}
+                    className="mode-card-hover tap-target-sm"
+                    title={describePhase(savedPhase)}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
+                      padding: '7px 12px', borderRadius: 999, color: '#0B1A12',
+                      border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                      background: `linear-gradient(135deg, ${myTeamColor || '#d4a23c'}, ${myTeamColor || '#d4a23c'}cc)`,
+                    }}
+                  >
+                    ▶ Continuar
+                  </button>
+                )}
+                {dailyChallengeTeams && (
+                  <button
+                    onClick={() => setShowDailyChallenge(true)}
+                    className="mode-card-hover tap-target-sm"
+                    title={`${parseTeamLabel(dailyChallengeTeams.teamA.label).baseName} × ${parseTeamLabel(dailyChallengeTeams.teamB.label).baseName}`}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
+                      padding: '7px 12px', borderRadius: 999, color: myTeamColor || '#d4a23c', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                      border: `1.5px solid ${hexToRgba(myTeamColor || '#d4a23c', 0.4)}`, background: hexToRgba(myTeamColor || '#d4a23c', 0.1),
+                    }}
+                  >
+                    🔥 Desafio do Dia
+                  </button>
+                )}
+                <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
+              </>
+            )}
             <button
               onClick={shareApp}
               title="Compartilhar o jogo com amigos"
               className="tap-target-sm"
               style={{
-                flexShrink: 0,
+                display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: appShareCopied ? '#7fd99a' : '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
               }}
             >
-              {appShareCopied ? '✓' : '📤'}
+              {appShareCopied ? '✓' : '📤'} <span className="header-action-label">Compartilhar</span>
             </button>
             <button
               onClick={toggleGoalAudioMuted}
               title={goalAudioMuted ? 'Áudio de gol desativado — clique pra reativar' : 'Desativar áudio de gol'}
               className="tap-target-sm"
               style={{
-                position: 'relative', flexShrink: 0,
+                position: 'relative', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
               }}
             >
-              🎙️
+              🎙️ <span className="header-action-label">Áudio</span>
               {goalAudioMuted && (
                 <span style={{
                   position: 'absolute', top: -2, right: -2, fontSize: 12, color: '#e05050',
@@ -7804,24 +7843,24 @@ export default function App() {
               title="Ranking global"
               className="tap-target-sm"
               style={{
-                position: 'relative', flexShrink: 0,
+                position: 'relative', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
               }}
-            >🏆</button>
+            >🏆 <span className="header-action-label">Ranking</span></button>
             <button
               onClick={() => { setShowNews(true); try { localStorage.setItem('brl_news_seen', WHATS_NEW[0].id); } catch { /* ignore */ } }}
               title="Novidades"
               className="tap-target-sm"
               style={{
-                position: 'relative', flexShrink: 0,
+                position: 'relative', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
               }}
             >
-              💡
+              💡 <span className="header-action-label">Novidades</span>
               {unseenNewsCount > 0 && (
                 <span style={{
                   position: 'absolute', top: -6, right: -6, minWidth: 15, height: 15, padding: '0 3px',
@@ -7906,7 +7945,7 @@ export default function App() {
         <AchievementToast achievements={newAchievements} onClose={() => setNewAchievements([])} />
       )}
 
-      <main style={styles.main} className="main-pad">
+      <main style={{ ...styles.main, maxWidth: (phase === 'intro' && !multiPhase) ? 1400 : styles.main.maxWidth }} className="main-pad">
         {/* TELAS MULTIPLAYER */}
         {multiPhase === 'lobby' && (
           <MultiLobby
@@ -7950,8 +7989,6 @@ export default function App() {
         {phase === 'intro' && !multiPhase && (
           <Intro
             onStart={goToFormationPicker}
-            savedGameLabel={describePhase(savedPhase)}
-            onContinue={continueSavedGame}
             gameMode={gameMode} onSetGameMode={setGameMode}
             difficulty={difficulty} onSetDifficulty={setDifficulty}
             myTeamColor={myTeamColor} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge}
@@ -7960,8 +7997,6 @@ export default function App() {
             onMultiPlayer={() => setMultiPhase('lobby')}
             onNavigateInfo={navigateToInfo}
             onNavigateTeams={navigateToTeamsIndex}
-            dailyChallengeTeams={dailyChallengeTeams}
-            onOpenDailyChallenge={() => setShowDailyChallenge(true)}
           />
         )}
         {showDailyChallenge && (
@@ -8579,7 +8614,7 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, dailyChallengeTeams, onOpenDailyChallenge }) {
+function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
@@ -8589,50 +8624,11 @@ function Intro({ onStart, savedGameLabel, onContinue, gameMode, onSetGameMode, d
     <>
       <div style={styles.introCard} className="intro-card-mob">
         <div style={{ ...styles.introTopBar, background: `linear-gradient(90deg, transparent, ${mc}, transparent)` }} />
-        {/* Badge + estatísticas do acervo de um lado, "Continuar"/"Desafio do
-            Dia" do outro — dois botões pequenos em vez de duas barras
-            enormes empilhadas, pra não competir com o título de marketing
-            logo abaixo. Em telas estreitas o `flexWrap` já joga os botões
-            pra uma linha própria, centralizados como o resto do card. */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'center', gap: '10px 18px', marginBottom: 24 }}>
-          <div>
-            <div style={{ ...styles.introBadge, marginBottom: 8 }}>⚽ Futebol Brasileiro · 1959–2024</div>
-            <GameStatsBar style={{ ...styles.gameStatsBar, marginTop: 0, marginBottom: 0 }} />
-          </div>
-          {(savedGameLabel || dailyChallengeTeams) && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
-              {savedGameLabel && (
-                <button
-                  onClick={onContinue}
-                  className="mode-card-hover tap-target-sm"
-                  title={savedGameLabel}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
-                    padding: '8px 14px', borderRadius: 999, color: '#0B1A12',
-                    border: 'none', cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
-                    background: `linear-gradient(135deg, ${mc}, ${mc}cc)`,
-                  }}
-                >
-                  ▶ Continuar
-                </button>
-              )}
-              {dailyChallengeTeams && (
-                <button
-                  onClick={onOpenDailyChallenge}
-                  className="mode-card-hover tap-target-sm"
-                  title={`${parseTeamLabel(dailyChallengeTeams.teamA.label).baseName} × ${parseTeamLabel(dailyChallengeTeams.teamB.label).baseName}`}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap',
-                    padding: '8px 14px', borderRadius: 999, color: mc, cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
-                    border: `1.5px solid ${hexToRgba(mc, 0.4)}`, background: hexToRgba(mc, 0.1),
-                  }}
-                >
-                  🔥 Desafio do Dia
-                </button>
-              )}
-            </div>
-          )}
-        </div>
+        {/* "Continuar"/"Desafio do Dia" moraram aqui antes — foram pro
+            cabeçalho (só aparecem na home) pra não competir com o título de
+            marketing logo abaixo, deixando esse topo só com o selo do jogo. */}
+        <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2024</div>
+        <GameStatsBar style={styles.gameStatsBar} />
         <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
         <p style={styles.introLead}>
           Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
@@ -14746,6 +14742,14 @@ const globalCss = `
   }
   .champion-suspense { animation: suspensePulse 0.65s ease-in-out infinite; }
   .feat-card-hover:hover { border-color: rgba(212,162,60,0.4) !important; transform: translateY(-2px); }
+  /* Rótulo dos ícones do cabeçalho (Compartilhar/Áudio/Ranking/Novidades) só
+     aparece com bastante espaço sobrando — abaixo disso vira só ícone (com
+     tooltip via title) pra não espremer contra "Continuar"/"Desafio do Dia"
+     e o botão de conta na mesma linha. */
+  .header-action-label { display: none; }
+  @media (min-width: 1500px) {
+    .header-action-label { display: inline; }
+  }
   @media (prefers-reduced-motion: reduce) {
     * { transition: none !important; animation: none !important; }
   }
@@ -14770,7 +14774,7 @@ const globalCss = `
     /* Título+logo numa "linha" e os botões (áudio/ranking/conta) na linha de
        baixo, ocupando a largura toda — sem isso eles brigavam pelo mesmo
        espaço e o botão de login quebrava em 3 linhas espremido num canto. */
-    .header-actions-h { flex-basis: 100% !important; margin-left: 0 !important; justify-content: flex-end !important; }
+    .header-actions-h { flex-basis: 100% !important; margin-left: 0 !important; justify-content: flex-end !important; flex-wrap: wrap !important; row-gap: 6px !important; }
     .header-account-btn { padding: 6px 10px !important; font-size: 11px !important; }
     .intro-title-h { font-size: 26px !important; line-height: 1.2 !important; }
     .feat-grid-3 { grid-template-columns: 1fr 1fr !important; }
