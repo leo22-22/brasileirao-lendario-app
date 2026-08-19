@@ -4848,7 +4848,7 @@ export default function App() {
   // preencher as vagas liberadas. Essa flag decide se o confirm do Squad, no
   // final desse mini-draft, chama newSeason (mesmo elenco, só trocado) em vez
   // de startSeason (jogo novo do zero).
-  const [isTransferSeason, setIsTransferSeason] = useState(false);
+  const [isTransferSeason, setIsTransferSeason] = useState(_sv?.isTransferSeason ?? false);
 
   // Supercopa do Brasil (Desafio do Dia) — monta um time do zero (mesmo
   // sorteio/draft de qualquer carreira nova) pra enfrentar um time lendário
@@ -6979,10 +6979,16 @@ export default function App() {
         matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards,
         myDivision, otherDivision, divisionMove, promotionTie,
         isDailyChallenge, dailyOpponent,
+        // Sem persistir isso, um reload no meio de um "Mercado de
+        // transferências" (phase='squad', isTransferSeason=true só em
+        // memória) voltava com a flag em false — o confirm do Squad então
+        // chamava startSeason() em vez de newSeason(), o que reseta
+        // myDivision pra 'A' e descarta silenciosamente uma queda pra Série B.
+        isTransferSeason,
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isTransferSeason]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -7091,6 +7097,12 @@ export default function App() {
     setPromotionTie(null);
     setIsDailyChallenge(false);
     setDailyOpponent(null);
+    // Sem isso, abandonar um "Mercado de transferências" (isTransferSeason
+    // vira true em confirmTransferReleases, só volta a false dentro de
+    // newSeason) por aqui deixava a flag presa em true — a PRÓXIMA carreira
+    // do zero então escondia "Voltar"/"Redo" na tela de escalação (Squad),
+    // que ficam ocultos de propósito só durante um mercado de verdade.
+    setIsTransferSeason(false);
     setFormationKey(null);
     setPitchSlots([]);
     setPitch({});
@@ -7160,6 +7172,22 @@ export default function App() {
   // a página é o jeito seguro de re-hidratar esse estado a partir do disco
   // sem duplicar à mão a lógica inteira de restauração do save.
   const exitDailyChallenge = () => {
+    window.location.reload();
+  };
+
+  // Sair do multiplayer (lobby, sala esperando, ou fim de uma temporada com
+  // amigos) — de propósito NÃO é o restart() acima, pelo mesmo motivo do
+  // exitDailyChallenge: o autosave já pula a sessão multiplayer inteira
+  // (`if (multiPhase || roomSnap) return;`), então uma carreira solo real
+  // que já estava salva antes de entrar na sala nunca foi tocada no disco.
+  // restart() apagaria esse save de qualquer jeito (é incondicional), sem
+  // nenhum aviso disso nos dois lugares que chamavam ele aqui (o "Sair da
+  // sala" da tela de lobby nem tinha confirmação nenhuma). Fecha a sala/peer
+  // igual restart() faz, e recarrega em vez de tentar restaurar o estado da
+  // carreira solo à mão.
+  const leaveMultiplayer = () => {
+    if (isLeader && roomCode) { api.closeRoom(roomCode).catch(() => { }); }
+    if (peerRef.current) { try { peerRef.current.destroy(); } catch { } peerRef.current = null; }
     window.location.reload();
   };
 
@@ -8098,7 +8126,7 @@ export default function App() {
             onStartSimulation={multiLeaderSimulate}
             onReady={multiSetReady}
             timerLeft={multiTimerLeft}
-            onBack={restart}
+            onBack={leaveMultiplayer}
           />
         )}
 
@@ -8256,8 +8284,15 @@ export default function App() {
              MY_TEAM_ID, mas dentro de uma sala o time do jogador é o id do
              peer (ver `myTeamId`) — a temporada nascia sem ele em nenhum
              confronto e a tela de jogo abria sem botão de jogar. Numa partida
-             com amigos o caminho certo é "Jogar de novo", que encerra a sala. */
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap ? undefined : newSeason} onOpenTransferMarket={roomSnap ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} />
+             com amigos o caminho certo é "Jogar de novo", que encerra a sala.
+             Esse botão é `leaveMultiplayer` (não `restart`) quando `roomSnap`
+             existe: `restart` apaga o `brl_save` do disco incondicionalmente,
+             e uma sessão multiplayer nunca escreve nele (autosave pula
+             enquanto `multiPhase || roomSnap`) — então o save no disco, se
+             existir, é de uma carreira solo real que não tem nada a ver com
+             essa sala, e não deveria sumir só porque a partida com amigos
+             acabou. */
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap ? undefined : newSeason} onOpenTransferMarket={roomSnap ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} />
         )}
         {viewingTeam && (
           <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspensions={suspensions} injuries={injuries} />
@@ -8318,7 +8353,7 @@ export default function App() {
             <p style={{ fontSize: 13, opacity: 0.65, lineHeight: 1.5, marginBottom: 6 }}>
               Você está numa partida com outros jogadores. Voltar ao menu agora desconecta você da sala.
             </p>
-            <button onClick={() => { setShowLeaveConfirm(false); restart(); }} style={{ ...styles.btnPrimary, width: '100%', background: '#e05050', color: '#fff', marginTop: 16 }}>
+            <button onClick={() => { setShowLeaveConfirm(false); leaveMultiplayer(); }} style={{ ...styles.btnPrimary, width: '100%', background: '#e05050', color: '#fff', marginTop: 16 }}>
               Sim, sair da sala
             </button>
             <button onClick={() => setShowLeaveConfirm(false)} style={{ ...styles.btnGhost, marginTop: 10 }}>
