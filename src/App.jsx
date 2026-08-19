@@ -5736,6 +5736,14 @@ export default function App() {
     setEliminationRoundName(null);
     setBracketAdvance(null);
     resultsAfterBracketRef.current = false;
+    // Mesmo vazamento do multiplayer (ver o efeito de `roomSnap.phase ===
+    // 'simulation'`): sair no meio de um Desafio do Dia sem terminar (o
+    // "voltar ao menu" de propósito não apaga o save) e começar uma
+    // temporada normal em seguida prendia essa flag em `true` — a temporada
+    // inteira caía no branch de Desafio do Dia dentro de `applySeasonAwards`
+    // e nunca submetia o resultado de verdade pro ranking.
+    setIsDailyChallenge(false);
+    setDailyOpponent(null);
 
     if (gameMode === 'brasileirao' || gameMode === 'serieab') {
       // Embaralha só a ordem passada pro gerador de tabela: o método do
@@ -7699,6 +7707,15 @@ export default function App() {
     // sessão) e o calendário mostraria resultados de rodadas que não são
     // dessa liga.
     setMatchHistory([]);
+    // Se a pessoa saiu no meio de um Desafio do Dia (botão "voltar ao menu",
+    // que de propósito NUNCA apaga o save) e entrou direto numa sala com
+    // amigos, essa flag ficava presa em `true`. Toda temporada de multiplayer
+    // então caía no primeiro `if (isDailyChallenge)` de `applySeasonAwards`,
+    // que retorna cedo e nunca chama o `submitSeasonResult` de verdade — o
+    // jogador terminava a temporada e não ganhava ranking/título/conquista
+    // nenhuma, em silêncio (o catch daquele branch é separado e não avisa).
+    setIsDailyChallenge(false);
+    setDailyOpponent(null);
     setRoundHistory({});
     setCupWinnerId(null);
     setCupRoundIdx(0);
