@@ -71,6 +71,12 @@ app.use('/api/rooms', rateLimiter(30, 60 * 1000));
 // O front pede as credenciais de TURN uma vez por sessão (e guarda em cache).
 // Folga pra quem recarrega a página várias vezes tentando entrar numa sala.
 app.use('/api/turn', rateLimiter(20, 60 * 1000));
+// Um resultado de temporada só existe depois de minutos de jogo de verdade —
+// nenhum jogador legítimo bate isso. Sem limite aqui, um token válido sozinho
+// bastava pra rodar um loop de POST forjado e inflar ranking_points/conquistas
+// (a validação de faixa em routes/me.ts barra o valor, mas não o volume).
+app.use('/api/me/season-result', rateLimiter(10, 10 * 60 * 1000));
+app.use('/api/me/daily-challenge-result', rateLimiter(10, 10 * 60 * 1000));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/me', meRoutes);

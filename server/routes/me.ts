@@ -47,6 +47,20 @@ router.put('/', async (req, res) => {
     const body = req.body ?? {};
     const updates: Record<string, unknown> = {};
 
+    // Trocar email ou senha é o tipo de mudança que, se um token vazado
+    // (XSS, log, device compartilhado) chegasse à mão errada, sequestraria a
+    // conta pro invasor sem o dono perceber — exige a senha atual como
+    // segunda confirmação, igual qualquer conta de verdade faz.
+    if ('email' in body || 'password' in body) {
+      if (typeof body.currentPassword !== 'string' || !body.currentPassword) {
+        return res.status(400).json({ error: 'Informe sua senha atual para alterar email ou senha.' });
+      }
+      const ok = await bcrypt.compare(body.currentPassword, current.password_hash);
+      if (!ok) {
+        return res.status(401).json({ error: 'Senha atual incorreta.' });
+      }
+    }
+
     for (const field of SIMPLE_FIELDS) {
       if (field in body) {
         if (body[field] !== null && typeof body[field] !== 'string') {
@@ -164,6 +178,25 @@ router.post('/season-result', async (req, res) => {
     // pra decidir se bateu marco novo (nunca diminui, só o maior dos dois).
     const teamOvr = Number.isFinite(body.teamOvr) ? Number(body.teamOvr) : null;
     const seasonBestPlayerOvr = Number.isFinite(body.bestPlayerOvr) ? Number(body.bestPlayerOvr) : null;
+
+    // Blindagem contra resultado forjado (chamada direta à API, sem passar
+    // pelo cliente): nenhum campeonato real passa desses tetos — Brasileirão/
+    // Série A-B têm 38 rodadas (Copa, bem menos), e overall vai de 40 a 99.
+    // Sem isso, um POST manual com números arbitrários (goalsScored: 999999,
+    // champion: true) inflava ranking_points e destravava conquistas na hora.
+    const MAX_SEASON_MATCHES = 40;
+    const MAX_SEASON_STAT = 500;
+    if (
+      matchesPlayed > MAX_SEASON_MATCHES ||
+      goalsScored > MAX_SEASON_STAT ||
+      goalsConceded > MAX_SEASON_STAT ||
+      assistsMade > MAX_SEASON_STAT ||
+      (position != null && (position < 1 || position > 20)) ||
+      (teamOvr != null && (teamOvr < 0 || teamOvr > 99)) ||
+      (seasonBestPlayerOvr != null && (seasonBestPlayerOvr < 0 || seasonBestPlayerOvr > 99))
+    ) {
+      return res.status(400).json({ error: 'Resultado de temporada inválido.' });
+    }
 
     let titlesBr = current.titles_brasileirao;
     let titlesCopa = current.titles_copa;
@@ -372,6 +405,20 @@ router.post('/daily-challenge-result', async (req, res) => {
 router.delete('/', async (req, res) => {
   try {
     const userId = req.userId!;
+    // Ação irreversível (some com títulos, conquistas e pontos de ranking de
+    // vez) — exige a senha, não só um token válido. Um Bearer sozinho pode
+    // vir de uma sessão vazada; a senha é a prova de que é o dono mesmo.
+    const current = await getUserOr404(userId, res);
+    if (!current) return;
+    const { password } = req.body ?? {};
+    if (typeof password !== 'string' || !password) {
+      return res.status(400).json({ error: 'Informe sua senha para excluir a conta.' });
+    }
+    const ok = await bcrypt.compare(password, current.password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: 'Senha incorreta.' });
+    }
+
     const [result] = await pool.query<ResultSetHeader>('DELETE FROM users WHERE id = ?', [userId]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ error: 'Conta não encontrada.' });

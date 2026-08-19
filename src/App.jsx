@@ -4807,8 +4807,8 @@ export default function App() {
     setCurrentUser(user);
   };
 
-  const handleDeleteAccount = async () => {
-    await api.deleteMe();
+  const handleDeleteAccount = async (password) => {
+    await api.deleteMe(password);
     handleLogout();
   };
 
@@ -8516,10 +8516,12 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
   const [username, setUsername] = useState(user.username);
   const [email, setEmail] = useState(user.email);
   const [password, setPassword] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
   const [error, setError] = useState('');
   const [credError, setCredError] = useState('');
   const [savingCred, setSavingCred] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
@@ -8536,10 +8538,18 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
     if (normalizedEmail && normalizedEmail !== user.email) fields.email = normalizedEmail;
     if (password) fields.password = password;
     if (Object.keys(fields).length === 0) return;
+    // Email/senha são sensíveis o bastante pra exigir confirmação com a senha
+    // atual (evita que um token vazado sequestre a conta sozinho).
+    if ((fields.email || fields.password) && !currentPassword) {
+      setCredError('Informe sua senha atual para confirmar.');
+      return;
+    }
+    if (fields.email || fields.password) fields.currentPassword = currentPassword;
     setSavingCred(true);
     try {
       await onUpdateFields(fields);
       setPassword('');
+      setCurrentPassword('');
     } catch (err) {
       setCredError(err.message || 'Erro ao salvar.');
     } finally {
@@ -8549,8 +8559,9 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
 
   const handleDelete = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
+    if (!deletePassword) { setError('Informe sua senha para confirmar a exclusão.'); return; }
     setDeleting(true);
-    try { await onDeleteAccount(); }
+    try { await onDeleteAccount(deletePassword); }
     catch (err) { setError(err.message || 'Erro ao excluir conta.'); setDeleting(false); }
   };
 
@@ -8566,6 +8577,7 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
           <input value={username} onChange={e => setUsername(e.target.value)} placeholder="Nome de usuário" maxLength={20} style={styles.teamInput} />
           <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" style={{ ...styles.teamInput, marginTop: 8 }} />
           <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Nova senha (opcional)" style={{ ...styles.teamInput, marginTop: 8 }} />
+          <input value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} type="password" placeholder="Senha atual (p/ alterar email ou senha)" style={{ ...styles.teamInput, marginTop: 8 }} />
           {credError && <div style={{ color: '#e05050', fontSize: 12, marginTop: 6 }}>{credError}</div>}
           <button onClick={saveCredentials} disabled={savingCred} style={{ ...styles.btnSmall, marginTop: 10 }}>
             {savingCred ? 'Salvando…' : 'Salvar'}
@@ -8573,6 +8585,9 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
         </div>
 
         {error && <div style={{ color: '#e05050', fontSize: 12, marginTop: 10 }}>{error}</div>}
+        {confirmDelete && (
+          <input value={deletePassword} onChange={e => setDeletePassword(e.target.value)} type="password" placeholder="Digite sua senha para confirmar" style={{ ...styles.teamInput, marginTop: 10 }} autoFocus />
+        )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
           <button onClick={onLogout} style={{ ...styles.btnGhost, marginTop: 0, flex: 1 }}>Sair</button>

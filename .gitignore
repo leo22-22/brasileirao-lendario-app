@@ -3,6 +3,9 @@ dist
 dist-ssr
 *.local
 
+# Gravações de tela / vídeos de teste — não pertencem ao histórico do repo
+*.mp4
+
 # Backend secrets/data
 .env
 server/.env

@@ -60,8 +60,8 @@ export function updateMe(fields) {
   return request('/me', { method: 'PUT', body: fields, auth: true });
 }
 
-export function deleteMe() {
-  return request('/me', { method: 'DELETE', auth: true });
+export function deleteMe(password) {
+  return request('/me', { method: 'DELETE', body: { password }, auth: true });
 }
 
 export function submitSeasonResult(payload) {
