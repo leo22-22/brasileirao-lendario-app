@@ -7191,6 +7191,29 @@ export default function App() {
     window.location.reload();
   };
 
+  // Revanche com o mesmo grupo — só o líder chama isso (é quem manda no
+  // roomSnap; um convidado só manda `update` pro líder, nunca muta a sala
+  // direto). Devolve a sala pra fase 'lobby' igual uma sala recém-criada:
+  // mesma identidade (nome/cor/emblema/técnico/cidade) de cada humano, mas
+  // sem elenco/prontidão da partida que acabou de terminar, e sem os times
+  // de IA que preenchiam a sala (o próximo `multiLeaderStart` sorteia um
+  // lote novo do tamanho certo pra quem sobrou). O broadcast do snap com
+  // phase:'lobby' é o que faz o efeito abaixo levar TODOS os peers (líder
+  // incluso) de volta pra RoomScreen sozinho.
+  const multiLeaderRematch = () => {
+    setRoomSnap(prev => {
+      if (!prev) return prev;
+      const players = {};
+      Object.entries(prev.players).forEach(([pid, p]) => {
+        if (p.isAI) return;
+        players[pid] = { name: p.name, color: p.color, logo: p.logo || null, coach: p.coach || '', city: p.city || '', ready: false, pitch: null, ovr: 0 };
+      });
+      const next = { ...prev, phase: 'lobby', players, startedAt: null, seed: null };
+      leaderBroadcast({ type: 'snap', snap: next });
+      return next;
+    });
+  };
+
   // Descrição curta de uma fase salva, pro botão "Continuar" na home e (se
   // um dia precisar) qualquer outro lugar que queira dizer onde a pessoa
   // parou. `p` é a fase (não necessariamente a `phase` atual — o botão
@@ -7738,6 +7761,21 @@ export default function App() {
     setPhase('multi-waiting');
   };
 
+  // Quando o líder chama multiLeaderRematch (revanche) o snap volta pra
+  // phase:'lobby' — esse efeito é o que leva QUALQUER peer (líder incluso)
+  // de volta pra RoomScreen sozinho, assim que o snap chega (o handler de
+  // 'data' já atualiza `roomSnap` na hora, não importa em que tela a pessoa
+  // estava). Só dispara vindo de uma partida (`phase` ainda em 'playing'/
+  // 'results') — não interfere no fluxo normal de criar/entrar numa sala,
+  // que já usa `setMultiPhase('room')` direto e nunca passa por 'playing'/
+  // 'results' antes disso.
+  useEffect(() => {
+    if (!roomSnap || roomSnap.phase !== 'lobby') return;
+    if (phase !== 'playing' && phase !== 'results') return;
+    setPhase('intro');
+    setMultiPhase('room');
+  }, [roomSnap?.phase, phase]);
+
   // Quando snapshot muda para 'simulation' → lança simulação local com seed compartilhado
   useEffect(() => {
     if (!roomSnap || roomSnap.phase !== 'simulation' || !roomSnap.seed) return;
@@ -8283,16 +8321,16 @@ export default function App() {
           /* "Nova temporada" e "Mercado" reconstroem a liga em torno de
              MY_TEAM_ID, mas dentro de uma sala o time do jogador é o id do
              peer (ver `myTeamId`) — a temporada nascia sem ele em nenhum
-             confronto e a tela de jogo abria sem botão de jogar. Numa partida
-             com amigos o caminho certo é "Jogar de novo", que encerra a sala.
-             Esse botão é `leaveMultiplayer` (não `restart`) quando `roomSnap`
-             existe: `restart` apaga o `brl_save` do disco incondicionalmente,
-             e uma sessão multiplayer nunca escreve nele (autosave pula
-             enquanto `multiPhase || roomSnap`) — então o save no disco, se
-             existir, é de uma carreira solo real que não tem nada a ver com
-             essa sala, e não deveria sumir só porque a partida com amigos
-             acabou. */
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap ? undefined : newSeason} onOpenTransferMarket={roomSnap ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} />
+             confronto e a tela de jogo abria sem botão de jogar. Numa
+             partida com amigos o caminho certo é "Jogar de novo com o mesmo
+             grupo" (onRematch, líder-only, volta a sala pra 'lobby') ou
+             "Sair da sala" (onRestart aqui vira `leaveMultiplayer`, não
+             `restart`: `restart` apaga o `brl_save` do disco
+             incondicionalmente, e uma sessão multiplayer nunca escreve nele
+             — autosave pula enquanto `multiPhase || roomSnap` —, então o
+             save no disco, se existir, é de uma carreira solo real sem
+             nada a ver com essa sala). */
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} isLeader={isLeader} onRematch={roomSnap ? multiLeaderRematch : undefined} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap ? undefined : newSeason} onOpenTransferMarket={roomSnap ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} />
         )}
         {viewingTeam && (
           <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspensions={suspensions} injuries={injuries} />
@@ -14559,7 +14597,7 @@ function ResultStatsTabs({ mc, title, categories }) {
 // aqui: continuar é o CTA principal; recomeçar do zero fica disponível mas
 // discreto. Em multiplayer (onNewSeason indisponível) "Jogar de novo" vira
 // o principal, por ser a única opção.
-function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart }) {
+function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart, isLeader, onRematch }) {
   return (
     <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
       {onNewSeason ? (
@@ -14576,6 +14614,31 @@ function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart }) {
             Jogar de novo (time novo, do zero)
           </button>
         </>
+      ) : onRematch ? (
+        // Multiplayer: sem "Nova temporada"/"Mercado" (reconstroem em torno
+        // de MY_TEAM_ID, que não existe numa sala — ver comentário no
+        // chamador). Só o líder decide a revanche; convidado só acompanha
+        // (o efeito de `roomSnap.phase === 'lobby'` já leva todo mundo de
+        // volta pra sala sozinho assim que o líder confirma).
+        isLeader ? (
+          <>
+            <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRematch}>
+              🔁 Jogar de novo com o mesmo grupo
+            </button>
+            <button style={{ ...styles.btnGhost, width: '100%', marginTop: 0, opacity: 0.75 }} onClick={onRestart}>
+              Sair da sala
+            </button>
+          </>
+        ) : (
+          <>
+            <div style={{ textAlign: 'center', fontSize: 12.5, opacity: 0.55, padding: '4px 0 2px' }}>
+              Aguardando o líder decidir a próxima partida…
+            </div>
+            <button style={{ ...styles.btnGhost, width: '100%', marginTop: 0 }} onClick={onRestart}>
+              Sair da sala
+            </button>
+          </>
+        )
       ) : (
         <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
           Jogar de novo
@@ -14658,7 +14721,7 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision }) {
   const mc = myTeamColor || '#d4a23c';
   const [showCampaign, setShowCampaign] = useState(false);
   // Nome do time dono da chave time::nome — jogadores reais se repetem entre
@@ -14785,7 +14848,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             campaign: campaignLines,
           }} />
         </div>
-        <ResultActions mc={mc} onNewSeason={onNewSeason} onOpenTransferMarket={onOpenTransferMarket} onRestart={onRestart} />
+        <ResultActions mc={mc} onNewSeason={onNewSeason} onOpenTransferMarket={onOpenTransferMarket} onRestart={onRestart} isLeader={isLeader} onRematch={onRematch} />
       </div>
     );
   }
@@ -14954,7 +15017,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           awards: seasonAwards?.map(a => `${a.name} — ${a.reason}`),
         }} />
       </div>
-      <ResultActions mc={mc} onNewSeason={onNewSeason} onOpenTransferMarket={onOpenTransferMarket} onRestart={onRestart} />
+      <ResultActions mc={mc} onNewSeason={onNewSeason} onOpenTransferMarket={onOpenTransferMarket} onRestart={onRestart} isLeader={isLeader} onRematch={onRematch} />
     </div>
   );
 }
