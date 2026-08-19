@@ -7759,7 +7759,14 @@ export default function App() {
     const maxSlots = gMode === 'copa' ? 32 : 20;
     const humanTeams = players.map(([pid, p]) => ({
       id: pid, label: p.name || 'Jogador', badge: '', color: p.color || '#d4a23c',
-      logo: p.logo || null, clubLogo: null, club: clubFromLogo(p.logo), ovr: p.ovr || 70,
+      // Tabela do Brasileirão, chaveamento da Copa e o card de partida ao
+      // vivo leem `clubLogo` pra desenhar o escudo de QUALQUER linha que não
+      // seja "meu time" (o próprio jogador tem um caso especial à parte, via
+      // `myTeamLogo`) — com isso fixo em null, o escudo de todo humano que
+      // não fosse "eu" simplesmente nunca aparecia pros outros jogadores da
+      // sala. `logo` já guardava o emblema escolhido; só faltava espelhar em
+      // `clubLogo`, que é o campo que esses componentes de fato leem.
+      logo: p.logo || null, clubLogo: p.logo || null, club: clubFromLogo(p.logo), ovr: p.ovr || 70,
       players: p.pitch ? partitionStartersFirst(Object.values(p.pitch)) : [], isHuman: true,
     }));
     const needed = maxSlots - humanTeams.length;
