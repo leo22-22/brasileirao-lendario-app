@@ -3379,16 +3379,17 @@ function advanceMirrorDivision(division, seed) {
   return { ...division, table: applyRoundToTable(division.table, results), round: division.round + 1 };
 }
 
-// Sorteia o confronto do Desafio do Dia — semeado pela DATA (não por
-// Math.random), então todo mundo que abrir o jogo no mesmo dia vê o mesmo
-// confronto, e ele muda sozinho à meia-noite (hora local de cada um; sem
-// ranking pra comparar, não precisa ser o mesmo instante pra todo mundo).
-function getDailyChallengeTeams() {
+// Sorteia o adversário lendário da Supercopa do Brasil (Desafio do Dia) —
+// semeado pela DATA (não por Math.random), então todo mundo que abrir o
+// jogo no mesmo dia vê o mesmo confronto, e ele muda sozinho à meia-noite
+// (hora local de cada um; sem ranking pra comparar, não precisa ser o mesmo
+// instante pra todo mundo).
+function getDailyChallengeOpponent() {
   const now = new Date();
   const dateKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
   const prng = makePrng(hashSeed(`daily-${dateKey}`));
   const shuffled = [...TEAMS].sort(() => prng() - 0.5);
-  return { dateKey, teamA: shuffled[0], teamB: shuffled[1] };
+  return { dateKey, opponent: shuffled[0] };
 }
 
 // ── Calendário da temporada ──────────────────────────────────────────────
@@ -4849,23 +4850,25 @@ export default function App() {
   // de startSeason (jogo novo do zero).
   const [isTransferSeason, setIsTransferSeason] = useState(false);
 
-  // Desafio do Dia — partida única contra o confronto sorteado por data (o
-  // mesmo pra todo mundo que abrir o jogo hoje), sem entrar nas conquistas
-  // nem nas estatísticas de carreira (não é uma temporada de verdade) — só
-  // vencer dá +50 pontos soltos de ranking (ver bloco isolado dentro de
-  // applySeasonAwards). Reaproveita o motor do Brasileirão com fixtures de
-  // 1 rodada só — vira "última rodada" sozinho.
+  // Supercopa do Brasil (Desafio do Dia) — monta um time do zero (mesmo
+  // sorteio/draft de qualquer carreira nova) pra enfrentar um time lendário
+  // sorteado por data (o mesmo pra todo mundo que abrir o jogo hoje), numa
+  // partida única, sem entrar nas conquistas nem nas estatísticas de carreira
+  // (não é uma temporada de verdade) — só vencer dá +50 pontos soltos de
+  // ranking (ver bloco isolado dentro de applySeasonAwards). Reaproveita o
+  // motor do Brasileirão com fixtures de 1 rodada só — vira "última rodada"
+  // sozinho.
   const [isDailyChallenge, setIsDailyChallenge] = useState(_sv?.isDailyChallenge ?? false);
   const [showDailyChallenge, setShowDailyChallenge] = useState(false);
-  const dailyChallengeTeams = useMemo(() => getDailyChallengeTeams(), []);
+  const dailyChallenge = useMemo(() => getDailyChallengeOpponent(), []);
   // Só dá pra JOGAR (confirmar escalação e entrar em campo) uma vez por dia
   // — guardado por data (não por resultado), então nem perder/desistir libera
   // outra tentativa no mesmo dia. Marcado em `confirmDailyChallenge`, não ao
-  // abrir o modal (só escolher/ver o confronto não deveria "gastar" o dia).
+  // abrir o modal (só ver o adversário do dia não deveria "gastar" o dia).
   const [dailyChallengeDoneDate, setDailyChallengeDoneDate] = useState(() => {
     try { return localStorage.getItem('brl_daily_done_date'); } catch { return null; }
   });
-  const dailyChallengeAlreadyPlayed = dailyChallengeDoneDate === dailyChallengeTeams.dateKey;
+  const dailyChallengeAlreadyPlayed = dailyChallengeDoneDate === dailyChallenge.dateKey;
 
   // Multiplayer (PeerJS)
   const [multiPhase, setMultiPhase] = useState(null); // null|'lobby'|'room'
@@ -5302,17 +5305,16 @@ export default function App() {
     setPhase('squad');
   };
 
-  // Desafio do Dia: escolheu um dos 2 times do confronto de hoje — mesmo
-  // atalho de elenco pronto de cima, só que guarda quem é o adversário (o
-  // outro time do par) pra montar o confronto quando a escalação for
-  // confirmada (ver `confirmDailyChallenge`, o onConfirm da tela de Squad).
+  // Supercopa do Brasil: escolheu enfrentar o time lendário de hoje — vai
+  // pro fluxo normal de formação/sorteio (igual começar uma carreira do
+  // zero), só guardando quem é o adversário pra montar o confronto quando a
+  // escalação for confirmada (ver `confirmDailyChallenge`, o onConfirm da
+  // tela de Squad).
   const [dailyOpponent, setDailyOpponent] = useState(_sv?.dailyOpponent ?? null);
-  const startDailyChallenge = (team, opponent) => {
-    const built = autoFillSquadFromTeam(team);
-    if (!built) return;
-    setFormationKey(built.formationKey);
-    setPitchSlots(built.pitchSlots);
-    setPitch(built.pitch);
+  const startDailyChallenge = (opponent) => {
+    setFormationKey(null);
+    setPitchSlots([]);
+    setPitch({});
     setUsedTeamIds([]);
     setSkipsLeft(MAX_SKIPS);
     setLog([]);
@@ -5323,19 +5325,20 @@ export default function App() {
     setDailyOpponent(opponent);
     setIsDailyChallenge(true);
     setShowDailyChallenge(false);
-    setPhase('squad');
+    setPhase('formation');
   };
 
   // onConfirm da tela de Squad quando isDailyChallenge — em vez de sortear
-  // 19 adversários (startSeason), monta só o confronto de hoje: eu vs o
-  // outro time do par, 1 rodada só. O motor do Brasileirão já entende "1
-  // rodada = última rodada" sozinho (ver `regularRounds` em Playing), então
-  // não precisa de nada especial daqui pra frente além da tela de resultado.
+  // 19 adversários (startSeason), monta só o confronto de hoje: o time que
+  // acabei de montar no draft vs o time lendário do dia, 1 rodada só. O
+  // motor do Brasileirão já entende "1 rodada = última rodada" sozinho (ver
+  // `regularRounds` em Playing), então não precisa de nada especial daqui
+  // pra frente além da tela de resultado.
   const confirmDailyChallenge = () => {
     // Marca o dia como "gasto" já ao entrar em campo — nem perder ou
     // desistir no meio libera outra tentativa hoje.
-    try { localStorage.setItem('brl_daily_done_date', dailyChallengeTeams.dateKey); } catch { /* ignore */ }
-    setDailyChallengeDoneDate(dailyChallengeTeams.dateKey);
+    try { localStorage.setItem('brl_daily_done_date', dailyChallenge.dateKey); } catch { /* ignore */ }
+    setDailyChallengeDoneDate(dailyChallenge.dateKey);
     const pitchWithCaptain = captainSlot && pitch[captainSlot]
       ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
       : pitch;
@@ -5343,9 +5346,12 @@ export default function App() {
     const userPlayers = partitionStartersFirst(Object.values(pitchWithCaptain));
     const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, club: clubFromLogo(myTeamLogo), ovr: userOvr, players: userPlayers };
     const opp = dailyOpponent;
+    // Time LENDÁRIO de verdade: escala sempre na dificuldade mais alta, não
+    // na que a pessoa tem configurada pra carreira normal — é o que faz da
+    // Supercopa um desafio à parte, igual pra todo mundo que jogar hoje.
     const oppPlayers = applyDifficultyToPlayers(
       opp.players.map(p => ({ ...p, club: opp.club, year: opp.year, nat: p.nat || 'BRA' })),
-      difficulty
+      'lendario'
     );
     const oppTeamObj = {
       id: opp.id, label: opp.label, club: opp.club, clubLogo: CLUB_LOGOS[opp.club] || null,
@@ -6248,7 +6254,7 @@ export default function App() {
         const oppDailyRow = dailyTable.find(t => t.id !== myTeamId);
         const wonDaily = (myDailyRow?.gp ?? 0) > (oppDailyRow?.gp ?? 0);
         if (wonDaily) {
-          api.submitDailyChallengeResult({ dateKey: dailyChallengeTeams.dateKey })
+          api.submitDailyChallengeResult({ dateKey: dailyChallenge.dateKey })
             .then(({ user }) => setCurrentUser(user))
             .catch(() => { /* ranking é bônus — falha aqui não deve travar a tela de resultado */ });
         }
@@ -6958,6 +6964,12 @@ export default function App() {
     // cima de um save existente), nunca só passar pela tela inicial.
     if (phase === 'intro') return;
     if (multiPhase || roomSnap) return; // don't persist multiplayer sessions
+    // Supercopa do Brasil usa os MESMOS estados (pitch, leagueTeams,
+    // fixtures...) de uma carreira normal — gravar aqui durante o desafio
+    // sobrescreveria o save de uma carreira de verdade que já estava rolando
+    // antes de abrir a Supercopa. Como o desafio nunca é retomável entre
+    // sessões (1x por dia, sem "Continuar"), não custa nada não persistir.
+    if (isDailyChallenge) return;
     try {
       const save = {
         phase, formationKey, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
@@ -7138,13 +7150,26 @@ export default function App() {
     setViewingTeam(null);
   };
 
+  // "Voltar à home" ao SAIR da Supercopa do Brasil (tela de resultado do
+  // Desafio do Dia) — de propósito NÃO é o restart() acima. restart() apaga
+  // o `brl_save` do disco incondicionalmente; como o autosave já pula
+  // enquanto isDailyChallenge é true (ver efeito de autosave), o disco ainda
+  // guarda intacta uma eventual carreira real que já estava rolando antes de
+  // abrir o desafio — só que a MEMÓRIA (pitch, leagueTeams, fixtures...)
+  // ainda está com os dados da Supercopa que acabou de terminar. Recarregar
+  // a página é o jeito seguro de re-hidratar esse estado a partir do disco
+  // sem duplicar à mão a lógica inteira de restauração do save.
+  const exitDailyChallenge = () => {
+    window.location.reload();
+  };
+
   // Descrição curta de uma fase salva, pro botão "Continuar" na home e (se
   // um dia precisar) qualquer outro lugar que queira dizer onde a pessoa
   // parou. `p` é a fase (não necessariamente a `phase` atual — o botão
   // "Continuar" descreve `savedPhase` enquanto a tela ainda está em 'intro').
   const describePhase = (p) => {
     if (!p || p === 'intro' || p === 'results') return null;
-    if (isDailyChallenge) return 'o Desafio do Dia';
+    if (isDailyChallenge) return 'a Supercopa do Brasil';
     if (p === 'playing') {
       if (gameMode === 'copa') return CUP_ROUND_NAMES[cupRoundIdx] || 'Copa do Brasil';
       if (gameMode === 'serieab') {
@@ -7831,7 +7856,10 @@ export default function App() {
         />
       )}
       <header style={styles.header}>
-        <div style={{ ...styles.headerInner, maxWidth: wideMainMaxWidth || styles.headerInner.maxWidth }} className="header-inner-pad">
+        {/* Header sempre em largura total, em toda tela (diferente do `main`
+            abaixo, que ainda varia por fase via wideMainMaxWidth) — pedido
+            explícito pra não ficar com uma faixa estreita centralizada. */}
+        <div style={{ ...styles.headerInner, maxWidth: 'none' }} className="header-inner-pad">
           <div style={styles.crest}>🏆</div>
           <div>
             <div
@@ -7848,7 +7876,7 @@ export default function App() {
                 tirar da frente do título de marketing no corpo da Intro. Uma
                 divisória visual separa "ações da sessão" dos ícones utilitários,
                 pra não virar uma fileira confusa de botões sem hierarquia. */}
-            {phase === 'intro' && !multiPhase && (describePhase(savedPhase) || dailyChallengeTeams) && (
+            {phase === 'intro' && !multiPhase && (describePhase(savedPhase) || dailyChallenge) && (
               <>
                 {describePhase(savedPhase) && (
                   <button
@@ -7865,14 +7893,14 @@ export default function App() {
                     ▶ Continuar
                   </button>
                 )}
-                {dailyChallengeTeams && (
+                {dailyChallenge && (
                   <button
                     onClick={() => !dailyChallengeAlreadyPlayed && setShowDailyChallenge(true)}
                     className={dailyChallengeAlreadyPlayed ? '' : 'mode-card-hover tap-target-sm'}
                     disabled={dailyChallengeAlreadyPlayed}
                     title={dailyChallengeAlreadyPlayed
-                      ? 'Você já jogou o Desafio do Dia de hoje — volta amanhã pra outro confronto.'
-                      : `${parseTeamLabel(dailyChallengeTeams.teamA.label).baseName} × ${parseTeamLabel(dailyChallengeTeams.teamB.label).baseName} · vencer dá +50 pontos no ranking`}
+                      ? 'Você já jogou a Supercopa do Brasil de hoje — volta amanhã pra outro time lendário.'
+                      : `Monte um time pra enfrentar o ${parseTeamLabel(dailyChallenge.opponent.label).baseName} · vencer dá +50 pontos no ranking`}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
                       padding: '7px 12px', borderRadius: 999, cursor: dailyChallengeAlreadyPlayed ? 'default' : 'pointer', fontSize: 12, fontWeight: 700,
@@ -7881,7 +7909,7 @@ export default function App() {
                       background: dailyChallengeAlreadyPlayed ? 'transparent' : hexToRgba(myTeamColor || '#d4a23c', 0.1),
                     }}
                   >
-                    {dailyChallengeAlreadyPlayed ? '✅ Desafio de hoje feito' : '🔥 Desafio do Dia'}
+                    {dailyChallengeAlreadyPlayed ? '✅ Supercopa de hoje feita' : '🏆 Supercopa do Brasil'}
                   </button>
                 )}
                 <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
@@ -8078,21 +8106,20 @@ export default function App() {
             onMultiPlayer={() => setMultiPhase('lobby')}
             onNavigateInfo={navigateToInfo}
             onNavigateTeams={navigateToTeamsIndex}
-            dailyChallengeTeams={dailyChallengeTeams}
+            dailyChallenge={dailyChallenge}
             dailyChallengeAlreadyPlayed={dailyChallengeAlreadyPlayed}
             onOpenDailyChallenge={() => setShowDailyChallenge(true)}
           />
         )}
         {showDailyChallenge && (
           <DailyChallengeModal
-            teamA={dailyChallengeTeams.teamA}
-            teamB={dailyChallengeTeams.teamB}
+            opponent={dailyChallenge.opponent}
             myTeamColor={myTeamColor}
             onPick={startDailyChallenge}
             onClose={() => setShowDailyChallenge(false)}
           />
         )}
-        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase ? setGameMode : undefined} onPlayReadyMade={useReadyMadeSquad} />}
+        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge ? setGameMode : undefined} onPlayReadyMade={useReadyMadeSquad} isDailyChallenge={isDailyChallenge} />}
         {phase === 'transfer' && (
           <TransferMarket
             pitch={pitch}
@@ -8215,7 +8242,7 @@ export default function App() {
           />
         )}
         {phase === 'results' && isDailyChallenge && (
-          <DailyChallengeResults leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} leagueTeams={leagueTeams} currentUser={currentUser} onRestart={restart} />
+          <DailyChallengeResults leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} leagueTeams={leagueTeams} currentUser={currentUser} onExit={exitDailyChallenge} />
         )}
         {phase === 'results' && !isDailyChallenge && (
           /* "Nova temporada" e "Mercado" reconstroem a liga em torno de
@@ -8650,47 +8677,38 @@ function parseYouTubeId(input) {
   return null;
 }
 
-// Escolha de time do Desafio do Dia — mostra os 2 times do confronto de
-// hoje e deixa escolher qual dos dois jogar (o outro vira o adversário).
-function DailyChallengeModal({ teamA, teamB, myTeamColor, onPick, onClose }) {
+// Supercopa do Brasil (Desafio do Dia) — mostra o time lendário sorteado
+// pra hoje e manda pra tela de formação/sorteio pra montar um time do zero
+// pra enfrentá-lo, igual começar uma carreira nova.
+function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose }) {
   const mc = myTeamColor || '#d4a23c';
-  const renderTeamOption = (team, opponent) => {
-    const { baseName, achievement } = parseTeamLabel(team.label);
-    return (
-      <button
-        key={team.id}
-        onClick={() => onPick(team, opponent)}
-        style={{
-          display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12,
-          border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.03)',
-          color: '#F4F1EA', textAlign: 'left', cursor: 'pointer', width: '100%',
-        }}
-      >
-        {CLUB_LOGOS[team.club] && (
-          <img src={CLUB_LOGOS[team.club]} alt="" style={{ width: 36, height: 36, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
-        )}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
-          {achievement && <div style={{ fontSize: 11, color: mc, marginTop: 1 }}>{achievement}</div>}
-          <div style={{ fontSize: 11.5, color: mc, marginTop: 4, fontWeight: 600 }}>Jogar com este time →</div>
-        </div>
-      </button>
-    );
-  };
+  const { baseName, achievement } = parseTeamLabel(opponent.label);
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>🔥 Desafio do Dia</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>🏆 Supercopa do Brasil</div>
           <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
         </div>
         <p style={{ fontSize: 12.5, opacity: 0.6, lineHeight: 1.5, marginBottom: 16 }}>
-          Escolha um dos dois times de hoje pra escalar — o outro vira seu adversário nessa partida única. Vencer dá +50 pontos no ranking global. O confronto muda todo dia, e só dá pra jogar uma vez — escolha bem!
+          Monte um time do zero (mesmo sorteio de sempre) pra enfrentar o time lendário de hoje, numa partida única. Vencer dá +50 pontos no ranking global. O adversário muda todo dia, e só dá pra jogar uma vez — capricha na escalação!
         </p>
-        <div style={{ display: 'grid', gap: 10 }}>
-          {renderTeamOption(teamA, teamB)}
-          {renderTeamOption(teamB, teamA)}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: `1px solid ${hexToRgba(mc, 0.35)}`, background: hexToRgba(mc, 0.08), marginBottom: 16 }}>
+          {CLUB_LOGOS[opponent.club] && (
+            <img src={CLUB_LOGOS[opponent.club]} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+          )}
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 10.5, opacity: 0.55, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Adversário de hoje</div>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{opponent.year}</span></div>
+            {achievement && <div style={{ fontSize: 11, color: mc, marginTop: 1 }}>{achievement}</div>}
+          </div>
         </div>
+        <button
+          onClick={() => onPick(opponent)}
+          style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }}
+        >
+          Montar meu time →
+        </button>
       </div>
     </div>
   );
@@ -8713,7 +8731,7 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, dailyChallengeTeams, dailyChallengeAlreadyPlayed, onOpenDailyChallenge }) {
+function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
@@ -8929,19 +8947,19 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
           <button onClick={onNavigateTeams} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: '6px 2px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
             Times Históricos
           </button>
-          {dailyChallengeTeams && (
+          {dailyChallenge && (
             <button
               onClick={() => !dailyChallengeAlreadyPlayed && onOpenDailyChallenge()}
               className="tap-target-sm"
               disabled={dailyChallengeAlreadyPlayed}
-              title={dailyChallengeAlreadyPlayed ? 'Você já jogou hoje — volta amanhã.' : 'Vencer dá +50 pontos no ranking global'}
+              title={dailyChallengeAlreadyPlayed ? 'Você já jogou hoje — volta amanhã.' : 'Monte um time e vencer dá +50 pontos no ranking global'}
               style={{
                 background: 'none', border: 'none', cursor: dailyChallengeAlreadyPlayed ? 'default' : 'pointer', fontSize: 11.5, padding: '6px 2px',
                 textDecoration: 'underline', textUnderlineOffset: 3,
                 color: dailyChallengeAlreadyPlayed ? 'rgba(244,241,234,0.3)' : 'rgba(244,241,234,0.45)',
               }}
             >
-              🔥 Desafio do Dia {!dailyChallengeAlreadyPlayed && '(+50 pts)'}
+              🏆 Supercopa do Brasil {!dailyChallengeAlreadyPlayed && '(+50 pts)'}
             </button>
           )}
         </div>
@@ -10362,7 +10380,7 @@ const FORMATION_GROUPS = [
   { prefix: '5', title: 'Linha de 5 zagueiros', icon: '🔒', hint: 'Retranca — prioriza solidez defensiva' },
 ];
 
-function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode, onPlayReadyMade }) {
+function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode, onPlayReadyMade, isDailyChallenge }) {
   const groups = useMemo(() => (
     FORMATION_GROUPS
       .map(g => ({ ...g, items: Object.entries(FORMATIONS).filter(([key]) => key.split('-')[0] === g.prefix) }))
@@ -10403,7 +10421,7 @@ function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode, onPlayRead
           ))}
         </div>
       )}
-      <div style={styles.eyebrow}>Passo 1 de 2</div>
+      <div style={styles.eyebrow}>{isDailyChallenge ? '🏆 Supercopa do Brasil · Passo 1 de 2' : 'Passo 1 de 2'}</div>
       <h2 style={styles.h2}>Escolha o esquema tático</h2>
       <p style={styles.formationIntro}>
         {total} esquemas táticos à sua escolha, organizados pela linha de defesa. Cada posição no campinho
@@ -13698,17 +13716,20 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
       <div style={styles.draftTopRow}>
         <div>
           <div style={styles.eyebrow}>
-            {isDailyChallenge ? '🔥 Desafio do Dia' : inPromotionTie ? 'Série A/B · Mata-mata de Acesso' : gameMode === 'serieab' ? `Brasileirão · Série ${myDivision}` : 'Brasileirão · Série A'}
+            {isDailyChallenge ? '🏆 Supercopa do Brasil' : inPromotionTie ? 'Série A/B · Mata-mata de Acesso' : gameMode === 'serieab' ? `Brasileirão · Série ${myDivision}` : 'Brasileirão · Série A'}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3 }}>
             <span style={{ fontSize: 13, opacity: 0.6 }}>
               {isDailyChallenge
-                ? `vs ${leagueTeams.find(t => t.id !== myTeamId)?.label || 'adversário de hoje'}`
+                ? `vs ${leagueTeams.find(t => t.id !== myTeamId)?.label || 'time lendário de hoje'}`
                 : inPromotionTie
                 ? `${promotionTie.leg === 1 ? 'Jogo de Ida' : 'Jogo de Volta'} vs ${promotionTie.opponentLabel}`
                 : `Rodada ${currentRound + 1} de ${regularRounds}`}
             </span>
-            <DifficultyBadge difficulty={difficulty} />
+            {/* O adversário da Supercopa é sempre escalado em Lendário (ver
+                confirmDailyChallenge) — o badge mostra isso, não a
+                dificuldade configurada pra carreira normal do jogador. */}
+            <DifficultyBadge difficulty={isDailyChallenge ? 'lendario' : difficulty} />
           </div>
           {onOpenCalendar && (
             <button
@@ -14546,7 +14567,7 @@ function ResultStatRow({ rank, name, team, value, mc }) {
 // temporada de verdade (sem tabela, sem prêmios, sem "Nova Temporada"): é
 // uma partida avulsa só pra divertir, então o placar e um "volte amanhã"
 // já contam a história inteira.
-function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, leagueTeams, currentUser, onRestart }) {
+function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, leagueTeams, currentUser, onExit }) {
   const mc = myTeamColor || '#d4a23c';
   const myRow = leagueTable.find(t => t.id === myTeamId) || {};
   const oppRow = leagueTable.find(t => t.id !== myTeamId) || {};
@@ -14563,11 +14584,11 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
         <ChampionCrest
           logoUrl={crestLogo}
           badgeEmoji={result === 'win' ? myTeamBadge : null}
-          fallback={result === 'win' ? '🔥' : result === 'draw' ? '🤝' : '😮'}
+          fallback={result === 'win' ? '🏆' : result === 'draw' ? '🤝' : '😮'}
           mc={mc}
         />
       </div>
-      <div style={styles.eyebrow}>Desafio do Dia</div>
+      <div style={styles.eyebrow}>Supercopa do Brasil</div>
       <h1 style={styles.h1} className="h1-mob">
         {result === 'win' ? 'VITÓRIA!' : result === 'draw' ? 'EMPATE' : 'DERROTA'}
       </h1>
@@ -14576,9 +14597,9 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
       </div>
       <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.6, marginBottom: 20 }}>vs {oppTeam?.label}</div>
       <p style={{ fontSize: 13, opacity: 0.7, textAlign: 'center', lineHeight: 1.5, marginBottom: 8 }}>
-        {result === 'win' && 'Levou a melhor no confronto de hoje!'}
-        {result === 'draw' && 'Ficou tudo igual hoje — tenta desempatar amanhã, com outro confronto.'}
-        {result === 'loss' && 'Hoje não deu — volta amanhã pra outro confronto e tenta de novo.'}
+        {result === 'win' && 'Time montado do zero derrubou um time lendário — levou a Supercopa de hoje!'}
+        {result === 'draw' && 'Ficou tudo igual contra o time lendário de hoje — tenta desempatar amanhã, com outro adversário.'}
+        {result === 'loss' && 'O time lendário de hoje levou a melhor — volta amanhã pra outro confronto e tenta de novo.'}
       </p>
       {result === 'win' && currentUser && (
         <div style={{ textAlign: 'center', fontSize: 12.5, fontWeight: 700, color: mc, marginBottom: 8 }}>
@@ -14586,9 +14607,9 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
         </div>
       )}
       <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.5, marginBottom: 22 }}>
-        Só dá pra jogar o Desafio do Dia uma vez por dia — volta amanhã pra outro confronto.
+        Só dá pra jogar a Supercopa do Brasil uma vez por dia — volta amanhã pra outro time lendário.
       </div>
-      <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
+      <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onExit}>
         Voltar à home →
       </button>
     </div>
