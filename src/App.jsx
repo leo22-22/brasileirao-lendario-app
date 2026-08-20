@@ -1938,7 +1938,7 @@ const TEAMS = [
       { name: 'Rodrigo Mancha', pos: ['VOL'], ovr: 78 },
       { name: 'Madson', pos: ['MEI', 'PD'], ovr: 81 },
       { name: 'Robinho', pos: ['ATA', 'PE', 'PD'], ovr: 90 },
-      { name: 'André', pos: ['ATA'], ovr: 86 },
+      { name: 'Borges', pos: ['ATA'], ovr: 84 },
     ]
   },
   {
