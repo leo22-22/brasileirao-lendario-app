@@ -9110,7 +9110,20 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
   const [error, setError] = useState('');
   const [showAchievements, setShowAchievements] = useState(false);
 
-  const [audioMode, setAudioMode] = useState('default'); // 'off' | 'default' | 'hino' | 'youtube'
+  // 'off' | 'default' | 'hino' | 'youtube' — começava sempre em 'default'
+  // (a trilha padrão tocando alto, sozinha, com autoplay) toda vez que essa
+  // tela abria, mesmo pra quem tinha desligado da última vez — o estado
+  // nunca sobrevivia ao fechar o modal. Persiste a escolha (ver
+  // setAudioModePersist abaixo) e começa desligado por padrão na primeira
+  // vez, em vez de assumir que todo mundo quer áudio tocando sozinho assim
+  // que abre a tela.
+  const [audioMode, setAudioMode] = useState(() => {
+    try { return localStorage.getItem('brl_club_ambient_mode') || 'off'; } catch { return 'off'; }
+  });
+  const setAudioModePersist = (mode) => {
+    setAudioMode(mode);
+    try { localStorage.setItem('brl_club_ambient_mode', mode); } catch { /* ignore */ }
+  };
   const [ytInput, setYtInput] = useState('');
   const [ytId, setYtId] = useState(null);
 
@@ -9499,7 +9512,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
 
                 <div style={{ display: 'grid', gap: 8, position: 'relative' }}>
                   <button
-                    onClick={() => setAudioMode(m => m === 'default' ? 'off' : 'default')}
+                    onClick={() => setAudioModePersist(audioMode === 'default' ? 'off' : 'default')}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                       padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
@@ -9517,7 +9530,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                   </button>
 
                   <button
-                    onClick={() => anthemId && setAudioMode(m => m === 'hino' ? 'off' : 'hino')}
+                    onClick={() => anthemId && setAudioModePersist(audioMode === 'hino' ? 'off' : 'hino')}
                     disabled={!anthemId}
                     title={!anthemId ? 'Escolha um emblema de clube oficial acima pra liberar o hino' : ''}
                     style={{
@@ -9547,7 +9560,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                   </button>
 
                   <button
-                    onClick={() => setAudioMode(m => m === 'youtube' ? 'off' : 'youtube')}
+                    onClick={() => setAudioModePersist(audioMode === 'youtube' ? 'off' : 'youtube')}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                       padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
