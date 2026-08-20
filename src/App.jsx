@@ -8813,6 +8813,12 @@ function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose }) {
 // título invicto) com metas quantitativas (com barra, via getAchievementProgress).
 const FEATURED_ACHIEVEMENT_IDS = ['unbeaten_league_champion', 'goals_1000', 'dynasty', 'veteran'];
 
+// Teto de emblemas mostrados no grid de "Meu Clube" antes de virar um "+N"
+// que abre a galeria completa — o catálogo já passa de 200 conquistas, e
+// listar todas as desbloqueadas de um jogador ativo sem limite virava uma
+// parede de ícones.
+const ACHIEVEMENTS_PREVIEW_LIMIT = 11;
+
 // Selo de tamanho do acervo: quantos clubes, elencos e jogadores dá pra
 // sortear. Substitui contagem de contas cadastradas/ativas (ver GAME_STATS
 // acima) nos dois lugares em que a home e o ranking mostravam esse tipo de
@@ -9423,26 +9429,51 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
             </>
           )}
 
-          <div style={{ marginBottom: onUpdateFields ? 24 : 0 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-              <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1 }}>
-                Conquistas ({unlockedCount}/{totalAchievements})
+          {/* Antes era uma lista de pills de largura variável, sem limite —
+              com o catálogo passando de 200 conquistas, um jogador ativo
+              virava uma parede de textinho quebrando linha sem nenhuma
+              organização. Agora é um grid de emblemas de tamanho fixo
+              (mesmo tratamento visual dos cards de Áudio abaixo), com um
+              teto de itens e um "+N" que abre a galeria completa.       */}
+          <div style={{
+            background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
+            border: `1px solid ${hexToRgba(mc, 0.3)}`,
+            borderRadius: 16, padding: '18px 20px', marginBottom: onUpdateFields ? 24 : 0,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🏅</div>
+                <div>
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>{unlockedCount}/{totalAchievements}</div>
+                  <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>Conquistas</div>
+                </div>
               </div>
-              <button onClick={() => setShowAchievements(true)} style={{ background: 'none', border: 'none', color: mc, fontSize: 11, cursor: 'pointer', padding: 0 }}>
+              <button onClick={() => setShowAchievements(true)} style={{ background: 'none', border: 'none', color: mc, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', padding: 0, flexShrink: 0 }}>
                 Ver todas →
               </button>
             </div>
-            {user?.achievements?.length > 0 ? (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                {user.achievements.map(id => {
+            {unlockedCount > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(64px, 1fr))', gap: 10 }}>
+                {user.achievements.slice(0, ACHIEVEMENTS_PREVIEW_LIMIT).map(id => {
                   const a = ACHIEVEMENT_CATALOG[id];
                   if (!a) return null;
                   return (
-                    <span key={id} title={a.desc} style={{ fontSize: 11, background: 'rgba(212,162,60,0.12)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 999, padding: '3px 9px', display: 'flex', alignItems: 'center', gap: 4 }}>
-                      {a.icon} {a.label}
-                    </span>
+                    <div key={id} title={`${a.label} — ${a.desc}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, textAlign: 'center' }}>
+                      <div style={{ width: 42, height: 42, borderRadius: 12, background: hexToRgba(mc, 0.15), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
+                        {a.icon}
+                      </div>
+                      <div style={{ fontSize: 9.5, opacity: 0.7, lineHeight: 1.25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.label}</div>
+                    </div>
                   );
                 })}
+                {unlockedCount > ACHIEVEMENTS_PREVIEW_LIMIT && (
+                  <button
+                    onClick={() => setShowAchievements(true)}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: 12, cursor: 'pointer', color: mc, minHeight: 42, padding: 0 }}
+                  >
+                    <span style={{ fontSize: 14, fontWeight: 700 }}>+{unlockedCount - ACHIEVEMENTS_PREVIEW_LIMIT}</span>
+                  </button>
+                )}
               </div>
             ) : (
               <div style={{ fontSize: 11.5, opacity: 0.4 }}>Nenhuma conquista desbloqueada ainda.</div>
