@@ -4911,7 +4911,14 @@ export default function App() {
   // Datas de cada rodada — derivadas (função pura), nunca salvas. Só faz
   // sentido no Brasileirão (a Copa é mata-mata, sem calendário de pontos
   // corridos).
-  const seasonYear = useMemo(() => new Date().getFullYear(), []);
+  //
+  // seasonYear em si PRECISA ser estado (salvo), não um useMemo([]) fixo no
+  // ano real: era isso que prendia toda "Nova Temporada" (mesmo elenco ou
+  // via mercado de transferências) sempre em 2026 — o valor era calculado
+  // uma vez só, na primeira renderização do componente, e nunca mudava de
+  // novo dali pra frente. Incrementado em newSeason() (ver mais abaixo);
+  // volta pro ano real em startSeason() (carreira nova do zero).
+  const [seasonYear, setSeasonYear] = useState(_sv?.seasonYear ?? new Date().getFullYear());
   const seasonDates = useMemo(
     () => (fixtures.length > 0 ? buildSeasonCalendar(fixtures.length, seasonYear) : []),
     [fixtures.length, seasonYear]
@@ -5686,6 +5693,10 @@ export default function App() {
   };
 
   const startSeason = () => {
+    // Carreira nova do zero: o calendário volta a começar no ano real de
+    // hoje, mesmo que a carreira anterior (via "Nova Temporada") já tivesse
+    // avançado vários anos.
+    setSeasonYear(new Date().getFullYear());
     // Aplica +2 OVR ao capitão antes de calcular o time
     const pitchWithCaptain = captainSlot && pitch[captainSlot]
       ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
@@ -6985,10 +6996,11 @@ export default function App() {
         // chamava startSeason() em vez de newSeason(), o que reseta
         // myDivision pra 'A' e descarta silenciosamente uma queda pra Série B.
         isTransferSeason,
+        seasonYear,
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isTransferSeason]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isTransferSeason, seasonYear]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -7293,6 +7305,7 @@ export default function App() {
   // Nova temporada com o mesmo elenco
   const newSeason = useCallback(() => {
     setIsTransferSeason(false);
+    setSeasonYear(y => y + 1);
     const pitchWithCaptain = captainSlot && pitch[captainSlot]
       ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
       : pitch;
@@ -8292,6 +8305,7 @@ export default function App() {
             onSimulateAll={isDailyChallenge ? () => fastForwardBrasileirao(null, { onCalendar: false }) : gameMode === 'copa' ? fastForwardCopa : (gameMode === 'serieab' && promotionTie?.leg) ? undefined : simulateSeasonOnCalendar}
             onOpenCalendar={!isDailyChallenge && (gameMode === 'brasileirao' || gameMode === 'serieab') ? openCalendar : undefined}
             myDivision={myDivision}
+            otherDivision={otherDivision}
             promotionTie={promotionTie}
             isDailyChallenge={isDailyChallenge}
             // Durante a simulação pelo calendário o modal já mostra o
@@ -13411,7 +13425,7 @@ function SeasonCalendarModal({
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, promotionTie, isDailyChallenge }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge }) {
   const mc = myTeamColor || '#d4a23c';
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -13441,11 +13455,17 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   // Navegação por abas (só faz sentido no Brasileirão — a Copa é mata-mata,
   // sem tabela/estatísticas de temporada pra separar; ela mantém a tela única).
   const [activeTab, setActiveTab] = useState('partida');
+  // Divisão espelho (só IA) da Série A/B: existia calculada há tempos
+  // (promoção/rebaixamento depende dela), mas não tinha NENHUM jeito de ver
+  // — nem essa aba, nem em lugar nenhum. `myDivision` é a MINHA divisão;
+  // `otherDivision.table` é sempre da outra.
+  const otherDivisionLabel = myDivision === 'A' ? 'B' : 'A';
   const TABS = [
     { id: 'partida', label: 'Partida', icon: '⚽' },
     { id: 'tabela', label: 'Tabela', icon: '📊' },
     { id: 'elenco', label: 'Elenco', icon: '👥' },
     { id: 'estatisticas', label: 'Estatísticas', icon: '🏅' },
+    ...(gameMode === 'serieab' && otherDivision ? [{ id: 'outra-serie', label: `Série ${otherDivisionLabel}`, icon: '🔭' }] : []),
   ];
 
   // Simulação direta da Copa: em vez do overlay genérico de "Simulando…", ela
@@ -13963,6 +13983,58 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               </span>
             ))}
           </div>
+        </div>
+      )}
+
+      {activeTab === 'outra-serie' && otherDivision && (
+        <div style={styles.tableSection} className="table-scroll">
+          <div style={styles.sectionLabel}>
+            Série {otherDivisionLabel} · Rodada {Math.min(otherDivision.round, otherDivision.fixtures.length)} de {otherDivision.fixtures.length}
+          </div>
+          <p style={{ fontSize: 11.5, opacity: 0.55, margin: '2px 0 12px' }}>
+            Só times de IA disputando em paralelo — quando a temporada acabar, quem sobe/desce daqui também conta pra sua Série {myDivision} do ano que vem.
+          </p>
+          <div style={styles.tableHeaderRow}>
+            <span style={styles.tablePos}>#</span>
+            <span style={{ flex: 1 }}>Time</span>
+            <span style={styles.tableCell}>PJ</span>
+            <span style={styles.tableCell}>V</span>
+            <span style={styles.tableCell}>E</span>
+            <span style={styles.tableCell}>D</span>
+            <span style={styles.tableCell} className="table-col-hide-mobile">GP</span>
+            <span style={styles.tableCell} className="table-col-hide-mobile">GC</span>
+            <span style={styles.tableCell}>SG</span>
+            <span style={{ ...styles.tableCell, color: '#d4a23c', fontWeight: 700 }}>PTS</span>
+            <span style={{ width: 28 }} className="table-col-hide-mobile"></span>
+          </div>
+          {otherDivision.table.map((row, i) => {
+            const sg = row.gp - row.gc;
+            const zone = getZoneInfo(i + 1, otherDivision.table.length);
+            return (
+              <div key={row.id} style={{
+                ...styles.tableRow,
+                background: i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
+                borderLeft: zone ? `3px solid ${zone.color}` : '3px solid transparent',
+              }}>
+                <span style={styles.tablePos}>{i + 1}</span>
+                <span style={{ flex: 1, minWidth: 0, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  {row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />}
+                  <span style={{ flex: '1 1 0%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
+                </span>
+                <span style={styles.tableCell}>{row.pj}</span>
+                <span style={{ ...styles.tableCell, color: row.v > 0 ? '#7fd99a' : undefined }}>{row.v}</span>
+                <span style={styles.tableCell}>{row.e}</span>
+                <span style={{ ...styles.tableCell, color: row.d > 0 ? '#e0593f' : undefined }}>{row.d}</span>
+                <span style={styles.tableCell} className="table-col-hide-mobile">{row.gp}</span>
+                <span style={styles.tableCell} className="table-col-hide-mobile">{row.gc}</span>
+                <span style={{ ...styles.tableCell, color: sg > 0 ? '#7fd99a' : sg < 0 ? '#e0593f' : undefined }}>{sg >= 0 ? `+${sg}` : sg}</span>
+                <span style={{ ...styles.tableCell, fontWeight: 700, color: '#d4a23c' }}>{row.pts}</span>
+                <span style={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="table-col-hide-mobile">
+                  {zone && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{zone.label}</span>}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -14724,6 +14796,7 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
 function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision }) {
   const mc = myTeamColor || '#d4a23c';
   const [showCampaign, setShowCampaign] = useState(false);
+  const [showOtherDivision, setShowOtherDivision] = useState(false);
   // Nome do time dono da chave time::nome — jogadores reais se repetem entre
   // elencos de anos diferentes (Gabigol no Flamengo 2019 e no 2020), e sem
   // isso os rankings mostravam o mesmo nome duas vezes seguidas, parecendo
@@ -14903,6 +14976,49 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             {divisionMove === 'stayed' && myDivision === 'A' &&
               `Terminou em ${pos}º lugar na Série A — segue na mesma divisão na próxima temporada.`}
           </div>
+        </ResultSection>
+      )}
+
+      {/* Divisão espelho (só IA) — existia calculada há tempos (é dela que
+          vem quem sobe/desce do outro lado), mas não tinha jeito nenhum de
+          ver o resultado final, nem aqui nem durante a temporada. */}
+      {gameMode === 'serieab' && otherDivision && (
+        <ResultSection icon="🔭" label={`Como terminou a Série ${myDivision === 'A' ? 'B' : 'A'}`} mc={mc}>
+          <button
+            onClick={() => setShowOtherDivision(v => !v)}
+            style={{ background: 'none', border: 'none', color: mc, cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, marginBottom: showOtherDivision ? 12 : 0 }}
+          >
+            {showOtherDivision ? '▾' : '▸'} Ver classificação final ({otherDivision.table.length} times)
+          </button>
+          {showOtherDivision && (
+            <div className="table-scroll">
+              <div style={styles.tableHeaderRow}>
+                <span style={styles.tablePos}>#</span>
+                <span style={{ flex: 1 }}>Time</span>
+                <span style={styles.tableCell}>PJ</span>
+                <span style={{ ...styles.tableCell, color: '#d4a23c', fontWeight: 700 }}>PTS</span>
+              </div>
+              {otherDivision.table.map((row, i) => {
+                const zone = getZoneInfo(i + 1, otherDivision.table.length);
+                return (
+                  <div key={row.id} style={{
+                    ...styles.tableRow,
+                    background: i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
+                    borderLeft: zone ? `3px solid ${zone.color}` : '3px solid transparent',
+                  }}>
+                    <span style={styles.tablePos}>{i + 1}</span>
+                    <span style={{ flex: 1, minWidth: 0, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      {row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />}
+                      <span style={{ flex: '1 1 0%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
+                      {zone && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{zone.label}</span>}
+                    </span>
+                    <span style={styles.tableCell}>{row.pj}</span>
+                    <span style={{ ...styles.tableCell, fontWeight: 700, color: '#d4a23c' }}>{row.pts}</span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </ResultSection>
       )}
 
