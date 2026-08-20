@@ -2136,7 +2136,7 @@ const TEAMS = [
       { name: 'Elias', pos: ['VOL', 'MEI'], ovr: 84 },
       { name: 'Renato Augusto', pos: ['MEI', 'MC'], ovr: 86 },
       { name: 'Jadson', pos: ['MEI', 'MC'], ovr: 88 },
-      { name: 'Roberto Firmino', pos: ['ATA', 'MEI'], ovr: 85 },
+      { name: 'Vagner Love', pos: ['ATA'], ovr: 85 },
       { name: 'Malcom', pos: ['PD', 'MD'], ovr: 82 },
       { name: 'Alessandro', pos: ['LD'], ovr: 78 },
       { name: 'Chicao', pos: ['ZAG'], ovr: 82 },
