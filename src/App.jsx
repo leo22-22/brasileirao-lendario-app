@@ -9082,8 +9082,19 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
   const gp = user?.career_goals || 0;
   const gc = user?.career_conceded || 0;
   const gd = gp - gc;
+  const assists = user?.career_assists || 0;
   const unlockedCount = (user?.achievements || []).length;
   const totalAchievements = Object.keys(ACHIEVEMENT_CATALOG).length;
+  // Recordes de carreira: o servidor já calcula e guarda tudo isso
+  // (routes/me.ts, season-result) mas essa tela — que é justamente o lugar
+  // certo pra mostrar a história do clube — não exibia nenhum deles.
+  const bestPosition = user?.best_position ?? null;
+  const bestGoalDiff = user?.best_goal_diff ?? null;
+  const bestTeamOvr = user?.best_team_ovr ?? null;
+  const bestPlayerOvr = user?.best_player_ovr ?? null;
+  const rankingPoints = user?.ranking_points ?? 0;
+  const unbeatenTitles = (user?.unbeaten_titles_brasileirao || 0) + (user?.unbeaten_titles_copa || 0);
+  const multiplayerWins = user?.multiplayer_wins || 0;
 
   const fileInputRef = useRef(null);
   const [cropSrc, setCropSrc] = useState(null);
@@ -9241,6 +9252,11 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
           <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>
             {user?.team_city || ''}{user?.team_coach ? ` · Téc. ${user.team_coach}` : ''}
           </div>
+          {user?.created_at && (
+            <div style={{ fontSize: 10.5, opacity: 0.4, marginTop: 4 }}>
+              Clube fundado em {new Date(user.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+            </div>
+          )}
         </div>
 
         <div style={{ padding: '20px 24px 24px' }}>
@@ -9364,6 +9380,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
             <Stat label="Brasileirões" value={user?.titles_brasileirao || 0} />
             <Stat label="Copas do Brasil" value={user?.titles_copa || 0} />
             <Stat label="Temporadas" value={user?.seasons_played || 0} />
+            <Stat label="Pontos ranking" value={rankingPoints} />
           </div>
 
           <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Retrospecto de carreira</div>
@@ -9384,9 +9401,27 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
 
           <div style={{ display: 'flex', gap: 8, marginBottom: 22 }}>
             <Stat label="Gols marcados" value={gp} />
+            <Stat label="Assistências" value={assists} />
             <Stat label="Gols sofridos" value={gc} />
             <Stat label="Saldo" value={gd >= 0 ? `+${gd}` : gd} />
           </div>
+
+          {/* Recordes — melhor marca já batida em qualquer temporada da
+              carreira, nunca diminui (ver applySeasonAwards no servidor).
+              Só aparece o que já foi alcançado ao menos uma vez. */}
+          {(bestPosition != null || bestGoalDiff != null || bestTeamOvr != null || bestPlayerOvr != null || unbeatenTitles > 0 || multiplayerWins > 0) && (
+            <>
+              <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Recordes</div>
+              <div style={{ display: 'flex', gap: 8, marginBottom: 22, flexWrap: 'wrap' }}>
+                {bestPosition != null && <Stat label="Melhor posição" value={`${bestPosition}º`} />}
+                {bestGoalDiff != null && <Stat label="Melhor saldo" value={bestGoalDiff >= 0 ? `+${bestGoalDiff}` : bestGoalDiff} />}
+                {bestTeamOvr != null && <Stat label="Melhor time" value={Number(bestTeamOvr).toFixed(1)} />}
+                {bestPlayerOvr != null && <Stat label="Melhor jogador" value={bestPlayerOvr} />}
+                {unbeatenTitles > 0 && <Stat label="Títulos invictos" value={unbeatenTitles} />}
+                {multiplayerWins > 0 && <Stat label="Vitórias c/ amigos" value={multiplayerWins} />}
+              </div>
+            </>
+          )}
 
           <div style={{ marginBottom: onUpdateFields ? 24 : 0 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
