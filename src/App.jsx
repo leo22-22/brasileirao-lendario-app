@@ -9345,7 +9345,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                 <div style={styles.teamEditLabel}>Cor principal</div>
                 <div style={styles.colorGrid}>
                   {TEAM_COLORS.map(c => (
-                    <button key={c} onClick={() => commitField('team_color', c)} style={{
+                    <button key={c} onClick={() => commitField('team_color', c)} className="tap-target-sm" style={{
                       width: 30, height: 30, borderRadius: '50%',
                       background: c,
                       border: `3px solid ${mc === c ? '#fff' : 'transparent'}`,
@@ -10406,7 +10406,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             <div style={styles.teamEditLabel}>Cor</div>
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {['#d4a23c', '#e05050', '#4a90d9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#e91e8c'].map(c => (
-                <button key={c} onClick={() => onSetColor(c)} style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: `3px solid ${myTeamColor === c ? '#fff' : 'transparent'}`, outline: myTeamColor === c ? `2px solid ${c}` : 'none', outlineOffset: 2, cursor: 'pointer', padding: 0 }} />
+                <button key={c} onClick={() => onSetColor(c)} className="tap-target-sm" style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: `3px solid ${myTeamColor === c ? '#fff' : 'transparent'}`, outline: myTeamColor === c ? `2px solid ${c}` : 'none', outlineOffset: 2, cursor: 'pointer', padding: 0 }} />
               ))}
             </div>
           </div>
@@ -10414,7 +10414,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             <div style={styles.teamEditLabel}>Emblema do clube</div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {Object.entries(CLUB_LOGOS).map(([club, url]) => (
-                <button key={club} onClick={() => onSetLogo(myTeamLogo === url ? null : url)} title={club} style={{ width: 38, height: 38, borderRadius: 8, padding: 4, border: `2px solid ${myTeamLogo === url ? mc : 'rgba(255,255,255,0.08)'}`, background: myTeamLogo === url ? hexToRgba(mc, 0.15) : 'rgba(255,255,255,0.03)', cursor: 'pointer' }}>
+                <button key={club} onClick={() => onSetLogo(myTeamLogo === url ? null : url)} title={club} className="tap-target-sm" style={{ width: 38, height: 38, borderRadius: 8, padding: 4, border: `2px solid ${myTeamLogo === url ? mc : 'rgba(255,255,255,0.08)'}`, background: myTeamLogo === url ? hexToRgba(mc, 0.15) : 'rgba(255,255,255,0.03)', cursor: 'pointer' }}>
                   <img src={url} alt={club} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                 </button>
               ))}
