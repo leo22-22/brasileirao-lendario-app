@@ -2778,63 +2778,63 @@ const FORMATIONS = {
 
   // --- Variações do 4-3-3 ---
   '4-3-3-ofensivo': {
-    label: '4-3-3 Ofensivo (1 VOL, 2 MEI)',
+    label: '4-3-3 Ofensivo',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MEI: 2, PD: 1, PE: 1, ATA: 1 }
   },
   '4-3-3-misto': {
-    label: '4-3-3 Misto (1 VOL, 1 MC, 1 MEI)',
+    label: '4-3-3 Equilibrado',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 1, MEI: 1, PD: 1, PE: 1, ATA: 1 }
   },
   '4-3-3-defensivo': {
-    label: '4-3-3 Contenção (2 VOL, 1 MC)',
+    label: '4-3-3 Defensivo',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 1, PD: 1, PE: 1, ATA: 1 }
   },
 
   // --- Variações do 4-4-2 ---
   '4-4-2-linha': {
-    label: '4-4-2 Tradicional em Linha',
+    label: '4-4-2 Tradicional',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MD: 1, ME: 1, ATA: 2 }
   },
   '4-4-2-losango-misto': {
-    label: '4-4-2 Losango (1 VOL, 2 MC, 1 MEI)',
+    label: '4-4-2 Losango',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MEI: 1, ATA: 2 }
   },
   '4-4-2-quadrado': {
-    label: '4-2-2-2 (2 VOL, 2 MEI)',
+    label: '4-2-2-2 Quadrado',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MEI: 2, ATA: 2 }
   },
 
   // --- Variações do 4-2-3-1 ---
   '4-2-3-1-classico': {
-    label: '4-2-3-1 Defensivo (2 VOL, 1 MC, 1 MD, 1 ME)',
+    label: '4-2-3-1 Defensivo',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 1, MD: 1, ME: 1, ATA: 1 }
   },
   '4-2-3-1-ofensivo': {
-    label: '4-2-3-1 Ofensivo (1 VOL, 1 MC, 1 MEI, 2 PONTA)',
+    label: '4-2-3-1 Ofensivo',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 1, MEI: 1, PD: 1, PE: 1, ATA: 1 }
   },
 
   // --- Variações do 4-1-4-1 e 4-5-1 ---
   '4-1-4-1-ofensivo': {
-    label: '4-1-4-1 Ofensivo (1 VOL, 2 MC, 1 MD, 1 ME)',
+    label: '4-1-4-1 Ofensivo',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MD: 1, ME: 1, ATA: 1 }
   },
   '4-1-4-1-linha': {
-    label: '4-1-4-1 Técnico (1 VOL, 2 MEI, 1 MD, 1 ME)',
+    label: '4-1-4-1 Técnico',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 2, ME: 1, ATA: 1 }
   },
   '4-5-1-retranca': {
-    label: '4-5-1 Bloqueio (1 VOL, 2 MC, 1 MD, 1 ME)',
+    label: '4-5-1 Defensivo',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MD: 1, ME: 1, ATA: 1 }
   },
 
   // --- Variações do 4-3-1-2 e 4-1-3-2 ---
   '4-3-1-2-misto': {
-    label: '4-3-1-2 Italiano (1 VOL, 2 MC, 1 MEI)',
+    label: '4-3-1-2 Equilibrado',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MEI: 1, ATA: 2 }
   },
   '4-1-3-2-ofensivo': {
-    label: '4-1-3-2 Pressão (1 VOL, 1 MD, 1 MEI, 1 ME)',
+    label: '4-1-3-2 Ofensivo',
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 1, ME: 1, ATA: 2 }
   },
 
@@ -2845,27 +2845,27 @@ const FORMATIONS = {
 
   // --- Variações do 3-5-2 ---
   '3-5-2-equilibrio': {
-    label: '3-5-2 (1 VOL, 1 MC, 1 MEI)',
+    label: '3-5-2 Equilibrado',
     counts: { GOL: 1, ZAG: 3, MD: 1, VOL: 1, MC: 1, MEI: 1, ME: 1, ATA: 2 }
   },
   '3-5-2-pesado': {
-    label: '3-5-2 Pesado (2 VOL, 1 MEI)',
+    label: '3-5-2 Defensivo',
     counts: { GOL: 1, ZAG: 3, MD: 1, VOL: 2, MEI: 1, ME: 1, ATA: 2 }
   },
 
   // --- Variação do 3-4-3 (sem alas — 3 zagueiros puros, 4 no meio, 3 na frente) ---
   '3-4-3-misto': {
-    label: '3-4-3 (1 VOL, 1 MC, 1 MD, 1 ME)',
+    label: '3-4-3 Equilibrado',
     counts: { GOL: 1, ZAG: 3, VOL: 1, MC: 1, MD: 1, ME: 1, PD: 1, PE: 1, ATA: 1 }
   },
 
   // --- Outros esquemas com 3 Zagueiros (sem alas) ---
   '3-4-2-1-moderno': {
-    label: '3-4-2-1 (1 VOL, 1 MC, 1 MD, 1 ME, 2 MEI)',
+    label: '3-4-2-1 Moderno',
     counts: { GOL: 1, ZAG: 3, VOL: 1, MC: 1, MD: 1, ME: 1, MEI: 2, ATA: 1 }
   },
   '3-2-4-1-ofensivo': {
-    label: '3-2-4-1 (1 VOL, 1 MC, 2 MEI)',
+    label: '3-2-4-1 Ofensivo',
     counts: { GOL: 1, ZAG: 3, VOL: 1, MC: 1, MEI: 2, PD: 1, PE: 1, ATA: 1 }
   },
 
@@ -2875,15 +2875,15 @@ const FORMATIONS = {
   // ==========================================
 
   '5-3-2-muralha': {
-    label: '5-3-2 Retranca Total (1 VOL, 2 MC)',
+    label: '5-3-2 Defensivo',
     counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 2, ATA: 2 }
   },
   '5-4-1-misto': {
-    label: '5-4-1 Equilibrado (1 VOL, 1 MC, 1 MD, 1 ME)',
+    label: '5-4-1 Equilibrado',
     counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 1, MD: 1, ME: 1, ATA: 1 }
   },
   '5-2-3-contra-ataque': {
-    label: '5-2-3 Contra-Ataque (1 VOL, 1 MC)',
+    label: '5-2-3 Contra-Ataque',
     counts: { GOL: 1, LD: 1, ZAG: 3, LE: 1, VOL: 1, MC: 1, PD: 1, PE: 1, ATA: 1 }
   }
 };
@@ -8987,26 +8987,40 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
         {/* Dificuldade */}
         <div style={{ marginBottom: 28 }}>
           <div style={styles.teamEditLabel}>Dificuldade</div>
+          {/* Cada nível usa a cor que já é dele em outros lugares do jogo
+              (explicador do ranking, DifficultyBadge) — fácil=verde,
+              normal=neutro, difícil=âmbar, lendário=vermelho — em vez das
+              4 opções ficarem visualmente idênticas, só diferenciadas por
+              qual tem borda acesa. O multiplicador de ranking embaixo do
+              nome também já era mostrado noutra tela; repetir aqui dá
+              contexto sem precisar abrir o explicador. */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }} className="difficulty-grid">
-            {Object.entries(DIFFICULTY_LEVELS).map(([key, d]) => (
-              <button
-                key={key}
-                onClick={() => onSetDifficulty(key)}
-                title={d.desc}
-                className="mode-card-hover"
-                aria-pressed={difficulty === key}
-                style={{
-                  padding: '10px 6px', borderRadius: 10, border: '2px solid',
-                  borderColor: difficulty === key ? mc : 'rgba(255,255,255,0.1)',
-                  background: difficulty === key ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
-                  color: difficulty === key ? mc : '#F4F1EA',
-                  cursor: 'pointer', textAlign: 'center', fontSize: 12, fontWeight: 700,
-                  transition: 'all 0.12s',
-                }}
-              >
-                {d.short}
-              </button>
-            ))}
+            {Object.entries(DIFFICULTY_LEVELS).map(([key, d]) => {
+              const tone = DIFFICULTY_UI[key]?.tone || mc;
+              const active = difficulty === key;
+              return (
+                <button
+                  key={key}
+                  onClick={() => onSetDifficulty(key)}
+                  title={d.desc}
+                  className="mode-card-hover"
+                  aria-pressed={active}
+                  style={{
+                    padding: '10px 6px', borderRadius: 10, border: '2px solid',
+                    borderColor: active ? tone : 'rgba(255,255,255,0.12)',
+                    background: active ? hexToRgba(tone, 0.12) : 'rgba(255,255,255,0.03)',
+                    color: active ? tone : '#F4F1EA',
+                    cursor: 'pointer', textAlign: 'center', fontSize: 12, fontWeight: 700,
+                    transition: 'all 0.12s',
+                  }}
+                >
+                  {d.short}
+                  <div style={{ fontSize: 9.5, fontWeight: 400, opacity: active ? 0.8 : 0.4, marginTop: 2, fontFamily: "'Space Mono', monospace" }}>
+                    {DIFFICULTY_UI[key]?.mult}
+                  </div>
+                </button>
+              );
+            })}
           </div>
           <div style={{ fontSize: 11, opacity: 0.5, marginTop: 6, lineHeight: 1.4 }}>{DIFFICULTY_LEVELS[difficulty]?.desc}</div>
         </div>
@@ -15346,7 +15360,7 @@ const globalCss = `
     .h1-mob { font-size: 24px !important; }
     .h2-mob { font-size: 18px !important; }
     .intro-card-mob { padding: 28px 16px 24px !important; }
-    .formation-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
+    .formation-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
     .match-summary-cols { flex-direction: column !important; }
     .match-summary-header-team { font-size: 13px !important; }
     .tab-bar-scroll button { font-size: 11px !important; padding: 8px 4px 10px !important; gap: 3px !important; }
@@ -15392,15 +15406,21 @@ const styles = {
   emptyState: { background: 'rgba(224,89,63,0.1)', border: '1px solid rgba(224,89,63,0.4)', borderRadius: 10, padding: '16px 18px', fontSize: 14, lineHeight: 1.5 },
 
   formationIntro: { fontSize: 13, opacity: 0.6, lineHeight: 1.5, marginBottom: 24, maxWidth: 520 },
-  formationGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16 },
+  // minmax era 200px com um campinho de aspect-ratio 0.66 (mais alto que
+  // largo) — cada card passava de 350px de altura só na área do campinho, e
+  // no mobile (que forçava 1 coluna) virava quase uma tela inteira por
+  // formação. Card menor + texto mais compacto (a descrição agora é uma
+  // palavra só, sem o detalhamento entre parênteses) deixam mais formações
+  // visíveis de uma vez, sem precisar rolar tanto.
+  formationGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(132px, 1fr))', gap: 10 },
   formationCard: {
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 16,
-    padding: '18px 16px', color: '#F4F1EA', textAlign: 'center', cursor: 'pointer',
+    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12,
+    padding: '12px 10px', color: '#F4F1EA', textAlign: 'center', cursor: 'pointer',
     transition: 'background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s',
   },
   formationName: { fontSize: 13, fontWeight: 700, marginBottom: 10, fontFamily: "'Space Mono', monospace" },
-  formationShapeNum: { fontSize: 23, fontWeight: 800, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, color: '#F4F1EA' },
-  formationShapeDesc: { fontSize: 11.5, opacity: 0.55, marginTop: 4, marginBottom: 14, lineHeight: 1.4, minHeight: 32 },
+  formationShapeNum: { fontSize: 18, fontWeight: 800, fontFamily: "'Space Mono', monospace", letterSpacing: 0.3, color: '#F4F1EA' },
+  formationShapeDesc: { fontSize: 10.5, opacity: 0.55, marginTop: 2, marginBottom: 8, lineHeight: 1.3 },
   formationSectionHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' },
   formationSectionTitle: { display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Space Mono', monospace", fontSize: 12.5, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', color: '#d4a23c' },
   formationSectionHint: { fontSize: 11.5, opacity: 0.45, fontStyle: 'italic' },
