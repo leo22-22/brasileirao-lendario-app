@@ -10,7 +10,7 @@ router.use(requireAuth);
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Colunas que o cliente pode atualizar diretamente (sem tratamento especial).
-const SIMPLE_FIELDS = ['team_name', 'team_color', 'team_logo', 'team_coach', 'team_city', 'goal_audio'] as const;
+const SIMPLE_FIELDS = ['team_name', 'team_color', 'team_logo', 'team_coach', 'team_city', 'team_stadium', 'goal_audio'] as const;
 
 // 26 estados + Distrito Federal — usado tanto pra validar team_uf quanto pro
 // filtro de região do ranking global.

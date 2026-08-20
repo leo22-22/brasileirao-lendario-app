@@ -9106,6 +9106,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
   const [cropSrc, setCropSrc] = useState(null);
   const [name, setName] = useState(user?.team_name || '');
   const [city, setCity] = useState(user?.team_city || '');
+  const [stadium, setStadium] = useState(user?.team_stadium || '');
   const [coach, setCoach] = useState(user?.team_coach || '');
   const [error, setError] = useState('');
   const [showAchievements, setShowAchievements] = useState(false);
@@ -9149,6 +9150,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
   useEffect(() => {
     setName(user?.team_name || '');
     setCity(user?.team_city || '');
+    setStadium(user?.team_stadium || '');
     setCoach(user?.team_coach || '');
   }, [user]);
 
@@ -9271,6 +9273,9 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
           <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>
             {user?.team_city || ''}{user?.team_coach ? ` · Téc. ${user.team_coach}` : ''}
           </div>
+          {user?.team_stadium && (
+            <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>🏟️ {user.team_stadium}</div>
+          )}
           {user?.created_at && (
             <div style={{ fontSize: 10.5, opacity: 0.4, marginTop: 4 }}>
               Clube fundado em {new Date(user.created_at).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
@@ -9381,6 +9386,14 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       <option key={code} value={code} style={styles.selectOption}>{code} — {label}</option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label style={styles.teamEditLabel}>Estádio</label>
+                  <input
+                    value={stadium} onChange={e => setStadium(e.target.value)}
+                    onBlur={() => stadium !== (user?.team_stadium || '') && commitField('team_stadium', stadium)}
+                    placeholder="Ex: Arena Lendária" maxLength={40} style={styles.teamInput}
+                  />
                 </div>
                 <div style={{ gridColumn: '1 / -1' }}>
                   <label style={styles.teamEditLabel}>Técnico</label>

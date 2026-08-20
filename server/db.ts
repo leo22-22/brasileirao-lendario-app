@@ -91,6 +91,9 @@ export async function ensureSchema() {
   // vitória premiada no Desafio do Dia — trava os +50 pontos em uma vez por
   // dia mesmo que o cliente tente mandar a mesma vitória de novo.
   await ensureColumn('last_daily_points_date VARCHAR(10)');
+  // Nome do estádio do clube do jogador — puramente narrativo (igual
+  // team_city/team_coach), editado em "Meu Clube".
+  await ensureColumn('team_stadium VARCHAR(64)');
   try {
     await pool.query('CREATE INDEX idx_users_team_uf ON users (team_uf)');
   } catch (err) {
@@ -137,6 +140,7 @@ export interface UserRow {
   team_coach: string | null;
   team_city: string | null;
   team_uf: string | null;
+  team_stadium: string | null;
   goal_audio: string | null;
   titles_brasileirao: number;
   titles_copa: number;
@@ -172,6 +176,7 @@ export interface PublicUser {
   team_coach: string | null;
   team_city: string | null;
   team_uf: string | null;
+  team_stadium: string | null;
   goal_audio: string | null;
   titles_brasileirao: number;
   titles_copa: number;
@@ -206,6 +211,7 @@ export function toPublicUser(row: UserRow): PublicUser {
     team_coach: row.team_coach,
     team_city: row.team_city,
     team_uf: row.team_uf,
+    team_stadium: row.team_stadium,
     goal_audio: row.goal_audio,
     titles_brasileirao: row.titles_brasileirao,
     titles_copa: row.titles_copa,
