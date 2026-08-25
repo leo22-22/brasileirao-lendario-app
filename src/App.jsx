@@ -2839,11 +2839,16 @@ const FORMATIONS = {
 
   // --- Variações do 4-3-1-2 e 4-1-3-2 ---
   '4-3-1-2-misto': {
-    // Era idêntico ao 4-4-2 Losango (mesma distribuição, nome diferente).
-    // Troca pra 2 volantes + 1 meia-central formando o "3" da frente da
-    // zaga, distinto do losango (1 volante + 2 meias-central).
     label: '4-3-1-2 Equilibrado',
-    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 1, MEI: 1, ATA: 2 }
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, MC: 3, MEI: 1, ATA: 2 }
+  },
+  '4-3-1-2-defensivo': {
+    // Mesmo "3" da frente da zaga do Equilibrado, só que com volantes de
+    // contenção (VOL) em vez de meias-centrais mais técnicos (MC) — a
+    // distinção clássica entre um meio-campo que constrói jogo e um que
+    // prioriza marcação antes de tocar a bola pra frente.
+    label: '4-3-1-2 Defensivo',
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 3, MEI: 1, ATA: 2 }
   },
   '4-1-3-2-ofensivo': {
     label: '4-1-3-2 Ofensivo',
