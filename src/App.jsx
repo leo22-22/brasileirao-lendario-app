@@ -9044,8 +9044,11 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
           <span style={{ marginLeft: 'auto', fontSize: 18, opacity: 0.5 }}>→</span>
         </button>
 
+        {/* Sem repetir o modo aqui — já escolhido nos cards acima, e
+            "Escolher formação — Brasileirão →" estourava pra 2 linhas em
+            qualquer tela de celular. */}
         <button style={{ ...styles.btnIntro, background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: '#0B1A12', boxShadow: `0 8px 24px ${hexToRgba(mc, 0.35)}` }} onClick={onStart}>
-          {gameMode === 'copa' ? 'Escolher formação — Copa →' : 'Escolher formação — Brasileirão →'}
+          Escolher formação →
         </button>
 
         {/* Rodapé institucional */}
@@ -9061,21 +9064,6 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
           <button onClick={onNavigateTeams} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: '6px 2px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
             Times Históricos
           </button>
-          {dailyChallenge && (
-            <button
-              onClick={() => !dailyChallengeAlreadyPlayed && onOpenDailyChallenge()}
-              className="tap-target-sm"
-              disabled={dailyChallengeAlreadyPlayed}
-              title={dailyChallengeAlreadyPlayed ? 'Você já jogou hoje — volta amanhã.' : 'Monte um time e vencer dá +50 pontos no ranking global'}
-              style={{
-                background: 'none', border: 'none', cursor: dailyChallengeAlreadyPlayed ? 'default' : 'pointer', fontSize: 11.5, padding: '6px 2px',
-                textDecoration: 'underline', textUnderlineOffset: 3,
-                color: dailyChallengeAlreadyPlayed ? 'rgba(244,241,234,0.3)' : 'rgba(244,241,234,0.45)',
-              }}
-            >
-              🏆 Supercopa do Brasil {!dailyChallengeAlreadyPlayed && '(+50 pts)'}
-            </button>
-          )}
         </div>
       </div>
 
