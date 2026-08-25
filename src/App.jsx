@@ -5024,7 +5024,6 @@ export default function App() {
   const [isLeader, setIsLeader] = useState(false);
   const [roomSnap, setRoomSnap] = useState(null); // estado da sala (mantido pelo líder)
   const [joinInput, setJoinInput] = useState('');
-  const [multiTimerLeft, setMultiTimerLeft] = useState(null);
   const [multiConnecting, setMultiConnecting] = useState(false);
   const multiConnectingRef = useRef(false); // espelha multiConnecting p/ checagem síncrona (evita Peer duplicado em duplo-toque antes do re-render)
   const [multiError, setMultiError] = useState('');
@@ -5419,6 +5418,26 @@ export default function App() {
     rollWithAnimation(shuffle2(candidates)[0], candidates);
   }, [phase, rolledTeam, isRolling, usedTeamIds, rollWithAnimation]);
 
+  // Fim comum de escolher uma formação (pronta ou livre): fora do
+  // multiplayer, parte direto pro sorteio. Numa sala, a fase 1 (escolher
+  // formação) é sincronizada entre todo mundo — em vez de já rolar os
+  // times, avisa a sala que terminei (formationReady) e espero os outros;
+  // o efeito "team-setup → roster-draft" (mais acima) é quem decide, sem
+  // cronômetro, quando todo humano já escolheu e libera o sorteio pra
+  // todo mundo ao mesmo tempo.
+  const finishFormationChoice = (label) => {
+    if (multiPhase === 'in-draft') {
+      // `label` vai junto só pra tela de espera mostrar o que cada um
+      // escolheu ("Fulano: 4-3-3 Equilibrado") — não é lido em nenhuma
+      // lógica de jogo, é puramente informativo pros outros da sala.
+      multiUpdateMyTeam({ formationReady: true, formationLabel: label });
+      setPhase('multi-formation-wait');
+      return;
+    }
+    setPhase('draft');
+    rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
+  };
+
   const chooseFormation = (key) => {
     setFormationKey(key);
     const formSlots = buildPitchSlots(key);
@@ -5433,8 +5452,7 @@ export default function App() {
     setSelectedPlayer(null);
     setRepositioningSlot(null);
     setCaptainSlot(null);
-    setPhase('draft');
-    rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
+    finishFormationChoice(FORMATIONS[key].label);
   };
 
   // Mesmo reset do chooseFormation acima, só que os slots titulares vêm do
@@ -5461,8 +5479,7 @@ export default function App() {
     setSelectedPlayer(null);
     setRepositioningSlot(null);
     setCaptainSlot(null);
-    setPhase('draft');
-    rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
+    finishFormationChoice(`Formação livre (${shape})`);
   };
 
   // Atalho "Jogar com este time pronto" — pula o sorteio inteiro e usa o
@@ -7398,7 +7415,7 @@ export default function App() {
         if (p.isAI) return;
         players[pid] = { name: p.name, color: p.color, logo: p.logo || null, coach: p.coach || '', city: p.city || '', ready: false, pitch: null, ovr: 0 };
       });
-      const next = { ...prev, phase: 'lobby', players, startedAt: null, seed: null };
+      const next = { ...prev, phase: 'lobby', players, seed: null };
       leaderBroadcast({ type: 'snap', snap: next });
       return next;
     });
@@ -7622,15 +7639,6 @@ export default function App() {
 
   const multiSetReady = () => multiUpdateMyTeam({ ready: true });
 
-  const multiLeaderSetTimer = (minutes) => {
-    setRoomSnap(prev => {
-      if (!prev) return prev;
-      const next = { ...prev, timerMinutes: minutes };
-      leaderBroadcast({ type: 'snap', snap: next });
-      return next;
-    });
-  };
-
   const multiLeaderStart = () => {
     setRoomSnap(prev => {
       if (!prev) return prev;
@@ -7644,14 +7652,19 @@ export default function App() {
           const pp = t.players.map((pl, j) => ({ ...pl, club: t.club, year: t.year, nat: pl.nat || 'BRA', isBench: j >= 11 }));
           aiPlayers[`ai_${i}`] = {
             name: t.label, color: (t.colors && t.colors.p) || '#888', logo: CLUB_LOGOS[t.club] || null,
-            coach: t.coach || '', city: '', ready: true, isAI: true, club: t.club,
+            coach: t.coach || '', city: '', ready: true, formationReady: true, isAI: true, club: t.club,
             pitch: Object.fromEntries(pp.map((p, j) => [j, p])),
             ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))),
           };
         });
       }
+      // 'team-setup' agora é só a fase 1 (cada humano escolhe a formação, sem
+      // pressão de tempo — ver efeito "avança pra roster-draft" mais abaixo,
+      // que troca a sala pra fase 2 sozinho assim que todo humano tiver
+      // formationReady). IA já nasce pronta nas duas fases, não passa por
+      // nenhuma delas de verdade.
       const next = {
-        ...prev, phase: 'team-setup', startedAt: Date.now(),
+        ...prev, phase: 'team-setup',
         players: { ...prev.players, ...aiPlayers },
       };
       leaderBroadcast({ type: 'snap', snap: next });
@@ -7704,7 +7717,6 @@ export default function App() {
       const initialSnap = {
         gameMode: multiGameMode,
         phase: 'lobby',
-        timerMinutes: 3,
         leaderId: MY_PID,
         leaderPeerId: id,
         seed: null,
@@ -7910,24 +7922,38 @@ export default function App() {
     setMultiPhase('in-draft');
   }, [roomSnap?.phase]);
 
-  // Timer countdown durante o draft multiplayer
+  // Fase 1 (team-setup) → fase 2 (roster-draft): só o líder muta o roomSnap
+  // de verdade, então só ele decide quando todo mundo já escolheu a
+  // formação. Sem cronômetro nenhum — a sala espera o tempo que precisar;
+  // assim que o último humano manda formationReady (via chooseFormation/
+  // chooseCustomFormation), esse efeito dispara na hora e avança a sala
+  // pra fase 2, onde todo mundo sorteia o elenco ao mesmo tempo. IA já
+  // nasce com formationReady, nunca segura a virada de fase.
   useEffect(() => {
-    if (!roomSnap || roomSnap.phase !== 'team-setup') return;
-    const minutes = roomSnap.timerMinutes || 3;
-    const startedAt = roomSnap.startedAt || Date.now();
-    const endAt = startedAt + minutes * 60 * 1000;
-    const tick = () => {
-      const left = Math.max(0, Math.ceil((endAt - Date.now()) / 1000));
-      setMultiTimerLeft(left);
-      if (left === 0) multiConfirmDraft(true); // força envio ao expirar
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, [roomSnap?.phase, roomSnap?.startedAt, roomSnap?.timerMinutes]);
+    if (!isLeader || !roomSnap || roomSnap.phase !== 'team-setup') return;
+    const humans = Object.values(roomSnap.players || {}).filter(p => !p.isAI);
+    if (humans.length === 0 || !humans.every(p => p.formationReady)) return;
+    setRoomSnap(prev => {
+      if (!prev || prev.phase !== 'team-setup') return prev;
+      const next = { ...prev, phase: 'roster-draft' };
+      leaderBroadcast({ type: 'snap', snap: next });
+      return next;
+    });
+  }, [isLeader, roomSnap]);
+
+  // Assim que a sala entra na fase 2, quem já escolheu a formação (estava
+  // esperando os outros) parte pro sorteio de verdade — o formationKey/
+  // pitchSlots que a pessoa já montou na tela de formação continuam intactos,
+  // só falta rolar os times pra escalar.
+  useEffect(() => {
+    if (!roomSnap || roomSnap.phase !== 'roster-draft') return;
+    if (phase !== 'multi-formation-wait') return;
+    setPhase('draft');
+    rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
+  }, [roomSnap?.phase, phase]);
 
   // Submete o draft do jogador para a sala
-  const multiConfirmDraft = (forced = false) => {
+  const multiConfirmDraft = () => {
     if (multiPhase === 'waiting') return; // já submeteu
     const pitchWithCaptain = captainSlot && pitch[captainSlot]
       ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
@@ -8099,15 +8125,6 @@ export default function App() {
     <div style={styles.page}>
       <style>{globalCss}</style>
       <div style={styles.bgTexture} />
-      {/* Timer flutuante durante o draft multiplayer */}
-      {multiPhase === 'in-draft' && multiTimerLeft !== null && (
-        <div style={{ position: 'fixed', top: 12, right: 12, zIndex: 999, background: multiTimerLeft < 30 ? 'rgba(224,80,80,0.9)' : 'rgba(11,26,18,0.92)', border: `1px solid ${multiTimerLeft < 30 ? '#e05050' : 'rgba(212,162,60,0.4)'}`, borderRadius: 12, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 11, opacity: 0.7, color: '#F4F1EA' }}>⏱ Tempo restante</span>
-          <span style={{ fontFamily: 'monospace', fontSize: 20, fontWeight: 700, color: multiTimerLeft < 30 ? '#fff' : '#d4a23c' }}>
-            {String(Math.floor(multiTimerLeft / 60)).padStart(2, '0')}:{String(multiTimerLeft % 60).padStart(2, '0')}
-          </span>
-        </div>
-      )}
       {roomSnap && (
         <MultiplayerChatWidget
           messages={chatMessages}
@@ -8350,11 +8367,9 @@ export default function App() {
             onSetLogo={v => { setMyTeamLogo(v); multiUpdateMyTeam({ logo: v || null }); }}
             onSetCoach={v => { setMyTeamCoach(v); multiUpdateMyTeam({ coach: v }); }}
             onSetCity={v => { setMyTeamCity(v); multiUpdateMyTeam({ city: v }); }}
-            onSetTimer={multiLeaderSetTimer}
             onStartSetup={multiLeaderStart}
             onStartSimulation={multiLeaderSimulate}
             onReady={multiSetReady}
-            timerLeft={multiTimerLeft}
             onBack={leaveMultiplayer}
           />
         )}
@@ -8429,6 +8444,9 @@ export default function App() {
             onClickPitchSlot={clickPitchSlot}
             onUnplacePlayer={startReposition}
           />
+        )}
+        {phase === 'multi-formation-wait' && roomSnap && (
+          <MultiFormationWaitScreen roomData={roomSnap} myId={MY_PID} />
         )}
         {phase === 'multi-waiting' && roomSnap && (
           <MultiWaitingScreen
@@ -10430,13 +10448,15 @@ function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
   );
 }
 
-function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColor, myTeamLogo, myTeamCoach, myTeamCity, onSetName, onSetColor, onSetLogo, onSetCoach, onSetCity, onSetTimer, onStartSetup, onStartSimulation, onReady, timerLeft, onBack }) {
+function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColor, myTeamLogo, myTeamCoach, myTeamCity, onSetName, onSetColor, onSetLogo, onSetCoach, onSetCity, onStartSetup, onStartSimulation, onReady, onBack }) {
   const mc = myTeamColor || '#d4a23c';
   const players = Object.entries(roomData.players || {});
-  const allReady = players.length > 0 && players.every(([, p]) => p.ready);
-  const myData = roomData.players?.[myId] || {};
-  const isSetupPhase = roomData.phase === 'team-setup';
-  const timerMinutes = roomData.timerMinutes || 3;
+  // RoomScreen só é visível de verdade durante 'lobby' — assim que o líder
+  // clica em "Iniciar", o efeito de team-setup tira TODO peer daqui (vira
+  // multiPhase='in-draft') antes de qualquer render seguinte. isSetupPhase
+  // só sobra como guarda defensiva pro instante entre a sala virar
+  // 'team-setup'/'roster-draft' e esse efeito rodar.
+  const isSetupPhase = roomData.phase !== 'lobby';
   const maxSlots = roomData.gameMode === 'copa' ? 32 : 20;
   const emptySlots = Math.max(0, maxSlots - players.length);
 
@@ -10500,16 +10520,6 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
     }
   };
 
-  const fileRef = React.useRef(null);
-  const handleFile = e => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = ev => onSetLogo(ev.target.result);
-    reader.readAsDataURL(file);
-    e.target.value = '';
-  };
-
   return (
     <div style={styles.card} className="card-mob">
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12 }}>← Sair da sala</button>
@@ -10537,87 +10547,6 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
           <div style={{ fontSize: 13, opacity: 0.5, marginTop: 8 }}>Conectado à sala · Aguardando o líder iniciar</div>
         )}
       </div>
-
-      {/* Timer (só líder vê os botões) */}
-      {isLeader && !isSetupPhase && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={styles.teamEditLabel}>Tempo para criar o time</div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {[3, 4, 5].map(m => (
-              <button key={m} onClick={() => onSetTimer(m)} style={{
-                flex: 1, padding: '10px', borderRadius: 10, border: '2px solid',
-                borderColor: timerMinutes === m ? mc : 'rgba(255,255,255,0.12)',
-                background: timerMinutes === m ? hexToRgba(mc, 0.12) : 'transparent',
-                color: timerMinutes === m ? mc : '#aaa', cursor: 'pointer', fontWeight: 700, fontSize: 14,
-              }}>
-                {m} min
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Configurar time */}
-      {isSetupPhase && (
-        <div style={{ marginBottom: 16, padding: 14, background: 'rgba(0,0,0,0.2)', borderRadius: 12, border: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-            <div style={styles.teamEditLabel}>Seu time</div>
-            {timerLeft !== null && (
-              <div style={{ fontFamily: 'monospace', fontSize: 18, fontWeight: 700, color: timerLeft < 30 ? '#e05050' : mc }}>
-                {String(Math.floor(timerLeft / 60)).padStart(2, '0')}:{String(timerLeft % 60).padStart(2, '0')}
-              </div>
-            )}
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 10 }}>
-            <div>
-              <label style={styles.teamEditLabel}>Nome</label>
-              <input value={myTeamName} onChange={e => onSetName(e.target.value)} placeholder="Meu Time" style={styles.teamInput} />
-            </div>
-            <div>
-              <label style={styles.teamEditLabel}>Cidade</label>
-              <input value={myTeamCity} onChange={e => onSetCity(e.target.value)} placeholder="Cidade" style={styles.teamInput} />
-            </div>
-            <div style={{ gridColumn: '1 / -1' }}>
-              <label style={styles.teamEditLabel}>Técnico</label>
-              <input value={myTeamCoach} onChange={e => onSetCoach(e.target.value)} placeholder="Seu nome" style={styles.teamInput} />
-            </div>
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            <div style={styles.teamEditLabel}>Cor</div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              {['#d4a23c', '#e05050', '#4a90d9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#e91e8c'].map(c => (
-                <button key={c} onClick={() => onSetColor(c)} className="tap-target-sm" style={{ width: 28, height: 28, borderRadius: '50%', background: c, border: `3px solid ${myTeamColor === c ? '#fff' : 'transparent'}`, outline: myTeamColor === c ? `2px solid ${c}` : 'none', outlineOffset: 2, cursor: 'pointer', padding: 0 }} />
-              ))}
-            </div>
-          </div>
-          <div style={{ marginBottom: 10 }}>
-            <div style={styles.teamEditLabel}>Emblema do clube</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {Object.entries(CLUB_LOGOS).map(([club, url]) => (
-                <button key={club} onClick={() => onSetLogo(myTeamLogo === url ? null : url)} title={club} className="tap-target-sm" style={{ width: 38, height: 38, borderRadius: 8, padding: 4, border: `2px solid ${myTeamLogo === url ? mc : 'rgba(255,255,255,0.08)'}`, background: myTeamLogo === url ? hexToRgba(mc, 0.15) : 'rgba(255,255,255,0.03)', cursor: 'pointer' }}>
-                  <img src={url} alt={club} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                </button>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={() => fileRef.current?.click()} style={{ flex: 1, padding: '8px', borderRadius: 8, border: '1px dashed rgba(255,255,255,0.2)', background: 'transparent', color: '#aaa', cursor: 'pointer', fontSize: 12 }}>
-              📷 Upload logo
-            </button>
-            <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
-            {!myData.ready && (
-              <button onClick={onReady} style={{ flex: 2, padding: '8px', borderRadius: 8, border: 'none', background: mc, color: '#0B1A12', fontWeight: 700, cursor: 'pointer', fontSize: 13 }}>
-                ✓ Pronto!
-              </button>
-            )}
-            {myData.ready && (
-              <div style={{ flex: 2, padding: '8px', borderRadius: 8, background: 'rgba(127,217,154,0.12)', color: '#7fd99a', fontWeight: 700, textAlign: 'center', fontSize: 13 }}>
-                ✓ Pronto!
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Grid de vagas — jogadores reais + vagas aguardando + times fictícios sorteados */}
       <div style={{ marginBottom: 16 }}>
@@ -10673,18 +10602,13 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             ? 'Aguardando mais jogadores... (mín. 2)'
             : emptySlots > 0
               ? `▶ Iniciar — sorteia ${emptySlots} time${emptySlots !== 1 ? 's' : ''} pras vagas restantes`
-              : `▶ Iniciar — ${timerMinutes} min para criar o time`}
+              : '▶ Iniciar — escolher formação'}
         </button>
       )}
       {!isLeader && !isSetupPhase && (
         <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.5, padding: 12 }}>
           Aguardando o líder iniciar a partida…
         </div>
-      )}
-      {isSetupPhase && isLeader && allReady && (
-        <button onClick={onStartSimulation} style={{ ...styles.btnPrimary, width: '100%', background: '#27ae60', color: '#fff', marginTop: 8 }}>
-          Todos prontos — Iniciar simulação →
-        </button>
       )}
     </div>
   );
@@ -10733,6 +10657,46 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
       {!isLeader && (
         <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.4 }}>Aguardando o líder iniciar o campeonato…</div>
       )}
+    </div>
+  );
+}
+
+// Fase 1 da sala: espera todo mundo escolher a formação antes de liberar o
+// sorteio pra todo mundo ao mesmo tempo. Puramente informativa — não tem
+// botão nenhum aqui, nem pro líder: a virada pra fase 2 é automática (ver
+// o efeito "team-setup → roster-draft" em App()), assim que o último
+// humano tiver formationReady. IA já nasce pronta, nunca aparece "esperando".
+function MultiFormationWaitScreen({ roomData, myId }) {
+  const players = Object.entries(roomData.players || {});
+  const readyCount = players.filter(([, p]) => p.formationReady).length;
+
+  return (
+    <div style={styles.card} className="card-mob">
+      <div style={{ textAlign: 'center', padding: '16px 0 20px' }}>
+        <div style={{ fontSize: 40, marginBottom: 10 }}>🧩</div>
+        <div style={styles.eyebrow}>Formação escolhida!</div>
+        <h2 style={styles.h2}>Aguardando os outros escolherem…</h2>
+        <div style={{ fontSize: 13, opacity: 0.5, marginTop: 4 }}>{readyCount} de {players.length} prontos</div>
+      </div>
+
+      <div>
+        {players.map(([pid, p]) => (
+          <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+            {p.logo
+              ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)' }} />
+              : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚽</div>
+            }
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: p.color || '#F4F1EA' }}>{p.name || 'Jogador'}</div>
+              {p.formationReady && p.formationLabel && (
+                <div style={{ fontSize: 11, opacity: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.formationLabel}</div>
+              )}
+            </div>
+            {pid === myId && <span style={{ fontSize: 10, color: '#aaa', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, padding: '1px 6px', flexShrink: 0 }}>VOCÊ</span>}
+            <span style={{ fontSize: 16, flexShrink: 0 }}>{p.formationReady ? '✅' : '⏳'}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
