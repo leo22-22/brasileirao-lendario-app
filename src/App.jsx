@@ -3013,6 +3013,108 @@ function buildPitchSlots(formationKey) {
   return slots;
 }
 
+// ── Editor de formação livre ("arrastar as bolinhas") ─────────────────────
+// Em vez de escolher um dos esquemas prontos, a pessoa arrasta os 10
+// jogadores de linha pelo campinho e o jogo classifica sozinho o esquema
+// resultante — mesma ideia de FORMATIONS/BASE_COORDS, só que a banda
+// (altura) e a lateralidade (esquerda/centro/direita) vêm de onde o
+// círculo foi solto, não de um `counts` escrito à mão.
+const CUSTOM_BANDS = [
+  { key: 'zaga', y: 80, wideLeft: 'LE', wideRight: 'LD', central: 'ZAG' },
+  { key: 'volante', y: 64, wideLeft: null, wideRight: null, central: 'VOL' },
+  { key: 'meio', y: 52, wideLeft: null, wideRight: null, central: 'MC' },
+  { key: 'armacao', y: 40, wideLeft: 'ME', wideRight: 'MD', central: 'MEI' },
+  { key: 'ataque', y: 15, wideLeft: 'PE', wideRight: 'PD', central: 'ATA' },
+];
+
+// `dots`: 10 pontos { id, x, y } soltos pelo usuário (GOL é fixo, não entra
+// aqui). Cada um vira o tipo de posição da banda mais próxima por Y; dentro
+// da banda, o mais à esquerda e o mais à direita (por X) viram a variante
+// aberta (LD/LE, MD/ME, PD/PE) quando ela existe pra essa banda — o resto
+// fica central. Mantém o x/y exatos do arraste (não reespalha), pra o
+// círculo na tela nunca "pular" de onde a pessoa soltou.
+function classifyCustomSlots(dots) {
+  const byBand = CUSTOM_BANDS.map(() => []);
+  dots.forEach(d => {
+    let closest = 0, closestDist = Infinity;
+    CUSTOM_BANDS.forEach((b, i) => {
+      const dist = Math.abs(d.y - b.y);
+      if (dist < closestDist) { closestDist = dist; closest = i; }
+    });
+    byBand[closest].push(d);
+  });
+
+  const placed = [];
+  byBand.forEach((group, bi) => {
+    const band = CUSTOM_BANDS[bi];
+    if (group.length === 0) return;
+    const sorted = [...group].sort((a, b) => a.x - b.x);
+    const n = sorted.length;
+    sorted.forEach((d, i) => {
+      let pos = band.central;
+      if (band.wideLeft && n >= 2 && i === 0) pos = band.wideLeft;
+      else if (band.wideRight && n >= 2 && i === n - 1) pos = band.wideRight;
+      placed.push({ id: d.id, pos, x: d.x, y: d.y });
+    });
+  });
+
+  const counts = {};
+  placed.forEach(p => { counts[p.pos] = (counts[p.pos] || 0) + 1; });
+  const seen = {};
+  const slots = placed.map(p => {
+    seen[p.pos] = (seen[p.pos] || 0) + 1;
+    const key = counts[p.pos] === 1 ? p.pos : `${p.pos}${seen[p.pos]}`;
+    // `id` viaja junto (não é um campo normal de pitchSlots) só pra o editor
+    // saber qual bolinha arrastar corresponde a qual slot classificado — é
+    // removido antes de virar pitchSlots de verdade (ver chooseCustomFormation).
+    return { id: p.id, key, label: p.pos, realPos: p.pos, x: p.x, y: p.y };
+  });
+
+  return { slots, counts };
+}
+
+// "3-2-5" etc — mesma convenção (defesa-meio-ataque) usada no rótulo das
+// formações prontas, só que calculada a partir de `counts` em vez de
+// escrita à mão.
+function customFormationShape(counts) {
+  const def = (counts.LD || 0) + (counts.ZAG || 0) + (counts.LE || 0);
+  const mid = (counts.VOL || 0) + (counts.MC || 0) + (counts.MEI || 0) + (counts.MD || 0) + (counts.ME || 0);
+  const fwd = (counts.PD || 0) + (counts.PE || 0) + (counts.ATA || 0);
+  return `${def}-${mid}-${fwd}`;
+}
+
+// Leitura tática rápida do esquema montado — heurística por contagem de
+// linha (não é uma IA tática de verdade), só o suficiente pra avisar o
+// ponto forte e o risco óbvio de espichar demais pra um lado só, do jeito
+// que o próprio jogo pede: "melhor ataque, mas cuidado com a defesa".
+function describeCustomFormation(counts) {
+  const def = (counts.LD || 0) + (counts.ZAG || 0) + (counts.LE || 0);
+  const mid = (counts.VOL || 0) + (counts.MC || 0) + (counts.MEI || 0) + (counts.MD || 0) + (counts.ME || 0);
+  const fwd = (counts.PD || 0) + (counts.PE || 0) + (counts.ATA || 0);
+  const hasDefWidth = !!counts.LD || !!counts.LE;
+  const hasAttWidth = !!counts.PD || !!counts.PE || !!counts.MD || !!counts.ME;
+
+  const strengths = [];
+  const risks = [];
+  if (fwd >= 4) strengths.push('ataque avassalador');
+  else if (fwd === 3 && mid <= 3) strengths.push('ataque forte');
+  if (mid >= 5) strengths.push('domina a posse de bola no meio-campo');
+  if (def >= 5) strengths.push('defesa muito bem coberta');
+
+  if (def <= 2) risks.push('defesa perigosamente exposta a contra-ataques');
+  else if (def === 3 && fwd >= 4) risks.push('poucos jogadores atrás pra segurar o time todo');
+  if (mid <= 2) risks.push('pouca gente no meio — fácil perder a posse de bola');
+  if (fwd === 0) risks.push('sem ninguém de referência lá na frente pra concluir');
+  if (def >= 3 && !hasDefWidth) risks.push('sem ala pra cobrir os lados na defesa');
+  if (!hasAttWidth && fwd + mid >= 4) risks.push('sem largura no ataque, fácil de fechar o meio contra você');
+
+  if (strengths.length === 0 && risks.length === 0) return 'Esquema equilibrado, sem exagero pra nenhum lado.';
+  let text = '';
+  if (strengths.length) text += strengths[0].charAt(0).toUpperCase() + strengths.slice(0, 2).join(', ').slice(1) + '.';
+  if (risks.length) text += (text ? ' Mas cuidado: ' : 'Cuidado: ') + risks.slice(0, 2).join('; ') + '.';
+  return text;
+}
+
 // Encaixa os titulares de UMA formação maximizando o overall total — não é
 // "primeiro que couber, serve": processa por overall decrescente e, se a
 // vaga que o jogador serve já está ocupada por alguém mais fraco, tenta
@@ -4702,6 +4804,10 @@ export default function App() {
   // normalmente; só `phase` fica em 'intro' até a pessoa escolher.
   const [savedPhase, setSavedPhase] = useState(_hasSave ? _sv.phase : null);
   const [formationKey, setFormationKey] = useState(_sv?.formationKey ?? null);
+  // Formação livre (editor de arrastar-e-soltar) — só existe quando
+  // formationKey === 'custom'; guarda o rótulo/contagem que o resto do
+  // código lê no lugar de FORMATIONS[formationKey] pra esse caso especial.
+  const [customFormation, setCustomFormation] = useState(_sv?.customFormation ?? null);
   const [pitchSlots, setPitchSlots] = useState(_sv?.pitchSlots ?? []);
   const [usedTeamIds, setUsedTeamIds] = useState(_sv?.usedTeamIds ?? []);
   const [rolledTeam, setRolledTeam] = useState(null);
@@ -5307,6 +5413,34 @@ export default function App() {
     rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
   };
 
+  // Mesmo reset do chooseFormation acima, só que os slots titulares vêm do
+  // editor de arrastar-e-soltar (CustomFormationBuilder) em vez de um preset
+  // de FORMATIONS. formationKey vira 'custom' e customFormation guarda o
+  // {label, counts} que os poucos lugares que liam FORMATIONS[formationKey]
+  // direto agora consultam nesse caso especial.
+  const chooseCustomFormation = (customSlots, counts, shape) => {
+    setFormationKey('custom');
+    setCustomFormation({ label: `Formação livre (${shape})`, counts: { GOL: 1, ...counts } });
+    const gkSlot = { key: 'GOL', label: 'GOL', realPos: 'GOL', x: 50, y: 92 };
+    const benchSlots = ['bench1', 'bench2', 'bench3', 'bench4', 'bench5'].map((k, i) => ({
+      key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0
+    }));
+    // `id` é só um detalhe interno do editor de arrastar (liga cada bolinha
+    // ao slot classificado) — o resto do jogo não espera esse campo em
+    // pitchSlots, então sai daqui antes de virar estado de verdade.
+    const cleanSlots = customSlots.map(({ id, ...rest }) => rest);
+    setPitchSlots([gkSlot, ...cleanSlots, ...benchSlots]);
+    setUsedTeamIds([]);
+    setPitch({});
+    setSkipsLeft(MAX_SKIPS);
+    setLog([]);
+    setSelectedPlayer(null);
+    setRepositioningSlot(null);
+    setCaptainSlot(null);
+    setPhase('draft');
+    rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
+  };
+
   // Atalho "Jogar com este time pronto" — pula o sorteio inteiro e usa o
   // elenco real de UM time histórico como titulares+banco. Nome/escudo/cor
   // continuam sendo os seus (não vira o clube) — só o elenco é emprestado.
@@ -5453,8 +5587,11 @@ export default function App() {
   // tem pra onde ir — nem titular, nem banco, já que na hora de substituir ele
   // também não teria vaga compatível pra entrar.
   const formationPosSet = useMemo(
-    () => new Set(formationKey ? Object.keys(FORMATIONS[formationKey].counts) : []),
-    [formationKey]
+    () => new Set(
+      formationKey === 'custom' ? Object.keys(customFormation?.counts || {})
+        : formationKey ? Object.keys(FORMATIONS[formationKey].counts) : []
+    ),
+    [formationKey, customFormation]
   );
   const isPlayerBlockedByFormation = (player) => !player.pos.some(p => formationPosSet.has(p));
 
@@ -7000,7 +7137,7 @@ export default function App() {
     if (isDailyChallenge) return;
     try {
       const save = {
-        phase, formationKey, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
+        phase, formationKey, customFormation, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
         gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo,
         leagueTeams, leagueTable, fixtures, currentRound, roundHistory,
         cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
@@ -7017,7 +7154,7 @@ export default function App() {
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isTransferSeason, seasonYear]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isTransferSeason, seasonYear, formationKey, customFormation]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -8222,7 +8359,7 @@ export default function App() {
             onClose={() => setShowDailyChallenge(false)}
           />
         )}
-        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge ? setGameMode : undefined} onPlayReadyMade={useReadyMadeSquad} isDailyChallenge={isDailyChallenge} />}
+        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onChooseCustom={chooseCustomFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge ? setGameMode : undefined} onPlayReadyMade={useReadyMadeSquad} isDailyChallenge={isDailyChallenge} myTeamColor={myTeamColor} />}
         {phase === 'transfer' && (
           <TransferMarket
             pitch={pitch}
@@ -8239,7 +8376,7 @@ export default function App() {
             rollingPreview={rollingPreview}
             pitch={pitch}
             pitchSlots={pitchSlots}
-            formationLabel={formationKey ? FORMATIONS[formationKey].label : ''}
+            formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
             skipsLeft={skipsLeft}
             selectedPlayer={selectedPlayer}
             repositioningSlot={repositioningSlot}
@@ -8257,7 +8394,7 @@ export default function App() {
         {phase === 'squad' && (
           <Squad
             pitch={pitch} pitchSlots={pitchSlots}
-            formationLabel={formationKey ? FORMATIONS[formationKey].label : ''}
+            formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
             captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
             onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : isDailyChallenge ? confirmDailyChallenge : (isTransferSeason ? newSeason : startSeason)}
             onRedo={!isTransferSeason && !isDailyChallenge ? () => { setPhase('formation'); setCaptainSlot(null); } : undefined}
@@ -10585,7 +10722,7 @@ const FORMATION_GROUPS = [
   { prefix: '5', title: 'Linha de 5 zagueiros', icon: '🔒', hint: 'Retranca — prioriza solidez defensiva' },
 ];
 
-function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode, onPlayReadyMade, isDailyChallenge }) {
+function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGameMode, onPlayReadyMade, isDailyChallenge, myTeamColor }) {
   const groups = useMemo(() => (
     FORMATION_GROUPS
       .map(g => ({ ...g, items: Object.entries(FORMATIONS).filter(([key]) => key.split('-')[0] === g.prefix) }))
@@ -10596,6 +10733,7 @@ function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode, onPlayRead
   // no solo e numa sala com amigos, já que os dois passam por essa mesma
   // tela antes do draft.
   const [showTeamPicker, setShowTeamPicker] = useState(false);
+  const [showCustomBuilder, setShowCustomBuilder] = useState(false);
 
   return (
     <div style={styles.card} className="card-mob">
@@ -10654,6 +10792,31 @@ function FormationPicker({ onChoose, onBack, gameMode, onSetGameMode, onPlayRead
         <TeamPickerModal
           onClose={() => setShowTeamPicker(false)}
           onPick={team => { setShowTeamPicker(false); onPlayReadyMade(team); }}
+        />
+      )}
+
+      {onChooseCustom && (
+        <button
+          onClick={() => setShowCustomBuilder(true)}
+          style={{
+            width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10,
+            padding: '12px 14px', borderRadius: 10, marginBottom: 24, cursor: 'pointer',
+            border: '1px dashed rgba(127,217,154,0.4)', background: 'rgba(127,217,154,0.06)', color: '#F4F1EA',
+          }}
+        >
+          <span style={{ fontSize: 18 }}>🎨</span>
+          <span style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: '#7fd99a' }}>Criar minha própria formação</div>
+            <div style={{ fontSize: 11.5, opacity: 0.6, marginTop: 1 }}>Arraste os jogadores pelo campinho e monte um esquema do seu jeito</div>
+          </span>
+          <span style={{ fontSize: 14, opacity: 0.5 }}>→</span>
+        </button>
+      )}
+      {showCustomBuilder && (
+        <CustomFormationBuilder
+          myTeamColor={myTeamColor}
+          onBack={() => setShowCustomBuilder(false)}
+          onChoose={(slots, counts, shape) => { setShowCustomBuilder(false); onChooseCustom(slots, counts, shape); }}
         />
       )}
 
@@ -10777,6 +10940,119 @@ function MiniPitchPreview({ formationKey }) {
           <span style={styles.miniDotLabel}>{s.realPos}</span>
         </div>
       ))}
+    </div>
+  );
+}
+
+// Editor de formação livre: 10 jogadores de linha (goleiro fixo, só
+// ilustrativo) que a pessoa arrasta pelo campinho — mesmo padrão de
+// Pointer Events + setPointerCapture do ImageCropModal, cobrindo mouse e
+// toque com o mesmo código. O esquema ("3-2-5" etc.) e a leitura tática
+// são recalculados ao vivo a cada solta, via classifyCustomSlots /
+// describeCustomFormation — nenhum dos dois é hardcoded, vêm só da
+// posição de cada bolinha.
+function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
+  const mc = myTeamColor || '#d4a23c';
+  const fieldRef = useRef(null);
+  const dragState = useRef({ id: null });
+
+  // Começa de um 4-3-3 equilibrado de verdade (mesmas coordenadas dos
+  // esquemas prontos) — a pessoa mexe a partir de um time que já faz
+  // sentido, em vez de uma bagunça aleatória de bolinhas.
+  const [dots, setDots] = useState(() =>
+    buildPitchSlots('4-3-3-misto')
+      .filter(s => s.realPos !== 'GOL' && !s.isBench)
+      .map((s, i) => ({ id: i, x: s.x, y: s.y }))
+  );
+
+  const { slots, counts } = useMemo(() => classifyCustomSlots(dots), [dots]);
+  const shape = useMemo(() => customFormationShape(counts), [counts]);
+  const description = useMemo(() => describeCustomFormation(counts), [counts]);
+
+  const onDotPointerDown = (id) => (e) => {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    dragState.current.id = id;
+  };
+  const onDotPointerMove = (e) => {
+    const id = dragState.current.id;
+    if (id == null || !fieldRef.current) return;
+    const rect = fieldRef.current.getBoundingClientRect();
+    const x = Math.max(4, Math.min(96, ((e.clientX - rect.left) / rect.width) * 100));
+    const y = Math.max(4, Math.min(96, ((e.clientY - rect.top) / rect.height) * 100));
+    setDots(prev => prev.map(d => (d.id === id ? { ...d, x, y } : d)));
+  };
+  const onDotPointerUp = () => { dragState.current.id = null; };
+
+  return (
+    <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, maxHeight: '94vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 20 }}>
+        <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 10px', margin: '0 0 0 -2px' }}>&#8592; Voltar</button>
+
+        <div style={styles.eyebrow}>Formação livre</div>
+        <h2 style={styles.h2}>Arraste os jogadores</h2>
+        <p style={{ fontSize: 12.5, opacity: 0.6, lineHeight: 1.5, marginBottom: 14 }}>
+          Mova cada bolinha pra cima, pra baixo ou pros lados — o esquema e a leitura tática são recalculados ao vivo, pela posição de cada uma.
+        </p>
+
+        <div
+          ref={fieldRef}
+          style={{
+            position: 'relative', width: '100%', maxWidth: 320, aspectRatio: '0.68', margin: '0 auto 16px',
+            background: 'linear-gradient(180deg,#0f3d22 0%,#145c30 50%,#0f3d22 100%)',
+            border: '2px solid rgba(255,255,255,0.25)', borderRadius: 10, overflow: 'hidden', touchAction: 'none',
+          }}
+        >
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.15)' }} />
+          <div style={{ position: 'absolute', left: '50%', top: '50%', width: 60, height: 60, marginLeft: -30, marginTop: -30, border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '17%', border: '1px solid rgba(255,255,255,0.12)', borderTop: 'none' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '17%', border: '1px solid rgba(255,255,255,0.12)', borderBottom: 'none' }} />
+
+          {/* Goleiro fixo — só ilustrativo, não arrasta (todo esquema tem 1 goleiro). */}
+          <div style={{
+            position: 'absolute', left: '50%', top: '92%', transform: 'translate(-50%,-50%)',
+            width: 30, height: 30, borderRadius: '50%', background: 'rgba(244,241,234,0.35)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: '#0B1A12',
+          }}>GOL</div>
+
+          {slots.map(s => {
+            const color = POS_GROUP_COLOR[s.realPos] || mc;
+            return (
+              <div
+                key={s.id}
+                onPointerDown={onDotPointerDown(s.id)}
+                onPointerMove={onDotPointerMove}
+                onPointerUp={onDotPointerUp}
+                onPointerCancel={onDotPointerUp}
+                style={{
+                  position: 'absolute', left: `${s.x}%`, top: `${s.y}%`, transform: 'translate(-50%,-50%)',
+                  width: 36, height: 36, borderRadius: '50%', background: color,
+                  border: '2px solid rgba(255,255,255,0.5)', boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: 9, fontWeight: 800, color: needsDark(color) ? '#0B1A12' : '#fff',
+                  cursor: 'grab', touchAction: 'none', userSelect: 'none',
+                }}
+              >
+                {s.realPos}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{
+          background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
+          border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 14, padding: '14px 16px', marginBottom: 16,
+        }}>
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 800, color: mc, marginBottom: 4 }}>{shape}</div>
+          <div style={{ fontSize: 12.5, opacity: 0.85, lineHeight: 1.5 }}>{description}</div>
+        </div>
+
+        <button
+          onClick={() => onChoose(slots, counts, shape)}
+          style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }}
+        >
+          Usar essa formação →
+        </button>
+      </div>
     </div>
   );
 }
