@@ -3038,6 +3038,10 @@ const CUSTOM_BANDS = [
 // nenhum ficasse MEI. Mantém o x/y exatos do arraste (não reespalha), pra o
 // círculo na tela nunca "pular" de onde a pessoa soltou.
 const WIDE_X_THRESHOLD = 30;
+// Time de futebol de verdade não escala 2 laterais-direitos ao mesmo tempo
+// — cada variante aberta (LD, LE, MD, ME, PD, PE) só pode existir 1 vez por
+// formação. Os tipos centrais (ZAG, VOL, MC, MEI, ATA) não têm esse limite.
+const WIDE_TYPES = new Set(['LD', 'LE', 'MD', 'ME', 'PD', 'PE']);
 function classifyCustomSlots(dots) {
   const placed = dots.map(d => {
     let band = CUSTOM_BANDS[0], closestDist = Infinity;
@@ -3048,7 +3052,20 @@ function classifyCustomSlots(dots) {
     let pos = band.central;
     if (band.wideLeft && d.x < WIDE_X_THRESHOLD) pos = band.wideLeft;
     else if (band.wideRight && d.x > 100 - WIDE_X_THRESHOLD) pos = band.wideRight;
-    return { id: d.id, pos, x: d.x, y: d.y };
+    return { id: d.id, pos, x: d.x, y: d.y, central: band.central };
+  });
+
+  // Se 2+ bolinhas caírem na mesma variante aberta, só a mais perto da
+  // lateral de verdade (X mais extremo) fica com o tipo — as demais voltam
+  // pro tipo central da própria banda, como se nunca tivessem passado da
+  // linha amarela.
+  const byWideType = {};
+  placed.forEach(p => { if (WIDE_TYPES.has(p.pos)) (byWideType[p.pos] = byWideType[p.pos] || []).push(p); });
+  Object.entries(byWideType).forEach(([type, group]) => {
+    if (group.length <= 1) return;
+    const isLeftType = type === 'LE' || type === 'ME' || type === 'PE';
+    group.sort((a, b) => (isLeftType ? a.x - b.x : b.x - a.x));
+    group.slice(1).forEach(p => { p.pos = p.central; });
   });
 
   const counts = {};
