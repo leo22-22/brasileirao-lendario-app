@@ -2810,8 +2810,13 @@ const FORMATIONS = {
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 1, MD: 1, ME: 1, ATA: 1 }
   },
   '4-2-3-1-ofensivo': {
+    // Era idêntico ao 4-3-3 Equilibrado (mesma distribuição de posições,
+    // só com nome diferente) -- só tinha 1 volante, não os 2 que um
+    // 4-2-3-1 de verdade precisa. Agora tem a dupla de contenção (VOL+MC)
+    // e os 3 armadores (MEI+MD+ME) que a formação promete, com um
+    // meia-armador a mais que o "Defensivo" (que usa 2 volantes puros).
     label: '4-2-3-1 Ofensivo',
-    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 1, MEI: 1, PD: 1, PE: 1, ATA: 1 }
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 1, MEI: 1, MD: 1, ME: 1, ATA: 1 }
   },
 
   // --- Variações do 4-1-4-1 e 4-5-1 ---
@@ -2824,14 +2829,21 @@ const FORMATIONS = {
     counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MD: 1, MEI: 2, ME: 1, ATA: 1 }
   },
   '4-5-1-retranca': {
+    // Era idêntico ao 4-1-4-1 Ofensivo (mesmas posições, nomes opostos --
+    // um "ofensivo" e outro "defensivo" pro MESMO esquema). Troca o único
+    // volante por uma dupla de contenção (VOL+VOL), que é o que de fato
+    // faz um bloco de 5 no meio virar retranca em vez de linha avançada.
     label: '4-5-1 Defensivo',
-    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MD: 1, ME: 1, ATA: 1 }
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MEI: 1, MD: 1, ME: 1, ATA: 1 }
   },
 
   // --- Variações do 4-3-1-2 e 4-1-3-2 ---
   '4-3-1-2-misto': {
+    // Era idêntico ao 4-4-2 Losango (mesma distribuição, nome diferente).
+    // Troca pra 2 volantes + 1 meia-central formando o "3" da frente da
+    // zaga, distinto do losango (1 volante + 2 meias-central).
     label: '4-3-1-2 Equilibrado',
-    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 1, MC: 2, MEI: 1, ATA: 2 }
+    counts: { GOL: 1, LD: 1, ZAG: 2, LE: 1, VOL: 2, MC: 1, MEI: 1, ATA: 2 }
   },
   '4-1-3-2-ofensivo': {
     label: '4-1-3-2 Ofensivo',
