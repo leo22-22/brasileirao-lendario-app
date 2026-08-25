@@ -3029,33 +3029,26 @@ const CUSTOM_BANDS = [
 
 // `dots`: 10 pontos { id, x, y } soltos pelo usuário (GOL é fixo, não entra
 // aqui). Cada um vira o tipo de posição da banda mais próxima por Y; dentro
-// da banda, o mais à esquerda e o mais à direita (por X) viram a variante
-// aberta (LD/LE, MD/ME, PD/PE) quando ela existe pra essa banda — o resto
-// fica central. Mantém o x/y exatos do arraste (não reespalha), pra o
+// da banda, a posição X ABSOLUTA (não a ordem entre os vizinhos) decide se
+// vira a variante aberta (LD/LE, MD/ME, PD/PE — x < 30% ou x > 70%) ou fica
+// central. Antes a regra usava "o mais à esquerda/direita da própria banda"
+// — bastava DOIS jogadores caírem na mesma altura pra nenhum dos dois
+// sobrar central (os dois viravam lateral automaticamente), o que tornava
+// impossível colocar dois jogadores em "meio" sem que um virasse MD/ME e
+// nenhum ficasse MEI. Mantém o x/y exatos do arraste (não reespalha), pra o
 // círculo na tela nunca "pular" de onde a pessoa soltou.
+const WIDE_X_THRESHOLD = 30;
 function classifyCustomSlots(dots) {
-  const byBand = CUSTOM_BANDS.map(() => []);
-  dots.forEach(d => {
-    let closest = 0, closestDist = Infinity;
-    CUSTOM_BANDS.forEach((b, i) => {
+  const placed = dots.map(d => {
+    let band = CUSTOM_BANDS[0], closestDist = Infinity;
+    CUSTOM_BANDS.forEach(b => {
       const dist = Math.abs(d.y - b.y);
-      if (dist < closestDist) { closestDist = dist; closest = i; }
+      if (dist < closestDist) { closestDist = dist; band = b; }
     });
-    byBand[closest].push(d);
-  });
-
-  const placed = [];
-  byBand.forEach((group, bi) => {
-    const band = CUSTOM_BANDS[bi];
-    if (group.length === 0) return;
-    const sorted = [...group].sort((a, b) => a.x - b.x);
-    const n = sorted.length;
-    sorted.forEach((d, i) => {
-      let pos = band.central;
-      if (band.wideLeft && n >= 2 && i === 0) pos = band.wideLeft;
-      else if (band.wideRight && n >= 2 && i === n - 1) pos = band.wideRight;
-      placed.push({ id: d.id, pos, x: d.x, y: d.y });
-    });
+    let pos = band.central;
+    if (band.wideLeft && d.x < WIDE_X_THRESHOLD) pos = band.wideLeft;
+    else if (band.wideRight && d.x > 100 - WIDE_X_THRESHOLD) pos = band.wideRight;
+    return { id: d.id, pos, x: d.x, y: d.y };
   });
 
   const counts = {};
@@ -3073,14 +3066,47 @@ function classifyCustomSlots(dots) {
   return { slots, counts };
 }
 
+// Clique (sem arrastar) num círculo avança pro próximo tipo do "grupo" dele
+// — alternativa rápida e precisa ao arraste, principalmente útil pro miolo
+// (VOL/MC/MEI ficam em alturas próximas, difícil de acertar por arraste fino
+// numa tela pequena) e pras variantes abertas de cada banda. CYCLE_TARGET_XY
+// é o x/y que representa cada tipo — clicar simplesmente teleporta a bolinha
+// pra lá, então classifyCustomSlots já classifica ela certo na próxima leitura.
+const POS_CYCLE = {
+  ZAG: 'LD', LD: 'LE', LE: 'ZAG',
+  VOL: 'MC', MC: 'MEI', MEI: 'MD', MD: 'ME', ME: 'VOL',
+  ATA: 'PD', PD: 'PE', PE: 'ATA',
+};
+const CYCLE_TARGET_XY = {
+  ZAG: { x: 50, y: 80 }, LD: { x: 85, y: 80 }, LE: { x: 15, y: 80 },
+  VOL: { x: 50, y: 64 }, MC: { x: 50, y: 52 }, MEI: { x: 50, y: 40 }, MD: { x: 85, y: 40 }, ME: { x: 15, y: 40 },
+  ATA: { x: 50, y: 15 }, PD: { x: 85, y: 15 }, PE: { x: 15, y: 15 },
+};
+
 // "3-2-5" etc — mesma convenção (defesa-meio-ataque) usada no rótulo das
 // formações prontas, só que calculada a partir de `counts` em vez de
 // escrita à mão.
+function formationDefMidFwd(counts) {
+  return {
+    def: (counts.LD || 0) + (counts.ZAG || 0) + (counts.LE || 0),
+    mid: (counts.VOL || 0) + (counts.MC || 0) + (counts.MEI || 0) + (counts.MD || 0) + (counts.ME || 0),
+    fwd: (counts.PD || 0) + (counts.PE || 0) + (counts.ATA || 0),
+  };
+}
 function customFormationShape(counts) {
-  const def = (counts.LD || 0) + (counts.ZAG || 0) + (counts.LE || 0);
-  const mid = (counts.VOL || 0) + (counts.MC || 0) + (counts.MEI || 0) + (counts.MD || 0) + (counts.ME || 0);
-  const fwd = (counts.PD || 0) + (counts.PE || 0) + (counts.ATA || 0);
+  const { def, mid, fwd } = formationDefMidFwd(counts);
   return `${def}-${mid}-${fwd}`;
+}
+
+// Time precisa de pelo menos 2 defensores e 2 meio-campistas pra não quebrar
+// o jogo de verdade (só o ataque pode ficar vazio — um "falso 9" ou time sem
+// referência lá na frente ainda é um time jogável, defesa ou meio vazios não).
+function validateCustomFormation(counts) {
+  const { def, mid } = formationDefMidFwd(counts);
+  const errors = [];
+  if (def < 2) errors.push('Precisa de pelo menos 2 defensores (zagueiros e/ou laterais).');
+  if (mid < 2) errors.push('Precisa de pelo menos 2 meio-campistas.');
+  return errors;
 }
 
 // Leitura tática rápida do esquema montado — heurística por contagem de
@@ -3088,9 +3114,7 @@ function customFormationShape(counts) {
 // ponto forte e o risco óbvio de espichar demais pra um lado só, do jeito
 // que o próprio jogo pede: "melhor ataque, mas cuidado com a defesa".
 function describeCustomFormation(counts) {
-  const def = (counts.LD || 0) + (counts.ZAG || 0) + (counts.LE || 0);
-  const mid = (counts.VOL || 0) + (counts.MC || 0) + (counts.MEI || 0) + (counts.MD || 0) + (counts.ME || 0);
-  const fwd = (counts.PD || 0) + (counts.PE || 0) + (counts.ATA || 0);
+  const { def, mid, fwd } = formationDefMidFwd(counts);
   const hasDefWidth = !!counts.LD || !!counts.LE;
   const hasAttWidth = !!counts.PD || !!counts.PE || !!counts.MD || !!counts.ME;
 
@@ -10968,20 +10992,44 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
   const { slots, counts } = useMemo(() => classifyCustomSlots(dots), [dots]);
   const shape = useMemo(() => customFormationShape(counts), [counts]);
   const description = useMemo(() => describeCustomFormation(counts), [counts]);
+  const errors = useMemo(() => validateCustomFormation(counts), [counts]);
 
   const onDotPointerDown = (id) => (e) => {
     e.currentTarget.setPointerCapture(e.pointerId);
-    dragState.current.id = id;
+    dragState.current = { id, startX: e.clientX, startY: e.clientY, moved: false };
   };
   const onDotPointerMove = (e) => {
-    const id = dragState.current.id;
-    if (id == null || !fieldRef.current) return;
+    const st = dragState.current;
+    if (st.id == null || !fieldRef.current) return;
+    // Só conta como arraste de verdade depois de mexer alguns pixels — um
+    // clique/tap sempre balança 1-2px sem querer, e sem essa margem NUNCA
+    // seria reconhecido como clique puro.
+    if (!st.moved && (Math.abs(e.clientX - st.startX) > 5 || Math.abs(e.clientY - st.startY) > 5)) {
+      st.moved = true;
+    }
     const rect = fieldRef.current.getBoundingClientRect();
     const x = Math.max(4, Math.min(96, ((e.clientX - rect.left) / rect.width) * 100));
     const y = Math.max(4, Math.min(96, ((e.clientY - rect.top) / rect.height) * 100));
-    setDots(prev => prev.map(d => (d.id === id ? { ...d, x, y } : d)));
+    setDots(prev => prev.map(d => (d.id === st.id ? { ...d, x, y } : d)));
   };
-  const onDotPointerUp = () => { dragState.current.id = null; };
+  // Soltar sem ter arrastado = clique — avança a bolinha pro próximo tipo do
+  // ciclo (ex.: MEI -> MD -> ME -> volta pro VOL), teleportando ela pro x/y
+  // que representa esse tipo. Alternativa precisa ao arraste fino, principal
+  // pro miolo (VOL/MC/MEI ficam em alturas próximas, difíceis de acertar
+  // exato numa tela de celular).
+  const onDotPointerUp = () => {
+    const st = dragState.current;
+    if (st.id != null && !st.moved) {
+      const current = slots.find(s => s.id === st.id);
+      const nextPos = current && POS_CYCLE[current.realPos];
+      const target = nextPos && CYCLE_TARGET_XY[nextPos];
+      if (target) {
+        const id = st.id;
+        setDots(prev => prev.map(d => (d.id === id ? { ...d, x: target.x, y: target.y } : d)));
+      }
+    }
+    dragState.current = { id: null };
+  };
 
   return (
     <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -10991,7 +11039,7 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
         <div style={styles.eyebrow}>Formação livre</div>
         <h2 style={styles.h2}>Arraste os jogadores</h2>
         <p style={{ fontSize: 12.5, opacity: 0.6, lineHeight: 1.5, marginBottom: 14 }}>
-          Mova cada bolinha pra cima, pra baixo ou pros lados — o esquema e a leitura tática são recalculados ao vivo, pela posição de cada uma.
+          Arraste cada bolinha pra cima, pra baixo ou pros lados — ou toque nela (sem arrastar) pra avançar direto pro próximo tipo de posição. O esquema e a leitura tática são recalculados ao vivo.
         </p>
 
         <div
@@ -11046,11 +11094,23 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
           <div style={{ fontSize: 12.5, opacity: 0.85, lineHeight: 1.5 }}>{description}</div>
         </div>
 
+        {errors.length > 0 && (
+          <div style={{ background: 'rgba(224,89,63,0.12)', border: '1px solid rgba(224,89,63,0.4)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12.5, lineHeight: 1.5, color: '#e0593f' }}>
+            {errors.map((e, i) => <div key={i}>{e}</div>)}
+          </div>
+        )}
+
         <button
-          onClick={() => onChoose(slots, counts, shape)}
-          style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }}
+          onClick={() => errors.length === 0 && onChoose(slots, counts, shape)}
+          disabled={errors.length > 0}
+          style={{
+            ...styles.btnPrimary, width: '100%',
+            background: errors.length > 0 ? 'rgba(255,255,255,0.08)' : mc,
+            color: errors.length > 0 ? 'rgba(244,241,234,0.35)' : '#0B1A12',
+            cursor: errors.length > 0 ? 'not-allowed' : 'pointer',
+          }}
         >
-          Usar essa formação →
+          {errors.length > 0 ? 'Ajuste o esquema pra continuar' : 'Usar essa formação →'}
         </button>
       </div>
     </div>
