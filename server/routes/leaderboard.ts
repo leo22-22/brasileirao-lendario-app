@@ -54,10 +54,12 @@ router.get('/', async (req, res) => {
       // `limit`/`offset` já validados/limitados acima — interpolados direto na
       // query (não como placeholder) porque o protocolo de prepared statement
       // do MySQL não aceita parâmetro nas cláusulas LIMIT/OFFSET de forma confiável.
-      // team_logo NUNCA entra no SELECT — pode ser um data URL de vários KB
-      // (logo customizado), inviável repetir em toda linha de uma lista.
+      // team_logo entra como URL curta (emblema oficial) ou NULL -- nunca como
+      // data: URL de vários KB (emblema customizado/upload), que inviabilizaria
+      // repetir em toda linha de uma lista paginada.
       const [geralRows] = await pool.query<RowDataPacket[]>(
-        `SELECT u.username, u.team_uf, u.titles_brasileirao, u.titles_copa, u.seasons_played, u.best_position, u.ranking_points
+        `SELECT u.username, u.team_uf, u.titles_brasileirao, u.titles_copa, u.seasons_played, u.best_position, u.ranking_points,
+                IF(u.team_logo LIKE 'data:%', NULL, u.team_logo) AS team_logo
          FROM users u
          ${whereClause}
          ORDER BY u.ranking_points DESC, u.titles_brasileirao DESC, u.titles_copa DESC
@@ -75,6 +77,7 @@ router.get('/', async (req, res) => {
       const periodParams = [days, ...params];
       const [periodRows] = await pool.query<RowDataPacket[]>(
         `SELECT u.username, u.team_uf, u.titles_brasileirao, u.titles_copa, u.seasons_played, u.best_position,
+                IF(u.team_logo LIKE 'data:%', NULL, u.team_logo) AS team_logo,
                 SUM(re.points) AS ranking_points
          FROM users u
          JOIN ranking_events re ON re.user_id = u.id AND re.created_at >= NOW() - INTERVAL ? DAY

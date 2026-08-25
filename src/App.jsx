@@ -13096,6 +13096,10 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
                   }}
                 >
                   <span style={{ width: 26, textAlign: 'right', opacity: 0.5, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{rank}.</span>
+                  {r.team_logo
+                    ? <img src={r.team_logo} alt="" style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'contain', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+                    : <span style={{ width: 22, height: 22, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, opacity: 0.35 }}>⚽</span>
+                  }
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>{r.username}</span>
                   {r.team_uf && !uf && <span style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace" }}>{r.team_uf}</span>}
                   <span style={{ fontSize: 11, opacity: 0.6 }}>🏆{r.titles_brasileirao + r.titles_copa}</span>
