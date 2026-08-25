@@ -11003,7 +11003,7 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
         <div style={styles.eyebrow}>Formação livre</div>
         <h2 style={styles.h2}>Arraste os jogadores</h2>
         <p style={{ fontSize: 12.5, opacity: 0.6, lineHeight: 1.5, marginBottom: 14 }}>
-          Arraste cada bolinha pra cima, pra baixo ou pros lados — ou toque nela (sem arrastar) pra avançar direto pro próximo tipo de posição. O esquema e a leitura tática são recalculados ao vivo.
+          Arraste cada bolinha pra cima, pra baixo ou pros lados — ou toque nela (sem arrastar) pra avançar direto pro próximo tipo de posição. Passar da <span style={{ color: '#d4a23c', fontWeight: 700 }}>linha amarela</span> vira lateral/ponta; dentro dela fica central. O esquema e a leitura tática são recalculados ao vivo.
         </p>
 
         <div
@@ -11018,6 +11018,15 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
           <div style={{ position: 'absolute', left: '50%', top: '50%', width: 60, height: 60, marginLeft: -30, marginTop: -30, border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%' }} />
           <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '17%', border: '1px solid rgba(255,255,255,0.12)', borderTop: 'none' }} />
           <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '17%', border: '1px solid rgba(255,255,255,0.12)', borderBottom: 'none' }} />
+
+          {/* Linhas amarelas marcando o limite exato de WIDE_X_THRESHOLD —
+              passar uma bolinha pra fora delas é o que vira LD/LE, MD/ME ou
+              PD/PE (dependendo da banda); dentro, fica sempre central
+              (ZAG/VOL/MC/MEI/ATA). Sem essa marca, dar aquela "aberta de
+              leve" pra virar ponta era surpresa — não dava pra saber onde
+              exatamente ficava o limite antes de soltar. */}
+          <div style={{ position: 'absolute', left: `${WIDE_X_THRESHOLD}%`, top: 0, bottom: 0, borderLeft: '2px dashed rgba(212,162,60,0.55)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: `${100 - WIDE_X_THRESHOLD}%`, top: 0, bottom: 0, borderLeft: '2px dashed rgba(212,162,60,0.55)', pointerEvents: 'none' }} />
 
           {/* Goleiro fixo — só ilustrativo, não arrasta (todo esquema tem 1 goleiro). */}
           <div style={{
