@@ -6009,6 +6009,51 @@ function poissonSample(lambda, rand = Math.random) {
 // ============================================================
 const MY_TEAM_ID = '__myteam__';
 
+// Calendario real do Brasileirao Serie A 2026 (Tabela Basica oficial da CBF,
+// edicao 2026 - turno rodadas 1-19 + returno espelhado com mando invertido,
+// exatamente como a CBF publica). IDs batem com as entradas ano:2026 de TEAMS.
+const SERIE_A_2026_TEAM_IDS = ['fluminense2026', 'gremio2026', 'botafogo2026', 'cruzeiro2026', 'saopaulo2026', 'flamengo2026', 'corinthians2026', 'bahia2026', 'mirassol2026', 'vasco2026', 'atleticomg2026', 'palmeiras2026', 'internacional2026', 'athleticopr2026', 'coritiba2026', 'bragantino2026', 'vitoria2026', 'remo2026', 'chapecoense2026', 'santos2026'];
+const SERIE_A_2026_FIXTURES = [
+  [{ homeId: 'fluminense2026', awayId: 'gremio2026' }, { homeId: 'botafogo2026', awayId: 'cruzeiro2026' }, { homeId: 'saopaulo2026', awayId: 'flamengo2026' }, { homeId: 'corinthians2026', awayId: 'bahia2026' }, { homeId: 'mirassol2026', awayId: 'vasco2026' }, { homeId: 'atleticomg2026', awayId: 'palmeiras2026' }, { homeId: 'internacional2026', awayId: 'athleticopr2026' }, { homeId: 'coritiba2026', awayId: 'bragantino2026' }, { homeId: 'vitoria2026', awayId: 'remo2026' }, { homeId: 'chapecoense2026', awayId: 'santos2026' }], // Rodada 1
+  [{ homeId: 'flamengo2026', awayId: 'internacional2026' }, { homeId: 'vasco2026', awayId: 'chapecoense2026' }, { homeId: 'santos2026', awayId: 'saopaulo2026' }, { homeId: 'palmeiras2026', awayId: 'vitoria2026' }, { homeId: 'bragantino2026', awayId: 'atleticomg2026' }, { homeId: 'cruzeiro2026', awayId: 'coritiba2026' }, { homeId: 'gremio2026', awayId: 'botafogo2026' }, { homeId: 'athleticopr2026', awayId: 'corinthians2026' }, { homeId: 'bahia2026', awayId: 'fluminense2026' }, { homeId: 'remo2026', awayId: 'mirassol2026' }], // Rodada 2
+  [{ homeId: 'fluminense2026', awayId: 'botafogo2026' }, { homeId: 'vasco2026', awayId: 'bahia2026' }, { homeId: 'saopaulo2026', awayId: 'gremio2026' }, { homeId: 'corinthians2026', awayId: 'bragantino2026' }, { homeId: 'mirassol2026', awayId: 'cruzeiro2026' }, { homeId: 'atleticomg2026', awayId: 'remo2026' }, { homeId: 'internacional2026', awayId: 'palmeiras2026' }, { homeId: 'athleticopr2026', awayId: 'santos2026' }, { homeId: 'vitoria2026', awayId: 'flamengo2026' }, { homeId: 'chapecoense2026', awayId: 'coritiba2026' }], // Rodada 3
+  [{ homeId: 'flamengo2026', awayId: 'mirassol2026' }, { homeId: 'botafogo2026', awayId: 'vitoria2026' }, { homeId: 'santos2026', awayId: 'vasco2026' }, { homeId: 'palmeiras2026', awayId: 'fluminense2026' }, { homeId: 'bragantino2026', awayId: 'athleticopr2026' }, { homeId: 'cruzeiro2026', awayId: 'corinthians2026' }, { homeId: 'gremio2026', awayId: 'atleticomg2026' }, { homeId: 'coritiba2026', awayId: 'saopaulo2026' }, { homeId: 'bahia2026', awayId: 'chapecoense2026' }, { homeId: 'remo2026', awayId: 'internacional2026' }], // Rodada 4
+  [{ homeId: 'flamengo2026', awayId: 'cruzeiro2026' }, { homeId: 'vasco2026', awayId: 'palmeiras2026' }, { homeId: 'saopaulo2026', awayId: 'chapecoense2026' }, { homeId: 'corinthians2026', awayId: 'coritiba2026' }, { homeId: 'mirassol2026', awayId: 'santos2026' }, { homeId: 'atleticomg2026', awayId: 'internacional2026' }, { homeId: 'gremio2026', awayId: 'bragantino2026' }, { homeId: 'athleticopr2026', awayId: 'botafogo2026' }, { homeId: 'bahia2026', awayId: 'vitoria2026' }, { homeId: 'remo2026', awayId: 'fluminense2026' }], // Rodada 5
+  [{ homeId: 'fluminense2026', awayId: 'athleticopr2026' }, { homeId: 'botafogo2026', awayId: 'flamengo2026' }, { homeId: 'santos2026', awayId: 'corinthians2026' }, { homeId: 'palmeiras2026', awayId: 'mirassol2026' }, { homeId: 'bragantino2026', awayId: 'saopaulo2026' }, { homeId: 'cruzeiro2026', awayId: 'vasco2026' }, { homeId: 'internacional2026', awayId: 'bahia2026' }, { homeId: 'coritiba2026', awayId: 'remo2026' }, { homeId: 'vitoria2026', awayId: 'atleticomg2026' }, { homeId: 'chapecoense2026', awayId: 'gremio2026' }], // Rodada 6
+  [{ homeId: 'flamengo2026', awayId: 'remo2026' }, { homeId: 'vasco2026', awayId: 'fluminense2026' }, { homeId: 'santos2026', awayId: 'internacional2026' }, { homeId: 'palmeiras2026', awayId: 'botafogo2026' }, { homeId: 'mirassol2026', awayId: 'coritiba2026' }, { homeId: 'atleticomg2026', awayId: 'saopaulo2026' }, { homeId: 'gremio2026', awayId: 'vitoria2026' }, { homeId: 'athleticopr2026', awayId: 'cruzeiro2026' }, { homeId: 'bahia2026', awayId: 'bragantino2026' }, { homeId: 'chapecoense2026', awayId: 'corinthians2026' }], // Rodada 7
+  [{ homeId: 'fluminense2026', awayId: 'atleticomg2026' }, { homeId: 'vasco2026', awayId: 'gremio2026' }, { homeId: 'saopaulo2026', awayId: 'palmeiras2026' }, { homeId: 'corinthians2026', awayId: 'flamengo2026' }, { homeId: 'bragantino2026', awayId: 'botafogo2026' }, { homeId: 'cruzeiro2026', awayId: 'santos2026' }, { homeId: 'internacional2026', awayId: 'chapecoense2026' }, { homeId: 'athleticopr2026', awayId: 'coritiba2026' }, { homeId: 'vitoria2026', awayId: 'mirassol2026' }, { homeId: 'remo2026', awayId: 'bahia2026' }], // Rodada 8
+  [{ homeId: 'fluminense2026', awayId: 'corinthians2026' }, { homeId: 'botafogo2026', awayId: 'mirassol2026' }, { homeId: 'santos2026', awayId: 'remo2026' }, { homeId: 'palmeiras2026', awayId: 'gremio2026' }, { homeId: 'bragantino2026', awayId: 'flamengo2026' }, { homeId: 'cruzeiro2026', awayId: 'vitoria2026' }, { homeId: 'internacional2026', awayId: 'saopaulo2026' }, { homeId: 'coritiba2026', awayId: 'vasco2026' }, { homeId: 'bahia2026', awayId: 'athleticopr2026' }, { homeId: 'chapecoense2026', awayId: 'atleticomg2026' }], // Rodada 9
+  [{ homeId: 'flamengo2026', awayId: 'santos2026' }, { homeId: 'vasco2026', awayId: 'botafogo2026' }, { homeId: 'saopaulo2026', awayId: 'cruzeiro2026' }, { homeId: 'corinthians2026', awayId: 'internacional2026' }, { homeId: 'mirassol2026', awayId: 'bragantino2026' }, { homeId: 'atleticomg2026', awayId: 'athleticopr2026' }, { homeId: 'gremio2026', awayId: 'remo2026' }, { homeId: 'coritiba2026', awayId: 'fluminense2026' }, { homeId: 'bahia2026', awayId: 'palmeiras2026' }, { homeId: 'chapecoense2026', awayId: 'vitoria2026' }], // Rodada 10
+  [{ homeId: 'fluminense2026', awayId: 'flamengo2026' }, { homeId: 'botafogo2026', awayId: 'coritiba2026' }, { homeId: 'santos2026', awayId: 'atleticomg2026' }, { homeId: 'corinthians2026', awayId: 'palmeiras2026' }, { homeId: 'mirassol2026', awayId: 'bahia2026' }, { homeId: 'cruzeiro2026', awayId: 'bragantino2026' }, { homeId: 'internacional2026', awayId: 'gremio2026' }, { homeId: 'athleticopr2026', awayId: 'chapecoense2026' }, { homeId: 'vitoria2026', awayId: 'saopaulo2026' }, { homeId: 'remo2026', awayId: 'vasco2026' }], // Rodada 11
+  [{ homeId: 'flamengo2026', awayId: 'bahia2026' }, { homeId: 'vasco2026', awayId: 'saopaulo2026' }, { homeId: 'santos2026', awayId: 'fluminense2026' }, { homeId: 'palmeiras2026', awayId: 'athleticopr2026' }, { homeId: 'bragantino2026', awayId: 'remo2026' }, { homeId: 'cruzeiro2026', awayId: 'gremio2026' }, { homeId: 'internacional2026', awayId: 'mirassol2026' }, { homeId: 'coritiba2026', awayId: 'atleticomg2026' }, { homeId: 'vitoria2026', awayId: 'corinthians2026' }, { homeId: 'chapecoense2026', awayId: 'botafogo2026' }], // Rodada 12
+  [{ homeId: 'fluminense2026', awayId: 'chapecoense2026' }, { homeId: 'botafogo2026', awayId: 'internacional2026' }, { homeId: 'saopaulo2026', awayId: 'mirassol2026' }, { homeId: 'corinthians2026', awayId: 'vasco2026' }, { homeId: 'bragantino2026', awayId: 'palmeiras2026' }, { homeId: 'atleticomg2026', awayId: 'flamengo2026' }, { homeId: 'gremio2026', awayId: 'coritiba2026' }, { homeId: 'athleticopr2026', awayId: 'vitoria2026' }, { homeId: 'bahia2026', awayId: 'santos2026' }, { homeId: 'remo2026', awayId: 'cruzeiro2026' }], // Rodada 13
+  [{ homeId: 'flamengo2026', awayId: 'vasco2026' }, { homeId: 'botafogo2026', awayId: 'remo2026' }, { homeId: 'saopaulo2026', awayId: 'bahia2026' }, { homeId: 'palmeiras2026', awayId: 'santos2026' }, { homeId: 'mirassol2026', awayId: 'corinthians2026' }, { homeId: 'cruzeiro2026', awayId: 'atleticomg2026' }, { homeId: 'internacional2026', awayId: 'fluminense2026' }, { homeId: 'athleticopr2026', awayId: 'gremio2026' }, { homeId: 'vitoria2026', awayId: 'coritiba2026' }, { homeId: 'chapecoense2026', awayId: 'bragantino2026' }], // Rodada 14
+  [{ homeId: 'fluminense2026', awayId: 'vitoria2026' }, { homeId: 'vasco2026', awayId: 'athleticopr2026' }, { homeId: 'santos2026', awayId: 'bragantino2026' }, { homeId: 'corinthians2026', awayId: 'saopaulo2026' }, { homeId: 'mirassol2026', awayId: 'chapecoense2026' }, { homeId: 'atleticomg2026', awayId: 'botafogo2026' }, { homeId: 'gremio2026', awayId: 'flamengo2026' }, { homeId: 'coritiba2026', awayId: 'internacional2026' }, { homeId: 'bahia2026', awayId: 'cruzeiro2026' }, { homeId: 'remo2026', awayId: 'palmeiras2026' }], // Rodada 15
+  [{ homeId: 'fluminense2026', awayId: 'saopaulo2026' }, { homeId: 'botafogo2026', awayId: 'corinthians2026' }, { homeId: 'santos2026', awayId: 'coritiba2026' }, { homeId: 'palmeiras2026', awayId: 'cruzeiro2026' }, { homeId: 'bragantino2026', awayId: 'vitoria2026' }, { homeId: 'atleticomg2026', awayId: 'mirassol2026' }, { homeId: 'internacional2026', awayId: 'vasco2026' }, { homeId: 'athleticopr2026', awayId: 'flamengo2026' }, { homeId: 'bahia2026', awayId: 'gremio2026' }, { homeId: 'chapecoense2026', awayId: 'remo2026' }], // Rodada 16
+  [{ homeId: 'flamengo2026', awayId: 'palmeiras2026' }, { homeId: 'vasco2026', awayId: 'bragantino2026' }, { homeId: 'saopaulo2026', awayId: 'botafogo2026' }, { homeId: 'corinthians2026', awayId: 'atleticomg2026' }, { homeId: 'mirassol2026', awayId: 'fluminense2026' }, { homeId: 'cruzeiro2026', awayId: 'chapecoense2026' }, { homeId: 'gremio2026', awayId: 'santos2026' }, { homeId: 'coritiba2026', awayId: 'bahia2026' }, { homeId: 'vitoria2026', awayId: 'internacional2026' }, { homeId: 'remo2026', awayId: 'athleticopr2026' }], // Rodada 17
+  [{ homeId: 'flamengo2026', awayId: 'coritiba2026' }, { homeId: 'vasco2026', awayId: 'atleticomg2026' }, { homeId: 'santos2026', awayId: 'vitoria2026' }, { homeId: 'palmeiras2026', awayId: 'chapecoense2026' }, { homeId: 'bragantino2026', awayId: 'internacional2026' }, { homeId: 'cruzeiro2026', awayId: 'fluminense2026' }, { homeId: 'gremio2026', awayId: 'corinthians2026' }, { homeId: 'athleticopr2026', awayId: 'mirassol2026' }, { homeId: 'bahia2026', awayId: 'botafogo2026' }, { homeId: 'remo2026', awayId: 'saopaulo2026' }], // Rodada 18
+  [{ homeId: 'fluminense2026', awayId: 'bragantino2026' }, { homeId: 'botafogo2026', awayId: 'santos2026' }, { homeId: 'saopaulo2026', awayId: 'athleticopr2026' }, { homeId: 'corinthians2026', awayId: 'remo2026' }, { homeId: 'mirassol2026', awayId: 'gremio2026' }, { homeId: 'atleticomg2026', awayId: 'bahia2026' }, { homeId: 'internacional2026', awayId: 'cruzeiro2026' }, { homeId: 'coritiba2026', awayId: 'palmeiras2026' }, { homeId: 'vitoria2026', awayId: 'vasco2026' }, { homeId: 'chapecoense2026', awayId: 'flamengo2026' }], // Rodada 19
+  [{ homeId: 'gremio2026', awayId: 'fluminense2026' }, { homeId: 'cruzeiro2026', awayId: 'botafogo2026' }, { homeId: 'flamengo2026', awayId: 'saopaulo2026' }, { homeId: 'bahia2026', awayId: 'corinthians2026' }, { homeId: 'vasco2026', awayId: 'mirassol2026' }, { homeId: 'palmeiras2026', awayId: 'atleticomg2026' }, { homeId: 'athleticopr2026', awayId: 'internacional2026' }, { homeId: 'bragantino2026', awayId: 'coritiba2026' }, { homeId: 'remo2026', awayId: 'vitoria2026' }, { homeId: 'santos2026', awayId: 'chapecoense2026' }], // Rodada 20
+  [{ homeId: 'internacional2026', awayId: 'flamengo2026' }, { homeId: 'chapecoense2026', awayId: 'vasco2026' }, { homeId: 'saopaulo2026', awayId: 'santos2026' }, { homeId: 'vitoria2026', awayId: 'palmeiras2026' }, { homeId: 'atleticomg2026', awayId: 'bragantino2026' }, { homeId: 'coritiba2026', awayId: 'cruzeiro2026' }, { homeId: 'botafogo2026', awayId: 'gremio2026' }, { homeId: 'corinthians2026', awayId: 'athleticopr2026' }, { homeId: 'fluminense2026', awayId: 'bahia2026' }, { homeId: 'mirassol2026', awayId: 'remo2026' }], // Rodada 21
+  [{ homeId: 'botafogo2026', awayId: 'fluminense2026' }, { homeId: 'bahia2026', awayId: 'vasco2026' }, { homeId: 'gremio2026', awayId: 'saopaulo2026' }, { homeId: 'bragantino2026', awayId: 'corinthians2026' }, { homeId: 'cruzeiro2026', awayId: 'mirassol2026' }, { homeId: 'remo2026', awayId: 'atleticomg2026' }, { homeId: 'palmeiras2026', awayId: 'internacional2026' }, { homeId: 'santos2026', awayId: 'athleticopr2026' }, { homeId: 'flamengo2026', awayId: 'vitoria2026' }, { homeId: 'coritiba2026', awayId: 'chapecoense2026' }], // Rodada 22
+  [{ homeId: 'mirassol2026', awayId: 'flamengo2026' }, { homeId: 'vitoria2026', awayId: 'botafogo2026' }, { homeId: 'vasco2026', awayId: 'santos2026' }, { homeId: 'fluminense2026', awayId: 'palmeiras2026' }, { homeId: 'athleticopr2026', awayId: 'bragantino2026' }, { homeId: 'corinthians2026', awayId: 'cruzeiro2026' }, { homeId: 'atleticomg2026', awayId: 'gremio2026' }, { homeId: 'saopaulo2026', awayId: 'coritiba2026' }, { homeId: 'chapecoense2026', awayId: 'bahia2026' }, { homeId: 'internacional2026', awayId: 'remo2026' }], // Rodada 23
+  [{ homeId: 'cruzeiro2026', awayId: 'flamengo2026' }, { homeId: 'palmeiras2026', awayId: 'vasco2026' }, { homeId: 'chapecoense2026', awayId: 'saopaulo2026' }, { homeId: 'coritiba2026', awayId: 'corinthians2026' }, { homeId: 'santos2026', awayId: 'mirassol2026' }, { homeId: 'internacional2026', awayId: 'atleticomg2026' }, { homeId: 'bragantino2026', awayId: 'gremio2026' }, { homeId: 'botafogo2026', awayId: 'athleticopr2026' }, { homeId: 'vitoria2026', awayId: 'bahia2026' }, { homeId: 'fluminense2026', awayId: 'remo2026' }], // Rodada 24
+  [{ homeId: 'athleticopr2026', awayId: 'fluminense2026' }, { homeId: 'flamengo2026', awayId: 'botafogo2026' }, { homeId: 'corinthians2026', awayId: 'santos2026' }, { homeId: 'mirassol2026', awayId: 'palmeiras2026' }, { homeId: 'saopaulo2026', awayId: 'bragantino2026' }, { homeId: 'vasco2026', awayId: 'cruzeiro2026' }, { homeId: 'bahia2026', awayId: 'internacional2026' }, { homeId: 'remo2026', awayId: 'coritiba2026' }, { homeId: 'atleticomg2026', awayId: 'vitoria2026' }, { homeId: 'gremio2026', awayId: 'chapecoense2026' }], // Rodada 25
+  [{ homeId: 'remo2026', awayId: 'flamengo2026' }, { homeId: 'fluminense2026', awayId: 'vasco2026' }, { homeId: 'internacional2026', awayId: 'santos2026' }, { homeId: 'botafogo2026', awayId: 'palmeiras2026' }, { homeId: 'coritiba2026', awayId: 'mirassol2026' }, { homeId: 'saopaulo2026', awayId: 'atleticomg2026' }, { homeId: 'vitoria2026', awayId: 'gremio2026' }, { homeId: 'cruzeiro2026', awayId: 'athleticopr2026' }, { homeId: 'bragantino2026', awayId: 'bahia2026' }, { homeId: 'corinthians2026', awayId: 'chapecoense2026' }], // Rodada 26
+  [{ homeId: 'atleticomg2026', awayId: 'fluminense2026' }, { homeId: 'gremio2026', awayId: 'vasco2026' }, { homeId: 'palmeiras2026', awayId: 'saopaulo2026' }, { homeId: 'flamengo2026', awayId: 'corinthians2026' }, { homeId: 'botafogo2026', awayId: 'bragantino2026' }, { homeId: 'santos2026', awayId: 'cruzeiro2026' }, { homeId: 'chapecoense2026', awayId: 'internacional2026' }, { homeId: 'coritiba2026', awayId: 'athleticopr2026' }, { homeId: 'mirassol2026', awayId: 'vitoria2026' }, { homeId: 'bahia2026', awayId: 'remo2026' }], // Rodada 27
+  [{ homeId: 'corinthians2026', awayId: 'fluminense2026' }, { homeId: 'mirassol2026', awayId: 'botafogo2026' }, { homeId: 'remo2026', awayId: 'santos2026' }, { homeId: 'gremio2026', awayId: 'palmeiras2026' }, { homeId: 'flamengo2026', awayId: 'bragantino2026' }, { homeId: 'vitoria2026', awayId: 'cruzeiro2026' }, { homeId: 'saopaulo2026', awayId: 'internacional2026' }, { homeId: 'vasco2026', awayId: 'coritiba2026' }, { homeId: 'athleticopr2026', awayId: 'bahia2026' }, { homeId: 'atleticomg2026', awayId: 'chapecoense2026' }], // Rodada 28
+  [{ homeId: 'santos2026', awayId: 'flamengo2026' }, { homeId: 'botafogo2026', awayId: 'vasco2026' }, { homeId: 'cruzeiro2026', awayId: 'saopaulo2026' }, { homeId: 'internacional2026', awayId: 'corinthians2026' }, { homeId: 'bragantino2026', awayId: 'mirassol2026' }, { homeId: 'athleticopr2026', awayId: 'atleticomg2026' }, { homeId: 'remo2026', awayId: 'gremio2026' }, { homeId: 'fluminense2026', awayId: 'coritiba2026' }, { homeId: 'palmeiras2026', awayId: 'bahia2026' }, { homeId: 'vitoria2026', awayId: 'chapecoense2026' }], // Rodada 29
+  [{ homeId: 'flamengo2026', awayId: 'fluminense2026' }, { homeId: 'coritiba2026', awayId: 'botafogo2026' }, { homeId: 'atleticomg2026', awayId: 'santos2026' }, { homeId: 'palmeiras2026', awayId: 'corinthians2026' }, { homeId: 'bahia2026', awayId: 'mirassol2026' }, { homeId: 'bragantino2026', awayId: 'cruzeiro2026' }, { homeId: 'gremio2026', awayId: 'internacional2026' }, { homeId: 'chapecoense2026', awayId: 'athleticopr2026' }, { homeId: 'saopaulo2026', awayId: 'vitoria2026' }, { homeId: 'vasco2026', awayId: 'remo2026' }], // Rodada 30
+  [{ homeId: 'bahia2026', awayId: 'flamengo2026' }, { homeId: 'saopaulo2026', awayId: 'vasco2026' }, { homeId: 'fluminense2026', awayId: 'santos2026' }, { homeId: 'athleticopr2026', awayId: 'palmeiras2026' }, { homeId: 'remo2026', awayId: 'bragantino2026' }, { homeId: 'gremio2026', awayId: 'cruzeiro2026' }, { homeId: 'mirassol2026', awayId: 'internacional2026' }, { homeId: 'atleticomg2026', awayId: 'coritiba2026' }, { homeId: 'corinthians2026', awayId: 'vitoria2026' }, { homeId: 'botafogo2026', awayId: 'chapecoense2026' }], // Rodada 31
+  [{ homeId: 'chapecoense2026', awayId: 'fluminense2026' }, { homeId: 'internacional2026', awayId: 'botafogo2026' }, { homeId: 'mirassol2026', awayId: 'saopaulo2026' }, { homeId: 'vasco2026', awayId: 'corinthians2026' }, { homeId: 'palmeiras2026', awayId: 'bragantino2026' }, { homeId: 'flamengo2026', awayId: 'atleticomg2026' }, { homeId: 'coritiba2026', awayId: 'gremio2026' }, { homeId: 'vitoria2026', awayId: 'athleticopr2026' }, { homeId: 'santos2026', awayId: 'bahia2026' }, { homeId: 'cruzeiro2026', awayId: 'remo2026' }], // Rodada 32
+  [{ homeId: 'vasco2026', awayId: 'flamengo2026' }, { homeId: 'remo2026', awayId: 'botafogo2026' }, { homeId: 'bahia2026', awayId: 'saopaulo2026' }, { homeId: 'santos2026', awayId: 'palmeiras2026' }, { homeId: 'corinthians2026', awayId: 'mirassol2026' }, { homeId: 'atleticomg2026', awayId: 'cruzeiro2026' }, { homeId: 'fluminense2026', awayId: 'internacional2026' }, { homeId: 'gremio2026', awayId: 'athleticopr2026' }, { homeId: 'coritiba2026', awayId: 'vitoria2026' }, { homeId: 'bragantino2026', awayId: 'chapecoense2026' }], // Rodada 33
+  [{ homeId: 'vitoria2026', awayId: 'fluminense2026' }, { homeId: 'athleticopr2026', awayId: 'vasco2026' }, { homeId: 'bragantino2026', awayId: 'santos2026' }, { homeId: 'saopaulo2026', awayId: 'corinthians2026' }, { homeId: 'chapecoense2026', awayId: 'mirassol2026' }, { homeId: 'botafogo2026', awayId: 'atleticomg2026' }, { homeId: 'flamengo2026', awayId: 'gremio2026' }, { homeId: 'internacional2026', awayId: 'coritiba2026' }, { homeId: 'cruzeiro2026', awayId: 'bahia2026' }, { homeId: 'palmeiras2026', awayId: 'remo2026' }], // Rodada 34
+  [{ homeId: 'saopaulo2026', awayId: 'fluminense2026' }, { homeId: 'corinthians2026', awayId: 'botafogo2026' }, { homeId: 'coritiba2026', awayId: 'santos2026' }, { homeId: 'cruzeiro2026', awayId: 'palmeiras2026' }, { homeId: 'vitoria2026', awayId: 'bragantino2026' }, { homeId: 'mirassol2026', awayId: 'atleticomg2026' }, { homeId: 'vasco2026', awayId: 'internacional2026' }, { homeId: 'flamengo2026', awayId: 'athleticopr2026' }, { homeId: 'gremio2026', awayId: 'bahia2026' }, { homeId: 'remo2026', awayId: 'chapecoense2026' }], // Rodada 35
+  [{ homeId: 'palmeiras2026', awayId: 'flamengo2026' }, { homeId: 'bragantino2026', awayId: 'vasco2026' }, { homeId: 'botafogo2026', awayId: 'saopaulo2026' }, { homeId: 'atleticomg2026', awayId: 'corinthians2026' }, { homeId: 'fluminense2026', awayId: 'mirassol2026' }, { homeId: 'chapecoense2026', awayId: 'cruzeiro2026' }, { homeId: 'santos2026', awayId: 'gremio2026' }, { homeId: 'bahia2026', awayId: 'coritiba2026' }, { homeId: 'internacional2026', awayId: 'vitoria2026' }, { homeId: 'athleticopr2026', awayId: 'remo2026' }], // Rodada 36
+  [{ homeId: 'coritiba2026', awayId: 'flamengo2026' }, { homeId: 'atleticomg2026', awayId: 'vasco2026' }, { homeId: 'vitoria2026', awayId: 'santos2026' }, { homeId: 'chapecoense2026', awayId: 'palmeiras2026' }, { homeId: 'internacional2026', awayId: 'bragantino2026' }, { homeId: 'fluminense2026', awayId: 'cruzeiro2026' }, { homeId: 'corinthians2026', awayId: 'gremio2026' }, { homeId: 'mirassol2026', awayId: 'athleticopr2026' }, { homeId: 'botafogo2026', awayId: 'bahia2026' }, { homeId: 'saopaulo2026', awayId: 'remo2026' }], // Rodada 37
+  [{ homeId: 'bragantino2026', awayId: 'fluminense2026' }, { homeId: 'santos2026', awayId: 'botafogo2026' }, { homeId: 'athleticopr2026', awayId: 'saopaulo2026' }, { homeId: 'remo2026', awayId: 'corinthians2026' }, { homeId: 'gremio2026', awayId: 'mirassol2026' }, { homeId: 'bahia2026', awayId: 'atleticomg2026' }, { homeId: 'cruzeiro2026', awayId: 'internacional2026' }, { homeId: 'palmeiras2026', awayId: 'coritiba2026' }, { homeId: 'vasco2026', awayId: 'vitoria2026' }, { homeId: 'flamengo2026', awayId: 'chapecoense2026' }], // Rodada 38
+];
+
 // Gera calendário round-robin (todos contra todos, turno único)
 function generateRoundRobin(teamIds) {
   const teams = [...teamIds];
@@ -8136,6 +8181,33 @@ export default function App() {
     setPhase('squad');
   };
 
+  // Brasileirão Atual 2026: escolheu um dos 20 times reais da Série A 2026 —
+  // pula o sorteio igual "Já sei qual time eu quero" (mesmo elenco real via
+  // autoFillSquadFromTeam), mas guarda QUAL time é (serieAtualTeamId) pra
+  // `confirmSerieAtual` montar os outros 19 (cada um com o próprio elenco
+  // real) e o calendário oficial da CBF em vez de sortear tudo.
+  const [isSerieAtual, setIsSerieAtual] = useState(false);
+  const [serieAtualTeamId, setSerieAtualTeamId] = useState(null);
+  const [showSerieAtualPicker, setShowSerieAtualPicker] = useState(false);
+  const startSerieAtual = (team) => {
+    const built = autoFillSquadFromTeam(team);
+    if (!built) return;
+    setFormationKey(built.formationKey);
+    setPitchSlots(built.pitchSlots);
+    setPitch(built.pitch);
+    setUsedTeamIds([]);
+    setSkipsLeft(MAX_SKIPS);
+    setLog([]);
+    setSelectedPlayer(null);
+    setRepositioningSlot(null);
+    setCaptainSlot(null);
+    setRolledTeam(null);
+    setIsSerieAtual(true);
+    setSerieAtualTeamId(team.id);
+    setShowSerieAtualPicker(false);
+    setPhase('squad');
+  };
+
   // Supercopa do Brasil: escolheu enfrentar o time lendário de hoje — vai
   // pro fluxo normal de formação/sorteio (igual começar uma carreira do
   // zero), só guardando quem é o adversário pra montar o confronto quando a
@@ -8214,6 +8286,76 @@ export default function App() {
     setLastMatchRatings(null);
     setTeamForm({});
     setSeasonAwards([]);
+    setPhase('playing');
+  };
+
+  // onConfirm da tela de Squad quando isSerieAtual — monta os outros 19
+  // times da Série A 2026 (cada um com o PRÓPRIO elenco real, sem sorteio e
+  // sem escala de dificuldade — a força de cada time É a força real) e usa
+  // o calendário oficial de 38 rodadas da CBF, só trocando o id do time
+  // escolhido pelo MY_TEAM_ID nos confrontos dele.
+  const confirmSerieAtual = () => {
+    const pitchWithCaptain = captainSlot && pitch[captainSlot]
+      ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
+      : pitch;
+    const userOvr = teamStrength(pitchWithCaptain);
+    const userPlayers = partitionStartersFirst(Object.values(pitchWithCaptain));
+    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, club: clubFromLogo(myTeamLogo), ovr: userOvr, players: userPlayers };
+
+    const opps = SERIE_A_2026_TEAM_IDS.filter(id => id !== serieAtualTeamId).map(id => {
+      const t = TEAMS.find(tm => tm.id === id);
+      const playersWithMeta = t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' }));
+      return {
+        id: t.id, label: t.label, club: t.club, clubLogo: CLUB_LOGOS[t.club] || null,
+        ovr: teamStrength(Object.fromEntries(playersWithMeta.map((p, i) => [i, p]))),
+        players: playersWithMeta,
+      };
+    });
+    const allTeams = [myTeamObj, ...opps];
+
+    const fixtures = SERIE_A_2026_FIXTURES.map(round => round.map(m => ({
+      homeId: m.homeId === serieAtualTeamId ? MY_TEAM_ID : m.homeId,
+      awayId: m.awayId === serieAtualTeamId ? MY_TEAM_ID : m.awayId,
+    })));
+    const table = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
+
+    setLeagueTeams(allTeams);
+    setClockMinute(0);
+    setIsSimulating(false);
+    setLiveEvents([]);
+    setLiveScore({ home: 0, away: 0 });
+    setRoundResults(null);
+    setActiveUserMatch(null);
+    setMatchHistory([]);
+    setRoundHistory({});
+    setCalendarCursor(null);
+    calendarCursorRef.current = null;
+    setScorers({});
+    setAssisters({});
+    setCleanSheets({});
+    setSeasonRatings({});
+    setCardCounts({});
+    setRedCards({});
+    setSuspensions({});
+    setInjuries({});
+    setLastRoundDiscipline(null);
+    setLastMatchRatings(null);
+    setTeamForm({});
+    setSeasonAwards([]);
+    setEliminationRoundName(null);
+    setBracketAdvance(null);
+    resultsAfterBracketRef.current = false;
+    setIsDailyChallenge(false);
+    setDailyOpponent(null);
+    setGameMode('brasileirao');
+    setFixtures(fixtures);
+    setLeagueTable(table);
+    setCurrentRound(0);
+    setCupRounds([]);
+    setCupRoundIdx(0);
+    setCupLeg(1);
+    setUserInCup(true);
+    setCupWinnerId(null);
     setPhase('playing');
   };
 
@@ -8588,6 +8730,8 @@ export default function App() {
     // e nunca submetia o resultado de verdade pro ranking.
     setIsDailyChallenge(false);
     setDailyOpponent(null);
+    setIsSerieAtual(false);
+    setSerieAtualTeamId(null);
 
     if (gameMode === 'brasileirao' || gameMode === 'serieab') {
       // Embaralha só a ordem passada pro gerador de tabela: o método do
@@ -9936,6 +10080,8 @@ export default function App() {
     setPromotionTie(null);
     setIsDailyChallenge(false);
     setDailyOpponent(null);
+    setIsSerieAtual(false);
+    setSerieAtualTeamId(null);
     // Sem isso, abandonar um "Mercado de transferências" (isTransferSeason
     // vira true em confirmTransferReleases, só volta a false dentro de
     // newSeason) por aqui deixava a flag presa em true — a PRÓXIMA carreira
@@ -10656,6 +10802,8 @@ export default function App() {
     // nenhuma, em silêncio (o catch daquele branch é separado e não avisa).
     setIsDailyChallenge(false);
     setDailyOpponent(null);
+    setIsSerieAtual(false);
+    setSerieAtualTeamId(null);
     setRoundHistory({});
     setCupWinnerId(null);
     setCupRoundIdx(0);
@@ -10789,7 +10937,7 @@ export default function App() {
                 tirar da frente do título de marketing no corpo da Intro. Uma
                 divisória visual separa "ações da sessão" dos ícones utilitários,
                 pra não virar uma fileira confusa de botões sem hierarquia. */}
-            {phase === 'intro' && !multiPhase && (describePhase(savedPhase) || dailyChallenge) && (
+            {phase === 'intro' && !multiPhase && (
               <>
                 {describePhase(savedPhase) && (
                   <button
@@ -10825,6 +10973,20 @@ export default function App() {
                     {dailyChallengeAlreadyPlayed ? '✅ Supercopa de hoje feita' : '🏆 Supercopa do Brasil'}
                   </button>
                 )}
+                <button
+                  onClick={() => setShowSerieAtualPicker(true)}
+                  className="mode-card-hover tap-target-sm"
+                  title="Escolha um dos 20 times da Série A 2026 e jogue as 38 rodadas com o calendário oficial da CBF, cada adversário com o elenco real dele."
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
+                    padding: '7px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                    color: myTeamColor || '#d4a23c',
+                    border: `1.5px solid ${hexToRgba(myTeamColor || '#d4a23c', 0.4)}`,
+                    background: hexToRgba(myTeamColor || '#d4a23c', 0.1),
+                  }}
+                >
+                  📅 Brasileirão Atual
+                </button>
                 <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
               </>
             )}
@@ -10952,6 +11114,14 @@ export default function App() {
       )}
       {rankingPage && <RankingPage onBack={closeRankingPage} myUsername={currentUser?.username} myTeamColor={myTeamColor} />}
       {showNews && <NewsModal onClose={() => setShowNews(false)} currentUser={currentUser} myTeamColor={myTeamColor} />}
+      {showSerieAtualPicker && (
+        <TeamPickerModal
+          onClose={() => setShowSerieAtualPicker(false)}
+          onlyIds={SERIE_A_2026_TEAM_IDS}
+          title="Brasileirão Atual — escolha seu time"
+          onPick={startSerieAtual}
+        />
+      )}
       {infoPage && <InfoPage tab={infoPage} onNavigate={navigateToInfo} onClose={closeInfoPage} myTeamColor={myTeamColor} />}
       {teamsPage === 'index' && <TeamsIndexPage onBack={closeTeamsPage} onOpenTeam={navigateToTeam} myTeamColor={myTeamColor} />}
       {teamsPage && teamsPage !== 'index' && (
@@ -11067,8 +11237,8 @@ export default function App() {
             pitch={pitch} pitchSlots={pitchSlots}
             formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
             captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
-            onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : isDailyChallenge ? confirmDailyChallenge : (isTransferSeason ? newSeason : startSeason)}
-            onRedo={!isTransferSeason && !isDailyChallenge ? () => { setPhase('formation'); setCaptainSlot(null); } : undefined}
+            onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : isDailyChallenge ? confirmDailyChallenge : isSerieAtual ? confirmSerieAtual : (isTransferSeason ? newSeason : startSeason)}
+            onRedo={!isTransferSeason && !isDailyChallenge && !isSerieAtual ? () => { setPhase('formation'); setCaptainSlot(null); } : undefined}
             myTeamColor={myTeamColor}
             selectedPlayer={selectedPlayer}
             repositioningSlot={repositioningSlot}
@@ -13476,9 +13646,12 @@ function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGame
 // Modal de busca pra escolher um dos 100 times históricos e jogar direto com
 // o elenco pronto deles — usado tanto no solo quanto numa sala com amigos
 // (FormationPicker é a mesma tela nos dois casos).
-function TeamPickerModal({ onClose, onPick }) {
+function TeamPickerModal({ onClose, onPick, onlyIds = null, title = 'Escolha um time pronto' }) {
   const [query, setQuery] = useState('');
-  const sorted = useMemo(() => [...TEAMS].sort((a, b) => b.year - a.year), []);
+  const sorted = useMemo(() => {
+    const base = onlyIds ? TEAMS.filter(t => onlyIds.includes(t.id)) : TEAMS;
+    return [...base].sort((a, b) => b.year - a.year);
+  }, [onlyIds]);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sorted;
@@ -13489,7 +13662,7 @@ function TeamPickerModal({ onClose, onPick }) {
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px 16px 0 0', padding: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Escolha um time pronto</div>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>{title}</div>
           <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
         </div>
         <input
@@ -15781,6 +15954,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-08-brasileirao-atual',
+    date: 'Agosto de 2026',
+    title: 'Novidade: Brasileirão Atual — o campeonato de 2026 de verdade',
+    desc: 'Novo botão no topo da home ("📅 Brasileirão Atual"): escolha 1 dos 20 times que estão disputando a Série A 2026 de verdade e jogue as 38 rodadas seguindo o calendário oficial da CBF, rodada a rodada — cada adversário entra com o elenco real dele, sem sorteio. É o jeito mais fiel de acompanhar "e se eu tivesse jogado esse Brasileirão" com o time do seu coração.',
+  },
   {
     id: '2026-08-notificacoes',
     date: 'Agosto de 2026',
