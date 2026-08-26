@@ -7512,6 +7512,11 @@ export default function App() {
   const [pitchSlots, setPitchSlots] = useState(_sv?.pitchSlots ?? []);
   const [usedTeamIds, setUsedTeamIds] = useState(_sv?.usedTeamIds ?? []);
   const [rolledTeam, setRolledTeam] = useState(null);
+  // Brasileirão Atual 2026 — precisa existir antes do efeito de recuperação
+  // do draft (mais abaixo) que já lê essas duas no primeiro render.
+  const [isSerieAtual, setIsSerieAtual] = useState(false);
+  const [serieAtualTeamId, setSerieAtualTeamId] = useState(null);
+  const [showSerieAtualPicker, setShowSerieAtualPicker] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [rollingPreview, setRollingPreview] = useState(null);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -8090,10 +8095,15 @@ export default function App() {
   // qualquer outro caminho que deixe o draft sem time na mão.
   useEffect(() => {
     if (phase !== 'draft' || rolledTeam || isRolling) return;
+    if (isSerieAtual) {
+      const team = TEAMS.find(t => t.id === serieAtualTeamId);
+      if (team) setRolledTeam(team);
+      return;
+    }
     const candidates = TEAMS.filter(t => !usedTeamIds.includes(t.id));
     if (candidates.length === 0) return; // aí é o fim real da pool — a tela vazia tem saída própria
     rollWithAnimation(shuffle2(candidates)[0], candidates);
-  }, [phase, rolledTeam, isRolling, usedTeamIds, rollWithAnimation]);
+  }, [phase, rolledTeam, isRolling, usedTeamIds, rollWithAnimation, isSerieAtual, serieAtualTeamId]);
 
   // Fim comum de escolher uma formação (pronta ou livre): fora do
   // multiplayer, parte direto pro sorteio. Numa sala, a fase 1 (escolher
@@ -8112,6 +8122,12 @@ export default function App() {
       return;
     }
     setPhase('draft');
+    // Brasileirão Atual: nada de sortear — o "time rolado" já é sempre o
+    // time real escolhido, sem animação, pra escalar os 20 jogadores dele.
+    if (isSerieAtual) {
+      setRolledTeam(TEAMS.find(t => t.id === serieAtualTeamId) || null);
+      return;
+    }
     rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
   };
 
@@ -8182,19 +8198,18 @@ export default function App() {
   };
 
   // Brasileirão Atual 2026: escolheu um dos 20 times reais da Série A 2026 —
-  // pula o sorteio igual "Já sei qual time eu quero" (mesmo elenco real via
-  // autoFillSquadFromTeam), mas guarda QUAL time é (serieAtualTeamId) pra
-  // `confirmSerieAtual` montar os outros 19 (cada um com o próprio elenco
-  // real) e o calendário oficial da CBF em vez de sortear tudo.
-  const [isSerieAtual, setIsSerieAtual] = useState(false);
-  const [serieAtualTeamId, setSerieAtualTeamId] = useState(null);
-  const [showSerieAtualPicker, setShowSerieAtualPicker] = useState(false);
+  // guarda QUAL time é (serieAtualTeamId) e vai pro fluxo normal de escolher
+  // formação + escalar (igual começar uma carreira do zero), só que o
+  // "sorteio" do draft (ver `finishFormationChoice`/`pickPlayerForSlot`) fica
+  // travado nesse time real — sem rolar outros, com os 20 jogadores dele
+  // disponíveis pra escalar do jeito que a pessoa quiser (sem filtrar
+  // ninguém de antemão). `confirmSerieAtual` monta os outros 19 (cada um com
+  // o próprio elenco real) e o calendário oficial da CBF quando a escalação
+  // for confirmada.
   const startSerieAtual = (team) => {
-    const built = autoFillSquadFromTeam(team);
-    if (!built) return;
-    setFormationKey(built.formationKey);
-    setPitchSlots(built.pitchSlots);
-    setPitch(built.pitch);
+    setFormationKey(null);
+    setPitchSlots([]);
+    setPitch({});
     setUsedTeamIds([]);
     setSkipsLeft(MAX_SKIPS);
     setLog([]);
@@ -8205,7 +8220,7 @@ export default function App() {
     setIsSerieAtual(true);
     setSerieAtualTeamId(team.id);
     setShowSerieAtualPicker(false);
-    setPhase('squad');
+    setPhase('formation');
   };
 
   // Supercopa do Brasil: escolheu enfrentar o time lendário de hoje — vai
@@ -8630,6 +8645,9 @@ export default function App() {
     if (stillRemaining.length === 0) {
       setPhase('squad');
       setRolledTeam(null);
+    } else if (isSerieAtual) {
+      // Continua escalando do MESMO time real (não sorteia outro) — o
+      // jogador escolhe quem entra dos 20, sem filtrar ninguém de antemão.
     } else {
       const candidates = TEAMS.filter(t => !usedTeamIds.includes(t.id) && t.id !== rolledTeam.id);
       if (candidates.length === 0) { setPhase('squad'); }
@@ -11226,8 +11244,8 @@ export default function App() {
             onClickPlayer={clickPlayer}
             onClickPitchSlot={clickPitchSlot}
             onUnplacePlayer={startReposition}
-            onSkipTeam={skipTeam}
-            mustSkip={rolledTeamHasNoFit}
+            onSkipTeam={isSerieAtual ? undefined : skipTeam}
+            mustSkip={isSerieAtual ? false : rolledTeamHasNoFit}
             myTeamColor={myTeamColor}
             captainSlot={captainSlot}
           />
