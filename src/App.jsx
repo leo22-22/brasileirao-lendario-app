@@ -7222,6 +7222,10 @@ const CLUB_LOGOS = {
   'Flamengo': 'https://r2.thesportsdb.com/images/media/team/badge/syptwx1473538074.png',
   'Atletico-MG': 'https://r2.thesportsdb.com/images/media/team/badge/x5lixs1743742872.png',
   'Guarani': 'https://r2.thesportsdb.com/images/media/team/badge/tpipb21766508536.png',
+  'Mirassol': 'https://r2.thesportsdb.com/images/media/team/badge/pw8uo11765900737.png',
+  'Remo': 'https://r2.thesportsdb.com/images/media/team/badge/u36jfy1579341655.png',
+  'Portuguesa': 'https://r2.thesportsdb.com/images/media/team/badge/cuawo11733810608.png',
+  'Bangu': 'https://r2.thesportsdb.com/images/media/team/badge/3yrwfp1625417293.png',
   // Times extras (não no jogo mas disponíveis como emblema pessoal)
   'Fortaleza': 'https://r2.thesportsdb.com/images/media/team/badge/tosmdr1532853458.png',
   'Ceara': 'https://r2.thesportsdb.com/images/media/team/badge/rxxvyp1464886685.png',
@@ -12796,6 +12800,10 @@ function TeamsIndexPage({ onBack, onOpenTeam, myTeamColor }) {
                   color: '#F4F1EA', textAlign: 'left', cursor: 'pointer',
                 }}
               >
+                {CLUB_LOGOS[team.club]
+                  ? <img src={CLUB_LOGOS[team.club]} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0, background: 'rgba(255,255,255,0.06)', borderRadius: 5 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+                  : <span style={{ width: 14, height: 14, borderRadius: '50%', background: team.colors?.p || mc, border: '1px solid rgba(255,255,255,0.3)', flexShrink: 0 }} />
+                }
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
                   {achievement && <div style={{ fontSize: 11, color: mc, marginTop: 1 }}>{achievement}</div>}
@@ -12837,7 +12845,10 @@ function TeamDetailPage({ team, onBack, onOpenIndex, myTeamColor, onPlayWithTeam
           ← Ver todos os times
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-          <span style={{ width: 14, height: 14, borderRadius: '50%', background: team.colors?.p || mc, border: '1px solid rgba(255,255,255,0.3)', flexShrink: 0 }} />
+          {CLUB_LOGOS[team.club]
+            ? <img src={CLUB_LOGOS[team.club]} alt="" style={{ width: 32, height: 32, objectFit: 'contain', flexShrink: 0, background: 'rgba(255,255,255,0.06)', borderRadius: 6 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+            : <span style={{ width: 14, height: 14, borderRadius: '50%', background: team.colors?.p || mc, border: '1px solid rgba(255,255,255,0.3)', flexShrink: 0 }} />
+          }
           <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></h1>
         </div>
         {achievement && (
