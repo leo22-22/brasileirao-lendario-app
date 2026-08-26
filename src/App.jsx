@@ -3082,7 +3082,7 @@ const TEAMS = [
       { name: 'Bruno Gomes', pos: ['MC', 'VOL', 'LD'], ovr: 76 },
       { name: 'Alan Patrick', pos: ['MEI', 'MC'], ovr: 82 },
       { name: 'Kayky', pos: ['PD', 'MD', 'PE'], ovr: 76 },
-      { name: 'Rafael Santos Borre', pos: ['ATA'], ovr: 81 },
+      { name: 'Antonio Sanabria', pos: ['ATA'], ovr: 80 },
       { name: 'Johan Carbonero', pos: ['PE', 'MEI', 'PD'], ovr: 77 },
       { name: 'Matheus Cunha', pos: ['GOL'], ovr: 74 },
       { name: 'Gabriel Mercado', pos: ['ZAG', 'LD'], ovr: 76 },
