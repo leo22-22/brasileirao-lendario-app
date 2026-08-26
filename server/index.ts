@@ -9,6 +9,8 @@ import meRoutes from './routes/me.js';
 import leaderboardRoutes from './routes/leaderboard.js';
 import roomsRoutes from './routes/rooms.js';
 import turnRoutes from './routes/turn.js';
+import notifyRoutes from './routes/notify.js';
+import adminRoutes from './routes/admin.js';
 import { ensureSchema } from './db.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -77,12 +79,19 @@ app.use('/api/turn', rateLimiter(20, 60 * 1000));
 // (a validação de faixa em routes/me.ts barra o valor, mas não o volume).
 app.use('/api/me/season-result', rateLimiter(10, 10 * 60 * 1000));
 app.use('/api/me/daily-challenge-result', rateLimiter(10, 10 * 60 * 1000));
+// Endpoint administrativo (protegido por ADMIN_SECRET, não por login) —
+// disparado manualmente uma vez por novidade publicada, nunca em loop, mas
+// o limite aqui cobre o cenário de alguém tentando forçar o segredo por
+// tentativa e erro.
+app.use('/api/admin', rateLimiter(5, 60 * 1000));
 
 app.use('/api/auth', authRoutes);
 app.use('/api/me', meRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/rooms', roomsRoutes);
 app.use('/api/turn', turnRoutes);
+app.use('/api/notify', notifyRoutes);
+app.use('/api/admin', adminRoutes);
 
 app.use('/api', (req, res) => {
   res.status(404).json({ error: 'Rota não encontrada.' });

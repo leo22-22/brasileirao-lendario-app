@@ -94,6 +94,15 @@ export async function ensureSchema() {
   // Nome do estádio do clube do jogador — puramente narrativo (igual
   // team_city/team_coach), editado em "Meu Clube".
   await ensureColumn('team_stadium VARCHAR(64)');
+  // Inscrição de push do navegador (JSON do PushSubscription: endpoint +
+  // chaves p256dh/auth) — NULL enquanto o jogador não ativa notificações.
+  // MEDIUMTEXT por consistência com os outros campos de blob (não é grande,
+  // mas evita mais uma decisão de tamanho de coluna).
+  await ensureColumn('push_subscription MEDIUMTEXT');
+  // Opt-out de email de novidade (POST /api/admin/notify-news) — começa
+  // ligado pra quem já tem conta, já que é aviso do próprio produto que a
+  // pessoa se cadastrou pra usar, não propaganda de terceiro.
+  await ensureColumn('email_notifications_enabled TINYINT(1) NOT NULL DEFAULT 1');
   try {
     await pool.query('CREATE INDEX idx_users_team_uf ON users (team_uf)');
   } catch (err) {
@@ -164,6 +173,8 @@ export interface UserRow {
   created_at: string;
   last_active_at: string;
   last_daily_points_date: string | null;
+  push_subscription: string | null;
+  email_notifications_enabled: number;
 }
 
 export interface PublicUser {
@@ -198,6 +209,8 @@ export interface PublicUser {
   best_team_ovr: number | null;
   best_player_ovr: number | null;
   created_at: string;
+  push_enabled: boolean;
+  email_notifications_enabled: boolean;
 }
 
 export function toPublicUser(row: UserRow): PublicUser {
@@ -233,6 +246,8 @@ export function toPublicUser(row: UserRow): PublicUser {
     best_team_ovr: row.best_team_ovr,
     best_player_ovr: row.best_player_ovr,
     created_at: row.created_at,
+    push_enabled: !!row.push_subscription,
+    email_notifications_enabled: !!row.email_notifications_enabled,
   };
 }
 

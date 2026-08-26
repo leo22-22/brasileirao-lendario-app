@@ -103,3 +103,20 @@ export function publishRoom(code, { label, gameMode, playerCount, phase }) {
 export function closeRoom(code) {
   return request(`/rooms/${code}`, { method: 'DELETE' });
 }
+
+// Notificações (push do navegador + email de novidade) — ver server/routes/notify.ts.
+export function fetchVapidPublicKey() {
+  return request('/notify/vapid-public-key', { auth: true });
+}
+
+export function subscribePush(subscription) {
+  return request('/notify/subscribe', { method: 'POST', body: { subscription }, auth: true });
+}
+
+export function unsubscribePush() {
+  return request('/notify/unsubscribe', { method: 'POST', auth: true });
+}
+
+export function updateNotificationPrefs(fields) {
+  return request('/notify/preferences', { method: 'PUT', body: fields, auth: true });
+}

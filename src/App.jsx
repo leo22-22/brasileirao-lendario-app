@@ -10941,7 +10941,7 @@ export default function App() {
         </div>
       )}
       {rankingPage && <RankingPage onBack={closeRankingPage} myUsername={currentUser?.username} myTeamColor={myTeamColor} />}
-      {showNews && <NewsModal onClose={() => setShowNews(false)} />}
+      {showNews && <NewsModal onClose={() => setShowNews(false)} currentUser={currentUser} myTeamColor={myTeamColor} />}
       {infoPage && <InfoPage tab={infoPage} onNavigate={navigateToInfo} onClose={closeInfoPage} myTeamColor={myTeamColor} />}
       {teamsPage === 'index' && <TeamsIndexPage onBack={closeTeamsPage} onOpenTeam={navigateToTeam} myTeamColor={myTeamColor} />}
       {teamsPage && teamsPage !== 'index' && (
@@ -15772,6 +15772,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-08-notificacoes',
+    date: 'Agosto de 2026',
+    title: 'Novidade: avise-me quando sair novidade',
+    desc: 'Quem tem conta agora pode ativar aviso de novidade por notificação push do navegador (mesmo com o jogo fechado) e/ou por email — é só abrir esse mural (💡) e marcar as opções lá em cima. Também adicionamos os escudos que faltavam (Mirassol, Remo, Portuguesa, Bangu) e agora os Times Históricos mostram o escudo do clube também.',
+  },
+  {
     id: '2026-08-200-times',
     date: 'Agosto de 2026',
     title: 'Adição: mais 100 times históricos no draft (era 100, agora são 200)',
@@ -15905,8 +15911,95 @@ const WHATS_NEW = [
   },
 ];
 
+// Chave pública VAPID vem em base64url — PushManager.subscribe() exige um
+// Uint8Array (applicationServerKey), não a string direto.
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
+}
+
+// Ativar/desativar aviso por push do navegador + toggle de email de
+// novidade — vive dentro do mural (💡) porque é literalmente sobre a
+// própria lista abaixo: "quer saber quando isso mudar sem abrir o jogo?".
+function NewsNotifyPanel({ currentUser, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
+  const [pushEnabled, setPushEnabled] = useState(!!currentUser?.push_enabled);
+  const [emailEnabled, setEmailEnabled] = useState(currentUser?.email_notifications_enabled !== false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const supportsPush = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
+
+  const togglePush = async () => {
+    setError(''); setBusy(true);
+    try {
+      if (pushEnabled) {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) await sub.unsubscribe();
+        await api.unsubscribePush();
+        setPushEnabled(false);
+      } else {
+        const { publicKey } = await api.fetchVapidPublicKey();
+        if (!publicKey) { setError('Notificação push ainda não está disponível.'); return; }
+        const permission = await Notification.requestPermission();
+        if (permission !== 'granted') { setError('Permissão de notificação negada no navegador.'); return; }
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+        await api.subscribePush(sub.toJSON());
+        setPushEnabled(true);
+      }
+    } catch {
+      setError('Não foi possível atualizar a notificação agora.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const toggleEmail = async () => {
+    setError(''); setBusy(true);
+    const next = !emailEnabled;
+    try {
+      await api.updateNotificationPrefs({ emailNotifications: next });
+      setEmailEnabled(next);
+    } catch {
+      setError('Não foi possível salvar a preferência agora.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!currentUser) {
+    return (
+      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, opacity: 0.6 }}>
+        🔔 Crie uma conta pra receber aviso (push ou email) toda vez que sair uma novidade.
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.55, marginBottom: 8 }}>🔔 Avisar de novidade</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {supportsPush && (
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+            <input type="checkbox" checked={pushEnabled} disabled={busy} onChange={togglePush} style={{ accentColor: mc }} />
+            Notificação push no navegador
+          </label>
+        )}
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+          <input type="checkbox" checked={emailEnabled} disabled={busy} onChange={toggleEmail} style={{ accentColor: mc }} />
+          Email pra {currentUser.email}
+        </label>
+        {error && <div style={{ fontSize: 11, color: '#e05050' }}>{error}</div>}
+      </div>
+    </div>
+  );
+}
+
 // Mural de novidades — acessado pelo ícone 💡 no header.
-function NewsModal({ onClose }) {
+function NewsModal({ onClose, currentUser, myTeamColor }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
       <div style={{ background: '#0B1A12', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 460, maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
@@ -15914,6 +16007,7 @@ function NewsModal({ onClose }) {
           <div style={{ fontSize: 14, fontWeight: 700, color: '#d4a23c', letterSpacing: 1, textTransform: 'uppercase' }}>💡 Novidades</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 18, cursor: 'pointer' }}>×</button>
         </div>
+        <NewsNotifyPanel currentUser={currentUser} myTeamColor={myTeamColor} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {WHATS_NEW.map(item => (
             <div key={item.id} style={{ borderLeft: '2px solid rgba(212,162,60,0.4)', paddingLeft: 12 }}>

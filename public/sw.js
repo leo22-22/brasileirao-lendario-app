@@ -19,6 +19,39 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Notificação de novidade (push do servidor via POST /api/admin/notify-news)
+// — chega mesmo com o jogo fechado, já que é o service worker (não a aba)
+// que recebe o evento.
+self.addEventListener('push', (event) => {
+  let data = { title: 'Brasileirão Lendário', body: 'Tem novidade no jogo.', url: '/' };
+  try {
+    if (event.data) data = { ...data, ...event.data.json() };
+  } catch { /* payload não era JSON, usa o texto puro como corpo */ }
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-512.png',
+      badge: '/icon-512.png',
+      data: { url: data.url || '/' },
+    })
+  );
+});
+
+// Clicar na notificação foca uma aba já aberta do jogo (se existir) em vez
+// de sempre abrir uma nova.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.url || '/';
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(clientList => {
+      for (const client of clientList) {
+        if ('focus' in client) return client.focus();
+      }
+      if (self.clients.openWindow) return self.clients.openWindow(targetUrl);
+    })
+  );
+});
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
