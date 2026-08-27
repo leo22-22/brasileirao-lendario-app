@@ -3120,7 +3120,7 @@ const TEAMS = [
       { name: 'Miguel Terceros', pos: ['MEI', 'PE', 'PD'], ovr: 75 },
       { name: 'Vini Lira', pos: ['LE'], ovr: 76 },
       { name: 'Gustavinho', pos: ['VOL', 'MC', 'LD'], ovr: 78 },
-      { name: 'Robinho Jr', pos: ['PD', 'PE'], ovr: 76 },
+      { name: 'Robinho Jr', pos: ['PD', 'PE', 'MD'], ovr: 76 },
       { name: 'Rony Rustico', pos: ['ATA', 'PD', 'PE'], ovr: 77 },
       { name: 'Thaciano', pos: ['ATA', 'PD', 'MD', 'MC'], ovr: 77 },
     ]
@@ -14857,22 +14857,28 @@ function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack,
             </div>
           )}
         </div>
-        <button
-          onClick={onSkip}
-          disabled={!canSkip}
-          title={!canSkip ? 'Sem pulos restantes' : mustSkip && skipsLeft <= 0 ? 'Pulo livre — nenhum jogador cabe' : 'Pular este time'}
-          style={{
-            ...styles.skipsBox,
-            cursor: canSkip ? 'pointer' : 'not-allowed',
-            opacity: canSkip ? 1 : 0.4,
-            background: 'none',
-            border: `1px solid ${canSkip ? 'rgba(212,162,60,0.4)' : 'rgba(255,255,255,0.12)'}`,
-            transition: 'background 0.15s, border-color 0.15s',
-          }}
-        >
-          <span style={{ ...styles.skipsNum, color: canSkip ? '#d4a23c' : 'rgba(255,255,255,0.4)' }}>{mustSkip && skipsLeft <= 0 ? '↻' : skipsLeft}</span>
-          <span style={{ ...styles.skipsLabel, color: canSkip ? 'rgba(212,162,60,0.8)' : 'rgba(255,255,255,0.35)' }}>pular</span>
-        </button>
+        {/* Sem onSkip (Brasileirão Atual: só existe um time pra escalar, o
+            real, não tem pra onde "pular") o botão nem aparece — antes
+            ficava visível e parecia clicável (contador "3" aceso) sem fazer
+            nada, o que só confundia. */}
+        {onSkip && (
+          <button
+            onClick={onSkip}
+            disabled={!canSkip}
+            title={!canSkip ? 'Sem pulos restantes' : mustSkip && skipsLeft <= 0 ? 'Pulo livre — nenhum jogador cabe' : 'Pular este time'}
+            style={{
+              ...styles.skipsBox,
+              cursor: canSkip ? 'pointer' : 'not-allowed',
+              opacity: canSkip ? 1 : 0.4,
+              background: 'none',
+              border: `1px solid ${canSkip ? 'rgba(212,162,60,0.4)' : 'rgba(255,255,255,0.12)'}`,
+              transition: 'background 0.15s, border-color 0.15s',
+            }}
+          >
+            <span style={{ ...styles.skipsNum, color: canSkip ? '#d4a23c' : 'rgba(255,255,255,0.4)' }}>{mustSkip && skipsLeft <= 0 ? '↻' : skipsLeft}</span>
+            <span style={{ ...styles.skipsLabel, color: canSkip ? 'rgba(212,162,60,0.8)' : 'rgba(255,255,255,0.35)' }}>pular</span>
+          </button>
+        )}
       </div>
       <div style={styles.progressBar}>
         <div style={{ ...styles.progressFill, width: `${pct}%` }} />
