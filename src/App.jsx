@@ -8559,9 +8559,8 @@ export default function App() {
 
   const clickPlayer = (player) => {
     if (repositioningSlot !== null) {
-      // Cancela reposição: devolve o jogador ao slot original
-      const orig = selectedPlayer;
-      setPitch(prev => ({ ...prev, [repositioningSlot]: orig }));
+      // Cancela reposição — o jogador nunca saiu de `pitch[repositioningSlot]`
+      // (ver startReposition), então cancelar é só limpar a seleção.
       setSelectedPlayer(null);
       setRepositioningSlot(null);
       return;
@@ -8577,14 +8576,9 @@ export default function App() {
   // é o núcleo que tanto o clique-clique (clickPitchSlot, repassando
   // repositioningSlot como origem) quanto o arrastar (pointerup calculando
   // origem/destino na hora) usam, pra não duplicar a mesma lógica de troca.
-  const movePlayerBetweenSlots = (sourceKey, targetKey, playerOverride) => {
+  const movePlayerBetweenSlots = (sourceKey, targetKey) => {
     if (!sourceKey || !targetKey || sourceKey === targetKey) return;
-    // O fluxo de clique-clique já removeu o jogador de `pitch[sourceKey]` no
-    // primeiro clique (ver startReposition) — só sobra em `selectedPlayer`,
-    // por isso o chamador pode passar o jogador direto em vez de confiar
-    // que ainda está no `pitch`. O arrastar não remove nada até soltar, então
-    // não precisa passar nada — `pitch[sourceKey]` ainda está lá.
-    const player = playerOverride || pitch[sourceKey];
+    const player = pitch[sourceKey];
     if (!player) return;
     const targetMeta = pitchSlots.find(s => s.key === targetKey);
     if (!targetMeta) return;
@@ -8639,7 +8633,7 @@ export default function App() {
   const clickPitchSlot = (slotKey) => {
     if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; }
     if (repositioningSlot !== null) {
-      movePlayerBetweenSlots(repositioningSlot, slotKey, selectedPlayer);
+      movePlayerBetweenSlots(repositioningSlot, slotKey);
       setSelectedPlayer(null);
       setRepositioningSlot(null);
       return;
@@ -8654,8 +8648,13 @@ export default function App() {
     if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; }
     const player = pitch[slotKey];
     if (!player) return;
-    // Remove temporariamente do campo para liberar o slot nos remainingSlots
-    setPitch(prev => { const next = { ...prev }; delete next[slotKey]; return next; });
+    // NÃO tira o jogador de `pitch` aqui — ele continua visível/no elenco o
+    // tempo todo. A troca de verdade só acontece no segundo clique, via
+    // movePlayerBetweenSlots (mesma lógica do arrastar). Antes este código
+    // removia o jogador já nesse primeiro clique "pra liberar o slot"; se o
+    // segundo clique nunca vinha (usuário navegava pra outro lugar, ou o
+    // fluxo era interrompido), o jogador ficava preso fora do `pitch` e
+    // "sumia" — inclusive some vezes sendo salvo assim no elenco.
     setSelectedPlayer(player);
     setRepositioningSlot(slotKey);
   };
