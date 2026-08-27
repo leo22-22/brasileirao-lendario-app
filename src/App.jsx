@@ -5815,51 +5815,58 @@ function tryAssignStarters(starterSlots, playersByOvrDesc) {
 // (única opção com a tag certa) pra titular enquanto um meio-campista muito
 // melhor, mas só tagueado MC/VOL, ficava de fora por falta de vaga - mesmo
 // existindo outra formação onde os dois craques cabiam perfeitamente.
-function autoFillSquadFromTeam(team, { fullBench = false } = {}) {
-  // Cada elenco tem 20 jogadores (100 times × 20 = os "2.000 jogadores" do
-  // catálogo) pro campo de só 16 vagas — o elenco INTEIRO entra como pool
-  // (não só os 16 "titulares+banco pretendidos" da ordem original): alguns
-  // times só têm o 2º/3º melhor atacante a partir do 17º jogador listado.
-  // `fullBench` (usado pelo Brasileirão Atual) manda TODO mundo que sobrou
-  // pro banco, em vez de só os 5 melhores — o elenco real inteiro fica
-  // disponível pra escalar depois, pelo editor de escalação entre rodadas.
+// Encaixa o elenco de UM time nos `starterSlots` de uma formação já definida
+// (preset ou livre) — o melhor jogador por vaga compatível, o resto sobra
+// pro banco. Retorna null se essa formação específica não fecha com esse
+// elenco (ex.: só tem 1 zagueiro de verdade pra uma formação que pede 3) —
+// é a validação que evita escalar algo inviável. `fullBench` (Brasileirão
+// Atual) manda TODO mundo que sobrou pro banco, não só os 5 melhores — o
+// elenco real inteiro fica disponível pelo editor de escalação depois.
+function autoFillTeamIntoSlots(team, starterSlots, { fullBench = false } = {}) {
   const players = team.players;
-  if (!players || players.length < 16) return null;
+  if (!players) return null;
   const byOvrDesc = players.map((p, i) => ({ p, i })).sort((a, b) => b.p.ovr - a.p.ovr);
-  let best = null;
-  for (const formationKey of Object.keys(FORMATIONS)) {
-    const starterSlots = buildPitchSlots(formationKey);
-    const result = tryAssignStarters(starterSlots, byOvrDesc);
-    if (!result) continue; // essa formação não fecha com esse elenco de jeito nenhum
-    const totalOvr = Object.values(result.assign).reduce((sum, p) => sum + p.ovr, 0);
-    if (!best || totalOvr > best.totalOvr) {
-      const leftoverAll = players
-        .filter((_, i) => !result.usedPlayers.has(i))
-        .sort((a, b) => b.ovr - a.ovr);
-      const leftover = fullBench ? leftoverAll : leftoverAll.slice(0, 5);
-      const benchSlots = leftover.map((_, i) => ({
-        key: `bench${i + 1}`, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0,
-      }));
-      best = { formationKey, starterSlots, benchSlots, assign: result.assign, leftover, totalOvr };
-    }
-  }
-  if (!best) return null; // não deveria acontecer com os elencos reais do jogo, mas por segurança
+  const result = tryAssignStarters(starterSlots, byOvrDesc);
+  if (!result) return null;
+  const totalOvr = Object.values(result.assign).reduce((sum, p) => sum + p.ovr, 0);
+  const leftoverAll = players
+    .filter((_, i) => !result.usedPlayers.has(i))
+    .sort((a, b) => b.ovr - a.ovr);
+  const leftover = fullBench ? leftoverAll : leftoverAll.slice(0, 5);
+  const benchSlots = leftover.map((_, i) => ({
+    key: `bench${i + 1}`, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0,
+  }));
   const pitch = {};
-  best.starterSlots.forEach(slot => {
-    const raw = best.assign[slot.key];
+  starterSlots.forEach(slot => {
+    const raw = result.assign[slot.key];
     pitch[slot.key] = {
       ...raw, teamLabel: team.label, teamId: team.id, club: team.club, year: team.year,
       nat: raw.nat || 'BRA', isBench: false, slotKey: slot.key,
     };
   });
-  best.benchSlots.forEach((slot, idx) => {
-    const raw = best.leftover[idx];
+  benchSlots.forEach((slot, idx) => {
+    const raw = leftover[idx];
     pitch[slot.key] = {
       ...raw, teamLabel: team.label, teamId: team.id, club: team.club, year: team.year,
       nat: raw.nat || 'BRA', isBench: true, slotKey: slot.key,
     };
   });
-  return { formationKey: best.formationKey, pitchSlots: [...best.starterSlots, ...best.benchSlots], pitch };
+  return { pitchSlots: [...starterSlots, ...benchSlots], pitch, totalOvr };
+}
+
+// Tenta TODAS as formações prontas e fica com a que rende o maior OVR
+// titular somado pra esse elenco específico — usado pelo atalho "Já sei
+// qual time eu quero" (o jogo escolhe por você).
+function autoFillSquadFromTeam(team, { fullBench = false } = {}) {
+  const players = team.players;
+  if (!players || players.length < 16) return null;
+  let best = null;
+  for (const formationKey of Object.keys(FORMATIONS)) {
+    const built = autoFillTeamIntoSlots(team, buildPitchSlots(formationKey), { fullBench });
+    if (!built) continue; // essa formação não fecha com esse elenco de jeito nenhum
+    if (!best || built.totalOvr > best.totalOvr) best = { formationKey, ...built };
+  }
+  return best; // null se nenhuma formação fechar — não deveria acontecer com os elencos reais do jogo
 }
 
 // Fisher-Yates. `rand` é injetável porque o multiplayer precisa embaralhar de
@@ -8115,13 +8122,31 @@ export default function App() {
   // o efeito "team-setup → roster-draft" (mais acima) é quem decide, sem
   // cronômetro, quando todo humano já escolheu e libera o sorteio pra
   // todo mundo ao mesmo tempo.
-  const finishFormationChoice = (label) => {
+  const finishFormationChoice = (label, starterSlots) => {
     if (multiPhase === 'in-draft') {
       // `label` vai junto só pra tela de espera mostrar o que cada um
       // escolheu ("Fulano: 4-3-3 Equilibrado") — não é lido em nenhuma
       // lógica de jogo, é puramente informativo pros outros da sala.
       multiUpdateMyTeam({ formationReady: true, formationLabel: label });
       setPhase('multi-formation-wait');
+      return;
+    }
+    // Brasileirão Atual: sem sorteio — encaixa o MELHOR XI do elenco real
+    // escolhido nessa formação específica (elenco inteiro no banco). Se a
+    // formação não fechar com esse elenco (ex.: pede 3 zagueiros de origem
+    // e o time só tem 2 de verdade), avisa e mantém na tela de formação em
+    // vez de travar com uma escalação pela metade.
+    if (isSerieAtual) {
+      const team = TEAMS.find(t => t.id === serieAtualTeamId);
+      const built = team ? autoFillTeamIntoSlots(team, starterSlots, { fullBench: true }) : null;
+      if (!built) {
+        alert('Esse elenco não tem jogadores suficientes pra essa formação. Escolha outra.');
+        return;
+      }
+      setPitchSlots(built.pitchSlots);
+      setPitch(built.pitch);
+      setCaptainSlot(null);
+      setPhase('squad');
       return;
     }
     setPhase('draft');
@@ -8142,7 +8167,7 @@ export default function App() {
     setSelectedPlayer(null);
     setRepositioningSlot(null);
     setCaptainSlot(null);
-    finishFormationChoice(FORMATIONS[key].label);
+    finishFormationChoice(FORMATIONS[key].label, formSlots);
   };
 
   // Mesmo reset do chooseFormation acima, só que os slots titulares vêm do
@@ -8161,7 +8186,8 @@ export default function App() {
     // ao slot classificado) — o resto do jogo não espera esse campo em
     // pitchSlots, então sai daqui antes de virar estado de verdade.
     const cleanSlots = customSlots.map(({ id, ...rest }) => rest);
-    setPitchSlots([gkSlot, ...cleanSlots, ...benchSlots]);
+    const starterSlots = [gkSlot, ...cleanSlots];
+    setPitchSlots([...starterSlots, ...benchSlots]);
     setUsedTeamIds([]);
     setPitch({});
     setSkipsLeft(MAX_SKIPS);
@@ -8169,7 +8195,7 @@ export default function App() {
     setSelectedPlayer(null);
     setRepositioningSlot(null);
     setCaptainSlot(null);
-    finishFormationChoice(`Formação livre (${shape})`);
+    finishFormationChoice(`Formação livre (${shape})`, starterSlots);
   };
 
   // Atalho "Jogar com este time pronto" — pula o sorteio inteiro e usa o
@@ -8195,19 +8221,18 @@ export default function App() {
   };
 
   // Brasileirão Atual 2026: é simulador de carreira, não draft — escolheu um
-  // dos 20 times reais da Série A 2026, então pula sorteio E escolha manual
-  // de formação: monta sozinho a melhor formação/XI pra esse elenco (mesma
-  // lógica do "Já sei qual time eu quero"), com o resto do elenco real
-  // INTEIRO no banco (fullBench — sem cortar ninguém de antemão), e já cai
-  // direto na tela de escalação só pra escolher capitão e confirmar. Ajustar
-  // titular/reserva depois é o editor de escalação entre rodadas
-  // (applyMidSeasonLineup), não uma etapa de montagem inicial.
+  // dos 20 times reais da Série A 2026, então pula o sorteio (nada de rolar
+  // times aleatórios), mas a formação continua escolha da pessoa: vai pra
+  // tela normal de formação e, assim que ela escolhe uma (pronta ou livre),
+  // `finishFormationChoice` encaixa o MELHOR XI desse elenco real naquela
+  // formação específica (autoFillTeamIntoSlots, com o resto do elenco
+  // INTEIRO no banco) em vez de sortear jogador por jogador. Trocar de
+  // formação de novo — inclusive no meio da temporada — usa esse mesmo
+  // encaixe automático (ver applyFormationSwap/showFormationSwap).
   const startSerieAtual = (team) => {
-    const built = autoFillSquadFromTeam(team, { fullBench: true });
-    if (!built) return;
-    setFormationKey(built.formationKey);
-    setPitchSlots(built.pitchSlots);
-    setPitch(built.pitch);
+    setFormationKey(null);
+    setPitchSlots([]);
+    setPitch({});
     setUsedTeamIds([]);
     setSkipsLeft(MAX_SKIPS);
     setLog([]);
@@ -8218,7 +8243,7 @@ export default function App() {
     setIsSerieAtual(true);
     setSerieAtualTeamId(team.id);
     setShowSerieAtualPicker(false);
-    setPhase('squad');
+    setPhase('formation');
   };
 
   // Supercopa do Brasil: escolheu enfrentar o time lendário de hoje — vai
@@ -8390,12 +8415,49 @@ export default function App() {
   // `pitch`, que `getStarters`/`teamsForRound` leem pra decidir quem joga a
   // rodada seguinte (só marcar isBench no lugar não move ninguém de índice).
   const [showLineupEditor, setShowLineupEditor] = useState(false);
-  const applyMidSeasonLineup = () => {
-    const reordered = partitionStartersFirst(Object.values(pitch));
+  // Compartilhado com a troca de formação (abaixo): reordena `leagueTeams`
+  // (titulares primeiro) a partir de um `pitch` já pronto.
+  const syncLineupToLeagueTeams = (pitchToSync) => {
+    const reordered = partitionStartersFirst(Object.values(pitchToSync));
     setLeagueTeams(prev => prev.map(t => (t.id === myTeamId
       ? { ...t, players: reordered, ovr: teamStrength(Object.fromEntries(reordered.map((p, i) => [i, p]))) }
       : t)));
+  };
+  const applyMidSeasonLineup = () => {
+    syncLineupToLeagueTeams(pitch);
     setShowLineupEditor(false);
+  };
+
+  // Trocar de formação no meio da temporada (ex.: 4-3-3 → 4-1-2-3) — não é
+  // só reposicionar quem já está escalado, então reaproveita o mesmo encaixe
+  // automático (autoFillTeamIntoSlots) usado na escolha inicial: pega o
+  // elenco real INTEIRO de novo (não só quem estava titular/banco até agora)
+  // e monta o melhor XI pra formação nova, com a mesma validação — se não
+  // fechar, avisa e mantém a formação anterior intacta.
+  const [showFormationSwap, setShowFormationSwap] = useState(false);
+  const applyFormationSwap = (starterSlots) => {
+    const team = TEAMS.find(t => t.id === serieAtualTeamId);
+    const built = team ? autoFillTeamIntoSlots(team, starterSlots, { fullBench: true }) : null;
+    if (!built) {
+      alert('Esse elenco não tem jogadores suficientes pra essa formação. Escolha outra.');
+      return;
+    }
+    setPitchSlots(built.pitchSlots);
+    setPitch(built.pitch);
+    setCaptainSlot(null);
+    syncLineupToLeagueTeams(built.pitch);
+    setShowFormationSwap(false);
+  };
+  const applyFormationSwapPreset = (key) => {
+    setFormationKey(key);
+    applyFormationSwap(buildPitchSlots(key));
+  };
+  const applyFormationSwapCustom = (customSlots, counts, shape) => {
+    setFormationKey('custom');
+    setCustomFormation({ label: `Formação livre (${shape})`, counts: { GOL: 1, ...counts } });
+    const gkSlot = { key: 'GOL', label: 'GOL', realPos: 'GOL', x: 50, y: 92 };
+    const cleanSlots = customSlots.map(({ id, ...rest }) => rest);
+    applyFormationSwap([gkSlot, ...cleanSlots]);
   };
 
   const openTransferMarket = () => setPhase('transfer');
@@ -8772,6 +8834,7 @@ export default function App() {
     setIsSerieAtual(false);
     setSerieAtualTeamId(null);
     setShowLineupEditor(false);
+    setShowFormationSwap(false);
 
     if (gameMode === 'brasileirao' || gameMode === 'serieab') {
       // Embaralha só a ordem passada pro gerador de tabela: o método do
@@ -10129,6 +10192,7 @@ export default function App() {
     setIsSerieAtual(false);
     setSerieAtualTeamId(null);
     setShowLineupEditor(false);
+    setShowFormationSwap(false);
     // Sem isso, abandonar um "Mercado de transferências" (isTransferSeason
     // vira true em confirmTransferReleases, só volta a false dentro de
     // newSeason) por aqui deixava a flag presa em true — a PRÓXIMA carreira
@@ -10853,6 +10917,7 @@ export default function App() {
     setIsSerieAtual(false);
     setSerieAtualTeamId(null);
     setShowLineupEditor(false);
+    setShowFormationSwap(false);
     setRoundHistory({});
     setCupWinnerId(null);
     setCupRoundIdx(0);
@@ -11160,22 +11225,42 @@ export default function App() {
       {showLineupEditor && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2500, overflowY: 'auto', padding: 16 }}>
           <div style={{ maxWidth: 480, margin: '0 auto' }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: myTeamColor || '#d4a23c', marginBottom: 8 }}>
-              📋 Escalação — Brasileirão Atual
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: myTeamColor || '#d4a23c' }}>
+                📋 Escalação — Brasileirão Atual
+              </div>
+              {!showFormationSwap && (
+                <button
+                  onClick={() => setShowFormationSwap(true)}
+                  className="tap-target-sm"
+                  style={{ background: 'none', border: `1px solid ${hexToRgba(myTeamColor || '#d4a23c', 0.4)}`, borderRadius: 999, color: myTeamColor || '#d4a23c', fontSize: 11.5, fontWeight: 600, padding: '5px 10px', cursor: 'pointer' }}
+                >
+                  🔄 Trocar formação
+                </button>
+              )}
             </div>
-            <Squad
-              pitch={pitch} pitchSlots={pitchSlots}
-              formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
-              captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
-              onConfirm={applyMidSeasonLineup}
-              confirmLabel="Salvar e fechar"
-              myTeamColor={myTeamColor}
-              selectedPlayer={selectedPlayer}
-              repositioningSlot={repositioningSlot}
-              eligibleSlotsForPlayer={eligibleSlotsForPlayer}
-              onClickPitchSlot={clickPitchSlot}
-              onUnplacePlayer={startReposition}
-            />
+            {showFormationSwap ? (
+              <FormationPicker
+                onBack={() => setShowFormationSwap(false)}
+                onChoose={applyFormationSwapPreset}
+                onChooseCustom={applyFormationSwapCustom}
+                myTeamColor={myTeamColor}
+              />
+            ) : (
+              <Squad
+                pitch={pitch} pitchSlots={pitchSlots}
+                formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
+                captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
+                onConfirm={applyMidSeasonLineup}
+                confirmLabel="Salvar e fechar"
+                myTeamColor={myTeamColor}
+                selectedPlayer={selectedPlayer}
+                repositioningSlot={repositioningSlot}
+                eligibleSlotsForPlayer={eligibleSlotsForPlayer}
+                onClickPitchSlot={clickPitchSlot}
+                onUnplacePlayer={startReposition}
+              />
+            )}
           </div>
         </div>
       )}
@@ -11258,7 +11343,7 @@ export default function App() {
             onClose={() => setShowDailyChallenge(false)}
           />
         )}
-        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onChooseCustom={chooseCustomFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge ? setGameMode : undefined} onPlayReadyMade={useReadyMadeSquad} isDailyChallenge={isDailyChallenge} myTeamColor={myTeamColor} />}
+        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onChooseCustom={chooseCustomFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge && !isSerieAtual ? setGameMode : undefined} onPlayReadyMade={!isSerieAtual ? useReadyMadeSquad : undefined} isDailyChallenge={isDailyChallenge} myTeamColor={myTeamColor} />}
         {phase === 'transfer' && (
           <TransferMarket
             pitch={pitch}
@@ -16043,7 +16128,7 @@ const WHATS_NEW = [
     id: '2026-08-brasileirao-atual',
     date: 'Agosto de 2026',
     title: 'Novidade: Brasileirão Atual — o campeonato de 2026 de verdade',
-    desc: 'Ao lado do Brasileirão e da Copa do Brasil na tela inicial: escolha 1 dos 20 times que estão disputando a Série A 2026 de verdade e caia direto na temporada, com as 38 rodadas seguindo o calendário oficial da CBF — cada adversário entra com o elenco real dele. Sem draft: o jogo já monta a melhor escalação com o elenco real do time escolhido (elenco inteiro disponível, ninguém fica de fora), você só escolhe o capitão e confirma. Dá pra abrir "📋 Escalação" a qualquer momento entre as rodadas pra trocar um titular por um reserva antes do próximo jogo — é um simulador de temporada, não um draft.',
+    desc: 'Ao lado do Brasileirão e da Copa do Brasil na tela inicial: escolha 1 dos 20 times que estão disputando a Série A 2026 de verdade e jogue as 38 rodadas seguindo o calendário oficial da CBF — cada adversário entra com o elenco real dele. Sem sorteio nem draft: você escolhe a formação que quiser (pronta ou livre) e o jogo encaixa sozinho o melhor XI do elenco real naquela formação, com todo o resto do elenco disponível no banco. Dá pra trocar de formação — inclusive no meio da temporada, tipo passar de um 4-3-3 pra um 4-1-2-3 — e o jogo valida se o elenco fecha antes de aplicar. "📋 Escalação" continua aberta a qualquer momento entre rodadas pra trocar titular por reserva.',
   },
   {
     id: '2026-08-notificacoes',
