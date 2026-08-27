@@ -5815,28 +5815,31 @@ function tryAssignStarters(starterSlots, playersByOvrDesc) {
 // (única opção com a tag certa) pra titular enquanto um meio-campista muito
 // melhor, mas só tagueado MC/VOL, ficava de fora por falta de vaga - mesmo
 // existindo outra formação onde os dois craques cabiam perfeitamente.
-function autoFillSquadFromTeam(team) {
+function autoFillSquadFromTeam(team, { fullBench = false } = {}) {
   // Cada elenco tem 20 jogadores (100 times × 20 = os "2.000 jogadores" do
   // catálogo) pro campo de só 16 vagas — o elenco INTEIRO entra como pool
   // (não só os 16 "titulares+banco pretendidos" da ordem original): alguns
   // times só têm o 2º/3º melhor atacante a partir do 17º jogador listado.
+  // `fullBench` (usado pelo Brasileirão Atual) manda TODO mundo que sobrou
+  // pro banco, em vez de só os 5 melhores — o elenco real inteiro fica
+  // disponível pra escalar depois, pelo editor de escalação entre rodadas.
   const players = team.players;
   if (!players || players.length < 16) return null;
   const byOvrDesc = players.map((p, i) => ({ p, i })).sort((a, b) => b.p.ovr - a.p.ovr);
   let best = null;
   for (const formationKey of Object.keys(FORMATIONS)) {
     const starterSlots = buildPitchSlots(formationKey);
-    const benchSlots = ['bench1', 'bench2', 'bench3', 'bench4', 'bench5'].map((k, i) => ({
-      key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0,
-    }));
     const result = tryAssignStarters(starterSlots, byOvrDesc);
     if (!result) continue; // essa formação não fecha com esse elenco de jeito nenhum
     const totalOvr = Object.values(result.assign).reduce((sum, p) => sum + p.ovr, 0);
     if (!best || totalOvr > best.totalOvr) {
-      const leftover = players
+      const leftoverAll = players
         .filter((_, i) => !result.usedPlayers.has(i))
-        .sort((a, b) => b.ovr - a.ovr)
-        .slice(0, 5);
+        .sort((a, b) => b.ovr - a.ovr);
+      const leftover = fullBench ? leftoverAll : leftoverAll.slice(0, 5);
+      const benchSlots = leftover.map((_, i) => ({
+        key: `bench${i + 1}`, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0,
+      }));
       best = { formationKey, starterSlots, benchSlots, assign: result.assign, leftover, totalOvr };
     }
   }
@@ -8100,15 +8103,10 @@ export default function App() {
   // qualquer outro caminho que deixe o draft sem time na mão.
   useEffect(() => {
     if (phase !== 'draft' || rolledTeam || isRolling) return;
-    if (isSerieAtual) {
-      const team = TEAMS.find(t => t.id === serieAtualTeamId);
-      if (team) setRolledTeam(team);
-      return;
-    }
     const candidates = TEAMS.filter(t => !usedTeamIds.includes(t.id));
     if (candidates.length === 0) return; // aí é o fim real da pool — a tela vazia tem saída própria
     rollWithAnimation(shuffle2(candidates)[0], candidates);
-  }, [phase, rolledTeam, isRolling, usedTeamIds, rollWithAnimation, isSerieAtual, serieAtualTeamId]);
+  }, [phase, rolledTeam, isRolling, usedTeamIds, rollWithAnimation]);
 
   // Fim comum de escolher uma formação (pronta ou livre): fora do
   // multiplayer, parte direto pro sorteio. Numa sala, a fase 1 (escolher
@@ -8127,33 +8125,15 @@ export default function App() {
       return;
     }
     setPhase('draft');
-    // Brasileirão Atual: nada de sortear — o "time rolado" já é sempre o
-    // time real escolhido, sem animação, pra escalar os 20 jogadores dele.
-    if (isSerieAtual) {
-      setRolledTeam(TEAMS.find(t => t.id === serieAtualTeamId) || null);
-      return;
-    }
     rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
-  };
-
-  // Banco normal tem 5 vagas fixas — no Brasileirão Atual (isSerieAtual) o
-  // banco vira o resto do elenco real inteiro (sem cortar ninguém de
-  // antemão), então o tamanho varia com quantos jogadores o time realmente tem.
-  const makeBenchSlots = () => {
-    let n = 5;
-    if (isSerieAtual) {
-      const team = TEAMS.find(t => t.id === serieAtualTeamId);
-      n = team ? Math.max(0, team.players.length - 11) : 5;
-    }
-    return Array.from({ length: n }, (_, i) => ({
-      key: `bench${i + 1}`, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0,
-    }));
   };
 
   const chooseFormation = (key) => {
     setFormationKey(key);
     const formSlots = buildPitchSlots(key);
-    const benchSlots = makeBenchSlots();
+    const benchSlots = ['bench1', 'bench2', 'bench3', 'bench4', 'bench5'].map((k, i) => ({
+      key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0
+    }));
     setPitchSlots([...formSlots, ...benchSlots]);
     setUsedTeamIds([]);
     setPitch({});
@@ -8174,7 +8154,9 @@ export default function App() {
     setFormationKey('custom');
     setCustomFormation({ label: `Formação livre (${shape})`, counts: { GOL: 1, ...counts } });
     const gkSlot = { key: 'GOL', label: 'GOL', realPos: 'GOL', x: 50, y: 92 };
-    const benchSlots = makeBenchSlots();
+    const benchSlots = ['bench1', 'bench2', 'bench3', 'bench4', 'bench5'].map((k, i) => ({
+      key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0
+    }));
     // `id` é só um detalhe interno do editor de arrastar (liga cada bolinha
     // ao slot classificado) — o resto do jogo não espera esse campo em
     // pitchSlots, então sai daqui antes de virar estado de verdade.
@@ -8212,19 +8194,20 @@ export default function App() {
     setPhase('squad');
   };
 
-  // Brasileirão Atual 2026: escolheu um dos 20 times reais da Série A 2026 —
-  // guarda QUAL time é (serieAtualTeamId) e vai pro fluxo normal de escolher
-  // formação + escalar (igual começar uma carreira do zero), só que o
-  // "sorteio" do draft (ver `finishFormationChoice`/`pickPlayerForSlot`) fica
-  // travado nesse time real — sem rolar outros, com os 20 jogadores dele
-  // disponíveis pra escalar do jeito que a pessoa quiser (sem filtrar
-  // ninguém de antemão). `confirmSerieAtual` monta os outros 19 (cada um com
-  // o próprio elenco real) e o calendário oficial da CBF quando a escalação
-  // for confirmada.
+  // Brasileirão Atual 2026: é simulador de carreira, não draft — escolheu um
+  // dos 20 times reais da Série A 2026, então pula sorteio E escolha manual
+  // de formação: monta sozinho a melhor formação/XI pra esse elenco (mesma
+  // lógica do "Já sei qual time eu quero"), com o resto do elenco real
+  // INTEIRO no banco (fullBench — sem cortar ninguém de antemão), e já cai
+  // direto na tela de escalação só pra escolher capitão e confirmar. Ajustar
+  // titular/reserva depois é o editor de escalação entre rodadas
+  // (applyMidSeasonLineup), não uma etapa de montagem inicial.
   const startSerieAtual = (team) => {
-    setFormationKey(null);
-    setPitchSlots([]);
-    setPitch({});
+    const built = autoFillSquadFromTeam(team, { fullBench: true });
+    if (!built) return;
+    setFormationKey(built.formationKey);
+    setPitchSlots(built.pitchSlots);
+    setPitch(built.pitch);
     setUsedTeamIds([]);
     setSkipsLeft(MAX_SKIPS);
     setLog([]);
@@ -8235,7 +8218,7 @@ export default function App() {
     setIsSerieAtual(true);
     setSerieAtualTeamId(team.id);
     setShowSerieAtualPicker(false);
-    setPhase('formation');
+    setPhase('squad');
   };
 
   // Supercopa do Brasil: escolheu enfrentar o time lendário de hoje — vai
@@ -8686,9 +8669,6 @@ export default function App() {
     if (stillRemaining.length === 0) {
       setPhase('squad');
       setRolledTeam(null);
-    } else if (isSerieAtual) {
-      // Continua escalando do MESMO time real (não sorteia outro) — o
-      // jogador escolhe quem entra dos 20, sem filtrar ninguém de antemão.
     } else {
       const candidates = TEAMS.filter(t => !usedTeamIds.includes(t.id) && t.id !== rolledTeam.id);
       if (candidates.length === 0) { setPhase('squad'); }
@@ -11304,8 +11284,8 @@ export default function App() {
             onClickPlayer={clickPlayer}
             onClickPitchSlot={clickPitchSlot}
             onUnplacePlayer={startReposition}
-            onSkipTeam={isSerieAtual ? undefined : skipTeam}
-            mustSkip={isSerieAtual ? false : rolledTeamHasNoFit}
+            onSkipTeam={skipTeam}
+            mustSkip={rolledTeamHasNoFit}
             myTeamColor={myTeamColor}
             captainSlot={captainSlot}
           />
@@ -16063,7 +16043,7 @@ const WHATS_NEW = [
     id: '2026-08-brasileirao-atual',
     date: 'Agosto de 2026',
     title: 'Novidade: Brasileirão Atual — o campeonato de 2026 de verdade',
-    desc: 'Ao lado do Brasileirão e da Copa do Brasil na tela inicial: escolha 1 dos 20 times que estão disputando a Série A 2026 de verdade e jogue as 38 rodadas seguindo o calendário oficial da CBF, rodada a rodada — cada adversário entra com o elenco real dele, sem sorteio. Você escolhe a formação e escala o elenco inteiro do time (sem cortar ninguém de antemão), e dá pra abrir "📋 Escalação" a qualquer momento entre as rodadas pra trocar um titular por um reserva antes do próximo jogo.',
+    desc: 'Ao lado do Brasileirão e da Copa do Brasil na tela inicial: escolha 1 dos 20 times que estão disputando a Série A 2026 de verdade e caia direto na temporada, com as 38 rodadas seguindo o calendário oficial da CBF — cada adversário entra com o elenco real dele. Sem draft: o jogo já monta a melhor escalação com o elenco real do time escolhido (elenco inteiro disponível, ninguém fica de fora), você só escolhe o capitão e confirma. Dá pra abrir "📋 Escalação" a qualquer momento entre as rodadas pra trocar um titular por um reserva antes do próximo jogo — é um simulador de temporada, não um draft.',
   },
   {
     id: '2026-08-notificacoes',
