@@ -8507,6 +8507,18 @@ export default function App() {
   // Estado de reposicionamento (mover jogador já escalado para outro slot)
   const [repositioningSlot, setRepositioningSlot] = useState(null); // slotKey original
 
+  // Arrastar-e-soltar (alternativa ao clique-clique acima, mesmo resultado):
+  // pointerdown num slot ocupado guarda a origem aqui; pointermove sobre
+  // qualquer outro slot (mesmo em outro componente — Pitch e BenchDisplay são
+  // dois containers separados) atualiza o destino em cima do cursor via
+  // hit-test por `data-slot-key`; pointerup aplica a troca com
+  // movePlayerBetweenSlots. Fica em refs pra não re-renderizar a cada pixel
+  // de movimento — só `dragOverKey` vira estado de verdade, e só ele, pra
+  // pintar o destino em destaque enquanto arrasta.
+  const dragSourceKeyRef = useRef(null);
+  const dragStartRef = useRef({ x: 0, y: 0, moved: false });
+  const [dragOverKey, setDragOverKey] = useState(null);
+
   // Posições que existem de verdade nesse esquema (ex.: 4-4-2 em linha não
   // tem PD/PE/MEI). Um jogador cujas posições não batem com NENHUMA delas não
   // tem pra onde ir — nem titular, nem banco, já que na hora de substituir ele
@@ -8551,58 +8563,73 @@ export default function App() {
     else setSelectedPlayer(player);
   };
 
+  // Move (ou troca) o jogador de `sourceKey` pro slot `targetKey` direto,
+  // sem passar pelo estado intermediário selectedPlayer/repositioningSlot —
+  // é o núcleo que tanto o clique-clique (clickPitchSlot, repassando
+  // repositioningSlot como origem) quanto o arrastar (pointerup calculando
+  // origem/destino na hora) usam, pra não duplicar a mesma lógica de troca.
+  const movePlayerBetweenSlots = (sourceKey, targetKey, playerOverride) => {
+    if (!sourceKey || !targetKey || sourceKey === targetKey) return;
+    // O fluxo de clique-clique já removeu o jogador de `pitch[sourceKey]` no
+    // primeiro clique (ver startReposition) — só sobra em `selectedPlayer`,
+    // por isso o chamador pode passar o jogador direto em vez de confiar
+    // que ainda está no `pitch`. O arrastar não remove nada até soltar, então
+    // não precisa passar nada — `pitch[sourceKey]` ainda está lá.
+    const player = playerOverride || pitch[sourceKey];
+    if (!player) return;
+    const targetMeta = pitchSlots.find(s => s.key === targetKey);
+    if (!targetMeta) return;
+    const playerCanGoToTarget = targetMeta.isBench || player.pos.includes(targetMeta.realPos);
+    if (!playerCanGoToTarget) return;
+    const occupant = pitch[targetKey];
+    const srcMeta = pitchSlots.find(s => s.key === sourceKey);
+    // A braçadeira é por slot — se o capitão foi um dos jogadores movidos,
+    // ela acompanha ele pro novo slot (null se ele saiu de campo: foi pro
+    // banco ou foi deslocado de volta pro grupo por não caber na origem).
+    let nextCaptainSlot = captainSlot;
+    if (!occupant) {
+      setPitch(prev => {
+        const next = { ...prev };
+        delete next[sourceKey];
+        next[targetKey] = { ...player, slotKey: targetKey, isBench: !!targetMeta.isBench };
+        return next;
+      });
+      if (sourceKey === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : targetKey;
+    } else {
+      const occupantCanGoToSrc = !srcMeta || srcMeta.isBench || occupant.pos.includes(srcMeta.realPos);
+      if (occupantCanGoToSrc) {
+        setPitch(prev => ({
+          ...prev,
+          [targetKey]: { ...player, slotKey: targetKey, isBench: !!targetMeta.isBench },
+          [sourceKey]: { ...occupant, slotKey: sourceKey, isBench: !!srcMeta?.isBench },
+        }));
+        if (sourceKey === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : targetKey;
+        else if (targetKey === captainSlot) nextCaptainSlot = srcMeta?.isBench ? null : sourceKey;
+      } else {
+        // Ocupante não joga na posição de origem — antes disso apagava o
+        // ocupante do elenco inteiro (bug real: o jogador "sumia"). Agora
+        // manda ele pro primeiro banco vazio em vez de perder o jogador;
+        // se o banco também estiver cheio, recusa a troca (nenhuma das
+        // duas alternativas — perder gente do elenco — é aceitável).
+        const emptyBenchSlot = pitchSlots.find(s => s.isBench && s.key !== sourceKey && !pitch[s.key]);
+        if (!emptyBenchSlot) return;
+        setPitch(prev => {
+          const next = { ...prev };
+          delete next[sourceKey];
+          next[emptyBenchSlot.key] = { ...occupant, slotKey: emptyBenchSlot.key, isBench: true };
+          next[targetKey] = { ...player, slotKey: targetKey, isBench: !!targetMeta.isBench };
+          return next;
+        });
+        if (sourceKey === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : targetKey;
+        else if (targetKey === captainSlot) nextCaptainSlot = null; // ocupante virou reserva, a braçadeira não o acompanha pro banco
+      }
+    }
+    if (nextCaptainSlot !== captainSlot) setCaptainSlot(nextCaptainSlot);
+  };
+
   const clickPitchSlot = (slotKey) => {
     if (repositioningSlot !== null) {
-      const targetMeta = pitchSlots.find(s => s.key === slotKey);
-      if (!targetMeta) return;
-      const player = selectedPlayer;
-      const playerCanGoToTarget = targetMeta.isBench || player.pos.includes(targetMeta.realPos);
-      if (!playerCanGoToTarget) return;
-      const occupant = pitch[slotKey];
-      // A braçadeira é por slot — se o capitão foi um dos jogadores movidos,
-      // ela acompanha ele pro novo slot (null se ele saiu de campo: foi pro
-      // banco ou foi deslocado de volta pro grupo por não caber na origem).
-      let nextCaptainSlot = captainSlot;
-      if (!occupant) {
-        // Empty target – just place
-        setPitch(prev => ({ ...prev, [slotKey]: { ...player, slotKey, isBench: !!targetMeta.isBench } }));
-        if (repositioningSlot === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : slotKey;
-      } else {
-        // Occupied target – try swap
-        const srcMeta = pitchSlots.find(s => s.key === repositioningSlot);
-        const occupantCanGoToSrc = !srcMeta || srcMeta.isBench || occupant.pos.includes(srcMeta.realPos);
-        if (occupantCanGoToSrc) {
-          setPitch(prev => ({
-            ...prev,
-            [slotKey]: { ...player, slotKey, isBench: !!targetMeta.isBench },
-            [repositioningSlot]: { ...occupant, slotKey: repositioningSlot, isBench: !!srcMeta?.isBench },
-          }));
-          if (repositioningSlot === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : slotKey;
-          else if (slotKey === captainSlot) nextCaptainSlot = srcMeta?.isBench ? null : repositioningSlot;
-        } else {
-          // Ocupante não joga na posição de origem — antes disso apagava o
-          // ocupante do elenco inteiro (bug real: o jogador "sumia"). Agora
-          // manda ele pro primeiro banco vazio em vez de perder o jogador;
-          // se o banco também estiver cheio, recusa a troca (nenhuma das
-          // duas alternativas — perder gente do elenco — é aceitável).
-          const emptyBenchSlot = pitchSlots.find(s => s.isBench && !pitch[s.key]);
-          if (!emptyBenchSlot) {
-            setSelectedPlayer(null);
-            setRepositioningSlot(null);
-            return;
-          }
-          setPitch(prev => {
-            const next = { ...prev };
-            delete next[repositioningSlot];
-            next[emptyBenchSlot.key] = { ...occupant, slotKey: emptyBenchSlot.key, isBench: true };
-            next[slotKey] = { ...player, slotKey, isBench: !!targetMeta.isBench };
-            return next;
-          });
-          if (repositioningSlot === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : slotKey;
-          else if (slotKey === captainSlot) nextCaptainSlot = null; // ocupante virou reserva, a braçadeira não o acompanha pro banco
-        }
-      }
-      if (nextCaptainSlot !== captainSlot) setCaptainSlot(nextCaptainSlot);
+      movePlayerBetweenSlots(repositioningSlot, slotKey, selectedPlayer);
       setSelectedPlayer(null);
       setRepositioningSlot(null);
       return;
@@ -8621,6 +8648,52 @@ export default function App() {
     setSelectedPlayer(player);
     setRepositioningSlot(slotKey);
   };
+
+  // Início do arrastar — só em slot ocupado (bench ou titular). Diferente do
+  // clique (startReposition), NÃO tira o jogador do `pitch` aqui: ele só sai
+  // de fato no pointerup, se realmente soltar em cima de outro slot válido —
+  // arrastar e soltar de volta no mesmo lugar (ou cancelar) não deve mexer
+  // em nada.
+  const handleSlotPointerDown = (slotKey) => (e) => {
+    if (!pitch[slotKey]) return;
+    if (repositioningSlot !== null) return; // já no meio do fluxo de clique-clique
+    dragSourceKeyRef.current = slotKey;
+    dragStartRef.current = { x: e.clientX, y: e.clientY, moved: false };
+  };
+
+  // Ouvintes globais (não presos a Pitch/BenchDisplay) porque o destino de um
+  // arrastar pode estar no OUTRO componente (campo → banco ou banco →
+  // campo) — hit-test por `data-slot-key` via elementFromPoint funciona
+  // através da fronteira dos dois containers, coisa que setPointerCapture
+  // sozinho não daria.
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragSourceKeyRef.current) return;
+      const st = dragStartRef.current;
+      if (!st.moved && (Math.abs(e.clientX - st.x) > 6 || Math.abs(e.clientY - st.y) > 6)) st.moved = true;
+      if (!st.moved) return;
+      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-slot-key]');
+      const key = el?.getAttribute('data-slot-key') || null;
+      setDragOverKey(prev => (prev === key ? prev : key));
+    };
+    const onUp = () => {
+      const source = dragSourceKeyRef.current;
+      const target = dragStartRef.current.moved ? dragOverKey : null;
+      dragSourceKeyRef.current = null;
+      dragStartRef.current = { x: 0, y: 0, moved: false };
+      setDragOverKey(null);
+      if (source && target && target !== source) movePlayerBetweenSlots(source, target);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragOverKey, pitch, pitchSlots, captainSlot]);
 
   const pauseSim = () => {
     if (clockRef.current) clearTimeout(clockRef.current);
@@ -8724,6 +8797,75 @@ export default function App() {
     setLiveEvents([...shownEventsRef.current]);
   };
   useEffect(() => { applyLiveSubRef.current = applyLiveSub; });
+
+  // Reposicionar TÁTICA (não substituição) durante a partida: arrasta um
+  // titular já em campo pra outra vaga também titular — ex.: perdendo de
+  // 1x0, tira o ME e coloca na vaga de PE, tira o MD e coloca na de PD,
+  // avançando o time sem gastar nenhuma troca com o banco. Só aceita se os
+  // DOIS conseguem trocar de lugar de verdade (cada um jogando na posição
+  // do outro); banco continua exclusivo da substituição normal
+  // (applyLiveSub) — são gestos e telas diferentes de propósito.
+  const moveLiveLineupSlot = (sourceKey, targetKey) => {
+    if (!sourceKey || !targetKey || sourceKey === targetKey) return;
+    const lineup = liveLineupRef.current || {};
+    const player = lineup[sourceKey];
+    const occupant = lineup[targetKey];
+    if (!player || !occupant || player.isBench || occupant.isBench) return;
+    const targetMeta = pitchSlots.find(s => s.key === targetKey);
+    const srcMeta = pitchSlots.find(s => s.key === sourceKey);
+    if (!targetMeta || !srcMeta) return;
+    if (!player.pos.includes(targetMeta.realPos) || !occupant.pos.includes(srcMeta.realPos)) return;
+    const nextStarter = { ...occupant, slotKey: sourceKey };
+    const nextTarget = { ...player, slotKey: targetKey };
+    const next = { ...lineup, [sourceKey]: nextStarter, [targetKey]: nextTarget };
+    liveLineupRef.current = next;
+    setLiveLineup(next);
+    // Persiste no `pitch` igual applyLiveSub — sem isso a mudança some assim
+    // que a próxima rodada reconstrói o campo a partir dele.
+    setPitch(prev => ({ ...prev, [sourceKey]: nextStarter, [targetKey]: nextTarget }));
+  };
+
+  // Arrastar-e-soltar dentro da partida ao vivo — mesmo padrão do arrastar
+  // de fora de campo (handleSlotPointerDown/dragOverKey, ver mais acima),
+  // só que lendo/escrevendo em `liveLineup` em vez de `pitch` e restrito a
+  // vagas titulares (banco usa o fluxo de substituição já existente).
+  const liveDragSourceKeyRef = useRef(null);
+  const liveDragStartRef = useRef({ x: 0, y: 0, moved: false });
+  const [liveDragOverKey, setLiveDragOverKey] = useState(null);
+  const handleLiveSlotPointerDown = (slotKey) => (e) => {
+    const p = liveLineupRef.current?.[slotKey];
+    if (!p || p.isBench) return;
+    liveDragSourceKeyRef.current = slotKey;
+    liveDragStartRef.current = { x: e.clientX, y: e.clientY, moved: false };
+  };
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!liveDragSourceKeyRef.current) return;
+      const st = liveDragStartRef.current;
+      if (!st.moved && (Math.abs(e.clientX - st.x) > 6 || Math.abs(e.clientY - st.y) > 6)) st.moved = true;
+      if (!st.moved) return;
+      const el = document.elementFromPoint(e.clientX, e.clientY)?.closest('[data-slot-key]');
+      const key = el?.getAttribute('data-slot-key') || null;
+      setLiveDragOverKey(prev => (prev === key ? prev : key));
+    };
+    const onUp = () => {
+      const source = liveDragSourceKeyRef.current;
+      const target = liveDragStartRef.current.moved ? liveDragOverKey : null;
+      liveDragSourceKeyRef.current = null;
+      liveDragStartRef.current = { x: 0, y: 0, moved: false };
+      setLiveDragOverKey(null);
+      if (source && target && target !== source) moveLiveLineupSlot(source, target);
+    };
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    window.addEventListener('pointercancel', onUp);
+    return () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      window.removeEventListener('pointercancel', onUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveDragOverKey, liveLineup, pitchSlots]);
 
   // Substituição escolhida pelo próprio jogo (modo automático): o melhor
   // reserva compatível com a vaga de quem saiu. Devolve true se conseguiu —
@@ -11371,6 +11513,8 @@ export default function App() {
                 eligibleSlotsForPlayer={eligibleSlotsForPlayer}
                 onClickPitchSlot={clickPitchSlot}
                 onUnplacePlayer={startReposition}
+                onSlotPointerDown={handleSlotPointerDown}
+                dragOverKey={dragOverKey}
               />
             )}
           </div>
@@ -11492,6 +11636,8 @@ export default function App() {
             mustSkip={rolledTeamHasNoFit}
             myTeamColor={myTeamColor}
             captainSlot={captainSlot}
+            onSlotPointerDown={handleSlotPointerDown}
+            dragOverKey={dragOverKey}
           />
         )}
         {phase === 'squad' && (
@@ -11507,6 +11653,8 @@ export default function App() {
             eligibleSlotsForPlayer={eligibleSlotsForPlayer}
             onClickPitchSlot={clickPitchSlot}
             onUnplacePlayer={startReposition}
+            onSlotPointerDown={handleSlotPointerDown}
+            dragOverKey={dragOverKey}
           />
         )}
         {phase === 'multi-formation-wait' && roomSnap && (
@@ -11584,6 +11732,8 @@ export default function App() {
             onSelectSubStarter={setSubSelectStarter}
             onApplySub={applyLiveSub}
             subbedOutNames={subbedOutNames}
+            onLiveSlotPointerDown={handleLiveSlotPointerDown}
+            liveDragOverKey={liveDragOverKey}
             bracketAdvance={bracketAdvance}
             onDismissBracketAdvance={dismissBracketAdvance}
             difficulty={difficulty}
@@ -14206,7 +14356,7 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
   );
 }
 
-function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, myTeamColor, captainSlot }) {
+function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, myTeamColor, captainSlot, onSlotPointerDown, dragOverKey }) {
   const mc = myTeamColor || '#d4a23c';
   const dark = needsDark(mc);
   const highlightKeys = new Set(highlightSlots.map(s => s.key));
@@ -14269,41 +14419,50 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
           const canUnplace = !!occupant && !!onUnplace;
           const clickable = canPlace || canUnplace;
           const isCap = captainSlot && slot.key === captainSlot;
+          const isDropTarget = dragOverKey === slot.key;
+          const draggable = !!occupant && !!onSlotPointerDown;
 
-          const circleColor = occupant ? mc : isHighlighted ? 'rgba(127,217,154,0.35)' : isPreviewed ? 'rgba(212,162,60,0.22)' : 'rgba(255,255,255,0.1)';
-          const borderColor = canUnplace
-            ? `2px dashed ${mc}`
-            : isHighlighted
-              ? '2px solid #7fd99a'
-              : isPreviewed
-                ? '2px dashed #d4a23c'
-                : occupant
-                  ? '2.5px solid rgba(255,255,255,0.65)'
-                  : '1.5px solid rgba(255,255,255,0.28)';
-          const shadow = occupant
-            ? `0 3px 10px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.25)`
-            : isHighlighted
-              ? '0 0 14px rgba(127,217,154,0.45)'
-              : isPreviewed
-                ? '0 0 10px rgba(212,162,60,0.3)'
-                : 'none';
+          const circleColor = isDropTarget ? 'rgba(127,217,154,0.5)' : occupant ? mc : isHighlighted ? 'rgba(127,217,154,0.35)' : isPreviewed ? 'rgba(212,162,60,0.22)' : 'rgba(255,255,255,0.1)';
+          const borderColor = isDropTarget
+            ? '2.5px solid #7fd99a'
+            : canUnplace
+              ? `2px dashed ${mc}`
+              : isHighlighted
+                ? '2px solid #7fd99a'
+                : isPreviewed
+                  ? '2px dashed #d4a23c'
+                  : occupant
+                    ? '2.5px solid rgba(255,255,255,0.65)'
+                    : '1.5px solid rgba(255,255,255,0.28)';
+          const shadow = isDropTarget
+            ? '0 0 16px rgba(127,217,154,0.55)'
+            : occupant
+              ? `0 3px 10px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.25)`
+              : isHighlighted
+                ? '0 0 14px rgba(127,217,154,0.45)'
+                : isPreviewed
+                  ? '0 0 10px rgba(212,162,60,0.3)'
+                  : 'none';
 
           return (
             <div
               key={slot.key}
+              data-slot-key={slot.key}
               onClick={clickable ? () => canPlace ? onClickSlot(slot.key) : onUnplace(slot.key) : undefined}
-              title={occupant ? `${occupant.name}${occupant.teamLabel ? ` · ${occupant.teamLabel}` : ''} — clique para mover` : slot.label}
+              onPointerDown={draggable ? onSlotPointerDown(slot.key) : undefined}
+              title={occupant ? `${occupant.name}${occupant.teamLabel ? ` · ${occupant.teamLabel}` : ''} — clique ou arraste para mover` : slot.label}
               style={{
                 position: 'absolute',
                 left: `${slot.x}%`,
                 top: `${slot.y}%`,
-                transform: 'translate(-50%,-50%)',
+                transform: `translate(-50%,-50%) ${isDropTarget ? 'scale(1.1)' : ''}`,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 gap: 2,
                 zIndex: occupant ? 3 : 2,
                 cursor: clickable ? 'pointer' : 'default',
+                touchAction: draggable ? 'none' : undefined,
                 transition: 'transform 0.15s',
               }}
               className="pitch-spot"
@@ -14363,7 +14522,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
 }
 
 // Exibe os jogadores do banco de reservas (interativo durante o draft)
-function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace }) {
+function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, onSlotPointerDown, dragOverKey }) {
   const mc = myTeamColor || '#d4a23c';
   const benchSlots = pitchSlots.filter(s => s.isBench);
   const filled = benchSlots.filter(s => pitch[s.key]);
@@ -14383,19 +14542,24 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], pre
           const canPlace = isHighlighted && !!onClickSlot;
           const canUnplace = !!p && !!onUnplace;
           const clickable = canPlace || canUnplace;
+          const isDropTarget = dragOverKey === slot.key;
+          const draggable = !!p && !!onSlotPointerDown;
           return (
             <div
               key={slot.key}
+              data-slot-key={slot.key}
               onClick={clickable ? () => canPlace ? onClickSlot(slot.key) : onUnplace(slot.key) : undefined}
-              title={p ? (canPlace ? `Trocar de lugar com ${p.name}` : `${p.name} — clique para remover`) : canPlace ? 'Colocar no banco' : slot.label}
+              onPointerDown={draggable ? onSlotPointerDown(slot.key) : undefined}
+              title={p ? (canPlace ? `Trocar de lugar com ${p.name}` : `${p.name} — clique ou arraste para mover`) : canPlace ? 'Colocar no banco' : slot.label}
               style={{
                 padding: '6px 10px', borderRadius: 8, fontSize: 12, minWidth: 80, textAlign: 'center',
-                background: canPlace ? 'rgba(127,217,154,0.12)' : isPreviewed ? 'rgba(212,162,60,0.1)' : p ? `${mc}22` : 'rgba(255,255,255,0.04)',
-                border: `1px ${isPreviewed ? 'dashed' : 'solid'} ${canPlace ? '#7fd99a88' : isPreviewed ? '#d4a23c88' : p ? mc + '55' : 'rgba(255,255,255,0.1)'}`,
+                background: isDropTarget ? 'rgba(127,217,154,0.22)' : canPlace ? 'rgba(127,217,154,0.12)' : isPreviewed ? 'rgba(212,162,60,0.1)' : p ? `${mc}22` : 'rgba(255,255,255,0.04)',
+                border: `1px ${isPreviewed ? 'dashed' : 'solid'} ${isDropTarget ? '#7fd99a' : canPlace ? '#7fd99a88' : isPreviewed ? '#d4a23c88' : p ? mc + '55' : 'rgba(255,255,255,0.1)'}`,
                 cursor: clickable ? 'pointer' : 'default',
-                transform: canPlace ? 'scale(1.06)' : 'scale(1)',
+                touchAction: draggable ? 'none' : undefined,
+                transform: isDropTarget || canPlace ? 'scale(1.06)' : 'scale(1)',
                 transition: 'all 0.15s',
-                boxShadow: canPlace ? '0 0 10px rgba(127,217,154,0.25)' : 'none',
+                boxShadow: isDropTarget ? '0 0 12px rgba(127,217,154,0.4)' : canPlace ? '0 0 10px rgba(127,217,154,0.25)' : 'none',
               }}
             >
               {p ? (
@@ -15102,7 +15266,7 @@ function useIsMobile(bp = 768) {
   return mob;
 }
 
-function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, isPlayerBlockedByFormation, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, mustSkip, myTeamColor, captainSlot }) {
+function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, isPlayerBlockedByFormation, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, mustSkip, myTeamColor, captainSlot, onSlotPointerDown, dragOverKey }) {
   const isMobile = useIsMobile();
   const filledCount = Object.keys(pitch).length;
   const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
@@ -15223,6 +15387,8 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
               onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
               myTeamColor={myTeamColor}
               captainSlot={captainSlot}
+              onSlotPointerDown={onSlotPointerDown}
+              dragOverKey={dragOverKey}
             />
           </div>
         )}
@@ -15335,6 +15501,8 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
               onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
               myTeamColor={myTeamColor}
               captainSlot={captainSlot}
+              onSlotPointerDown={onSlotPointerDown}
+              dragOverKey={dragOverKey}
             />
           </div>
         )}
@@ -15347,12 +15515,14 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
         previewSlots={previewSlots}
         onClickSlot={onClickPitchSlot}
         onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
+        onSlotPointerDown={onSlotPointerDown}
+        dragOverKey={dragOverKey}
       />
     </div>
   );
 }
 
-function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPitchSlot, onUnplacePlayer, confirmLabel = 'Disputar ->' }) {
+function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPitchSlot, onUnplacePlayer, confirmLabel = 'Disputar ->', onSlotPointerDown, dragOverKey }) {
   const starters = Object.values(pitch).filter(p => !p.isBench);
   const avgOvr = starters.length ? Math.round(starters.reduce((s, p) => s + p.ovr, 0) / starters.length) : 0;
   const effectiveOvr = Math.round((avgOvr + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
@@ -15387,12 +15557,16 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
         highlightSlots={highlightSlots}
         onClickSlot={onClickPitchSlot}
         onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
+        onSlotPointerDown={onSlotPointerDown}
+        dragOverKey={dragOverKey}
       />
       <BenchDisplay
         pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor}
         highlightSlots={highlightSlots}
         onClickSlot={onClickPitchSlot}
         onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
+        onSlotPointerDown={onSlotPointerDown}
+        dragOverKey={dragOverKey}
       />
 
       <div style={styles.squadList}>
@@ -16589,7 +16763,7 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
   );
 }
 
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots, myUnavailableNames, onViewTeam }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots, myUnavailableNames, onViewTeam, onLiveSlotPointerDown, liveDragOverKey }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
   // Expulso já saiu de campo — não tem como "substituir" quem nem está mais
@@ -16799,6 +16973,24 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
               );
             })()}
           </div>
+
+          {onLiveSlotPointerDown && (
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || '#d4a23c', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' }}>
+                ↔ Ajuste tático
+              </div>
+              <div style={{ fontSize: 10.5, opacity: 0.5, marginBottom: 6 }}>
+                Arraste um titular pra outra vaga do time pra mudar o esquema na hora — sem envolver o banco.
+              </div>
+              <Pitch
+                pitch={liveLineup}
+                pitchSlots={pitchSlots || []}
+                myTeamColor={myTeamColor}
+                onSlotPointerDown={onLiveSlotPointerDown}
+                dragOverKey={liveDragOverKey}
+              />
+            </div>
+          )}
         </div>
       )}
 
@@ -17137,7 +17329,7 @@ function SeasonCalendarModal({
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey }) {
   const mc = myTeamColor || '#d4a23c';
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -17417,6 +17609,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           onSelectSubStarter={onSelectSubStarter}
           onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
           myUnavailableNames={myUnavailableNames} onViewTeam={onViewTeam}
+          onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
         />
 
         {/* Placar agregado após jogo de volta */}
@@ -17614,6 +17807,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             onSelectSubStarter={onSelectSubStarter}
             onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
             myUnavailableNames={myUnavailableNames} onViewTeam={onViewTeam}
+            onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
           />
 
           {roundDone && (
