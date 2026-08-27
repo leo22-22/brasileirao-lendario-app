@@ -8518,6 +8518,15 @@ export default function App() {
   const dragSourceKeyRef = useRef(null);
   const dragStartRef = useRef({ x: 0, y: 0, moved: false });
   const [dragOverKey, setDragOverKey] = useState(null);
+  // Todo slot ocupado tem onClick (startReposition/clickPitchSlot) E
+  // onPointerDown (arrastar) no MESMO elemento — depois de soltar o
+  // ponteiro o navegador ainda dispara um `click` nativo em cima do slot
+  // onde a solta aconteceu. Sem essa trava, um arrastar (às vezes só um
+  // tremor do dedo/mouse que passa dos 6px) MOVIA o jogador E, na sequência,
+  // o clique fantasma chamava startReposition de novo em cima de quem quer
+  // que tenha ficado nesse slot — tirando um SEGUNDO jogador do campo sem
+  // ninguém pedir (o bug real do "jogador sumindo").
+  const suppressNextClickRef = useRef(false);
 
   // Posições que existem de verdade nesse esquema (ex.: 4-4-2 em linha não
   // tem PD/PE/MEI). Um jogador cujas posições não batem com NENHUMA delas não
@@ -8628,6 +8637,7 @@ export default function App() {
   };
 
   const clickPitchSlot = (slotKey) => {
+    if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; }
     if (repositioningSlot !== null) {
       movePlayerBetweenSlots(repositioningSlot, slotKey, selectedPlayer);
       setSelectedPlayer(null);
@@ -8641,6 +8651,7 @@ export default function App() {
   };
 
   const startReposition = (slotKey) => {
+    if (suppressNextClickRef.current) { suppressNextClickRef.current = false; return; }
     const player = pitch[slotKey];
     if (!player) return;
     // Remove temporariamente do campo para liberar o slot nos remainingSlots
@@ -8679,6 +8690,10 @@ export default function App() {
     const onUp = () => {
       const source = dragSourceKeyRef.current;
       const target = dragStartRef.current.moved ? dragOverKey : null;
+      // O `click` nativo que o navegador dispara logo depois do pointerup
+      // não pode reabrir startReposition/clickPitchSlot em cima do slot que
+      // acabou de ser tocado — ver o comentário de suppressNextClickRef.
+      if (dragStartRef.current.moved) suppressNextClickRef.current = true;
       dragSourceKeyRef.current = null;
       dragStartRef.current = { x: 0, y: 0, moved: false };
       setDragOverKey(null);
