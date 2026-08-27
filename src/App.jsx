@@ -3106,7 +3106,7 @@ const TEAMS = [
       { name: 'Escobar', pos: ['LE', 'ZAG'], ovr: 77 },
       { name: 'Willian Arao', pos: ['VOL', 'ZAG', 'MC'], ovr: 80 },
       { name: 'Gabriel Bontempo', pos: ['MC', 'MEI', 'MD', 'PD'], ovr: 81 },
-      { name: 'Rollheiser', pos: ['MEI', 'PD', 'MC'], ovr: 80 },
+      { name: 'Rollheiser', pos: ['MEI', 'PD', 'MC', 'MD'], ovr: 80 },
       { name: 'Gabigol', pos: ['ATA', 'PD'], ovr: 83 },
       { name: 'Neymar', pos: ['PE', 'MEI', 'ATA'], ovr: 87 },
       { name: 'Barreal', pos: ['PE', 'ME', 'MEI'], ovr: 79 },
