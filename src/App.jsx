@@ -16439,6 +16439,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-08-arrastar-jogador',
+    date: 'Agosto de 2026',
+    title: 'Novidade: arraste o jogador pra trocar de posição',
+    desc: 'Agora dá pra pegar e arrastar um jogador direto pra outra vaga do time — na escalação antes do jogo e também durante a partida ao vivo, sem precisar clicar duas vezes. Novo painel "↔ Ajuste tático" aparece junto das trocas: dá pra puxar um titular de uma posição pra outra no meio do jogo (tipo virar um 4-5-1 num esquema mais ofensivo trocando ME/MD de lado) sem mexer no banco — isso continua separado da substituição normal.',
+  },
+  {
     id: '2026-08-brasileirao-atual-multiplayer',
     date: 'Agosto de 2026',
     title: 'Brasileirão Atual chega no multiplayer',
