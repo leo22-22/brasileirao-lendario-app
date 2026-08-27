@@ -8131,12 +8131,24 @@ export default function App() {
     rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
   };
 
+  // Banco normal tem 5 vagas fixas — no Brasileirão Atual (isSerieAtual) o
+  // banco vira o resto do elenco real inteiro (sem cortar ninguém de
+  // antemão), então o tamanho varia com quantos jogadores o time realmente tem.
+  const makeBenchSlots = () => {
+    let n = 5;
+    if (isSerieAtual) {
+      const team = TEAMS.find(t => t.id === serieAtualTeamId);
+      n = team ? Math.max(0, team.players.length - 11) : 5;
+    }
+    return Array.from({ length: n }, (_, i) => ({
+      key: `bench${i + 1}`, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0,
+    }));
+  };
+
   const chooseFormation = (key) => {
     setFormationKey(key);
     const formSlots = buildPitchSlots(key);
-    const benchSlots = ['bench1', 'bench2', 'bench3', 'bench4', 'bench5'].map((k, i) => ({
-      key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0
-    }));
+    const benchSlots = makeBenchSlots();
     setPitchSlots([...formSlots, ...benchSlots]);
     setUsedTeamIds([]);
     setPitch({});
@@ -8157,9 +8169,7 @@ export default function App() {
     setFormationKey('custom');
     setCustomFormation({ label: `Formação livre (${shape})`, counts: { GOL: 1, ...counts } });
     const gkSlot = { key: 'GOL', label: 'GOL', realPos: 'GOL', x: 50, y: 92 };
-    const benchSlots = ['bench1', 'bench2', 'bench3', 'bench4', 'bench5'].map((k, i) => ({
-      key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0
-    }));
+    const benchSlots = makeBenchSlots();
     // `id` é só um detalhe interno do editor de arrastar (liga cada bolinha
     // ao slot classificado) — o resto do jogo não espera esse campo em
     // pitchSlots, então sai daqui antes de virar estado de verdade.
@@ -8372,6 +8382,23 @@ export default function App() {
     setUserInCup(true);
     setCupWinnerId(null);
     setPhase('playing');
+  };
+
+  // Brasileirão Atual: trocar titular/reserva ENTRE rodadas (não durante uma
+  // partida ao vivo). `pitch`/`pitchSlots` ficam vivos a temporada inteira
+  // (nunca são resetados ao entrar em 'playing'), então reaproveita os
+  // MESMOS handlers de clique do Draft/Squad (clickPitchSlot/startReposition)
+  // só que abertos numa tela própria. Ao salvar, reordena `leagueTeams` a
+  // partir do `pitch` atual (titulares primeiro) — é esse array, não o
+  // `pitch`, que `getStarters`/`teamsForRound` leem pra decidir quem joga a
+  // rodada seguinte (só marcar isBench no lugar não move ninguém de índice).
+  const [showLineupEditor, setShowLineupEditor] = useState(false);
+  const applyMidSeasonLineup = () => {
+    const reordered = partitionStartersFirst(Object.values(pitch));
+    setLeagueTeams(prev => prev.map(t => (t.id === myTeamId
+      ? { ...t, players: reordered, ovr: teamStrength(Object.fromEntries(reordered.map((p, i) => [i, p]))) }
+      : t)));
+    setShowLineupEditor(false);
   };
 
   const openTransferMarket = () => setPhase('transfer');
@@ -8750,6 +8777,7 @@ export default function App() {
     setDailyOpponent(null);
     setIsSerieAtual(false);
     setSerieAtualTeamId(null);
+    setShowLineupEditor(false);
 
     if (gameMode === 'brasileirao' || gameMode === 'serieab') {
       // Embaralha só a ordem passada pro gerador de tabela: o método do
@@ -10100,6 +10128,7 @@ export default function App() {
     setDailyOpponent(null);
     setIsSerieAtual(false);
     setSerieAtualTeamId(null);
+    setShowLineupEditor(false);
     // Sem isso, abandonar um "Mercado de transferências" (isTransferSeason
     // vira true em confirmTransferReleases, só volta a false dentro de
     // newSeason) por aqui deixava a flag presa em true — a PRÓXIMA carreira
@@ -10822,6 +10851,7 @@ export default function App() {
     setDailyOpponent(null);
     setIsSerieAtual(false);
     setSerieAtualTeamId(null);
+    setShowLineupEditor(false);
     setRoundHistory({});
     setCupWinnerId(null);
     setCupRoundIdx(0);
@@ -10991,20 +11021,6 @@ export default function App() {
                     {dailyChallengeAlreadyPlayed ? '✅ Supercopa de hoje feita' : '🏆 Supercopa do Brasil'}
                   </button>
                 )}
-                <button
-                  onClick={() => setShowSerieAtualPicker(true)}
-                  className="mode-card-hover tap-target-sm"
-                  title="Escolha um dos 20 times da Série A 2026 e jogue as 38 rodadas com o calendário oficial da CBF, cada adversário com o elenco real dele."
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
-                    padding: '7px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                    color: myTeamColor || '#d4a23c',
-                    border: `1.5px solid ${hexToRgba(myTeamColor || '#d4a23c', 0.4)}`,
-                    background: hexToRgba(myTeamColor || '#d4a23c', 0.1),
-                  }}
-                >
-                  📅 Brasileirão Atual
-                </button>
                 <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
               </>
             )}
@@ -11140,6 +11156,28 @@ export default function App() {
           onPick={startSerieAtual}
         />
       )}
+      {showLineupEditor && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2500, overflowY: 'auto', padding: 16 }}>
+          <div style={{ maxWidth: 480, margin: '0 auto' }}>
+            <div style={{ fontWeight: 700, fontSize: 13, color: myTeamColor || '#d4a23c', marginBottom: 8 }}>
+              📋 Escalação — Brasileirão Atual
+            </div>
+            <Squad
+              pitch={pitch} pitchSlots={pitchSlots}
+              formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
+              captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
+              onConfirm={applyMidSeasonLineup}
+              confirmLabel="Salvar e fechar"
+              myTeamColor={myTeamColor}
+              selectedPlayer={selectedPlayer}
+              repositioningSlot={repositioningSlot}
+              eligibleSlotsForPlayer={eligibleSlotsForPlayer}
+              onClickPitchSlot={clickPitchSlot}
+              onUnplacePlayer={startReposition}
+            />
+          </div>
+        </div>
+      )}
       {infoPage && <InfoPage tab={infoPage} onNavigate={navigateToInfo} onClose={closeInfoPage} myTeamColor={myTeamColor} />}
       {teamsPage === 'index' && <TeamsIndexPage onBack={closeTeamsPage} onOpenTeam={navigateToTeam} myTeamColor={myTeamColor} />}
       {teamsPage && teamsPage !== 'index' && (
@@ -11208,6 +11246,7 @@ export default function App() {
             dailyChallenge={dailyChallenge}
             dailyChallengeAlreadyPlayed={dailyChallengeAlreadyPlayed}
             onOpenDailyChallenge={() => setShowDailyChallenge(true)}
+            onOpenSerieAtual={() => setShowSerieAtualPicker(true)}
           />
         )}
         {showDailyChallenge && (
@@ -11320,6 +11359,7 @@ export default function App() {
             onViewTeam={setViewingTeam}
             onSimulateAll={isDailyChallenge ? () => fastForwardBrasileirao(null, { onCalendar: false }) : gameMode === 'copa' ? fastForwardCopa : (gameMode === 'serieab' && promotionTie?.leg) ? undefined : simulateSeasonOnCalendar}
             onOpenCalendar={!isDailyChallenge && (gameMode === 'brasileirao' || gameMode === 'serieab') ? openCalendar : undefined}
+            onOpenLineupEditor={isSerieAtual && !isSimulating ? () => setShowLineupEditor(true) : undefined}
             myDivision={myDivision}
             otherDivision={otherDivision}
             promotionTie={promotionTie}
@@ -11847,7 +11887,7 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge }) {
+function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge, onOpenSerieAtual }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
@@ -11970,31 +12010,51 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
                 title: 'Copa do Brasil',
                 sub: '32 times · Mata-mata · Ida e volta',
               },
+              {
+                // Não é bem um "gameMode" (não fica marcado como selecionado
+                // igual os outros dois) — abre direto o seletor dos 20 times
+                // reais da Série A 2026, sem passar pelo botão "Escolher
+                // formação" comum. Ocupa a linha inteira (span 2) pra não
+                // sobrar um card sozinho pela metade.
+                id: 'atual2026',
+                trophy: '📅',
+                title: 'Brasileirão Atual',
+                sub: '20 times reais da Série A 2026 · calendário oficial da CBF',
+                span2: true,
+              },
             ].map(m => (
               <button
                 key={m.id}
-                onClick={() => onSetGameMode(m.id)}
+                onClick={() => (m.id === 'atual2026' ? onOpenSerieAtual() : onSetGameMode(m.id))}
                 className="mode-card-hover"
-                aria-pressed={gameMode === m.id}
+                aria-pressed={m.id === 'atual2026' ? false : gameMode === m.id}
                 style={{
                   padding: '14px 12px', borderRadius: 12, border: '2px solid', position: 'relative',
-                  borderColor: gameMode === m.id ? mc : 'rgba(255,255,255,0.1)',
-                  background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
+                  gridColumn: m.span2 ? 'span 2' : undefined,
+                  borderColor: (m.id !== 'atual2026' && gameMode === m.id) ? mc : 'rgba(255,255,255,0.1)',
+                  background: (m.id !== 'atual2026' && gameMode === m.id) ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
                   color: '#F4F1EA', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s',
-                  boxShadow: gameMode === m.id ? `0 0 0 1px ${hexToRgba(mc, 0.15)} inset` : 'none',
+                  boxShadow: (m.id !== 'atual2026' && gameMode === m.id) ? `0 0 0 1px ${hexToRgba(mc, 0.15)} inset` : 'none',
+                  display: m.span2 ? 'flex' : undefined, alignItems: m.span2 ? 'center' : undefined, gap: m.span2 ? 12 : undefined,
                 }}
               >
-                {gameMode === m.id && (
+                {!m.span2 && gameMode === m.id && (
                   <div style={{ position: 'absolute', top: 10, right: 10, width: 18, height: 18, borderRadius: '50%', background: mc, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, color: '#0B1A12' }}>✓</div>
                 )}
-                <img
-                  src={m.trophy}
-                  alt={m.title}
-                  style={{ height: 40, objectFit: 'contain', marginBottom: 8, display: 'block' }}
-                  onError={e => { e.currentTarget.style.display = 'none'; }}
-                />
-                <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3, color: gameMode === m.id ? mc : '#F4F1EA' }}>{m.title}</div>
-                <div style={{ fontSize: 11, opacity: 0.5, lineHeight: 1.4 }}>{m.sub}</div>
+                {m.trophy.startsWith('http') ? (
+                  <img
+                    src={m.trophy}
+                    alt={m.title}
+                    style={{ height: 40, objectFit: 'contain', marginBottom: m.span2 ? 0 : 8, display: 'block', flexShrink: 0 }}
+                    onError={e => { e.currentTarget.style.display = 'none'; }}
+                  />
+                ) : (
+                  <span style={{ fontSize: 30, lineHeight: 1, flexShrink: 0 }}>{m.trophy}</span>
+                )}
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3, color: '#F4F1EA' }}>{m.title}</div>
+                  <div style={{ fontSize: 11, opacity: 0.5, lineHeight: 1.4 }}>{m.sub}</div>
+                </div>
               </button>
             ))}
           </div>
@@ -15060,7 +15120,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   );
 }
 
-function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPitchSlot, onUnplacePlayer }) {
+function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPitchSlot, onUnplacePlayer, confirmLabel = 'Disputar ->' }) {
   const starters = Object.values(pitch).filter(p => !p.isBench);
   const avgOvr = starters.length ? Math.round(starters.reduce((s, p) => s + p.ovr, 0) / starters.length) : 0;
   const effectiveOvr = Math.round((avgOvr + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
@@ -15168,7 +15228,7 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
               : captainSlot ? '' : 'Escolha um capitao primeiro'
           }
         >
-          {repositioningSlot !== null ? 'Reposicionando…' : captainSlot ? 'Disputar ->' : 'Escolha um capitao'}
+          {repositioningSlot !== null ? 'Reposicionando…' : captainSlot ? confirmLabel : 'Escolha um capitao'}
         </button>
       </div>
     </div>
@@ -15976,7 +16036,7 @@ const WHATS_NEW = [
     id: '2026-08-brasileirao-atual',
     date: 'Agosto de 2026',
     title: 'Novidade: Brasileirão Atual — o campeonato de 2026 de verdade',
-    desc: 'Novo botão no topo da home ("📅 Brasileirão Atual"): escolha 1 dos 20 times que estão disputando a Série A 2026 de verdade e jogue as 38 rodadas seguindo o calendário oficial da CBF, rodada a rodada — cada adversário entra com o elenco real dele, sem sorteio. É o jeito mais fiel de acompanhar "e se eu tivesse jogado esse Brasileirão" com o time do seu coração.',
+    desc: 'Ao lado do Brasileirão e da Copa do Brasil na tela inicial: escolha 1 dos 20 times que estão disputando a Série A 2026 de verdade e jogue as 38 rodadas seguindo o calendário oficial da CBF, rodada a rodada — cada adversário entra com o elenco real dele, sem sorteio. Você escolhe a formação e escala o elenco inteiro do time (sem cortar ninguém de antemão), e dá pra abrir "📋 Escalação" a qualquer momento entre as rodadas pra trocar um titular por um reserva antes do próximo jogo.',
   },
   {
     id: '2026-08-notificacoes',
@@ -16839,7 +16899,7 @@ function SeasonCalendarModal({
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge }) {
   const mc = myTeamColor || '#d4a23c';
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -17252,6 +17312,16 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               style={{ marginTop: 6, background: 'none', border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 8, color: mc, fontSize: 11.5, fontWeight: 600, padding: '4px 10px', cursor: 'pointer' }}
             >
               📅 Ver calendário
+            </button>
+          )}
+          {onOpenLineupEditor && (
+            <button
+              onClick={onOpenLineupEditor}
+              className="tap-target-sm"
+              title="Trocar titular por reserva pra próxima rodada — sem live, dá pra usar o elenco todo"
+              style={{ marginTop: 6, marginLeft: 8, background: 'none', border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 8, color: mc, fontSize: 11.5, fontWeight: 600, padding: '4px 10px', cursor: 'pointer' }}
+            >
+              📋 Escalação
             </button>
           )}
         </div>
