@@ -6448,6 +6448,15 @@ function partitionStartersFirst(players) {
   return [...players].sort((a, b) => (a?.isBench ? 1 : 0) - (b?.isBench ? 1 : 0));
 }
 
+// Brasileirão Atual no multiplayer: dois jogadores da sala não podem escolher
+// o mesmo clube real (quebraria o cruzamento id-de-clube → fixtures/
+// leagueTeams). Único lugar do multiplayer com essa checagem — todo o resto
+// de multiUpdateMyTeam é merge cego, então essa validação central que evita
+// a corrida.
+function claimedByAnotherPlayer(players, pid, teamId) {
+  return Object.entries(players).some(([otherId, p]) => otherId !== pid && p.serieAtualTeamId === teamId);
+}
+
 // Troca titulares indisponíveis (suspensos/lesionados) por reservas elegíveis
 // (mesma posição primária se possível). Se não houver substituto, o time joga
 // com um a menos naquela vaga. Retorna o XI efetivo + um log de trocas pra feed/aviso.
@@ -10529,6 +10538,13 @@ export default function App() {
     if (isLeader) {
       setRoomSnap(prev => {
         if (!prev) return prev;
+        // Brasileirão Atual: dois jogadores não podem escolher o mesmo time
+        // real — se alguém já reivindicou esse clube (inclusive eu mesmo,
+        // numa corrida rara), ignora a atualização em vez de deixar dois
+        // peers com o mesmo id de clube (quebraria fixtures/leagueTeams).
+        if (fields.serieAtualTeamId && claimedByAnotherPlayer(prev.players, MY_PID, fields.serieAtualTeamId)) {
+          return prev;
+        }
         const next = { ...prev, players: { ...prev.players, [MY_PID]: { ...prev.players[MY_PID], ...fields } } };
         leaderBroadcast({ type: 'snap', snap: next });
         return next;
@@ -10543,6 +10559,14 @@ export default function App() {
   const multiLeaderStart = () => {
     setRoomSnap(prev => {
       if (!prev) return prev;
+      // Brasileirão Atual: não preenche vaga nenhuma com IA aqui — a "IA" desse
+      // modo é cada um dos 20 clubes reais que ninguém escolheu, decidido só
+      // depois (na fase 'simulation'), não um número fixo de vagas da sala.
+      if (prev.gameMode === 'atual2026') {
+        const next = { ...prev, phase: 'team-setup' };
+        leaderBroadcast({ type: 'snap', snap: next });
+        return next;
+      }
       const maxSlots = prev.gameMode === 'copa' ? 32 : 20;
       const humanCount = Object.keys(prev.players).length;
       const needed = Math.max(0, maxSlots - humanCount);
@@ -10652,6 +10676,10 @@ export default function App() {
         if (msg.type === 'update') {
           setRoomSnap(prev => {
             if (!prev) return prev;
+            if (msg.fields.serieAtualTeamId && claimedByAnotherPlayer(prev.players, msg.pid, msg.fields.serieAtualTeamId)) {
+              conn.send({ type: 'error', msg: 'Esse time já foi escolhido por outro jogador da sala.' });
+              return prev;
+            }
             const next = { ...prev, players: { ...prev.players, [msg.pid]: { ...(prev.players[msg.pid] || {}), ...msg.fields } } };
             leaderBroadcast({ type: 'snap', snap: next });
             return next;
@@ -10819,9 +10847,21 @@ export default function App() {
     setRolledTeam(null);
     setCaptainSlot(null);
     setRepositioningSlot(null);
-    setPhase('formation');
+    // Brasileirão Atual: antes da formação, cada humano escolhe qual dos 20
+    // times reais vai representar (sem repetir na sala) — só depois disso
+    // cai na tela normal de formação.
+    const alreadyClaimed = roomSnap.gameMode === 'atual2026' && roomSnap.players?.[MY_PID]?.serieAtualTeamId;
+    setPhase(roomSnap.gameMode === 'atual2026' && !alreadyClaimed ? 'multi-club-pick' : 'formation');
     setMultiPhase('in-draft');
   }, [roomSnap?.phase]);
+
+  // Brasileirão Atual: assim que a escolha do clube chega no snapshot (minha
+  // própria, refletida de volta pelo líder), sai do seletor pra escolha de
+  // formação normal.
+  useEffect(() => {
+    if (phase !== 'multi-club-pick') return;
+    if (roomSnap?.players?.[MY_PID]?.serieAtualTeamId) setPhase('formation');
+  }, [phase, roomSnap?.players]);
 
   // Fase 1 (team-setup) → fase 2 (roster-draft): só o líder muta o roomSnap
   // de verdade, então só ele decide quando todo mundo já escolheu a
@@ -10849,6 +10889,21 @@ export default function App() {
   useEffect(() => {
     if (!roomSnap || roomSnap.phase !== 'roster-draft') return;
     if (phase !== 'multi-formation-wait') return;
+    // Brasileirão Atual: nada de sortear — encaixa o melhor XI do elenco
+    // real do clube que a pessoa escolheu na formação que ela já montou
+    // (pitchSlots já tem os slots titulares; só faltava o banco/o elenco).
+    if (roomSnap.gameMode === 'atual2026') {
+      const myClubId = roomSnap.players?.[MY_PID]?.serieAtualTeamId;
+      const team = TEAMS.find(t => t.id === myClubId);
+      const starterSlots = pitchSlots.filter(s => !s.isBench);
+      const built = team && starterSlots.length ? autoFillTeamIntoSlots(team, starterSlots, { fullBench: true }) : null;
+      if (built) {
+        setPitchSlots(built.pitchSlots);
+        setPitch(built.pitch);
+      }
+      setPhase('squad');
+      return;
+    }
     setPhase('draft');
     rollWithAnimation(shuffle2(TEAMS)[0], TEAMS);
   }, [roomSnap?.phase, phase]);
@@ -10944,6 +10999,53 @@ export default function App() {
     calendarCursorRef.current = null;
     const players = Object.entries(roomSnap.players || {});
     const gMode = roomSnap.gameMode || 'brasileirao';
+    setGameMode(gMode);
+
+    if (gMode === 'atual2026') {
+      // Cada um dos 20 clubes reais: quem foi escolhido por um humano usa o
+      // elenco que ele escalou (pitch, com id = pid dele); quem não foi
+      // escolhido por ninguém vira IA com o PRÓPRIO elenco real do clube —
+      // nunca um sorteio aleatório de outro time do jogo, senão perdia a
+      // graça de ser "a Série A 2026 de verdade". O calendário oficial da
+      // CBF é fixo (SERIE_A_2026_FIXTURES); só troca o id de cada clube
+      // reivindicado pelo pid de quem reivindicou.
+      const claimByClub = {};
+      players.forEach(([pid, p]) => { if (p.serieAtualTeamId) claimByClub[p.serieAtualTeamId] = { pid, ...p }; });
+      const allTeams = SERIE_A_2026_TEAM_IDS.map(clubId => {
+        const teamData = TEAMS.find(t => t.id === clubId);
+        const human = claimByClub[clubId];
+        if (human) {
+          const userPlayers = human.pitch ? partitionStartersFirst(Object.values(human.pitch)) : [];
+          return {
+            id: human.pid, label: teamData.label, badge: '', color: human.color || '#d4a23c',
+            logo: CLUB_LOGOS[teamData.club] || human.logo || null, clubLogo: CLUB_LOGOS[teamData.club] || null,
+            club: teamData.club, ovr: human.ovr || 70, players: userPlayers, isHuman: true,
+          };
+        }
+        const pp = teamData.players.map(pl => ({ ...pl, club: teamData.club, year: teamData.year, nat: pl.nat || 'BRA' }));
+        return {
+          id: clubId, label: teamData.label, badge: '', color: '#888', logo: null,
+          clubLogo: CLUB_LOGOS[teamData.club] || null, club: teamData.club,
+          ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))), players: pp, isHuman: false,
+        };
+      });
+      const clubIdToId = {};
+      SERIE_A_2026_TEAM_IDS.forEach(clubId => { clubIdToId[clubId] = claimByClub[clubId]?.pid || clubId; });
+      const fixtures = SERIE_A_2026_FIXTURES.map(round => round.map(m => ({
+        homeId: clubIdToId[m.homeId], awayId: clubIdToId[m.awayId],
+      })));
+      setLeagueTeams(allTeams);
+      setFixtures(fixtures);
+      setLeagueTable(allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 })));
+      setCurrentRound(0);
+      setCupRounds([]);
+      setCupLeg(1);
+      setUserInCup(true);
+      setPhase('playing');
+      setMultiPhase(null);
+      return;
+    }
+
     const maxSlots = gMode === 'copa' ? 32 : 20;
     const humanTeams = players.map(([pid, p]) => ({
       id: pid, label: p.name || 'Jogador', badge: '', color: p.color || '#d4a23c',
@@ -10965,7 +11067,6 @@ export default function App() {
       return { id: `ai_${i}`, label: t.label, badge: '', color: '#888', logo: null, clubLogo: CLUB_LOGOS[t.club] || null, club: t.club, ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))), players: pp, isHuman: false };
     });
     const allTeams = [...humanTeams, ...aiTeams];
-    setGameMode(gMode);
     setLeagueTeams(allTeams);
     if (gMode === 'brasileirao' || gMode === 'serieab') {
       // Mesma correção do single player (a posição no array decide em que
@@ -11354,7 +11455,14 @@ export default function App() {
             onClose={() => setShowDailyChallenge(false)}
           />
         )}
-        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onChooseCustom={chooseCustomFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge && !isSerieAtual ? setGameMode : undefined} onPlayReadyMade={!isSerieAtual ? useReadyMadeSquad : undefined} isDailyChallenge={isDailyChallenge} myTeamColor={myTeamColor} />}
+        {phase === 'multi-club-pick' && (
+          <TeamPickerModal
+            title="Brasileirão Atual — escolha seu time"
+            onlyIds={SERIE_A_2026_TEAM_IDS.filter(id => !Object.values(roomSnap?.players || {}).some(p => p.serieAtualTeamId === id))}
+            onPick={team => multiUpdateMyTeam({ serieAtualTeamId: team.id })}
+          />
+        )}
+        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onChooseCustom={chooseCustomFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge && !isSerieAtual ? setGameMode : undefined} onPlayReadyMade={!isSerieAtual && roomSnap?.gameMode !== 'atual2026' ? useReadyMadeSquad : undefined} isDailyChallenge={isDailyChallenge} myTeamColor={myTeamColor} />}
         {phase === 'transfer' && (
           <TransferMarket
             pitch={pitch}
@@ -13282,6 +13390,12 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
             // nela de verdade, mas o acesso/queda aparece no fim da temporada.
             { id: 'serieab', label: 'Brasileirão', sub: 'Até 20 jogadores · Série A e B', trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/02ftjh1684945323.png' },
             { id: 'copa', label: 'Copa do Brasil', sub: 'Até 32 jogadores', trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/jv27c41776553182.png' },
+            {
+              // Cada humano na sala escolhe um dos 20 times reais da Série A
+              // 2026 (sem repetir) — quem ninguém escolher joga com IA usando
+              // o próprio elenco real. Ocupa a linha inteira (span 2).
+              id: 'atual2026', label: 'Brasileirão Atual', sub: 'Até 20 jogadores · 1 time real cada · calendário oficial da CBF', trophy: '📅', span2: true,
+            },
           ].map(m => (
             <button
               key={m.id}
@@ -13290,14 +13404,22 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
               aria-pressed={gameMode === m.id}
               style={{
                 padding: '12px', borderRadius: 12, border: '2px solid',
+                gridColumn: m.span2 ? 'span 2' : undefined,
                 borderColor: gameMode === m.id ? mc : 'rgba(255,255,255,0.1)',
                 background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
                 color: '#F4F1EA', cursor: 'pointer', textAlign: 'left',
+                display: m.span2 ? 'flex' : undefined, alignItems: m.span2 ? 'center' : undefined, gap: m.span2 ? 10 : undefined,
               }}
             >
-              <img src={m.trophy} alt={m.label} style={{ height: 32, objectFit: 'contain', marginBottom: 6, display: 'block' }} onError={e => { e.currentTarget.style.display = 'none'; }} />
-              <div style={{ fontWeight: 700, fontSize: 13, color: gameMode === m.id ? mc : '#F4F1EA' }}>{m.label}</div>
-              <div style={{ fontSize: 11, opacity: 0.5 }}>{m.sub}</div>
+              {m.trophy.startsWith('http') ? (
+                <img src={m.trophy} alt={m.label} style={{ height: 32, objectFit: 'contain', marginBottom: m.span2 ? 0 : 6, display: 'block', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+              ) : (
+                <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>{m.trophy}</span>
+              )}
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: gameMode === m.id ? mc : '#F4F1EA' }}>{m.label}</div>
+                <div style={{ fontSize: 11, opacity: 0.5 }}>{m.sub}</div>
+              </div>
             </button>
           ))}
         </div>
@@ -13405,11 +13527,11 @@ function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
                   opacity: isOpen ? 1 : 0.55,
                 }}
               >
-                <span style={{ fontSize: 18, flexShrink: 0 }}>{room.gameMode === 'copa' ? '🏅' : '🏆'}</span>
+                <span style={{ fontSize: 18, flexShrink: 0 }}>{room.gameMode === 'copa' ? '🏅' : room.gameMode === 'atual2026' ? '📅' : '🏆'}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{room.label}</div>
                   <div style={{ fontSize: 11, opacity: 0.5 }}>
-                    {room.playerCount}/{room.maxPlayers} jogadores · {room.gameMode === 'copa' ? 'Copa do Brasil' : 'Brasileirão'}
+                    {room.playerCount}/{room.maxPlayers} jogadores · {room.gameMode === 'copa' ? 'Copa do Brasil' : room.gameMode === 'atual2026' ? 'Brasileirão Atual' : 'Brasileirão'}
                   </div>
                 </div>
                 {isOpen ? (
@@ -13510,7 +13632,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
 
       {/* Código da sala */}
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
-        <div style={styles.eyebrow}>{roomData.gameMode === 'copa' ? 'Copa do Brasil' : 'Brasileirão'} · Sala</div>
+        <div style={styles.eyebrow}>{roomData.gameMode === 'copa' ? 'Copa do Brasil' : roomData.gameMode === 'atual2026' ? 'Brasileirão Atual' : 'Brasileirão'} · Sala</div>
         {isLeader && roomData.leaderPeerId && (
           <>
             <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: mc, margin: '10px 0 6px', wordBreak: 'break-all', background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 14px', letterSpacing: 1 }}>
@@ -13584,9 +13706,11 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
         >
           {players.length < 2
             ? 'Aguardando mais jogadores... (mín. 2)'
-            : emptySlots > 0
-              ? `▶ Iniciar — sorteia ${emptySlots} time${emptySlots !== 1 ? 's' : ''} pras vagas restantes`
-              : '▶ Iniciar — escolher formação'}
+            : roomData.gameMode === 'atual2026'
+              ? '▶ Iniciar — escolher time e formação'
+              : emptySlots > 0
+                ? `▶ Iniciar — sorteia ${emptySlots} time${emptySlots !== 1 ? 's' : ''} pras vagas restantes`
+                : '▶ Iniciar — escolher formação'}
         </button>
       )}
       {!isLeader && !isSetupPhase && (
@@ -13672,7 +13796,12 @@ function MultiFormationWaitScreen({ roomData, myId }) {
             }
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: p.color || '#F4F1EA' }}>{p.name || 'Jogador'}</div>
-              {p.formationReady && p.formationLabel && (
+              {p.serieAtualTeamId && (
+                <div style={{ fontSize: 11, opacity: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {TEAMS.find(t => t.id === p.serieAtualTeamId)?.club || p.serieAtualTeamId}{p.formationReady && p.formationLabel ? ` · ${p.formationLabel}` : ''}
+                </div>
+              )}
+              {!p.serieAtualTeamId && p.formationReady && p.formationLabel && (
                 <div style={{ fontSize: 11, opacity: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.formationLabel}</div>
               )}
             </div>
@@ -16135,6 +16264,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-08-brasileirao-atual-multiplayer',
+    date: 'Agosto de 2026',
+    title: 'Brasileirão Atual chega no multiplayer',
+    desc: 'Agora dá pra jogar o Brasileirão Atual numa sala com amigos: cada um escolhe um dos 20 times reais da Série A 2026 (sem repetir — quem pegar o Flamengo tira ele da lista pros outros), até 20 jogadores por sala. Quem não tem dono na sala joga com IA usando o próprio elenco real do clube — nunca um time sorteado. O calendário oficial da CBF continua igual, então se dois amigos pegarem, por exemplo, Flamengo e Palmeiras, o clássico entre vocês cai exatamente na rodada real.',
+  },
   {
     id: '2026-08-brasileirao-atual',
     date: 'Agosto de 2026',
