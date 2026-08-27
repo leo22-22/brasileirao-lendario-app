@@ -7519,8 +7519,8 @@ export default function App() {
   const [rolledTeam, setRolledTeam] = useState(null);
   // Brasileirão Atual 2026 — precisa existir antes do efeito de recuperação
   // do draft (mais abaixo) que já lê essas duas no primeiro render.
-  const [isSerieAtual, setIsSerieAtual] = useState(false);
-  const [serieAtualTeamId, setSerieAtualTeamId] = useState(null);
+  const [isSerieAtual, setIsSerieAtual] = useState(_sv?.isSerieAtual ?? false);
+  const [serieAtualTeamId, setSerieAtualTeamId] = useState(_sv?.serieAtualTeamId ?? null);
   const [showSerieAtualPicker, setShowSerieAtualPicker] = useState(false);
   const [isRolling, setIsRolling] = useState(false);
   const [rollingPreview, setRollingPreview] = useState(null);
@@ -8330,7 +8330,16 @@ export default function App() {
       : pitch;
     const userOvr = teamStrength(pitchWithCaptain);
     const userPlayers = partitionStartersFirst(Object.values(pitchWithCaptain));
-    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, club: clubFromLogo(myTeamLogo), ovr: userOvr, players: userPlayers };
+    // Em campo você usa o escudo e o nome do clube real escolhido (não o
+    // emblema/nome pessoal da conta) — só pra esse modo, já que a graça é
+    // acompanhar aquele time específico. Os pontos de ranking continuam indo
+    // pra sua conta normalmente (submitSeasonResult não depende disso).
+    const myTeam = TEAMS.find(t => t.id === serieAtualTeamId);
+    const myTeamObj = {
+      id: MY_TEAM_ID, label: myTeam.label, badge: myTeamBadge, color: myTeamColor,
+      logo: CLUB_LOGOS[myTeam.club] || myTeamLogo, clubLogo: CLUB_LOGOS[myTeam.club] || null,
+      club: myTeam.club, ovr: userOvr, players: userPlayers,
+    };
 
     const opps = SERIE_A_2026_TEAM_IDS.filter(id => id !== serieAtualTeamId).map(id => {
       const t = TEAMS.find(tm => tm.id === id);
@@ -10012,6 +10021,12 @@ export default function App() {
         matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards,
         myDivision, otherDivision, divisionMove, promotionTie,
         isDailyChallenge, dailyOpponent,
+        // Sem isso, um reload no meio de uma temporada do Brasileirão Atual
+        // (isSerieAtual só em memória) voltava sem saber que era esse modo —
+        // fixtures/leagueTeams restauravam certo, mas a tela perdia o botão
+        // "Escalação" e qualquer coisa que dependa de isSerieAtual, dando a
+        // impressão de ter caído de volta no Brasileirão normal.
+        isSerieAtual, serieAtualTeamId,
         // Sem persistir isso, um reload no meio de um "Mercado de
         // transferências" (phase='squad', isTransferSeason=true só em
         // memória) voltava com a flag em false — o confirm do Squad então
@@ -10022,7 +10037,7 @@ export default function App() {
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isTransferSeason, seasonYear, formationKey, customFormation]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isSerieAtual, serieAtualTeamId, isTransferSeason, seasonYear, formationKey, customFormation]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -10260,6 +10275,7 @@ export default function App() {
     if (isDailyChallenge) return 'a Supercopa do Brasil';
     if (p === 'playing') {
       if (gameMode === 'copa') return CUP_ROUND_NAMES[cupRoundIdx] || 'Copa do Brasil';
+      if (isSerieAtual) return `Brasileirão Atual · Rodada ${currentRound + 1} de ${fixtures.length}`;
       if (gameMode === 'serieab') {
         if (promotionTie?.leg) return `Mata-mata de Acesso · Série ${myDivision}`;
         return `Rodada ${currentRound + 1} de 38 · Série ${myDivision}`;
@@ -11334,7 +11350,7 @@ export default function App() {
             activeUserMatch={activeUserMatch}
             myTeamColor={myTeamColor}
             myTeamBadge={myTeamBadge}
-            myTeamLogo={myTeamLogo}
+            myTeamLogo={isSerieAtual && serieAtualTeamId ? (CLUB_LOGOS[TEAMS.find(t => t.id === serieAtualTeamId)?.club] || myTeamLogo) : myTeamLogo}
             gameMode={gameMode}
             cupRounds={cupRounds}
             cupRoundIdx={cupRoundIdx}
