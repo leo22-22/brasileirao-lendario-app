@@ -8571,15 +8571,26 @@ export default function App() {
           if (repositioningSlot === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : slotKey;
           else if (slotKey === captainSlot) nextCaptainSlot = srcMeta?.isBench ? null : repositioningSlot;
         } else {
-          // Occupant can't go to source slot – displace (remove) occupant
+          // Ocupante não joga na posição de origem — antes disso apagava o
+          // ocupante do elenco inteiro (bug real: o jogador "sumia"). Agora
+          // manda ele pro primeiro banco vazio em vez de perder o jogador;
+          // se o banco também estiver cheio, recusa a troca (nenhuma das
+          // duas alternativas — perder gente do elenco — é aceitável).
+          const emptyBenchSlot = pitchSlots.find(s => s.isBench && !pitch[s.key]);
+          if (!emptyBenchSlot) {
+            setSelectedPlayer(null);
+            setRepositioningSlot(null);
+            return;
+          }
           setPitch(prev => {
             const next = { ...prev };
             delete next[repositioningSlot];
+            next[emptyBenchSlot.key] = { ...occupant, slotKey: emptyBenchSlot.key, isBench: true };
             next[slotKey] = { ...player, slotKey, isBench: !!targetMeta.isBench };
             return next;
           });
           if (repositioningSlot === captainSlot) nextCaptainSlot = targetMeta.isBench ? null : slotKey;
-          else if (slotKey === captainSlot) nextCaptainSlot = null; // ocupante foi removido do time, não tem pra onde a braçadeira ir
+          else if (slotKey === captainSlot) nextCaptainSlot = null; // ocupante virou reserva, a braçadeira não o acompanha pro banco
         }
       }
       if (nextCaptainSlot !== captainSlot) setCaptainSlot(nextCaptainSlot);
