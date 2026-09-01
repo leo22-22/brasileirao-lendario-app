@@ -12471,22 +12471,30 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
         {/* Modo de jogo — antes era um grid de cards direto na home; virou
             um botão-resumo que abre um modal (GameModeModal), pra a home não
             crescer toda vez que um modo novo entra (agora tem 4: Brasileirão,
-            Copa, Brasileirão Atual, Modo Livre). */}
+            Copa, Brasileirão Atual, Modo Livre). Mesmo formato de "Jogar com
+            Amigos" logo abaixo (título + subtítulo, borda colorida) — a
+            primeira versão só tinha uma linha de texto curta ("Brasileirão"),
+            que em telas largas (a home não tem largura máxima) sobrava um
+            vão enorme até a seta e ficava com cara de quebrado.
+            [feedback do usuário 2026-09: "uma merda" nessa tela] */}
         <button
           onClick={onOpenGameModeModal}
           className="mode-card-hover"
           style={{
             width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 18,
             display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
-            borderRadius: 14, border: '1px solid rgba(255,255,255,0.07)', background: 'rgba(255,255,255,0.02)',
+            borderRadius: 12, border: `2px solid ${hexToRgba(mc, 0.35)}`, background: hexToRgba(mc, 0.06),
           }}
         >
           <span style={{ fontSize: 28, flexShrink: 0 }}>{gameMode === 'copa' ? '🏆' : '📅'}</span>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={styles.teamEditLabel}>Modo de jogo</div>
-            <div style={{ fontWeight: 700, fontSize: 14, color: '#F4F1EA' }}>
-              {gameMode === 'copa' ? 'Copa do Brasil' : 'Brasileirão'}
-              {livreTeamIds && <span style={{ color: '#d4a23c' }}> · Modo Livre ({livreTeamIds.length} times)</span>}
+            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2, color: mc }}>
+              Modo de jogo: {gameMode === 'copa' ? 'Copa do Brasil' : 'Brasileirão'}
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.6, color: '#F4F1EA' }}>
+              {livreTeamIds
+                ? `🎯 Modo Livre — draft restrito aos ${livreTeamIds.length} times que você escolheu`
+                : gameMode === 'copa' ? '32 times · Mata-mata · Ida e volta' : '40 times · Série A e B · Acesso e queda a cada temporada'}
             </div>
           </div>
           <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>
