@@ -3013,6 +3013,7 @@ const TEAMS = [
       { name: 'Cristian Pavon', pos: ['PD', 'MD', 'PE'], ovr: 79 },
       { name: 'Carlos Vinicius', pos: ['ATA'], ovr: 79 },
       { name: 'Francis Amuzu', pos: ['PE', 'ME'], ovr: 76 },
+      { name: 'Gustavo Martins', pos: ['ZAG'], ovr: 72 },
     ]
   },
   {
@@ -3067,6 +3068,7 @@ const TEAMS = [
       { name: 'Igor Gomes', pos: ['MC', 'MEI'], ovr: 77 },
       { name: 'Bernard', pos: ['MEI', 'PE', 'PD'], ovr: 80 },
       { name: 'Thiago Borbas', pos: ['ATA'], ovr: 79 },
+      { name: 'Reinier', pos: ['MEI', 'PE'], ovr: 77 },
     ]
   },
   {
@@ -3176,6 +3178,7 @@ const TEAMS = [
       { name: 'Felipinho', pos: ['VOL', 'MC', 'LE'], ovr: 76 },
       { name: 'Joao Cruz', pos: ['MEI', 'MC'], ovr: 77 },
       { name: 'Gonzalo Mastriani', pos: ['ATA'], ovr: 78 },
+      { name: 'Leozinho', pos: ['VOL'], ovr: 73 },
     ]
   },
   {
@@ -5338,6 +5341,51 @@ const TEAMS = [
     ]
   },
 ];
+
+// Seleção da Semana — a escalação ideal da rodada mais recente do
+// Brasileirão 2026 de verdade (notas Sofascore), sempre 11 jogadores + 1
+// craque. É um upgrade TEMPORÁRIO: só existe UMA seleção "vigente" por vez
+// (este objeto) — trocar pra rodada nova é só substituir `players` aqui.
+// O bônus nunca fica gravado no `ovr` original escrito acima: ele é somado
+// de novo, do zero, toda vez que o app carrega (ver applyWeeklyTeamBoost
+// logo abaixo), então o jogador da rodada anterior volta sozinho pro OVR
+// normal assim que deixa de aparecer nesta lista — não tem passo manual de
+// "desfazer".
+const WEEKLY_TEAM_OF_THE_WEEK = {
+  round: 25,
+  label: '25ª Rodada',
+  sourceLabel: 'Notas Sofascore',
+  players: [
+    { teamId: 'gremio2026', name: 'Weverton', posLabel: 'Goleiro' },
+    { teamId: 'gremio2026', name: 'Cristian Pavon', posLabel: 'Lateral-Direito', note: 'Atuando improvisado no apoio lateral após balançar as redes' },
+    { teamId: 'gremio2026', name: 'Gustavo Martins', posLabel: 'Zagueiro', note: 'Zagueiro-artilheiro com dois gols na virada' },
+    { teamId: 'gremio2026', name: 'Wallace', posLabel: 'Zagueiro' },
+    { teamId: 'vasco2026', name: 'Lucas Piton', posLabel: 'Lateral-Esquerdo' },
+    { teamId: 'athleticopr2026', name: 'Leozinho', posLabel: 'Volante' },
+    { teamId: 'vasco2026', name: 'Tche Tche', posLabel: 'Meia-Central' },
+    { teamId: 'atleticomg2026', name: 'Reinier', posLabel: 'Meia-Atacante' },
+    { teamId: 'flamengo2026', name: 'Samuel Lino', posLabel: 'Meia-Esquerda / Ponta', craque: true },
+    { teamId: 'internacional2026', name: 'Alan Patrick', posLabel: 'Atacante' },
+    { teamId: 'bahia2026', name: 'Erick Pulga', posLabel: 'Atacante' },
+  ],
+};
+
+// Aplica o bônus (+3, +5 pro craque) direto nos objetos de TEAMS, uma vez,
+// no carregamento do módulo — dali em diante todo mundo que lê `player.ovr`
+// (draft, Brasileirão Atual, simulação, cards) já enxerga o valor com o
+// bônus embutido, sem precisar duplicar essa lógica em cada tela. Marca
+// `weeklyBoost` no jogador (3 ou 5) pra quem for desenhar o card dourado
+// saber quem destacar, sem precisar checar WEEKLY_TEAM_OF_THE_WEEK de novo.
+WEEKLY_TEAM_OF_THE_WEEK.players.forEach(wp => {
+  const team = TEAMS.find(t => t.id === wp.teamId);
+  const player = team?.players.find(p => p.name === wp.name);
+  wp.team = team; // guardado pra exibir escudo/nome do clube na tela da Seleção da Semana sem procurar de novo
+  if (!player) return;
+  const bonus = wp.craque ? 5 : 3;
+  player.ovr = Math.min(99, player.ovr + bonus);
+  player.weeklyBoost = bonus;
+  wp.player = player; // referência direta ao jogador (já com o OVR + bônus)
+});
 
 
 
@@ -11352,7 +11400,9 @@ export default function App() {
                       background: dailyChallengeAlreadyPlayed ? 'transparent' : hexToRgba(myTeamColor || '#d4a23c', 0.1),
                     }}
                   >
-                    {dailyChallengeAlreadyPlayed ? '✅ Supercopa de hoje feita' : '🏆 Supercopa do Brasil'}
+                    {dailyChallengeAlreadyPlayed
+                      ? <>✅ Supercopa <span className="header-supercopa-tail">de hoje feita</span></>
+                      : <>🏆 Supercopa <span className="header-supercopa-tail">do Brasil</span></>}
                   </button>
                 )}
                 <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
@@ -12261,6 +12311,8 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
+  const [showWeeklyTeam, setShowWeeklyTeam] = useState(false);
+  const weeklyCraque = WEEKLY_TEAM_OF_THE_WEEK.players.find(p => p.craque);
 
   return (
     <>
@@ -12276,6 +12328,31 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
           Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
           e dispute uma liga completa com cronômetro ao vivo.
         </p>
+
+        {/* Seleção da Semana — upgrade real (notas Sofascore) pros craques da
+            rodada mais recente do Brasileirão 2026 de verdade. Fica logo
+            abaixo do hero, ainda bem visível, mas sem brigar com o título de
+            marketing acima. */}
+        <button
+          onClick={() => setShowWeeklyTeam(true)}
+          className="mode-card-hover"
+          style={{
+            width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 24,
+            display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
+            borderRadius: 12, border: '2px solid rgba(255,215,0,0.4)',
+            background: 'linear-gradient(135deg, rgba(255,215,0,0.14), rgba(212,162,60,0.05))',
+          }}
+        >
+          <span style={{ fontSize: 30, flexShrink: 0 }}>🌟</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 13.5, color: '#ffd700' }}>Seleção da {WEEKLY_TEAM_OF_THE_WEEK.label}</div>
+            <div style={{ fontSize: 11.5, opacity: 0.75, color: '#F4F1EA', lineHeight: 1.4 }}>
+              {weeklyCraque ? <>👑 <b>{weeklyCraque.name}</b> é o craque da rodada — </> : null}
+              os 11 melhores da rodada real do Brasileirão 2026 entram no draft com o card dourado
+            </div>
+          </div>
+          <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>
+        </button>
 
         <div style={styles.featGrid} className="feat-grid-3">
           <div style={styles.featCard} className="feat-card-hover">
@@ -12360,8 +12437,10 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
           </div>
         )}
 
-        {/* Modo de jogo */}
-        <div style={{ marginBottom: 28 }}>
+        {/* Modo de jogo — embrulhado num card próprio (como as outras seções)
+            pra dar uma separação visual clara em vez de tudo escorrer numa
+            coluna só, principalmente no mobile. */}
+        <div style={{ marginBottom: 18, padding: 16, borderRadius: 14, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
           <div style={styles.teamEditLabel}>Modo de jogo</div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
             {[
@@ -12400,8 +12479,12 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
                 style={{
                   padding: '14px 12px', borderRadius: 12, border: '2px solid', position: 'relative',
                   gridColumn: m.span2 ? 'span 2' : undefined,
-                  borderColor: (m.id !== 'atual2026' && gameMode === m.id) ? mc : 'rgba(255,255,255,0.1)',
-                  background: (m.id !== 'atual2026' && gameMode === m.id) ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
+                  // "Brasileirão Atual" não participa da seleção gameMode (é
+                  // navegação direta pro seletor de time) — ganha um contorno
+                  // âmbar sempre ligado em vez de ficar visualmente idêntico
+                  // aos outros dois quando nenhum está "selecionado".
+                  borderColor: m.id === 'atual2026' ? 'rgba(212,162,60,0.4)' : (gameMode === m.id ? mc : 'rgba(255,255,255,0.1)'),
+                  background: m.id === 'atual2026' ? 'rgba(212,162,60,0.07)' : (gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)'),
                   color: '#F4F1EA', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s',
                   boxShadow: (m.id !== 'atual2026' && gameMode === m.id) ? `0 0 0 1px ${hexToRgba(mc, 0.15)} inset` : 'none',
                   display: m.span2 ? 'flex' : undefined, alignItems: m.span2 ? 'center' : undefined, gap: m.span2 ? 12 : undefined,
@@ -12430,7 +12513,7 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
         </div>
 
         {/* Dificuldade */}
-        <div style={{ marginBottom: 28 }}>
+        <div style={{ marginBottom: 18, padding: 16, borderRadius: 14, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
           <div style={styles.teamEditLabel}>Dificuldade</div>
           {/* Cada nível usa a cor que já é dele em outros lugares do jogo
               (explicador do ranking, DifficultyBadge) — fácil=verde,
@@ -12518,7 +12601,69 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
       {showAchievements && currentUser && (
         <AchievementsModal user={currentUser} onClose={() => setShowAchievements(false)} />
       )}
+      {showWeeklyTeam && (
+        <WeeklyTeamModal onClose={() => setShowWeeklyTeam(false)} />
+      )}
     </>
+  );
+}
+
+// Seleção da Semana — lista completa da escalação ideal da rodada mais
+// recente do Brasileirão 2026 de verdade (ver WEEKLY_TEAM_OF_THE_WEEK), com
+// o craque em destaque. Só leitura — o bônus em si já foi aplicado direto
+// nos jogadores de TEAMS no carregamento do módulo.
+function WeeklyTeamModal({ onClose }) {
+  const w = WEEKLY_TEAM_OF_THE_WEEK;
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2500, overflowY: 'auto', padding: 16 }} onClick={onClose}>
+      <div
+        style={{ maxWidth: 480, margin: '0 auto', background: '#0f2318', border: '1px solid rgba(255,215,0,0.3)', borderRadius: 16, padding: 20 }}
+        onClick={e => e.stopPropagation()}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 4 }}>
+          <div>
+            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: '#ffd700' }}>
+              🌟 Seleção da Semana
+            </div>
+            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, color: '#F4F1EA' }}>
+              {w.label}
+            </div>
+            <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>
+              {w.sourceLabel} · quem está aqui joga com +3 OVR (craque +5) até sair da seleção
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+          {w.players.map((wp, i) => {
+            const isCraque = !!wp.craque;
+            const gold = isCraque ? '#ffd700' : '#d4a23c';
+            return (
+              <div key={i} style={{
+                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
+                background: hexToRgba(gold, isCraque ? 0.16 : 0.06),
+                border: `1px solid ${hexToRgba(gold, isCraque ? 0.5 : 0.25)}`,
+              }}>
+                {wp.team && CLUB_LOGOS[wp.team.club] && (
+                  <img src={CLUB_LOGOS[wp.team.club]} alt="" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
+                )}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: '#F4F1EA' }}>
+                    {isCraque ? '👑 ' : ''}{wp.name}
+                    {wp.player && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: gold, marginLeft: 6 }}>{wp.player.ovr} OVR</span>}
+                  </div>
+                  <div style={{ fontSize: 11, opacity: 0.6 }}>{wp.posLabel}{wp.team ? ` · ${wp.team.club}` : ''}</div>
+                  {wp.note && <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 2, fontStyle: 'italic', lineHeight: 1.35 }}>{wp.note}</div>}
+                </div>
+                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 800, color: gold, flexShrink: 0 }}>
+                  +{isCraque ? 5 : 3}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -14437,26 +14582,40 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
           const draggable = !!occupant && !!onSlotPointerDown;
 
           const circleColor = isDropTarget ? 'rgba(127,217,154,0.5)' : occupant ? mc : isHighlighted ? 'rgba(127,217,154,0.35)' : isPreviewed ? 'rgba(212,162,60,0.22)' : 'rgba(255,255,255,0.1)';
+          // Seleção da Semana: fora dos estados de interação de fato
+          // (arrastando, destacado pra reposição), o card do jogador com
+          // bônus vigente (weeklyBoost) ganha um anel dourado — craque num
+          // tom mais forte. `canUnplace` NÃO conta como "em interação": ele é
+          // true pra QUALQUER vaga ocupada fora de uma reposição ativa (é só
+          // "dá pra clicar"), então excluí-lo aqui deixava o anel dourado
+          // nunca aparecer no uso normal da tela.
+          const weeklyRing = occupant?.weeklyBoost && !isDropTarget && !isHighlighted
+            ? (occupant.weeklyBoost === 5 ? '#ffd700' : '#d4a23c')
+            : null;
           const borderColor = isDropTarget
             ? '2.5px solid #7fd99a'
             : canUnplace
-              ? `2px dashed ${mc}`
+              ? `2px dashed ${weeklyRing || mc}`
               : isHighlighted
                 ? '2px solid #7fd99a'
                 : isPreviewed
                   ? '2px dashed #d4a23c'
-                  : occupant
-                    ? '2.5px solid rgba(255,255,255,0.65)'
-                    : '1.5px solid rgba(255,255,255,0.28)';
+                  : weeklyRing
+                    ? `2.5px solid ${weeklyRing}`
+                    : occupant
+                      ? '2.5px solid rgba(255,255,255,0.65)'
+                      : '1.5px solid rgba(255,255,255,0.28)';
           const shadow = isDropTarget
             ? '0 0 16px rgba(127,217,154,0.55)'
-            : occupant
-              ? `0 3px 10px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.25)`
-              : isHighlighted
-                ? '0 0 14px rgba(127,217,154,0.45)'
-                : isPreviewed
-                  ? '0 0 10px rgba(212,162,60,0.3)'
-                  : 'none';
+            : weeklyRing
+              ? `0 0 12px ${hexToRgba(weeklyRing, 0.5)}, 0 3px 10px rgba(0,0,0,0.5)`
+              : occupant
+                ? `0 3px 10px rgba(0,0,0,0.5), 0 0 0 1px rgba(0,0,0,0.25)`
+                : isHighlighted
+                  ? '0 0 14px rgba(127,217,154,0.45)'
+                  : isPreviewed
+                    ? '0 0 10px rgba(212,162,60,0.3)'
+                    : 'none';
 
           return (
             <div
@@ -14498,6 +14657,11 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
               }}>
                 {isCap && (
                   <span style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>⭐</span>
+                )}
+                {weeklyRing && (
+                  <span style={{ position: 'absolute', top: -7, right: -6, fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>
+                    {occupant.weeklyBoost === 5 ? '👑' : '🌟'}
+                  </span>
                 )}
                 {occupant ? (
                   <span style={{ fontSize: 8, fontWeight: 800, color: dark ? '#0a1a0f' : '#fff', textAlign: 'center', lineHeight: 1.15, padding: '0 3px', maxWidth: 40, wordBreak: 'break-word' }} className="pitch-spot-name">
@@ -14578,7 +14742,9 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], pre
             >
               {p ? (
                 <>
-                  <div style={{ fontWeight: 600, color: mc }}>{shortName(p.name)}</div>
+                  <div style={{ fontWeight: 600, color: p.weeklyBoost ? (p.weeklyBoost === 5 ? '#ffd700' : '#d4a23c') : mc }}>
+                    {p.weeklyBoost === 5 ? '👑 ' : p.weeklyBoost ? '🌟 ' : ''}{shortName(p.name)}
+                  </div>
                   <div style={{ fontSize: 10, opacity: 0.5 }}>{p.pos[0]} · {p.ovr}</div>
                 </>
               ) : (
@@ -15426,6 +15592,13 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
               const canPick = slots.length > 0;
               const blockedByFormation = !canPick && isPlayerBlockedByFormation(p);
               const isSelected = selectedPlayer?.name === p.name;
+              // Seleção da Semana: jogador com bônus vigente (ver
+              // WEEKLY_TEAM_OF_THE_WEEK/weeklyBoost) ganha um card dourado no
+              // draft — craque (+5) num tom mais forte que o resto da
+              // seleção (+3), pra ficar claro quem é o destaque da rodada.
+              const isWeeklyPick = !!p.weeklyBoost;
+              const isCraque = p.weeklyBoost === 5;
+              const goldTone = isCraque ? '#ffd700' : '#d4a23c';
               return (
                 <button
                   key={i}
@@ -15433,7 +15606,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                   onMouseEnter={() => handlePlayerHoverStart(p)}
                   onMouseLeave={() => handlePlayerHoverEnd(p)}
                   disabled={!canPick}
-                  title={blockedByFormation ? 'Sem posição compatível nesse esquema — nem titular, nem banco' : undefined}
+                  title={blockedByFormation ? 'Sem posição compatível nesse esquema — nem titular, nem banco' : (isWeeklyPick ? `${isCraque ? 'Craque' : 'Seleção'} da ${WEEKLY_TEAM_OF_THE_WEEK.label} — +${p.weeklyBoost} OVR` : undefined)}
                   style={{
                     display: 'flex',
                     alignItems: 'center',
@@ -15443,10 +15616,15 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                     border: '1px solid',
                     background: isSelected
                       ? 'rgba(127,217,154,0.1)'
-                      : canPick ? 'rgba(255,255,255,0.03)' : 'transparent',
+                      : isWeeklyPick
+                        ? hexToRgba(goldTone, isCraque ? 0.2 : 0.12)
+                        : canPick ? 'rgba(255,255,255,0.03)' : 'transparent',
                     borderColor: isSelected
                       ? 'rgba(127,217,154,0.5)'
-                      : canPick ? 'rgba(255,255,255,0.07)' : 'transparent',
+                      : isWeeklyPick
+                        ? hexToRgba(goldTone, isCraque ? 0.85 : 0.55)
+                        : canPick ? 'rgba(255,255,255,0.07)' : 'transparent',
+                    boxShadow: isWeeklyPick && !isSelected ? `0 0 12px ${hexToRgba(goldTone, isCraque ? 0.3 : 0.15)}` : 'none',
                     opacity: canPick ? 1 : 0.3,
                     cursor: canPick ? 'pointer' : 'not-allowed',
                     color: '#F4F1EA',
@@ -15458,11 +15636,11 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                 >
                   <div style={{
                     width: 40, height: 40, borderRadius: 8, flexShrink: 0,
-                    background: isSelected ? 'rgba(127,217,154,0.2)' : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${POS_GROUP_COLOR[p.pos[0]] || 'rgba(255,255,255,0.15)'}55`,
+                    background: isSelected ? 'rgba(127,217,154,0.2)' : isWeeklyPick ? hexToRgba(goldTone, 0.18) : 'rgba(255,255,255,0.06)',
+                    border: `1px solid ${isWeeklyPick ? goldTone : (POS_GROUP_COLOR[p.pos[0]] || 'rgba(255,255,255,0.15)')}55`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
                     fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 14,
-                    color: ovrColor(p.ovr),
+                    color: isWeeklyPick ? goldTone : ovrColor(p.ovr),
                   }}>
                     {p.ovr}
                   </div>
@@ -15470,8 +15648,9 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                     <div style={{
                       fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden',
                       textOverflow: 'ellipsis', lineHeight: 1.2,
+                      color: isWeeklyPick ? goldTone : '#F4F1EA',
                     }}>
-                      {p.name}
+                      {isCraque ? '👑 ' : isWeeklyPick ? '🌟 ' : ''}{p.name}
                     </div>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', minHeight: 16 }}>
                       {p.pos.map((pos, pi) => {
@@ -19162,6 +19341,11 @@ const globalCss = `
     .pitch-field { max-width: 300px !important; margin: 0 auto; }
     .main-pad { padding: 16px 12px 60px !important; }
     .header-inner-pad { padding: 12px 14px !important; flex-wrap: wrap !important; row-gap: 8px !important; }
+    /* "Supercopa do Brasil" / "Supercopa de hoje feita" — a cauda some no
+       mobile (fica só "🏆 Supercopa" / "✅ Supercopa"), senão esse botão
+       sozinho já empurrava a fileira de ações pra quebrar em 2-3 linhas. */
+    .header-supercopa-tail { display: none; }
+    .header-actions-h { gap: 6px !important; }
     .header-title-h { font-size: 15px !important; line-height: 1.2 !important; }
     .header-subtitle-h { font-size: 9px !important; }
     /* Título+logo numa "linha" e os botões (áudio/ranking/conta) na linha de
