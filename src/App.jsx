@@ -16632,6 +16632,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-09-selecao-da-semana',
+    date: 'Setembro de 2026',
+    title: 'Novidade: Seleção da Semana',
+    desc: 'Toda rodada do Brasileirão 2026 de verdade, os 11 melhores da rodada (notas Sofascore) ganham um upgrade de +3 OVR — e o craque da rodada, +5. Enquanto durar a seleção, esses jogadores aparecem com o card dourado em qualquer lugar do jogo: no draft, no banco e no campo. Dá uma olhada na seleção completa no banner "🌟 Seleção da Semana" logo na home. Também demos uma repaginada na home pra ficar menos amontoada no celular.',
+  },
+  {
     id: '2026-08-arrastar-jogador',
     date: 'Agosto de 2026',
     title: 'Novidade: arraste o jogador pra trocar de posição',
