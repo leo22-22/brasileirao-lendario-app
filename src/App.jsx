@@ -16788,6 +16788,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-09-modo-livre',
+    date: 'Setembro de 2026',
+    title: 'Novidade: Modo Livre',
+    desc: 'Agora dá pra escolher exatamente os 16 times históricos que você quer ver no draft — o sorteio passa a rolar só entre eles, em vez dos 200. É só abrir "Modo de jogo" na home e escolher "Modo Livre". Aproveitamos e trocamos "Modo de jogo" de um grid fixo pra um botão que abre um modalzinho com as opções — cabe melhor agora que são 4 (Brasileirão, Copa do Brasil, Brasileirão Atual e Modo Livre).',
+  },
+  {
     id: '2026-09-selecao-da-semana',
     date: 'Setembro de 2026',
     title: 'Novidade: Seleção da Semana',
