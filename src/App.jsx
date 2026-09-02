@@ -6329,6 +6329,11 @@ const CUP_ROUND_NAMES = ['16 Avos de Final', 'Oitavas de Final', 'Quartas de Fin
 
 const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 const FAST_SIM_ROUND_DELAY_MS = 450;
+// A "Simulação direta" da Copa usa um ritmo próprio, mais lento que o do
+// Brasileirão (FAST_SIM_ROUND_DELAY_MS) — o chaveamento ao vivo é a peça
+// central do efeito (não um cálculo em segundo plano), e passando rápido
+// demais cada fase decidida some antes de dar tempo de acompanhar.
+const FAST_SIM_CUP_ROUND_DELAY_MS = 1600;
 // Ritmo da animação "dia a dia" do calendário. O dia vazio precisa ser lento
 // o bastante pra dar pra VER o tempo passando — com 18ms (valor anterior) os
 // ~7 dias entre rodadas sumiam em 126ms e parecia que a simulação pulava de
@@ -9997,7 +10002,7 @@ export default function App() {
 
       flushCupState();
 
-      await delay(FAST_SIM_ROUND_DELAY_MS);
+      await delay(FAST_SIM_CUP_ROUND_DELAY_MS);
     }
 
     setFastSimActive(false);
@@ -16866,7 +16871,7 @@ const WHATS_NEW = [
     id: '2026-09-copa-chaveamento-resultado',
     date: 'Setembro de 2026',
     title: 'Ajuste: chaveamento da Copa depois de terminar',
-    desc: 'A tela de resultado da Copa do Brasil agora tem um botão "🏆 Ver chaveamento" — antes, depois que a Copa acabava (jogando rodada a rodada ou usando "Simulação direta"), não tinha mais como rever como ficaram os confrontos.',
+    desc: 'A tela de resultado da Copa do Brasil agora tem um botão "🏆 Ver chaveamento" — antes, depois que a Copa acabava (jogando rodada a rodada ou usando "Simulação direta"), não tinha mais como rever como ficaram os confrontos. A "Simulação direta" também ficou mais lenta e dramática — cada fase do chaveamento agora fica mais tempo em tela antes de avançar pra próxima.',
   },
   {
     id: '2026-09-modo-livre',
