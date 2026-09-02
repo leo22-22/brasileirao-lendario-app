@@ -11570,8 +11570,9 @@ export default function App() {
       {showLivrePicker && (
         <LivreTeamPickerModal
           initialSelected={livreTeamIds || []}
+          initialFormat={gameMode}
           onClose={() => setShowLivrePicker(false)}
-          onConfirm={(ids) => { setLivreTeamIds(ids); setShowLivrePicker(false); setShowGameModeModal(false); }}
+          onConfirm={(ids, format) => { setLivreTeamIds(ids); setGameMode(format); setShowLivrePicker(false); setShowGameModeModal(false); }}
         />
       )}
       {showLineupEditor && (
@@ -14403,10 +14404,16 @@ function GameModeModal({ onClose, gameMode, onSetGameMode, livreTeamIds, onOpenS
 // times podem aparecer, sem trocar a liga em si (Brasileirão/Copa continuam
 // os mesmos por baixo). Múltipla escolha (não é "pick um time" como o
 // TeamPickerModal) — por isso um componente à parte em vez de reaproveitar.
-function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [] }) {
+// Página única do Modo Livre: escolher os 16 times (esquerda) e o formato do
+// campeonato — Brasileirão ou Copa do Brasil (direita) — antes de seguir pro
+// campinho/draft. Em telas largas os dois ficam lado a lado; no celular o
+// formato vira uma fileira de 2 botões acima da lista (ver
+// .livre-picker-* no bloco de mídia queries).
+function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [], initialFormat = 'serieab' }) {
   const POOL_SIZE = 16;
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(() => new Set(initialSelected));
+  const [format, setFormat] = useState(initialFormat === 'copa' ? 'copa' : 'serieab');
   const sorted = useMemo(() => [...TEAMS].sort((a, b) => b.year - a.year), []);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -14422,71 +14429,117 @@ function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [] }) {
   };
   const count = selected.size;
   const canConfirm = count === POOL_SIZE;
+  const FORMATS = [
+    { id: 'serieab', label: 'Brasileirão', sub: '40 times · Série A e B' },
+    { id: 'copa', label: 'Copa do Brasil', sub: '32 times · Mata-mata' },
+  ];
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '88vh', display: 'flex', flexDirection: 'column', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px 16px 0 0', padding: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>🎯 Modo Livre — escolha {POOL_SIZE} times</div>
-          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
-        </div>
-        <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 10 }}>
-          O draft vai sortear só entre os times marcados — nenhum outro time aparece.
-        </div>
-        <input
-          autoFocus
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Buscar por time ou ano..."
-          style={{ ...styles.teamInput, marginBottom: 10, flexShrink: 0 }}
-        />
-        <div style={{ overflowY: 'auto', flex: 1, display: 'grid', gap: 6, minHeight: 0 }}>
-          {filtered.length === 0 && (
-            <div style={{ fontSize: 12, opacity: 0.5, textAlign: 'center', padding: 16 }}>Nenhum time encontrado.</div>
-          )}
-          {filtered.map(team => {
-            const isSel = selected.has(team.id);
-            const { baseName, achievement } = parseTeamLabel(team.label);
-            return (
+    <div onClick={onClose} className="livre-picker-wrap" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} className="livre-picker-panel" style={{ width: '100%', maxWidth: 760, maxHeight: '88vh', display: 'flex', flexDirection: 'row', gap: 20, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: 18 }}>
+        <div className="livre-picker-main" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+            <div style={{ fontWeight: 700, fontSize: 14 }}>🎯 Modo Livre — escolha {POOL_SIZE} times</div>
+            <button onClick={onClose} className="tap-target-sm livre-picker-close" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
+          </div>
+          <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 10 }}>
+            O draft vai sortear só entre os times marcados — nenhum outro time aparece.
+          </div>
+          {/* No celular o formato mora aqui em cima, como fileira de 2
+              botões — a coluna da direita (.livre-picker-side) some via
+              media query e este bloco assume o lugar dela. */}
+          <div className="livre-picker-format-mobile" style={{ display: 'none', gap: 8, marginBottom: 12 }}>
+            {FORMATS.map(f => (
               <button
-                key={team.id}
-                onClick={() => toggle(team.id)}
+                key={f.id}
+                onClick={() => setFormat(f.id)}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10,
-                  border: `1.5px solid ${isSel ? '#7fd99a' : 'rgba(255,255,255,0.1)'}`,
-                  background: isSel ? 'rgba(127,217,154,0.12)' : 'rgba(255,255,255,0.03)',
-                  color: '#F4F1EA', textAlign: 'left', cursor: 'pointer',
+                  flex: 1, padding: '9px 10px', borderRadius: 10, border: `1.5px solid ${format === f.id ? '#d4a23c' : 'rgba(255,255,255,0.12)'}`,
+                  background: format === f.id ? 'rgba(212,162,60,0.12)' : 'rgba(255,255,255,0.03)',
+                  color: format === f.id ? '#d4a23c' : '#F4F1EA', cursor: 'pointer', textAlign: 'center', fontSize: 11.5, fontWeight: 700,
                 }}
               >
-                <div style={{
-                  width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: `1.5px solid ${isSel ? '#7fd99a' : 'rgba(255,255,255,0.25)'}`, background: isSel ? '#7fd99a' : 'transparent',
-                  color: '#0B1A12', fontSize: 12, fontWeight: 900,
-                }}>{isSel ? '✓' : ''}</div>
-                {CLUB_LOGOS[team.club] && (
-                  <img src={CLUB_LOGOS[team.club]} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
-                  {achievement && <div style={{ fontSize: 11, color: '#d4a23c', marginTop: 1 }}>{achievement}</div>}
-                </div>
+                {f.label}
               </button>
-            );
-          })}
+            ))}
+          </div>
+          <input
+            autoFocus
+            value={query}
+            onChange={e => setQuery(e.target.value)}
+            placeholder="Buscar por time ou ano..."
+            style={{ ...styles.teamInput, marginBottom: 10, flexShrink: 0 }}
+          />
+          <div style={{ overflowY: 'auto', flex: 1, display: 'grid', gap: 6, minHeight: 0 }}>
+            {filtered.length === 0 && (
+              <div style={{ fontSize: 12, opacity: 0.5, textAlign: 'center', padding: 16 }}>Nenhum time encontrado.</div>
+            )}
+            {filtered.map(team => {
+              const isSel = selected.has(team.id);
+              const { baseName, achievement } = parseTeamLabel(team.label);
+              return (
+                <button
+                  key={team.id}
+                  onClick={() => toggle(team.id)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10,
+                    border: `1.5px solid ${isSel ? '#7fd99a' : 'rgba(255,255,255,0.1)'}`,
+                    background: isSel ? 'rgba(127,217,154,0.12)' : 'rgba(255,255,255,0.03)',
+                    color: '#F4F1EA', textAlign: 'left', cursor: 'pointer',
+                  }}
+                >
+                  <div style={{
+                    width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    border: `1.5px solid ${isSel ? '#7fd99a' : 'rgba(255,255,255,0.25)'}`, background: isSel ? '#7fd99a' : 'transparent',
+                    color: '#0B1A12', fontSize: 12, fontWeight: 900,
+                  }}>{isSel ? '✓' : ''}</div>
+                  {CLUB_LOGOS[team.club] && (
+                    <img src={CLUB_LOGOS[team.club]} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+                  )}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: 13 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
+                    {achievement && <div style={{ fontSize: 11, color: '#d4a23c', marginTop: 1 }}>{achievement}</div>}
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+          <div style={{ paddingTop: 12, marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+            <button
+              onClick={() => canConfirm && onConfirm([...selected], format)}
+              disabled={!canConfirm}
+              style={{
+                width: '100%', padding: '13px 16px', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700,
+                background: canConfirm ? '#d4a23c' : 'rgba(255,255,255,0.08)',
+                color: canConfirm ? '#0B1A12' : 'rgba(244,241,234,0.35)',
+                cursor: canConfirm ? 'pointer' : 'not-allowed',
+              }}
+            >
+              {canConfirm ? `Confirmar ${POOL_SIZE} times →` : `Escolha mais ${POOL_SIZE - count} (${count}/${POOL_SIZE})`}
+            </button>
+          </div>
         </div>
-        <div style={{ paddingTop: 12, marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
-          <button
-            onClick={() => canConfirm && onConfirm([...selected])}
-            disabled={!canConfirm}
-            style={{
-              width: '100%', padding: '13px 16px', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700,
-              background: canConfirm ? '#d4a23c' : 'rgba(255,255,255,0.08)',
-              color: canConfirm ? '#0B1A12' : 'rgba(244,241,234,0.35)',
-              cursor: canConfirm ? 'pointer' : 'not-allowed',
-            }}
-          >
-            {canConfirm ? `Confirmar ${POOL_SIZE} times →` : `Escolha mais ${POOL_SIZE - count} (${count}/${POOL_SIZE})`}
-          </button>
+        {/* Coluna da direita — só em telas largas (some no celular via
+            media query, o bloco .livre-picker-format-mobile assume). */}
+        <div className="livre-picker-side" style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={styles.teamEditLabel}>Formato do campeonato</div>
+          {FORMATS.map(f => (
+            <button
+              key={f.id}
+              onClick={() => setFormat(f.id)}
+              style={{
+                textAlign: 'left', padding: '12px 12px', borderRadius: 10, border: `1.5px solid ${format === f.id ? '#d4a23c' : 'rgba(255,255,255,0.12)'}`,
+                background: format === f.id ? 'rgba(212,162,60,0.12)' : 'rgba(255,255,255,0.03)',
+                color: format === f.id ? '#d4a23c' : '#F4F1EA', cursor: 'pointer',
+              }}
+            >
+              <div style={{ fontWeight: 700, fontSize: 13 }}>{f.label}</div>
+              <div style={{ fontSize: 10.5, opacity: 0.6, marginTop: 2 }}>{f.sub}</div>
+            </button>
+          ))}
+          <div style={{ fontSize: 10.5, opacity: 0.45, marginTop: 4, lineHeight: 1.4 }}>
+            É o campeonato que você vai jogar com o elenco montado a partir desses 16 times.
+          </div>
         </div>
       </div>
     </div>
@@ -19561,6 +19614,13 @@ const globalCss = `
        sozinho já empurrava a fileira de ações pra quebrar em 2-3 linhas. */
     .header-supercopa-tail { display: none; }
     .header-actions-h { gap: 6px !important; }
+    /* Modo Livre: no celular vira bottom-sheet de 1 coluna de novo — o
+       formato (que em telas largas é uma coluna à direita) passa a ser a
+       fileira de 2 botões que já está desenhada em cima da busca. */
+    .livre-picker-wrap { align-items: flex-end !important; padding: 0 !important; }
+    .livre-picker-panel { flex-direction: column !important; max-width: 100% !important; max-height: 92vh !important; border-radius: 16px 16px 0 0 !important; }
+    .livre-picker-side { display: none !important; }
+    .livre-picker-format-mobile { display: flex !important; }
     .header-title-h { font-size: 15px !important; line-height: 1.2 !important; }
     .header-subtitle-h { font-size: 9px !important; }
     /* Título+logo numa "linha" e os botões (áudio/ranking/conta) na linha de
