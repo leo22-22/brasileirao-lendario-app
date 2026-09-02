@@ -10440,6 +10440,10 @@ export default function App() {
     setPitch({});
     setUsedTeamIds([]);
     setSkipsLeft(MAX_SKIPS);
+    // Modo Livre é config de UMA carreira/draft — sem isso, os 16 times
+    // escolhidos ficavam restringindo o sorteio de TODA carreira seguinte,
+    // mesmo depois de escolher Brasileirão/Copa "normal" de novo.
+    setLivreTeamIds(null);
     setLog([]);
     setRolledTeam(null);
     setIsRolling(false);
@@ -11560,6 +11564,7 @@ export default function App() {
           livreTeamIds={livreTeamIds}
           onOpenSerieAtual={() => setShowSerieAtualPicker(true)}
           onOpenLivrePicker={() => setShowLivrePicker(true)}
+          onClearLivre={() => setLivreTeamIds(null)}
         />
       )}
       {showLivrePicker && (
@@ -11806,7 +11811,13 @@ export default function App() {
             viewingTeam={viewingTeam}
             onViewTeam={setViewingTeam}
             onSimulateAll={isDailyChallenge ? () => fastForwardBrasileirao(null, { onCalendar: false }) : gameMode === 'copa' ? fastForwardCopa : (gameMode === 'serieab' && promotionTie?.leg) ? undefined : simulateSeasonOnCalendar}
-            onOpenCalendar={!isDailyChallenge && (gameMode === 'brasileirao' || gameMode === 'serieab') ? openCalendar : undefined}
+            // Brasileirão Atual usa o mesmo formato de calendário/fixtures do
+            // Brasileirão normal — só os confrontos são reais. No multiplayer
+            // o gameMode LOCAL vira 'atual2026' (espelha roomSnap.gameMode),
+            // então sem essa terceira opção o botão de calendário simplesmente
+            // sumia numa sala desse modo (no solo isSerieAtual não mexe em
+            // gameMode, por isso só aparecia lá).
+            onOpenCalendar={!isDailyChallenge && (gameMode === 'brasileirao' || gameMode === 'serieab' || gameMode === 'atual2026') ? openCalendar : undefined}
             onOpenLineupEditor={isSerieAtual && !isSimulating ? () => setShowLineupEditor(true) : undefined}
             myDivision={myDivision}
             otherDivision={otherDivision}
@@ -11850,14 +11861,14 @@ export default function App() {
              — autosave pula enquanto `multiPhase || roomSnap` —, então o
              save no disco, se existir, é de uma carreira solo real sem
              nada a ver com essa sala). */
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} isLeader={isLeader} onRematch={roomSnap ? multiLeaderRematch : undefined} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap ? undefined : newSeason} onOpenTransferMarket={roomSnap ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} isLeader={isLeader} onRematch={roomSnap ? multiLeaderRematch : undefined} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap ? undefined : newSeason} onOpenTransferMarket={roomSnap ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} cupRounds={cupRounds} />
         )}
         {viewingTeam && (
           <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspensions={suspensions} injuries={injuries} />
         )}
         {/* `phase === 'playing'` é rede de segurança: o calendário nunca pode
             ficar por cima da tela de resultado no fim da temporada. */}
-        {showCalendar && phase === 'playing' && (gameMode === 'brasileirao' || gameMode === 'serieab') && fixtures.length > 0 && (
+        {showCalendar && phase === 'playing' && (gameMode === 'brasileirao' || gameMode === 'serieab' || gameMode === 'atual2026') && fixtures.length > 0 && (
           <SeasonCalendarModal
             fixtures={fixtures}
             seasonDates={seasonDates}
@@ -14307,7 +14318,7 @@ function TeamPickerModal({ onClose, onPick, onlyIds = null, title = 'Escolha um 
 // modal — cresce bem melhor que o grid antigo agora que são 4 opções.
 // Brasileirão/Copa continuam marcando `gameMode`; Brasileirão Atual e Modo
 // Livre são navegação/configuração à parte (não ficam "selecionados").
-function GameModeModal({ onClose, gameMode, onSetGameMode, livreTeamIds, onOpenSerieAtual, onOpenLivrePicker }) {
+function GameModeModal({ onClose, gameMode, onSetGameMode, livreTeamIds, onOpenSerieAtual, onOpenLivrePicker, onClearLivre }) {
   const modes = [
     {
       id: 'serieab',
@@ -14352,7 +14363,10 @@ function GameModeModal({ onClose, gameMode, onSetGameMode, livreTeamIds, onOpenS
                 onClick={() => {
                   if (m.id === 'atual2026') { onOpenSerieAtual(); onClose(); }
                   else if (m.id === 'livre') { onOpenLivrePicker(); }
-                  else { onSetGameMode(m.id); onClose(); }
+                  // Escolher Brasileirão/Copa direto (fora do Modo Livre)
+                  // precisa soltar a restrição dos 16 times — senão o draft
+                  // continuava restrito mesmo depois de trocar de modo.
+                  else { onSetGameMode(m.id); onClearLivre(); onClose(); }
                 }}
                 className="mode-card-hover"
                 aria-pressed={isSelected}
@@ -19084,10 +19098,14 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision, cupRounds }) {
   const mc = myTeamColor || '#d4a23c';
   const [showCampaign, setShowCampaign] = useState(false);
   const [showOtherDivision, setShowOtherDivision] = useState(false);
+  // A Copa terminada (manual ou via "Simular tudo") não deixava rever o
+  // chaveamento depois — a tela de resultado nunca recebia `cupRounds`, só
+  // quem ganhou. Igual ao botão que já existe durante a Copa.
+  const [showBracket, setShowBracket] = useState(false);
   // Nome do time dono da chave time::nome — jogadores reais se repetem entre
   // elencos de anos diferentes (Gabigol no Flamengo 2019 e no 2020), e sem
   // isso os rankings mostravam o mesmo nome duas vezes seguidas, parecendo
@@ -19190,6 +19208,27 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         )}
 
         <ResultStatsTabs mc={mc} title="Destaques da Copa" categories={statCategories} />
+
+        {cupRounds?.length > 0 && (
+          <button
+            onClick={() => setShowBracket(true)}
+            className="tap-target-sm"
+            style={{
+              width: '100%', marginTop: 4, marginBottom: 4, padding: '11px 14px', borderRadius: 10,
+              border: `1.5px solid ${hexToRgba(mc, 0.4)}`, background: hexToRgba(mc, 0.08),
+              color: mc, fontWeight: 700, fontSize: 13, cursor: 'pointer',
+            }}
+          >
+            🏆 Ver chaveamento
+          </button>
+        )}
+        {showBracket && (
+          <CupBracketModal
+            cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc}
+            myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam}
+            onClose={() => setShowBracket(false)}
+          />
+        )}
 
         {campaignLines.length > 0 && (
           <ResultSection icon="📋" label="Campanha" mc={mc}>
