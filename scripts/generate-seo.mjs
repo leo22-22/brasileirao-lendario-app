@@ -47,6 +47,91 @@ function parseTeamLabel(label) {
   return m ? { baseName: m[1], achievement: m[2] } : { baseName: label, achievement: null };
 }
 
+function round1(n) {
+  return Math.round(n * 10) / 10;
+}
+
+// "º" pra concordar com substantivo masculino ("6º elenco"), "ª" pra
+// feminino ("6ª posição") — sem isso "ocupa a 6º posição" sai errado.
+function ordinalPt(n, gender = 'm') {
+  return `${n}${gender === 'f' ? 'ª' : 'º'}`;
+}
+
+function teamAvgOvr(team) {
+  return team.players.reduce((s, p) => s + p.ovr, 0) / team.players.length;
+}
+
+// Estatísticas 100% derivadas de players/ovr — nenhum fato histórico, só
+// aritmética em cima do dado que já existe. É o que substitui a frase-
+// modelo repetida ("Monte o X... técnico Y...") como abertura da página:
+// medido no diagnóstico anterior, aquela frase era ~90% do texto e batia
+// 58,6% de linhas idênticas entre times sem nada em comum.
+function computeTeamStats(team, allTeams) {
+  const withAvg = allTeams.map(t => ({ id: t.id, avg: teamAvgOvr(t) }));
+  const globalSorted = [...withAvg].sort((a, b) => b.avg - a.avg);
+  const globalRank = globalSorted.findIndex(t => t.id === team.id) + 1;
+
+  const standout = [...team.players].sort((a, b) => b.ovr - a.ovr)[0];
+
+  const clubMates = allTeams.filter(t => t.club === team.club);
+  let clubComparison = null;
+  if (clubMates.length > 1) {
+    const clubSorted = [...clubMates]
+      .map(t => ({ id: t.id, label: t.label, avg: teamAvgOvr(t) }))
+      .sort((a, b) => b.avg - a.avg);
+    const clubRank = clubSorted.findIndex(t => t.id === team.id) + 1;
+    clubComparison = { clubRank, clubTotal: clubSorted.length, clubSorted };
+  }
+
+  return {
+    avgOvr: round1(teamAvgOvr(team)),
+    globalRank,
+    totalTeams: allTeams.length,
+    standout,
+    clubComparison,
+  };
+}
+
+// Parágrafo de abertura derivado dos números acima — não do template de
+// nome/ano/técnico. Só menciona a comparação com o clube quando existe mais
+// de um elenco dele na base (sem isso, "não invente contexto pra preencher"
+// vira um problema pra clubes com um elenco só, tipo Bangu ou Guarani).
+function renderIntro(team, stats) {
+  const { baseName, achievement } = parseTeamLabel(team.label);
+  const { avgOvr, globalRank, totalTeams, standout, clubComparison } = stats;
+
+  const parts = [];
+  parts.push(
+    `Com OVR médio de ${avgOvr}, o ${escapeHtml(baseName)}${achievement ? ` (${escapeHtml(achievement)})` : ''} ` +
+    `é o ${ordinalPt(globalRank)} elenco mais forte entre os ${totalTeams} times históricos do Brasileirão Lendário. ` +
+    `O destaque do elenco é ${escapeHtml(standout.name)} (${escapeHtml(standout.pos.join('/'))}, ${standout.ovr} de OVR).`
+  );
+
+  if (clubComparison) {
+    const { clubRank, clubTotal } = clubComparison;
+    let clubPhrase;
+    if (clubRank === 1) clubPhrase = `é o elenco mais forte do ${escapeHtml(team.club)} disponível no jogo`;
+    else if (clubRank === clubTotal) clubPhrase = `é o elenco do ${escapeHtml(team.club)} com o OVR médio mais baixo entre os disponíveis no jogo`;
+    else clubPhrase = `ocupa a ${ordinalPt(clubRank, 'f')} posição em OVR médio entre os ${clubTotal} elencos do ${escapeHtml(team.club)} disponíveis no jogo`;
+    parts.push(`Entre os elencos do ${escapeHtml(team.club)} no Brasileirão Lendário, este ${clubPhrase}.`);
+  }
+
+  parts.push(
+    `Escale a formação com o técnico ${escapeHtml(team.coach)} e dispute o Brasileirão ou a Copa do Brasil sozinho ou com amigos.`
+  );
+
+  return parts;
+}
+
+// Mesmos números, resumidos pro <meta name="description"> — a frase que
+// aparece no snippet de busca. Mais forte que "Monte o X... técnico Y..."
+// pra quem está comparando resultados no Google.
+function renderMetaDescription(team, stats) {
+  const { baseName, achievement } = parseTeamLabel(team.label);
+  const { avgOvr, globalRank, totalTeams, standout } = stats;
+  return `${baseName}${achievement ? ` (${achievement})` : ''}: OVR médio ${avgOvr}, ${ordinalPt(globalRank)} elenco mais forte de ${totalTeams} no Brasileirão Lendário. Destaque: ${standout.name} (${standout.ovr} OVR). Monte esse time e dispute o Brasileirão ou a Copa do Brasil.`;
+}
+
 function breadcrumbJsonLd(items) {
   return {
     '@context': 'https://schema.org',
@@ -84,8 +169,8 @@ function renderTeamsIndexBody() {
     </main>`;
 }
 
-function renderTeamBody(team) {
-  const { baseName, achievement } = parseTeamLabel(team.label);
+function renderTeamBody(team, stats) {
+  const { baseName } = parseTeamLabel(team.label);
   const relatedSameClub = TEAMS.filter(t => t.club === team.club && t.id !== team.id).sort((a, b) => b.year - a.year);
   const sortedPlayers = [...team.players].sort((a, b) => POS_ORDER.indexOf(a.pos[0]) - POS_ORDER.indexOf(b.pos[0]));
   const rosterItems = sortedPlayers
@@ -95,13 +180,14 @@ function renderTeamBody(team) {
     .slice(0, 12)
     .map(t => `<li><a href="/times/${t.id}">${escapeHtml(t.label)}</a></li>`)
     .join('\n          ');
+  const introParagraphs = renderIntro(team, stats).map(p => `<p>${p}</p>`).join('\n        ');
 
   return `
     <header><nav aria-label="Trilha de navegação"><a href="/">Início</a> › <a href="/times">Times Históricos</a> › <span>${escapeHtml(baseName)}</span></nav></header>
     <main>
       <article>
         <h1>${escapeHtml(team.label)}</h1>
-        <p>Monte o ${escapeHtml(baseName)}${achievement ? ` (${escapeHtml(achievement)})` : ''} no Brasileirão Lendário: elenco completo com ${team.players.length} jogadores reais${team.coach ? `, técnico ${escapeHtml(team.coach)}` : ''}, ano ${team.year}. Escale a formação e dispute o Brasileirão ou a Copa do Brasil sozinho ou com amigos.</p>
+        ${introParagraphs}
         <h2>Elenco completo</h2>
         <ul>
           ${rosterItems}
@@ -185,10 +271,10 @@ function main() {
   count++;
 
   for (const team of TEAMS) {
-    const { baseName, achievement } = parseTeamLabel(team.label);
     const routePath = `/times/${team.id}`;
     const title = `${team.label} — Elenco completo | Brasileirão Lendário`;
-    const description = `Monte o ${baseName}${achievement ? ` (${achievement})` : ''} no Brasileirão Lendário: elenco completo com ${team.players.length} jogadores reais, técnico ${team.coach}, e dispute o Brasileirão ou a Copa do Brasil.`;
+    const stats = computeTeamStats(team, TEAMS);
+    const description = renderMetaDescription(team, stats);
     const ogImage = CLUB_LOGOS[team.club] || `${SITE_URL}/og-image.png`;
     writeRoute(routePath, patchHtml(template, {
       title,
@@ -204,7 +290,7 @@ function main() {
           { name: team.label, url: `${SITE_URL}${routePath}` },
         ]),
       ],
-      bodyHtml: renderTeamBody(team),
+      bodyHtml: renderTeamBody(team, stats),
     }));
     count++;
   }
