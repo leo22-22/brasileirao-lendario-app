@@ -1,5 +1,6 @@
 import './env.js';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
@@ -101,7 +102,19 @@ app.use('/api', (req, res) => {
 // index.html para qualquer rota que não seja da API (SPA client-side routing).
 const distPath = path.join(__dirname, '../../dist');
 app.use(express.static(distPath));
+// SEO: scripts/generate-seo.mjs roda depois do `vite build` e escreve uma
+// versão pré-renderizada (title/description/OG/JSON-LD/conteúdo real já no
+// HTML) de cada rota de conteúdo em dist/_prerender/{rota}.html — sem isso,
+// TODO crawler que não executa JS (Facebook, WhatsApp, Discord, Bing) via
+// só a casca genérica da home em qualquer URL do site. Quando o arquivo pré-
+// renderizado não existe (rota não coberta, ou dist/_prerender ainda não foi
+// gerado), cai exatamente no comportamento de sempre.
 app.get('*', (req, res) => {
+  const routePath = req.path === '/' ? 'index' : req.path.replace(/^\/+/, '').replace(/\/+$/, '');
+  const prerenderedFile = path.join(distPath, '_prerender', `${routePath}.html`);
+  if (prerenderedFile.startsWith(path.join(distPath, '_prerender')) && fs.existsSync(prerenderedFile)) {
+    return res.sendFile(prerenderedFile);
+  }
   res.sendFile(path.join(distPath, 'index.html'));
 });
 

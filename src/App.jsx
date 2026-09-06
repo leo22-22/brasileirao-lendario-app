@@ -2679,15 +2679,16 @@ export default function App() {
     let title = 'Brasileirão Lendário — Monte seu time com lendas do futebol brasileiro';
     let description = `Simulador de futebol grátis: monte seu elenco com craques históricos de ${TEAMS.length} times do futebol brasileiro (1959-2024), escale a formação e dispute o Brasileirão ou a Copa do Brasil sozinho ou com amigos no multiplayer.`;
     let path = '/';
-    // As 100 páginas de time individuais (/times/{id}) são quase idênticas
-    // entre si — uma frase-modelo trocando só o nome do time, mais a lista de
-    // jogadores. Conteúdo gerado em massa com pouca variação é exatamente o
-    // que a política de "conteúdo de baixo valor" do AdSense cita. noindex
-    // tira elas da avaliação de qualidade do site sem tirar do ar: continuam
-    // funcionando normalmente pra quem chega por um link ou navega pelo
-    // índice em /times (que segue indexável, por ser uma página real de
-    // listagem). `follow` mantém o Google encontrando as outras páginas do
-    // site a partir daqui.
+    let ogImage = 'https://brasileiraolendario.com.br/og-image.png';
+    // As páginas de time individuais (/times/{id}) eram noindex — conteúdo
+    // era só uma frase-modelo trocando nome/técnico, o que batia na política
+    // de "conteúdo de baixo valor" do AdSense. Agora cada rota é servida já
+    // pré-renderizada pelo servidor (ver scripts/generate-seo.mjs e
+    // server/index.ts) com o elenco completo real e links pra outros
+    // elencos do mesmo clube — deixou de ser thin content, então voltou a
+    // ser index. Esse useEffect só corrige o head durante navegação
+    // client-side (pushState); quem chega direto na URL já recebe o HTML
+    // certo do servidor.
     let robots = 'index, follow';
     if (infoPage) {
       title = `${INFO_TABS.find(t => t.id === infoPage)?.label} — Brasileirão Lendário`;
@@ -2702,7 +2703,7 @@ export default function App() {
       title = `${team.label} — Elenco completo | Brasileirão Lendário`;
       description = `Monte o ${baseName}${achievement ? ` (${achievement})` : ''} no Brasileirão Lendário: elenco completo com ${team.players.length} jogadores reais, técnico ${team.coach}, e dispute o Brasileirão ou a Copa do Brasil.`;
       path = canonicalTeamsPath(teamsPage);
-      robots = 'noindex, follow';
+      ogImage = CLUB_LOGOS[team.club] || ogImage;
     } else if (rankingPage) {
       // Conteúdo 100% dinâmico/pessoal (muda por período e a cada temporada
       // registrada) — sem valor de busca nenhum, então noindex, mas ainda
@@ -2738,6 +2739,24 @@ export default function App() {
       document.head.appendChild(link);
     }
     link.href = `https://brasileiraolendario.com.br${path}`;
+    // Open Graph/Twitter Card do index.html também são estáticos (sempre a
+    // home) — sem atualizar aqui, compartilhar QUALQUER página do site
+    // (inclusive um time específico) sempre mostrava o card genérico da
+    // home em vez do time/página de verdade. O servidor já manda a versão
+    // certa no primeiro load (ver server/index.ts); isso cobre navegação
+    // client-side (pushState) sem recarregar a página.
+    const setMeta = (selector, attr, value) => {
+      const el = document.querySelector(selector);
+      if (el) el.setAttribute(attr, value);
+    };
+    const fullUrl = `https://brasileiraolendario.com.br${path}`;
+    setMeta('meta[property="og:title"]', 'content', title);
+    setMeta('meta[property="og:description"]', 'content', description);
+    setMeta('meta[property="og:url"]', 'content', fullUrl);
+    setMeta('meta[property="og:image"]', 'content', ogImage);
+    setMeta('meta[name="twitter:title"]', 'content', title);
+    setMeta('meta[name="twitter:description"]', 'content', description);
+    setMeta('meta[name="twitter:image"]', 'content', ogImage);
   }, [infoPage, teamsPage, rankingPage]);
   const navigateToInfo = (tab) => {
     window.history.pushState(null, '', canonicalPathFor(tab));

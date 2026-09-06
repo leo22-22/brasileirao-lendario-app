@@ -1,7 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- As paginas individuais de time (/times/{id}) foram marcadas noindex no
-     app (conteudo quase identico entre si, so o nome do time muda) e por
-     isso nao entram aqui: so a pagina de indice /times, que lista todas. -->
+<!-- Este arquivo eh so o fallback pra `npm run dev` (build local). Em
+     producao, `npm run build` roda scripts/generate-seo.mjs depois do vite
+     build e SOBRESCREVE dist/sitemap.xml com uma entrada por time (200),
+     gerado a partir de src/data/teams.js - nao precisa editar esta lista
+     manualmente quando um time novo entra no jogo. -->
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://brasileiraolendario.com.br/</loc>
