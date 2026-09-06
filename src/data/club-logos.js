@@ -1,0 +1,41 @@
+// Logos via TheSportsDB (r2.thesportsdb.com — free, sem autenticação).
+// Extraído de App.jsx pra ficar importável tanto pelo app quanto por scripts
+// Node (prerender por rota) sem precisar carregar React/JSX.
+export const CLUB_LOGOS = {
+  // Times no jogo (66 equipes históricas)
+  'Santos': 'https://r2.thesportsdb.com/images/media/team/badge/j8xk9g1679447486.png',
+  'Sao Caetano': 'https://r2.thesportsdb.com/images/media/team/badge/e72hdi1593453914.png',
+  'Botafogo': 'https://r2.thesportsdb.com/images/media/team/badge/bs5mbw1733004596.png',
+  'Palmeiras': 'https://r2.thesportsdb.com/images/media/team/badge/vsqwqp1473538105.png',
+  'Internacional': 'https://r2.thesportsdb.com/images/media/team/badge/yprvxx1473538097.png',
+  'Fluminense': 'https://r2.thesportsdb.com/images/media/team/badge/stvvwp1473538082.png',
+  'Coritiba': 'https://r2.thesportsdb.com/images/media/team/badge/ywwsyu1473538050.png',
+  'Sao Paulo': 'https://r2.thesportsdb.com/images/media/team/badge/sxpupx1473538135.png',
+  'Sport': 'https://r2.thesportsdb.com/images/media/team/badge/tyrbls1545421563.png',
+  'Bahia': 'https://r2.thesportsdb.com/images/media/team/badge/xuvtsv1473539308.png',
+  'Vasco': 'https://r2.thesportsdb.com/images/media/team/badge/ynqlxo1630521109.png',
+  'Corinthians': 'https://r2.thesportsdb.com/images/media/team/badge/vvuvps1473538042.png',
+  'Gremio': 'https://r2.thesportsdb.com/images/media/team/badge/uvpwyt1473538089.png',
+  'Athletico-PR': 'https://r2.thesportsdb.com/images/media/team/badge/irzu1u1554237406.png',
+  'Cruzeiro': 'https://r2.thesportsdb.com/images/media/team/badge/upsvvu1473538059.png',
+  'Flamengo': 'https://r2.thesportsdb.com/images/media/team/badge/syptwx1473538074.png',
+  'Atletico-MG': 'https://r2.thesportsdb.com/images/media/team/badge/x5lixs1743742872.png',
+  'Guarani': 'https://r2.thesportsdb.com/images/media/team/badge/tpipb21766508536.png',
+  'Mirassol': 'https://r2.thesportsdb.com/images/media/team/badge/pw8uo11765900737.png',
+  'Remo': 'https://r2.thesportsdb.com/images/media/team/badge/u36jfy1579341655.png',
+  'Portuguesa': 'https://r2.thesportsdb.com/images/media/team/badge/cuawo11733810608.png',
+  'Bangu': 'https://r2.thesportsdb.com/images/media/team/badge/3yrwfp1625417293.png',
+  // Times extras (não no jogo mas disponíveis como emblema pessoal)
+  'Fortaleza': 'https://r2.thesportsdb.com/images/media/team/badge/tosmdr1532853458.png',
+  'Ceara': 'https://r2.thesportsdb.com/images/media/team/badge/rxxvyp1464886685.png',
+  'America-MG': 'https://r2.thesportsdb.com/images/media/team/badge/rtpp171752177342.png',
+  'Goias': 'https://r2.thesportsdb.com/images/media/team/badge/qhfhdp1635869930.png',
+  'Vitoria': 'https://r2.thesportsdb.com/images/media/team/badge/tysrrx1473538156.png',
+  'Bragantino': 'https://r2.thesportsdb.com/images/media/team/badge/2p7tl41701423595.png',
+  'Criciuma': 'https://r2.thesportsdb.com/images/media/team/badge/r11mld1766506200.png',
+  'Chapecoense': 'https://r2.thesportsdb.com/images/media/team/badge/wy0e1i1765900601.png',
+  'Ponte Preta': 'https://r2.thesportsdb.com/images/media/team/badge/wbss4d1644929547.png',
+  'Juventude': 'https://r2.thesportsdb.com/images/media/team/badge/1ntter1766506778.png',
+  'Avai': 'https://r2.thesportsdb.com/images/media/team/badge/bblkat1766506007.png',
+  'Atletico-GO': 'https://r2.thesportsdb.com/images/media/team/badge/l7382k1766505911.png',
+};
