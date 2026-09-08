@@ -3,6 +3,15 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
+  // Renomeado de "public" pra fugir da convenção do Passenger/LiteSpeed
+  // (hospedagem Node da Hostinger): uma pasta chamada exatamente "public"
+  // na raiz do app e servida em ESTATICO direto pelo servidor web, sem
+  // passar pelo processo Node - isso fazia /sitemap.xml e /robots.txt
+  // sempre responderem com o arquivo-fonte (nunca regenerado pelo
+  // generate-seo.mjs), ignorando por completo o dist/ buildado. O
+  // conteudo continua indo pra dist/ normalmente, só muda o nome da
+  // pasta de origem.
+  publicDir: 'static-src',
   server: {
     proxy: {
       '/api': 'http://localhost:4000',
