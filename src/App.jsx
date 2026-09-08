@@ -2934,11 +2934,17 @@ export default function App() {
       setPhase('multi-formation-wait');
       return;
     }
-    // Brasileirão Atual: sem sorteio — encaixa o MELHOR XI do elenco real
-    // escolhido nessa formação específica (elenco inteiro no banco). Se a
-    // formação não fechar com esse elenco (ex.: pede 3 zagueiros de origem
-    // e o time só tem 2 de verdade), avisa e mantém na tela de formação em
-    // vez de travar com uma escalação pela metade.
+    // Brasileirão Atual: sem sorteio de vários times — é sempre o MESMO
+    // elenco real escolhido antes, então cai direto na tela de Draft com
+    // esse time já "rolado" (sem animação de dado, não tem o que sortear) e
+    // o elenco INTEIRO disponível pra escalar manualmente, titular por
+    // titular — banco preenche sozinho com quem sobrar assim que os 11
+    // titulares estiverem prontos (ver pickPlayerForSlot). Reaproveita
+    // autoFillTeamIntoSlots só pra VALIDAR que a formação fecha com esse
+    // elenco (ex.: pede 3 zagueiros de origem e o time só tem 2 de
+    // verdade) e pra montar a quantidade certa de vagas de banco (elenco
+    // inteiro, não os 5 genéricos do modo clássico) — descarta o
+    // encaixe automático em si, `pitch` começa vazio de propósito.
     if (isSerieAtual) {
       const team = TEAMS.find(t => t.id === serieAtualTeamId);
       const built = team ? autoFillTeamIntoSlots(team, starterSlots, { fullBench: true }) : null;
@@ -2947,9 +2953,10 @@ export default function App() {
         return;
       }
       setPitchSlots(built.pitchSlots);
-      setPitch(built.pitch);
+      setPitch({});
       setCaptainSlot(null);
-      setPhase('squad');
+      setRolledTeam(team);
+      setPhase('draft');
       return;
     }
     setPhase('draft');
@@ -3693,10 +3700,41 @@ export default function App() {
 
   const pickPlayerForSlot = (player, slotKey) => {
     const isBench = pitchSlots.find(s => s.key === slotKey)?.isBench || false;
-    setPitch(prev => ({ ...prev, [slotKey]: { ...player, teamLabel: rolledTeam.label, teamId: rolledTeam.id, club: rolledTeam.club, year: rolledTeam.year, nat: player.nat || 'BRA', isBench, slotKey } }));
-    setUsedTeamIds(prev => [...prev, rolledTeam.id]);
+    const placedPlayer = { ...player, teamLabel: rolledTeam.label, teamId: rolledTeam.id, club: rolledTeam.club, year: rolledTeam.year, nat: player.nat || 'BRA', isBench, slotKey };
     setLog(prev => [...prev, { teamLabel: rolledTeam.label, playerName: player.name, slot: slotKey }]);
     setSelectedPlayer(null);
+
+    if (isSerieAtual) {
+      // Sem sorteio: o pool é sempre o MESMO elenco inteiro (rolledTeam
+      // nunca troca) — só as vagas de campo (titulares) precisam de escolha
+      // manual. Vaga de banco não tem posição própria pra decidir, então
+      // assim que o último titular entra, quem sobrou do elenco cai
+      // sozinho nas vagas de banco (que já têm o tamanho certo — ver
+      // finishFormationChoice) e a escalação segue pra revisão/capitão.
+      const starterSlotsStillEmpty = pitchSlots.filter(s => !s.isBench && s.key !== slotKey && !filledSlots.includes(s.key));
+      setPitch(prev => {
+        const withNewPlayer = { ...prev, [slotKey]: placedPlayer };
+        if (starterSlotsStillEmpty.length > 0) return withNewPlayer;
+        const placedNames = new Set(Object.values(withNewPlayer).map(p => normalizePlayerName(p.name)));
+        const leftover = rolledTeam.players.filter(p => !placedNames.has(normalizePlayerName(p.name)));
+        const emptyBenchSlots = pitchSlots.filter(s => s.isBench && !withNewPlayer[s.key]);
+        const next = { ...withNewPlayer };
+        leftover.forEach((p, i) => {
+          const slot = emptyBenchSlots[i];
+          if (!slot) return; // não deveria faltar vaga — banco já reserva uma por sobra do elenco
+          next[slot.key] = { ...p, teamLabel: rolledTeam.label, teamId: rolledTeam.id, club: rolledTeam.club, year: rolledTeam.year, nat: p.nat || 'BRA', isBench: true, slotKey: slot.key };
+        });
+        return next;
+      });
+      if (starterSlotsStillEmpty.length === 0) {
+        setPhase('squad');
+        setRolledTeam(null);
+      }
+      return;
+    }
+
+    setPitch(prev => ({ ...prev, [slotKey]: placedPlayer }));
+    setUsedTeamIds(prev => [...prev, rolledTeam.id]);
     const stillRemaining = pitchSlots.filter(s => s.key !== slotKey && !filledSlots.includes(s.key));
     if (stillRemaining.length === 0) {
       setPhase('squad');
@@ -6467,8 +6505,14 @@ export default function App() {
             onClickPlayer={clickPlayer}
             onClickPitchSlot={clickPitchSlot}
             onUnplacePlayer={startReposition}
-            onSkipTeam={skipTeam}
-            mustSkip={rolledTeamHasNoFit}
+            // Brasileirão Atual: só existe UM time pra escalar (o real
+            // escolhido) — não tem pra "pular", então nem o botão aparece.
+            // Se a pessoa se enrolar (colocar num titular alguém que era o
+            // único jeito de preencher outra vaga), o jeito de desfazer é
+            // clicar o titular já escalado e reposicionar — mesma ação que
+            // já existe pra qualquer escalação.
+            onSkipTeam={isSerieAtual ? undefined : skipTeam}
+            mustSkip={isSerieAtual ? false : rolledTeamHasNoFit}
             myTeamColor={myTeamColor}
             captainSlot={captainSlot}
             onSlotPointerDown={handleSlotPointerDown}
@@ -11260,6 +11304,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-09-atual-escalacao-manual',
+    date: 'Setembro de 2026',
+    title: 'Ajuste: escalação manual no Brasileirão Atual',
+    desc: 'O Brasileirão Atual voltou a ser 100% na mão: depois de escolher o time real e a formação, o elenco inteiro fica disponível pra você escalar titular por titular, igual ao draft clássico — o jogo não encaixa mais sozinho os 11 melhores. Quem sobrar entra automaticamente no banco assim que o último titular for escalado.',
+  },
   {
     id: '2026-09-copa-chaveamento-resultado',
     date: 'Setembro de 2026',
