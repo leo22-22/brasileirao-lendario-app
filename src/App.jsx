@@ -135,21 +135,21 @@ function matchPrng(roomSeed, roundKey, homeId, awayId) {
 // normal assim que deixa de aparecer nesta lista — não tem passo manual de
 // "desfazer".
 const WEEKLY_TEAM_OF_THE_WEEK = {
-  round: 25,
-  label: '25ª Rodada',
+  round: 26,
+  label: '26ª Rodada',
   sourceLabel: 'Notas Sofascore',
   players: [
-    { teamId: 'gremio2026', name: 'Weverton', posLabel: 'Goleiro' },
-    { teamId: 'gremio2026', name: 'Cristian Pavon', posLabel: 'Lateral-Direito', note: 'Atuando improvisado no apoio lateral após balançar as redes' },
-    { teamId: 'gremio2026', name: 'Gustavo Martins', posLabel: 'Zagueiro', note: 'Zagueiro-artilheiro com dois gols na virada' },
-    { teamId: 'gremio2026', name: 'Wallace', posLabel: 'Zagueiro' },
-    { teamId: 'vasco2026', name: 'Lucas Piton', posLabel: 'Lateral-Esquerdo' },
-    { teamId: 'athleticopr2026', name: 'Leozinho', posLabel: 'Volante' },
-    { teamId: 'vasco2026', name: 'Tche Tche', posLabel: 'Meia-Central' },
-    { teamId: 'atleticomg2026', name: 'Reinier', posLabel: 'Meia-Atacante' },
-    { teamId: 'flamengo2026', name: 'Samuel Lino', posLabel: 'Meia-Esquerda / Ponta', craque: true },
-    { teamId: 'internacional2026', name: 'Alan Patrick', posLabel: 'Atacante' },
-    { teamId: 'bahia2026', name: 'Erick Pulga', posLabel: 'Atacante' },
+    { teamId: 'chapecoense2026', name: 'Anderson', posLabel: 'Goleiro', craque: true, note: 'Goleiro reforço do Chapecoense — nota mais alta da rodada' },
+    { teamId: 'corinthians2026', name: 'Matheus Bidu', posLabel: 'Lateral-Esquerdo' },
+    { teamId: 'flamengo2026', name: 'Leo Pereira', posLabel: 'Zagueiro' },
+    { teamId: 'palmeiras2026', name: 'Gustavo Gomez', posLabel: 'Zagueiro' },
+    { teamId: 'mirassol2026', name: 'Igor Formiga', posLabel: 'Lateral-Direito' },
+    { teamId: 'santos2026', name: 'Christian Oliva', posLabel: 'Volante' },
+    { teamId: 'cruzeiro2026', name: 'Lucas Romero', posLabel: 'Volante' },
+    { teamId: 'chapecoense2026', name: 'Marcinho', posLabel: 'Meia-Direita', note: 'Lateral de origem, atuou mais avançado nesta rodada' },
+    { teamId: 'vitoria2026', name: 'Rene', posLabel: 'Ponta-Esquerda', note: 'Lateral-esquerdo de origem, atuou mais avançado nesta rodada' },
+    { teamId: 'cruzeiro2026', name: 'Kaio Jorge', posLabel: 'Atacante' },
+    { teamId: 'santos2026', name: 'Gabigol', posLabel: 'Atacante' },
   ],
 };
 

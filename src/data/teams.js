@@ -3119,6 +3119,7 @@ export const TEAMS = [
       { name: 'Maurício', pos: ['ZAG'], ovr: 72 },
       { name: 'Leo Vieira', pos: ['GOL'], ovr: 72 },
       { name: 'Diego Torres', pos: ['MEI', 'MC'], ovr: 73 },
+      { name: 'Anderson', pos: ['GOL'], ovr: 75 },
     ]
   },
   {
