@@ -2628,6 +2628,8 @@ export const TEAMS = [
       { name: 'Everton Araujo', pos: ['VOL', 'MC'], ovr: 77 },
       { name: 'Saul', pos: ['MC', 'VOL'], ovr: 82 },
       { name: 'Bruno Henrique', pos: ['PE', 'ATA'], ovr: 84 },
+      { name: 'Anthony Valencia', pos: ['PD', 'PE', 'MD', 'ME'], ovr: 78 },
+      { name: 'Joaquin Freitas', pos: ['ATA'], ovr: 78 },
     ]
   },
   {
