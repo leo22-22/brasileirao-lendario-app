@@ -3038,7 +3038,7 @@ export const TEAMS = [
       { name: 'Ze Vitor', pos: ['VOL', 'MC'], ovr: 76 },
       { name: 'Emmanuel Martinez', pos: ['MC', 'VOL', 'MEI'], ovr: 79 },
       { name: 'Tomas Pochettino', pos: ['MEI', 'MC'], ovr: 79 },
-      { name: 'Rene', pos: ['ATA', 'PE'], ovr: 76 },
+      { name: 'Rene', pos: ['PE', 'ATA', 'PD'], ovr: 76 },
     ]
   },
   {
@@ -3100,7 +3100,7 @@ export const TEAMS = [
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Marcelo Carne', pos: ['GOL'], ovr: 75 },
-      { name: 'Marcinho', pos: ['LD', 'MD'], ovr: 73 },
+      { name: 'Marcinho', pos: ['PD', 'PE', 'MD', 'ME'], ovr: 73 },
       { name: 'Walter Clar', pos: ['ZAG'], ovr: 76 },
       { name: 'Bruno Leonardo', pos: ['ZAG'], ovr: 74 },
       { name: 'Eduardo Doma', pos: ['LE', 'ZAG'], ovr: 74 },
