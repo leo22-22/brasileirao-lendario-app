@@ -215,6 +215,17 @@ function patchHtml(template, { title, description, routePath, robots, ogImage, j
   out = out.replace(/<meta name="twitter:title" content="[^"]*"\s*\/>/, `<meta name="twitter:title" content="${escapeHtml(title)}" />`);
   out = out.replace(/<meta name="twitter:description"[^>]*content="[^"]*"[^>]*\/>/s, `<meta name="twitter:description" content="${escapeHtml(description)}" />`);
   out = out.replace(/<meta name="twitter:image" content="[^"]*"\s*\/>/, `<meta name="twitter:image" content="${ogImage}" />`);
+  // O bundle do peerjs (WebRTC do multiplayer) só é importado por App.jsx —
+  // rota de conteúdo nunca baixa esse chunk (main.jsx decide isso ANTES de
+  // importar qualquer um dos dois, ver src/main.jsx). Só que o Vite, ao
+  // gerar dist/index.html, injeta um <link rel="modulepreload"> pra ele de
+  // qualquer jeito (heurística conservadora: não sabe em build-time qual
+  // branch do import() condicional vai rodar). Sem tirar essa dica aqui, o
+  // navegador começa a baixar peerjs.js numa página de time mesmo sem
+  // precisar dele nunca — inofensivo pro LCP (é baixa prioridade, não
+  // bloqueia render) mas aparece como "JavaScript não usado" em qualquer
+  // auditoria (Lighthouse etc.) e gasta banda à toa.
+  out = out.replace(/<link rel="modulepreload"[^>]*peerjs[^>]*>\s*/i, '');
   if (jsonLdBlocks?.length) {
     const scripts = jsonLdBlocks.map(obj => `<script type="application/ld+json">${JSON.stringify(obj)}</script>`).join('\n');
     out = out.replace('</head>', `${scripts}\n</head>`);
