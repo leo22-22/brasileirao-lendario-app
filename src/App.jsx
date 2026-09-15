@@ -155,7 +155,7 @@ const WEEKLY_TEAMS = [
       { teamId: 'coritiba2026', name: 'Rodrigo Moledo', posLabel: 'Zagueiro' },
       { teamId: 'corinthians2026', name: 'Joao Pedro', posLabel: 'Zagueiro' },
       { teamId: 'corinthians2026', name: 'Fabrizio Angileri', posLabel: 'Lateral-Esquerdo' },
-      { teamId: 'botafogo2026', name: 'Danilo (ex-Nottingham)', posLabel: 'Volante' },
+      { teamId: 'botafogo2026', name: 'Danilo Santos', posLabel: 'Volante' },
       { teamId: 'vasco2026', name: 'Thiago Mendes', posLabel: 'Volante' },
       { teamId: 'santos2026', name: 'Rollheiser', posLabel: 'Meia', craque: true },
       { teamId: 'atleticomg2026', name: 'Tomas Cuello', posLabel: 'Ponta-Direita' },

@@ -2721,7 +2721,7 @@ export const TEAMS = [
       { name: 'Nahuel Ferraresi', pos: ['ZAG'], ovr: 80 },
       { name: 'Vitinho', pos: ['ZAG', 'LD'], ovr: 78 },
       { name: 'Alex Telles', pos: ['LE', 'ME'], ovr: 82 },
-      { name: 'Danilo (ex-Nottingham)', pos: ['MC', 'VOL'], ovr: 83 },
+      { name: 'Danilo Santos', pos: ['MC', 'VOL'], ovr: 83 },
       { name: 'Cristian Medina', pos: ['MC', 'MEI'], ovr: 82 },
       { name: 'Alvaro Montoro', pos: ['MEI', 'PE'], ovr: 81 },
       { name: 'Artur Victor', pos: ['PD', 'MD', 'ATA'], ovr: 82 },

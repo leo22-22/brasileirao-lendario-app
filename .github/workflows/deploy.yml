@@ -1,0 +1,38 @@
+name: Deploy to Hostinger
+
+# O deploy git nativo da Hostinger (hbuilds) parou de disparar sozinho depois
+# de 08/09/2026 sem nenhuma mudança de configuração conhecida — ver commit
+# que adiciona este arquivo para o diagnóstico completo (HEAD do checkout
+# publicado ficou parado no último commit daquele dia enquanto a main
+# avançava). Este workflow substitui esse gatilho: a cada push na main, entra
+# via SSH direto na pasta que já está no ar (~/domains/.../hbuilds/current/
+# nodejs — o mesmo checkout git que a Hostinger criou), atualiza pro commit
+# mais recente e reconstrói ali mesmo. Se o gatilho nativo da Hostinger
+# voltar a funcionar sozinho no futuro, os dois vão brigar pela mesma pasta —
+# nesse caso, desativar um dos dois.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          port: ${{ secrets.SSH_PORT }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            set -e
+            cd ~/domains/brasileiraolendario.com.br/hbuilds/current/nodejs
+            git fetch origin
+            git checkout origin/main
+            export PATH=$PATH:/opt/alt/alt-nodejs22/root/bin
+            npm install
+            npm run build
+            mkdir -p tmp
+            touch tmp/restart.txt
