@@ -32,6 +32,12 @@ jobs:
             git fetch origin
             git checkout origin/main
             export PATH=$PATH:/opt/alt/alt-nodejs22/root/bin
+            # node_modules antigo (de antes desse workflow existir) tinha
+            # perdido o bit de execucao dos binarios (vite, tsc etc.) - dá
+            # "Permission denied" na hora de rodar. Reinstala do zero sempre,
+            # nas duas pastas (raiz e server/), pra nunca mais depender de um
+            # node_modules com permissao quebrada.
+            rm -rf node_modules server/node_modules
             npm install
             npm run build
             mkdir -p tmp
