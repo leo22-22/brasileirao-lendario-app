@@ -2,6 +2,11 @@
 import Peer from 'peerjs';
 import * as api from './api.js';
 import { TEAMS } from './data/teams.js';
+// Times de 2026 (elenco real, Brasileirão Atual) não são "lendários" — só
+// aparecem no modo Brasileirão Atual 2026 (que lê TEAMS/SERIE_A_2026_TEAM_IDS
+// direto). Todo pool do modo clássico (sorteio padrão, Modo Livre, "já sei
+// qual time eu quero") usa esta lista sem eles.
+const LEGACY_TEAMS = TEAMS.filter(t => t.year !== 2026);
 import { CLUB_LOGOS } from './data/club-logos.js';
 import { INFO_TABS, INFO_ROUTES } from './data/info-content.js';
 import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from './lib/format.js';
@@ -125,33 +130,41 @@ function matchPrng(roomSeed, roundKey, homeId, awayId) {
 
 
 
-// Seleção da Semana — a escalação ideal da rodada mais recente do
+// Seleção da Semana — histórico de escalações ideais por rodada do
 // Brasileirão 2026 de verdade (notas Sofascore), sempre 11 jogadores + 1
-// craque. É um upgrade TEMPORÁRIO: só existe UMA seleção "vigente" por vez
-// (este objeto) — trocar pra rodada nova é só substituir `players` aqui.
+// craque cada. A mais recente (último item do array) é a "vigente": só ela
+// entra no upgrade de OVR (ver applyWeeklyTeamBoost logo abaixo) — as
+// anteriores ficam só pra consulta na tela de histórico (WeeklyTeamModal).
+// Pra trocar de rodada: dá um `push` de uma entrada nova aqui, nunca
+// substitui as antigas (antes disso virar array, cada rodada nova
+// sobrescrevia a anterior e o histórico se perdia — é por isso que só tem
+// dado a partir da 27ª).
 // O bônus nunca fica gravado no `ovr` original escrito acima: ele é somado
 // de novo, do zero, toda vez que o app carrega (ver applyWeeklyTeamBoost
 // logo abaixo), então o jogador da rodada anterior volta sozinho pro OVR
-// normal assim que deixa de aparecer nesta lista — não tem passo manual de
-// "desfazer".
-const WEEKLY_TEAM_OF_THE_WEEK = {
-  round: 27,
-  label: '27ª Rodada',
-  sourceLabel: 'Notas Sofascore',
-  players: [
-    { teamId: 'cruzeiro2026', name: 'Otavio Costa', posLabel: 'Goleiro' },
-    { teamId: 'botafogo2026', name: 'Vitinho', posLabel: 'Lateral-Direito' },
-    { teamId: 'coritiba2026', name: 'Rodrigo Moledo', posLabel: 'Zagueiro' },
-    { teamId: 'corinthians2026', name: 'Joao Pedro', posLabel: 'Zagueiro' },
-    { teamId: 'corinthians2026', name: 'Fabrizio Angileri', posLabel: 'Lateral-Esquerdo' },
-    { teamId: 'botafogo2026', name: 'Danilo (ex-Nottingham)', posLabel: 'Volante' },
-    { teamId: 'vasco2026', name: 'Thiago Mendes', posLabel: 'Volante' },
-    { teamId: 'santos2026', name: 'Rollheiser', posLabel: 'Meia', craque: true },
-    { teamId: 'atleticomg2026', name: 'Tomas Cuello', posLabel: 'Ponta-Direita' },
-    { teamId: 'mirassol2026', name: 'E. Carioca', posLabel: 'Ponta-Esquerda' },
-    { teamId: 'vitoria2026', name: 'Rene', posLabel: 'Ponta-Esquerda' },
-  ],
-};
+// normal assim que deixa de ser a mais recente da lista — não tem passo
+// manual de "desfazer".
+const WEEKLY_TEAMS = [
+  {
+    round: 27,
+    label: '27ª Rodada',
+    sourceLabel: 'Notas Sofascore',
+    players: [
+      { teamId: 'cruzeiro2026', name: 'Otavio Costa', posLabel: 'Goleiro' },
+      { teamId: 'botafogo2026', name: 'Vitinho', posLabel: 'Lateral-Direito' },
+      { teamId: 'coritiba2026', name: 'Rodrigo Moledo', posLabel: 'Zagueiro' },
+      { teamId: 'corinthians2026', name: 'Joao Pedro', posLabel: 'Zagueiro' },
+      { teamId: 'corinthians2026', name: 'Fabrizio Angileri', posLabel: 'Lateral-Esquerdo' },
+      { teamId: 'botafogo2026', name: 'Danilo (ex-Nottingham)', posLabel: 'Volante' },
+      { teamId: 'vasco2026', name: 'Thiago Mendes', posLabel: 'Volante' },
+      { teamId: 'santos2026', name: 'Rollheiser', posLabel: 'Meia', craque: true },
+      { teamId: 'atleticomg2026', name: 'Tomas Cuello', posLabel: 'Ponta-Direita' },
+      { teamId: 'mirassol2026', name: 'E. Carioca', posLabel: 'Ponta-Esquerda' },
+      { teamId: 'vitoria2026', name: 'Rene', posLabel: 'Ponta-Esquerda' },
+    ],
+  },
+];
+const WEEKLY_TEAM_OF_THE_WEEK = WEEKLY_TEAMS[WEEKLY_TEAMS.length - 1];
 
 // Aplica o bônus (+3, +5 pro craque) direto nos objetos de TEAMS, uma vez,
 // no carregamento do módulo — dali em diante todo mundo que lê `player.ovr`
@@ -2315,7 +2328,7 @@ export default function App() {
   // Pool de onde o draft sorteia — os 200 de sempre, ou só os 16 do Modo
   // Livre quando configurado. Usado nos 3 pontos que rolam um novo time
   // (primeiro sorteio, pular, e o auto-sorteio depois de escalar um jogador).
-  const draftPool = livreTeamIds ? TEAMS.filter(t => livreTeamIds.includes(t.id)) : TEAMS;
+  const draftPool = livreTeamIds ? LEGACY_TEAMS.filter(t => livreTeamIds.includes(t.id)) : LEGACY_TEAMS;
   const [isRolling, setIsRolling] = useState(false);
   const [rollingPreview, setRollingPreview] = useState(null);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -7386,12 +7399,51 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
   );
 }
 
-// Seleção da Semana — lista completa da escalação ideal da rodada mais
-// recente do Brasileirão 2026 de verdade (ver WEEKLY_TEAM_OF_THE_WEEK), com
-// o craque em destaque. Só leitura — o bônus em si já foi aplicado direto
-// nos jogadores de TEAMS no carregamento do módulo.
+// Onde cada função entra no desenho do campo (0 = linha de fundo/goleiro,
+// 5 = linha de ataque) e a sigla curta pra caber no chip do jogador. Posição
+// que não bate com nenhuma chave aqui (rótulo inesperado) cai numa linha do
+// meio por padrão, em vez de quebrar o layout.
+const WEEK_ROLE_INFO = {
+  'Goleiro': { line: 0, abbr: 'GOL' },
+  'Lateral-Direito': { line: 1, abbr: 'LD' },
+  'Lateral-Esquerdo': { line: 1, abbr: 'LE' },
+  'Zagueiro': { line: 1, abbr: 'ZAG' },
+  'Volante': { line: 2, abbr: 'VOL' },
+  'Meia': { line: 3, abbr: 'MEI' },
+  'Meia-Direita': { line: 3, abbr: 'MD' },
+  'Meia-Esquerda': { line: 3, abbr: 'ME' },
+  'Meio-Campo': { line: 3, abbr: 'MEI' },
+  'Ponta-Direita': { line: 4, abbr: 'PD' },
+  'Ponta-Esquerda': { line: 4, abbr: 'PE' },
+  'Atacante': { line: 5, abbr: 'ATA' },
+};
+const WEEK_LINE_TOP_PCT = { 0: 90, 1: 74, 2: 58, 3: 42, 4: 24, 5: 8 };
+
+// Seleção da Semana — campo com a escalação ideal da rodada (notas
+// Sofascore), navegável entre a rodada vigente e as anteriores guardadas em
+// WEEKLY_TEAMS. Só leitura — o bônus de OVR em si já foi aplicado direto nos
+// jogadores de TEAMS no carregamento do módulo, e só pra rodada mais
+// recente (ver comentário acima de WEEKLY_TEAMS).
 function WeeklyTeamModal({ onClose }) {
-  const w = WEEKLY_TEAM_OF_THE_WEEK;
+  const [weekIdx, setWeekIdx] = useState(WEEKLY_TEAMS.length - 1);
+  const w = WEEKLY_TEAMS[weekIdx];
+  const isCurrent = weekIdx === WEEKLY_TEAMS.length - 1;
+  const hasPrev = weekIdx > 0;
+  const hasNext = weekIdx < WEEKLY_TEAMS.length - 1;
+
+  const enriched = useMemo(() => w.players.map(wp => {
+    const team = TEAMS.find(t => t.id === wp.teamId);
+    const player = team?.players.find(p => p.name === wp.name);
+    const info = WEEK_ROLE_INFO[wp.posLabel] || { line: 3, abbr: (wp.posLabel || '').slice(0, 3).toUpperCase() };
+    return { ...wp, team, player, ...info };
+  }), [w]);
+
+  const lines = useMemo(() => {
+    const byLine = {};
+    enriched.forEach(p => { (byLine[p.line] ||= []).push(p); });
+    return byLine;
+  }, [enriched]);
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2500, overflowY: 'auto', padding: 16 }} onClick={onClose}>
       <div
@@ -7407,13 +7459,74 @@ function WeeklyTeamModal({ onClose }) {
               {w.label}
             </div>
             <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>
-              {w.sourceLabel} · quem está aqui joga com +3 OVR (craque +5) até sair da seleção
+              {w.sourceLabel} · {isCurrent ? 'quem está aqui joga com +3 OVR (craque +5) até sair da seleção' : 'rodada anterior — o bônus de OVR já não vale mais, só a mais recente vale'}
             </div>
           </div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
         </div>
+
+        {WEEKLY_TEAMS.length > 1 && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, margin: '14px 0 2px' }}>
+            <button
+              onClick={() => hasPrev && setWeekIdx(i => i - 1)}
+              disabled={!hasPrev}
+              className="tap-target-sm"
+              style={{ background: 'none', border: 'none', color: hasPrev ? '#F4F1EA' : 'rgba(244,241,234,0.25)', fontSize: 20, cursor: hasPrev ? 'pointer' : 'default', padding: 4 }}
+            >‹</button>
+            <div style={{ fontSize: 11.5, opacity: 0.65, minWidth: 100, textAlign: 'center' }}>
+              {isCurrent ? 'Rodada atual' : 'Rodada anterior'}
+            </div>
+            <button
+              onClick={() => hasNext && setWeekIdx(i => i + 1)}
+              disabled={!hasNext}
+              className="tap-target-sm"
+              style={{ background: 'none', border: 'none', color: hasNext ? '#F4F1EA' : 'rgba(244,241,234,0.25)', fontSize: 20, cursor: hasNext ? 'pointer' : 'default', padding: 4 }}
+            >›</button>
+          </div>
+        )}
+
+        <div style={styles.pitchWrap}>
+          <div style={{
+            ...styles.pitchField,
+            background: '#124d27',
+            backgroundImage: 'repeating-linear-gradient(to bottom, rgba(0,0,0,0.07) 0%, rgba(0,0,0,0.07) 14.3%, transparent 14.3%, transparent 28.6%)',
+          }}>
+            {Object.entries(lines).map(([line, linePlayers]) => linePlayers.map((p, i) => {
+              const leftPct = ((i + 1) / (linePlayers.length + 1)) * 100;
+              const topPct = WEEK_LINE_TOP_PCT[line] ?? 50;
+              const isCraque = !!p.craque;
+              const gold = isCraque ? '#ffd700' : '#d4a23c';
+              return (
+                <div key={p.teamId + p.name} style={{
+                  position: 'absolute', left: `${leftPct}%`, top: `${topPct}%`, transform: 'translate(-50%,-50%)',
+                  display: 'flex', flexDirection: 'column', alignItems: 'center', width: 64,
+                }}>
+                  <div style={{
+                    width: 38, height: 38, borderRadius: '50%', background: hexToRgba(gold, 0.18),
+                    border: `2px solid ${gold}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    boxShadow: isCraque ? `0 0 10px ${hexToRgba(gold, 0.6)}` : 'none', flexShrink: 0,
+                  }}>
+                    {p.team && CLUB_LOGOS[p.team.club] ? (
+                      <img src={CLUB_LOGOS[p.team.club]} alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
+                    ) : (
+                      <span style={{ fontSize: 9.5, fontWeight: 800, color: gold }}>{p.abbr}</span>
+                    )}
+                  </div>
+                  <div style={{
+                    marginTop: 3, fontSize: 9.5, fontWeight: 700, color: '#F4F1EA', textAlign: 'center',
+                    textShadow: '0 1px 3px rgba(0,0,0,0.85)', lineHeight: 1.2, maxWidth: 64,
+                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                  }}>
+                    {isCraque ? '👑 ' : ''}{shortName(p.name)}
+                  </div>
+                </div>
+              );
+            }))}
+          </div>
+        </div>
+
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-          {w.players.map((wp, i) => {
+          {enriched.map((wp, i) => {
             const isCraque = !!wp.craque;
             const gold = isCraque ? '#ffd700' : '#d4a23c';
             return (
@@ -7431,11 +7544,12 @@ function WeeklyTeamModal({ onClose }) {
                     {wp.player && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: gold, marginLeft: 6 }}>{wp.player.ovr} OVR</span>}
                   </div>
                   <div style={{ fontSize: 11, opacity: 0.6 }}>{wp.posLabel}{wp.team ? ` · ${wp.team.club}` : ''}</div>
-                  {wp.note && <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 2, fontStyle: 'italic', lineHeight: 1.35 }}>{wp.note}</div>}
                 </div>
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 800, color: gold, flexShrink: 0 }}>
-                  +{isCraque ? 5 : 3}
-                </div>
+                {isCurrent && (
+                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 800, color: gold, flexShrink: 0 }}>
+                    +{isCraque ? 5 : 3}
+                  </div>
+                )}
               </div>
             );
           })}
@@ -8710,7 +8824,7 @@ function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGame
 function TeamPickerModal({ onClose, onPick, onlyIds = null, title = 'Escolha um time pronto' }) {
   const [query, setQuery] = useState('');
   const sorted = useMemo(() => {
-    const base = onlyIds ? TEAMS.filter(t => onlyIds.includes(t.id)) : TEAMS;
+    const base = onlyIds ? TEAMS.filter(t => onlyIds.includes(t.id)) : LEGACY_TEAMS;
     return [...base].sort((a, b) => b.year - a.year);
   }, [onlyIds]);
   const filtered = useMemo(() => {
@@ -8862,7 +8976,7 @@ function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [], initia
   const [query, setQuery] = useState('');
   const [selected, setSelected] = useState(() => new Set(initialSelected));
   const [format, setFormat] = useState(initialFormat === 'copa' ? 'copa' : 'serieab');
-  const sorted = useMemo(() => [...TEAMS].sort((a, b) => b.year - a.year), []);
+  const sorted = useMemo(() => [...LEGACY_TEAMS].sort((a, b) => b.year - a.year), []);
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return sorted;
