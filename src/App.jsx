@@ -135,21 +135,21 @@ function matchPrng(roomSeed, roundKey, homeId, awayId) {
 // normal assim que deixa de aparecer nesta lista — não tem passo manual de
 // "desfazer".
 const WEEKLY_TEAM_OF_THE_WEEK = {
-  round: 26,
-  label: '26ª Rodada',
+  round: 27,
+  label: '27ª Rodada',
   sourceLabel: 'Notas Sofascore',
   players: [
-    { teamId: 'chapecoense2026', name: 'Anderson', posLabel: 'Goleiro', craque: true },
-    { teamId: 'corinthians2026', name: 'Matheus Bidu', posLabel: 'Lateral-Esquerdo' },
-    { teamId: 'flamengo2026', name: 'Leo Pereira', posLabel: 'Zagueiro' },
-    { teamId: 'palmeiras2026', name: 'Gustavo Gomez', posLabel: 'Zagueiro' },
-    { teamId: 'mirassol2026', name: 'Igor Formiga', posLabel: 'Lateral-Direito' },
-    { teamId: 'santos2026', name: 'Christian Oliva', posLabel: 'Volante' },
-    { teamId: 'cruzeiro2026', name: 'Lucas Romero', posLabel: 'Volante' },
-    { teamId: 'chapecoense2026', name: 'Marcinho', posLabel: 'Meia-Direita' },
+    { teamId: 'cruzeiro2026', name: 'Otavio Costa', posLabel: 'Goleiro' },
+    { teamId: 'botafogo2026', name: 'Vitinho', posLabel: 'Lateral-Direito' },
+    { teamId: 'coritiba2026', name: 'Rodrigo Moledo', posLabel: 'Zagueiro' },
+    { teamId: 'corinthians2026', name: 'Joao Pedro', posLabel: 'Zagueiro' },
+    { teamId: 'corinthians2026', name: 'Fabrizio Angileri', posLabel: 'Lateral-Esquerdo' },
+    { teamId: 'botafogo2026', name: 'Danilo (ex-Nottingham)', posLabel: 'Volante' },
+    { teamId: 'vasco2026', name: 'Thiago Mendes', posLabel: 'Volante' },
+    { teamId: 'santos2026', name: 'Rollheiser', posLabel: 'Meia', craque: true },
+    { teamId: 'atleticomg2026', name: 'Tomas Cuello', posLabel: 'Ponta-Direita' },
+    { teamId: 'mirassol2026', name: 'E. Carioca', posLabel: 'Ponta-Esquerda' },
     { teamId: 'vitoria2026', name: 'Rene', posLabel: 'Ponta-Esquerda' },
-    { teamId: 'cruzeiro2026', name: 'Kaio Jorge', posLabel: 'Atacante' },
-    { teamId: 'santos2026', name: 'Gabigol', posLabel: 'Atacante' },
   ],
 };
 

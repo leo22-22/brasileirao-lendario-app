@@ -2709,6 +2709,7 @@ export const TEAMS = [
       { name: 'Jose Aldo', pos: ['MC', 'MEI'], ovr: 72 },
       { name: 'Japa', pos: ['MC', 'VOL'], ovr: 71 },
       { name: 'Chico Kim', pos: ['MEI', 'PE'], ovr: 73 },
+      { name: 'E. Carioca', pos: ['PE', 'ME', 'ATA'], ovr: 75 },
     ]
   },
   {
