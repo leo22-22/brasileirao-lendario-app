@@ -163,6 +163,24 @@ const WEEKLY_TEAMS = [
       { teamId: 'vitoria2026', name: 'Rene', posLabel: 'Ponta-Esquerda' },
     ],
   },
+  {
+    round: 28,
+    label: '28ª Rodada',
+    sourceLabel: 'Notas Sofascore',
+    players: [
+      { teamId: 'gremio2026', name: 'Weverton', posLabel: 'Goleiro', craque: true },
+      { teamId: 'athleticopr2026', name: 'Lucas Esquivel', posLabel: 'Lateral-Esquerdo' },
+      { teamId: 'mirassol2026', name: 'Willian Machado', posLabel: 'Zagueiro' },
+      { teamId: 'vasco2026', name: 'Alan Saldivia', posLabel: 'Zagueiro' },
+      { teamId: 'chapecoense2026', name: 'Dudu', posLabel: 'Lateral-Direito' },
+      { teamId: 'vasco2026', name: 'Alan Lescano', posLabel: 'Volante' },
+      { teamId: 'flamengo2026', name: 'Jorge Carrascal', posLabel: 'Meia' },
+      { teamId: 'atleticomg2026', name: 'Bernard', posLabel: 'Meia' },
+      { teamId: 'mirassol2026', name: 'Eduardo', posLabel: 'Meia' },
+      { teamId: 'vasco2026', name: 'Andres Gomez', posLabel: 'Ponta-Direita' },
+      { teamId: 'fluminense2026', name: 'Hulk', posLabel: 'Atacante' },
+    ],
+  },
 ];
 const WEEKLY_TEAM_OF_THE_WEEK = WEEKLY_TEAMS[WEEKLY_TEAMS.length - 1];
 

@@ -2630,6 +2630,7 @@ export const TEAMS = [
       { name: 'Bruno Henrique', pos: ['PE', 'ATA'], ovr: 84 },
       { name: 'Anthony Valencia', pos: ['PD', 'PE', 'MD', 'ME'], ovr: 78 },
       { name: 'Joaquin Freitas', pos: ['ATA'], ovr: 78 },
+      { name: 'Jorge Carrascal', pos: ['MEI', 'MD', 'PD', 'ME'], ovr: 79 },
     ]
   },
   {
@@ -2710,6 +2711,7 @@ export const TEAMS = [
       { name: 'Japa', pos: ['MC', 'VOL'], ovr: 71 },
       { name: 'Chico Kim', pos: ['MEI', 'PE'], ovr: 73 },
       { name: 'E. Carioca', pos: ['PE', 'ME', 'ATA'], ovr: 75 },
+      { name: 'Eduardo', pos: ['MEI', 'ME'], ovr: 77 },
     ]
   },
   {
@@ -2926,6 +2928,7 @@ export const TEAMS = [
       { name: 'Mateus Carvalho', pos: ['VOL', 'MC'], ovr: 73 },
       { name: 'Claudio Spinelli', pos: ['ATA'], ovr: 78 },
       { name: 'Brenner', pos: ['ATA', 'PE'], ovr: 75 },
+      { name: 'Alan Lescano', pos: ['VOL', 'MC'], ovr: 77 },
     ]
   },
   {
@@ -3121,6 +3124,7 @@ export const TEAMS = [
       { name: 'Leo Vieira', pos: ['GOL'], ovr: 72 },
       { name: 'Diego Torres', pos: ['MEI', 'MC'], ovr: 73 },
       { name: 'Anderson', pos: ['GOL'], ovr: 75 },
+      { name: 'Dudu', pos: ['LD'], ovr: 72 },
     ]
   },
   {
