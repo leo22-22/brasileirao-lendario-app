@@ -401,7 +401,10 @@ function main() {
     const title = `${team.label} — Elenco completo | Brasileirão Lendário`;
     const stats = computeTeamStats(team, TEAMS);
     const description = renderMetaDescription(team, stats);
-    const ogImage = CLUB_LOGOS[team.club] || `${SITE_URL}/og-image.png`;
+    // Banner padrão 1200x630 em vez do escudo do clube: escudo sozinho fica
+    // cortado/ilegível no card de preview (WhatsApp, Discord etc. recortam
+    // pro formato 1.91:1), e divergia da home, que já usa esse banner.
+    const ogImage = `${SITE_URL}/og-image.png`;
     writeRoute(routePath, patchHtml(template, {
       title,
       description,
