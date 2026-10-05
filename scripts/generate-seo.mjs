@@ -23,6 +23,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { TEAMS } from '../src/data/teams.js';
 import { CLUB_LOGOS } from '../src/data/club-logos.js';
+import { CONTACT_EMAIL, HOW_TO_PLAY_STEPS } from '../src/data/info-content.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
@@ -201,6 +202,73 @@ function renderTeamBody(team, stats) {
     </main>`;
 }
 
+// Texto idêntico ao que já é mostrado dentro do app (InfoPage em
+// src/content/ContentPages.jsx) — reaproveitado aqui, não reescrito, pra não
+// divergir dos Termos/Privacidade reais com o tempo.
+function renderComoJogarBody() {
+  const items = HOW_TO_PLAY_STEPS
+    .map(s => `<li><strong>${s.icon} ${escapeHtml(s.title)}.</strong> ${escapeHtml(s.text)}</li>`)
+    .join('\n          ');
+  return `
+    <header><nav aria-label="Trilha de navegação"><a href="/">Início</a> › <span>Como Jogar</span></nav></header>
+    <main>
+      <article>
+        <h1>Como Jogar o Brasileirão Lendário</h1>
+        <ol>
+          ${items}
+        </ol>
+        <p><a href="/">Jogar agora →</a></p>
+      </article>
+    </main>`;
+}
+
+function renderTermosBody() {
+  return `
+    <header><nav aria-label="Trilha de navegação"><a href="/">Início</a> › <span>Termos de Uso</span></nav></header>
+    <main>
+      <article>
+        <h1>Termos de Uso</h1>
+        <p><strong>Sobre o jogo.</strong> Brasileirão Lendário é um simulador de futebol gratuito, feito por fã, sem qualquer vínculo oficial com a CBF, clubes ou federações — os nomes de times e jogadores históricos aparecem em caráter editorial/homenagem, sem fins comerciais associados a essas marcas.</p>
+        <p><strong>Sem apostas ou dinheiro real.</strong> Não há qualquer forma de aposta, prêmio em dinheiro ou compra dentro do jogo. É puramente entretenimento.</p>
+        <p><strong>Sua conta.</strong> Você é responsável por manter sua senha em segurança. Pode excluir sua conta e todos os dados associados a qualquer momento, direto no painel de conta.</p>
+        <p><strong>Modo multiplayer.</strong> Ao jogar com outras pessoas, espera-se conduta respeitosa. Não há moderação em tempo real do chat — use o bom senso.</p>
+        <p><strong>Sem garantias.</strong> O serviço é fornecido "como está". Não garantimos disponibilidade ininterrupta nem ausência total de erros.</p>
+        <p><strong>Mudanças.</strong> Estes termos podem ser atualizados conforme o jogo evolui.</p>
+        <p>Dúvidas: <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a></p>
+      </article>
+    </main>`;
+}
+
+function renderPrivacidadeBody() {
+  return `
+    <header><nav aria-label="Trilha de navegação"><a href="/">Início</a> › <span>Privacidade</span></nav></header>
+    <main>
+      <article>
+        <h1>Política de Privacidade</h1>
+        <p><strong>O que coletamos.</strong> Nome de usuário, email e senha (guardada só como hash, nunca em texto puro) ao criar conta; estatísticas de jogo (temporadas, gols, títulos etc.) associadas à sua conta; e o endereço IP das suas requisições, usado só pra limitar tentativas de login e evitar abuso — não pra rastreamento.</p>
+        <p><strong>Armazenamento local.</strong> O progresso da partida em andamento e o token de login ficam salvos no seu próprio navegador (localStorage), não em nossos servidores.</p>
+        <p><strong>Google Analytics.</strong> Usamos o Google Analytics pra entender, de forma agregada, como o site é usado (páginas vistas, eventos como criar conta ou completar uma temporada). Não vendemos nem compartilhamos seus dados pessoais com terceiros pra fins de publicidade.</p>
+        <p><strong>Seus direitos.</strong> Você pode acessar, corrigir ou excluir seus dados a qualquer momento — a exclusão de conta (disponível no painel) apaga permanentemente seu registro do nosso banco de dados.</p>
+        <p><strong>Menores de idade.</strong> O jogo não é direcionado especificamente a crianças menores de 13 anos.</p>
+        <p>Dúvidas ou solicitações sobre seus dados: <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a></p>
+      </article>
+    </main>`;
+}
+
+function renderContatoBody() {
+  return `
+    <header><nav aria-label="Trilha de navegação"><a href="/">Início</a> › <span>Contato</span></nav></header>
+    <main>
+      <article>
+        <h1>Fala com a gente!</h1>
+        <p>Esse jogo é feito por (e pra) quem ama futebol brasileiro — então toda ideia é bem-vinda:</p>
+        <p><strong>🏟️ Quer que a gente adicione algum time histórico que falta?</strong> Manda os 20 atletas completos (titulares + reservas) do elenco que você quer ver no jogo, com posição de cada um — a gente confere e, se entrar, divulga aqui no site quem teve a ideia.</p>
+        <p><strong>💡 Tem alguma sugestão, bug pra reportar ou só quer trocar uma ideia?</strong> Manda pra gente também — toda sugestão que vira novidade no jogo, o crédito é seu.</p>
+        <p><a href="mailto:${CONTACT_EMAIL}">✉️ ${CONTACT_EMAIL}</a></p>
+      </article>
+    </main>`;
+}
+
 function patchHtml(template, { title, description, routePath, robots, ogImage, jsonLdBlocks, bodyHtml }) {
   const url = `${SITE_URL}${routePath}`;
   let out = template;
@@ -266,6 +334,53 @@ function main() {
   const template = fs.readFileSync(templatePath, 'utf8');
 
   let count = 0;
+
+  const INFO_PAGES = [
+    {
+      routePath: '/como-jogar',
+      title: 'Como Jogar — Brasileirão Lendário',
+      description: 'Aprenda a jogar o Brasileirão Lendário: monte seu elenco no draft, escolha formação e capitão, e dispute o Brasileirão ou a Copa do Brasil.',
+      bodyHtml: renderComoJogarBody(),
+      breadcrumbName: 'Como Jogar',
+    },
+    {
+      routePath: '/termos-de-uso',
+      title: 'Termos de Uso — Brasileirão Lendário',
+      description: 'Termos de uso do Brasileirão Lendário: simulador de futebol gratuito, sem apostas ou dinheiro real, feito por fã e sem vínculo oficial com clubes ou federações.',
+      bodyHtml: renderTermosBody(),
+      breadcrumbName: 'Termos de Uso',
+    },
+    {
+      routePath: '/privacidade',
+      title: 'Política de Privacidade — Brasileirão Lendário',
+      description: 'Política de privacidade do Brasileirão Lendário: o que coletamos, como armazenamos e quais são seus direitos sobre seus dados.',
+      bodyHtml: renderPrivacidadeBody(),
+      breadcrumbName: 'Privacidade',
+    },
+    {
+      routePath: '/contato',
+      title: 'Contato — Brasileirão Lendário',
+      description: 'Fale com o Brasileirão Lendário: sugira um time histórico, reporte um bug ou mande sua ideia pro jogo.',
+      bodyHtml: renderContatoBody(),
+      breadcrumbName: 'Contato',
+    },
+  ];
+
+  for (const page of INFO_PAGES) {
+    writeRoute(page.routePath, patchHtml(template, {
+      title: page.title,
+      description: page.description,
+      routePath: page.routePath,
+      robots: 'index, follow',
+      ogImage: `${SITE_URL}/og-image.png`,
+      jsonLdBlocks: [breadcrumbJsonLd([
+        { name: 'Início', url: `${SITE_URL}/` },
+        { name: page.breadcrumbName, url: `${SITE_URL}${page.routePath}` },
+      ])],
+      bodyHtml: page.bodyHtml,
+    }));
+    count++;
+  }
 
   writeRoute('/times', patchHtml(template, {
     title: 'Times Históricos do Brasileirão — Brasileirão Lendário',
