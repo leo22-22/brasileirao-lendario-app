@@ -8,7 +8,7 @@ import { TEAMS } from './data/teams.js';
 // qual time eu quero") usa esta lista sem eles.
 const LEGACY_TEAMS = TEAMS.filter(t => t.year !== 2026);
 import { CLUB_LOGOS } from './data/club-logos.js';
-import { INFO_TABS, INFO_ROUTES } from './data/info-content.js';
+import { INFO_TABS, INFO_ROUTES, CLUB_STADIUMS } from './data/info-content.js';
 import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from './lib/format.js';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
