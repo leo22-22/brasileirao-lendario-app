@@ -181,6 +181,24 @@ const WEEKLY_TEAMS = [
       { teamId: 'fluminense2026', name: 'Hulk', posLabel: 'Atacante' },
     ],
   },
+  {
+    round: 31,
+    label: '31ª Rodada',
+    sourceLabel: 'Notas Sofascore',
+    players: [
+      { teamId: 'bahia2026', name: 'Ronaldo', posLabel: 'Goleiro', craque: true },
+      { teamId: 'palmeiras2026', name: 'Alexander Barboza', posLabel: 'Zagueiro' },
+      { teamId: 'mirassol2026', name: 'Joao Victor', posLabel: 'Zagueiro' },
+      { teamId: 'cruzeiro2026', name: 'Joao Marcelo', posLabel: 'Zagueiro' },
+      { teamId: 'botafogo2026', name: 'Alex Telles', posLabel: 'Lateral-Esquerdo' },
+      { teamId: 'flamengo2026', name: 'Jorge Carrascal', posLabel: 'Meia' },
+      { teamId: 'atleticomg2026', name: 'Alexsander', posLabel: 'Volante' },
+      { teamId: 'bragantino2026', name: 'Lucas Barbosa', posLabel: 'Ponta-Direita' },
+      { teamId: 'cruzeiro2026', name: 'Kaio Jorge', posLabel: 'Atacante' },
+      { teamId: 'santos2026', name: 'Gabigol', posLabel: 'Atacante' },
+      { teamId: 'flamengo2026', name: 'Gonzalo Plata', posLabel: 'Ponta-Direita' },
+    ],
+  },
 ];
 const WEEKLY_TEAM_OF_THE_WEEK = WEEKLY_TEAMS[WEEKLY_TEAMS.length - 1];
 
