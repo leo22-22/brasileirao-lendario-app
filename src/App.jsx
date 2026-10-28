@@ -199,6 +199,24 @@ const WEEKLY_TEAMS = [
       { teamId: 'flamengo2026', name: 'Gonzalo Plata', posLabel: 'Ponta-Direita' },
     ],
   },
+  {
+    round: 32,
+    label: '32ª Rodada',
+    sourceLabel: 'Notas Sofascore',
+    players: [
+      { teamId: 'chapecoense2026', name: 'Anderson', posLabel: 'Goleiro' },
+      { teamId: 'cruzeiro2026', name: 'Fabricio Bruno', posLabel: 'Zagueiro' },
+      { teamId: 'palmeiras2026', name: 'Bruno Fuchs', posLabel: 'Zagueiro' },
+      { teamId: 'internacional2026', name: 'Jose Juninho', posLabel: 'Zagueiro' },
+      { teamId: 'santos2026', name: 'Barreal', posLabel: 'Ponta-Esquerda' },
+      { teamId: 'palmeiras2026', name: 'Lucas Evangelista', posLabel: 'Volante' },
+      { teamId: 'palmeiras2026', name: 'Jhon Arias', posLabel: 'Ponta-Direita' },
+      { teamId: 'chapecoense2026', name: 'Giovanni Augusto', posLabel: 'Meia', craque: true },
+      { teamId: 'flamengo2026', name: 'Arrascaeta', posLabel: 'Meia' },
+      { teamId: 'vasco2026', name: 'Marino Hinestroza', posLabel: 'Ponta-Direita' },
+      { teamId: 'gremio2026', name: 'Martin Braithwaite', posLabel: 'Atacante' },
+    ],
+  },
 ];
 const WEEKLY_TEAM_OF_THE_WEEK = WEEKLY_TEAMS[WEEKLY_TEAMS.length - 1];
 

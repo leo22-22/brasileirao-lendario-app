@@ -2929,6 +2929,7 @@ export const TEAMS = [
       { name: 'Claudio Spinelli', pos: ['ATA'], ovr: 78 },
       { name: 'Brenner', pos: ['ATA', 'PE'], ovr: 75 },
       { name: 'Alan Lescano', pos: ['VOL', 'MC'], ovr: 77 },
+      { name: 'Marino Hinestroza', pos: ['PD', 'MD'], ovr: 78 },
     ]
   },
   {
@@ -2984,6 +2985,7 @@ export const TEAMS = [
       { name: 'Niclas Eliasson', pos: ['MD', 'PD', 'ME'], ovr: 79 },
       { name: 'Calebe', pos: ['MEI', 'MC', 'PD'], ovr: 78 },
       { name: 'Alerrandro', pos: ['ATA'], ovr: 77 },
+      { name: 'Jose Juninho', pos: ['ZAG'], ovr: 76 },
     ]
   },
   {
