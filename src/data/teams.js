@@ -2764,6 +2764,7 @@ export const TEAMS = [
       { name: 'Everton Ribeiro', pos: ['MEI', 'MC'], ovr: 83 },
       { name: 'Thaciano', pos: ['MEI', 'MC', 'ATA', 'PD'], ovr: 81 },
       { name: 'Willian Jose', pos: ['ATA'], ovr: 81 },
+      { name: 'Marcos Victor', pos: ['ZAG'], ovr: 77 },
     ]
   },
   {
@@ -2845,6 +2846,7 @@ export const TEAMS = [
       { name: 'Rodriguinho', pos: ['MC', 'MEI'], ovr: 76 },
       { name: 'Jose Maria Herrera', pos: ['PD', 'MD', 'ATA'], ovr: 76 },
       { name: 'Eduardo Sasha', pos: ['ATA', 'MEI'], ovr: 78 },
+      { name: 'Wallace Yan', pos: ['ATA'], ovr: 78 },
     ]
   },
   {
@@ -3154,6 +3156,7 @@ export const TEAMS = [
       { name: 'Yago Felipe', pos: ['MC', 'VOL', 'MEI'], ovr: 73 },
       { name: 'Jean Carlos', pos: ['MEI', 'PE', 'ME'], ovr: 74 },
       { name: 'Tulio Eduardo', pos: ['ATA'], ovr: 71 },
+      { name: 'Leonel Picco', pos: ['VOL', 'MC'], ovr: 74 },
     ]
   },
   {

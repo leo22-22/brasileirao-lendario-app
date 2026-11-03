@@ -217,6 +217,24 @@ const WEEKLY_TEAMS = [
       { teamId: 'gremio2026', name: 'Martin Braithwaite', posLabel: 'Atacante' },
     ],
   },
+  {
+    round: 33,
+    label: '33ª Rodada',
+    sourceLabel: 'Notas Sofascore',
+    players: [
+      { teamId: 'palmeiras2026', name: 'Carlos Miguel', posLabel: 'Goleiro' },
+      { teamId: 'corinthians2026', name: 'Fabrizio Angileri', posLabel: 'Lateral-Esquerdo' },
+      { teamId: 'coritiba2026', name: 'Tiago Coser', posLabel: 'Zagueiro' },
+      { teamId: 'bahia2026', name: 'Marcos Victor', posLabel: 'Zagueiro' },
+      { teamId: 'coritiba2026', name: 'Tinga', posLabel: 'Lateral-Direito' },
+      { teamId: 'remo2026', name: 'Leonel Picco', posLabel: 'Volante' },
+      { teamId: 'flamengo2026', name: 'Samuel Lino', posLabel: 'Ponta-Esquerda' },
+      { teamId: 'bragantino2026', name: 'Wallace Yan', posLabel: 'Atacante', craque: true },
+      { teamId: 'corinthians2026', name: 'Kaio Cesar', posLabel: 'Ponta-Direita' },
+      { teamId: 'internacional2026', name: 'Alan Patrick', posLabel: 'Meia' },
+      { teamId: 'flamengo2026', name: 'Pedro', posLabel: 'Atacante' },
+    ],
+  },
 ];
 const WEEKLY_TEAM_OF_THE_WEEK = WEEKLY_TEAMS[WEEKLY_TEAMS.length - 1];
 
