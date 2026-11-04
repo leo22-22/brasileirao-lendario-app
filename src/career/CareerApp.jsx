@@ -10,9 +10,10 @@ import { CareerHub } from './screens/CareerHub.jsx';
 import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
 import { CareerFormationScreen } from './screens/CareerFormationScreen.jsx';
 import { CareerTableScreen } from './screens/CareerTableScreen.jsx';
+import { CareerCalendarScreen } from './screens/CareerCalendarScreen.jsx';
 import { CareerTransferMarket } from './screens/CareerTransferMarket.jsx';
 import { loadCareerSave, saveCareerSave } from './state/careerStorage.js';
-import { createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie, respondToOffer } from './engine/seasonEngine.js';
+import { createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie, simulateRestOfSeason, respondToOffer } from './engine/seasonEngine.js';
 import { sellPlayer, buyPlayer } from './engine/rosterStore.js';
 
 function PlayoffTieScreen({ save, onResolve }) {
@@ -91,6 +92,18 @@ export function CareerApp({ onExit, onHudChange }) {
     });
   }, []);
 
+  // "Simular até o fim da temporada" — pula direto pro resumo de fim de
+  // temporada sem parar a cada dia; propostas que surgirem no caminho são
+  // rejeitadas automaticamente (ver simulateRestOfSeason).
+  const handleSimulateSeason = useCallback(() => {
+    setSave(prev => {
+      if (!prev) return prev;
+      const { save: after } = simulateRestOfSeason(prev);
+      setScreen(after.screen || (after.pendingUserTie ? 'playoff-tie' : 'hub'));
+      return after;
+    });
+  }, []);
+
   const handleResolvePlayoffTie = useCallback((result) => {
     setSave(prev => {
       if (!prev?.pendingUserTie || !result) return prev;
@@ -137,7 +150,8 @@ export function CareerApp({ onExit, onHudChange }) {
   if (screen === 'squad') return <CareerSquadScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'formation') return <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onBack={() => setScreen('hub')} />;
   if (screen === 'table') return <CareerTableScreen save={save} onBack={() => setScreen('hub')} />;
+  if (screen === 'calendar') return <CareerCalendarScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'market') return <CareerTransferMarket save={save} onSell={handleSell} onBuy={handleBuy} onRespondOffer={handleRespondOffer} onBack={() => setScreen('hub')} />;
 
-  return <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onExit={onExit} />;
+  return <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onSimulateSeason={handleSimulateSeason} onExit={onExit} />;
 }

@@ -6318,7 +6318,13 @@ export default function App() {
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
                   padding: '7px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                  color: careerHud.clubColor || '#d4a23c',
+                  // A cor do texto NUNCA usa a cor crua do clube — vários
+                  // times têm preto/cinza-escuro como cor principal
+                  // (Botafogo-SP, Vasco, Operário, etc.), e isso virava
+                  // texto preto ilegível sobre o fundo escuro do cabeçalho.
+                  // Só a borda/fundo (tingidos, baixa opacidade) usam a cor
+                  // do clube — o texto sempre fica no dourado fixo.
+                  color: '#d4a23c',
                   border: `1.5px solid ${hexToRgba(careerHud.clubColor || '#d4a23c', 0.4)}`,
                   background: hexToRgba(careerHud.clubColor || '#d4a23c', 0.1),
                   fontFamily: "'Space Mono', monospace",

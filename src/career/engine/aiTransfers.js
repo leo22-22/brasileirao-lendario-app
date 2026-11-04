@@ -40,15 +40,27 @@ export function decideAiListings(roster) {
 // { [clubId]: string[] } (nomes já sinalizados por decideAiListings).
 export function decideAiOffers(clubs, listingsByClub, rand = Math.random) {
   const offers = []; // { fromClubId, toClubId, playerName, amount }
-  const clubIds = Object.keys(clubs);
+  // Ordem dos clubes embaralhada A CADA CHAMADA (seed do dia) — sem isso,
+  // o mesmo clube sempre "ganhava" a vaga de comprador de uma posição
+  // fraca compartilhada por vários, e como o elenco do usuário quase
+  // nunca muda de um dia pro outro, a proposta acabava sendo sempre pelo
+  // mesmo jogador (bug real reportado: "só vinha proposta pelo mesmo
+  // jogador").
+  const clubIds = [...Object.keys(clubs)].sort(() => rand() - 0.5);
   for (const buyerId of clubIds) {
     const buyer = clubs[buyerId];
     const expected = TIER_EXPECTED_OVR[buyer.tier] ?? TIER_EXPECTED_OVR.pequeno;
     const bestByPos = bestOvrByPosition(buyer.roster);
-    const weakPos = POS_ORDER.find(pos => (bestByPos[pos] ?? 0) < expected - 3);
-    if (!weakPos) continue;
+    // Sorteia entre TODAS as posições fracas do comprador, não só a
+    // primeira na ordem fixa de POS_ORDER — um time pode ter várias
+    // carências ao mesmo tempo, e sempre atacar a mesma primeiro (dia
+    // após dia, já que o elenco dele não muda) era outra causa da mesma
+    // proposta se repetir.
+    const weakPositions = POS_ORDER.filter(pos => (bestByPos[pos] ?? 0) < expected - 3);
+    if (weakPositions.length === 0) continue;
+    const weakPos = weakPositions[Math.floor(rand() * weakPositions.length)];
 
-    let cheapestCandidate = null; // { sellerId, player, price }
+    const candidates = []; // { sellerId, player, price }
     for (const sellerId of clubIds) {
       if (sellerId === buyerId) continue;
       const listedNames = listingsByClub[sellerId] || [];
@@ -59,17 +71,21 @@ export function decideAiOffers(clubs, listingsByClub, rand = Math.random) {
         if (!listedNames.includes(player.name)) continue;
         const price = computePlayerValue(player, sellerId);
         if (price > buyer.budget) continue;
-        if (!cheapestCandidate || price < cheapestCandidate.price) {
-          cheapestCandidate = { sellerId, player, price };
-        }
+        candidates.push({ sellerId, player, price });
       }
     }
-    if (!cheapestCandidate) continue;
-    const amount = Math.round(cheapestCandidate.price * (1 + rand() * 0.1)); // 100%-110%
+    if (candidates.length === 0) continue;
+    // 70% das vezes pega o mais barato (decisão "econômica" razoável),
+    // 30% sorteia entre os candidatos qualificados — garante variedade
+    // mesmo quando o mesmo comprador aparece de novo em dias seguidos.
+    const picked = rand() < 0.7
+      ? candidates.reduce((min, c) => (c.price < min.price ? c : min))
+      : candidates[Math.floor(rand() * candidates.length)];
+    const amount = Math.round(picked.price * (1 + rand() * 0.1)); // 100%-110%
     offers.push({
       fromClubId: buyerId,
-      toClubId: cheapestCandidate.sellerId,
-      playerName: cheapestCandidate.player.name,
+      toClubId: picked.sellerId,
+      playerName: picked.player.name,
       amount,
     });
   }

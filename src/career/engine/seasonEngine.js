@@ -34,6 +34,9 @@ function buildDivision(teamIds, rand) {
     table: shuffled.map(emptyTableRow),
     fixtures: generateDoubleRoundRobin(shuffled),
     round: 0,
+    // results[roundIdx] = placares daquela rodada — guardado pra tela de
+    // calendário mostrar o que já foi jogado, não só a tabela acumulada.
+    results: [],
   };
 }
 
@@ -98,7 +101,7 @@ function teamForSim(save, clubId) {
 function playDivisionRound(save, divisionKey, roundIdx, userMatch) {
   const division = save[divisionKey];
   const matches = division.fixtures[roundIdx] || [];
-  const results = matches.map(m => {
+  const roundResults = matches.map(m => {
     if (userMatch && m.homeId === userMatch.homeId && m.awayId === userMatch.awayId) {
       return { homeId: m.homeId, awayId: m.awayId, homeGoals: userMatch.homeGoals, awayGoals: userMatch.awayGoals };
     }
@@ -108,11 +111,12 @@ function playDivisionRound(save, divisionKey, roundIdx, userMatch) {
     const sim = simAiMatch(home, away, rand);
     return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
   });
-  const newTable = applyRoundToTable(division.table, results);
+  const newTable = applyRoundToTable(division.table, roundResults);
   return {
     ...division,
     table: newTable,
     round: roundIdx + 1,
+    results: [...(division.results || []), roundResults],
   };
 }
 
@@ -139,7 +143,15 @@ const DAILY_OFFER_CHANCE = 0.08;
 // marca a gordura de elenco das IAs entre si; aqui qualquer jogador do
 // usuário pode receber uma oferta, já que é o próprio jogador quem decide
 // vender ou não — ver respondToOffer).
-function generateUserOffer(save, rand) {
+// Quantas das últimas propostas recentes (pelo jogador do usuário) ficam
+// em "cooldown" — mesmo quando um jogador é consistentemente o candidato
+// mais barato/mais procurado pra uma posição carente (ex.: um titular
+// barato numa posição que falta em vários elencos), isso sozinho fazia a
+// proposta cair sempre nele. O cooldown garante variedade de verdade ao
+// longo da janela, não só no mesmo dia.
+const OFFER_COOLDOWN_SIZE = 3;
+
+function generateUserOffer(save, rand, recentNames) {
   const myRoster = save.clubs[save.myClubId].roster;
   if (myRoster.length <= MIN_SQUAD_SIZE) return null;
   const clubsForOffers = {};
@@ -149,40 +161,102 @@ function generateUserOffer(save, rand) {
     listingsByClub[clubId] = clubId === save.myClubId ? myRoster.map(p => p.name) : decideAiListings(save.clubs[clubId].roster);
   }
   const offers = decideAiOffers(clubsForOffers, listingsByClub, rand);
-  return offers.find(o => o.toClubId === save.myClubId) || null;
+  // Pega TODAS as propostas pro usuário e sorteia uma — usar sempre a
+  // primeira encontrada era uma causa real do "só vem proposta pelo mesmo
+  // jogador" (decideAiOffers já embaralha a ordem dos clubes, mas pegar
+  // só a primeira ainda cortava a variedade quando houvesse mais de um
+  // comprador interessado no mesmo dia). Evita repetir um nome que já
+  // apareceu nas últimas OFFER_COOLDOWN_SIZE propostas, quando houver
+  // outra opção — sem isso, um jogador "barato demais" pra posição
+  // continuava sendo a escolha certa pra qualquer comprador, dia após dia.
+  const myOffers = offers.filter(o => o.toClubId === save.myClubId);
+  if (myOffers.length === 0) return null;
+  const fresh = myOffers.filter(o => !recentNames?.includes(o.playerName));
+  const pool = fresh.length > 0 ? fresh : myOffers;
+  return pool[Math.floor(rand() * pool.length)];
+}
+
+// Chance de um clube de IA fechar uma transferência com outro clube de IA
+// num dia qualquer dentro de uma janela aberta — baixa de propósito (é só
+// pra dar vida ao mercado enquanto o usuário avança, não uma simulação de
+// mercado completa). Nunca envolve o clube do usuário (ver tryAiToAiTransfer).
+const DAILY_AI_TRANSFER_CHANCE = 0.06;
+
+// Fecha no máximo 1 negócio entre dois clubes de IA (nunca o do usuário)
+// num dia — reaproveita decideAiOffers já embaralhado e sorteia 1 proposta
+// entre as que não envolvem o usuário, executando de verdade via buyPlayer.
+function tryAiToAiTransfer(save, rand) {
+  const clubsForOffers = {};
+  const listingsByClub = {};
+  for (const clubId of CAREER_CLUB_IDS) {
+    clubsForOffers[clubId] = { roster: save.clubs[clubId].roster, budget: save.clubs[clubId].budget, tier: careerClubTier(clubId) };
+    listingsByClub[clubId] = clubId === save.myClubId ? [] : decideAiListings(save.clubs[clubId].roster);
+  }
+  const offers = decideAiOffers(clubsForOffers, listingsByClub, rand)
+    .filter(o => o.fromClubId !== save.myClubId && o.toClubId !== save.myClubId);
+  if (offers.length === 0) return null;
+  const picked = offers[Math.floor(rand() * offers.length)];
+  const result = buyPlayer(save, picked.fromClubId, picked.toClubId, picked.playerName);
+  if (!result.ok) return null;
+  return { save: result.save, event: { type: 'transfer-ai', fromClubId: picked.fromClubId, toClubId: picked.toClubId, playerName: picked.playerName, amount: picked.amount } };
+}
+
+// Acha o jogo do usuário numa rodada já resolvida — usado só pra registrar
+// o evento de "partida" no dia em que ela acontece.
+function findMyMatchResult(save, roundIdx) {
+  const myDivisionKey = save.clubs[save.myClubId].division === 'A' ? 'divisionA' : 'divisionB';
+  const results = save[myDivisionKey].results[roundIdx] || [];
+  return results.find(r => r.homeId === save.myClubId || r.awayId === save.myClubId) || null;
 }
 
 // Avança o calendário dia a dia dentro de UM clique: pula em silêncio os
-// dias sem nada e só para (devolve o save pra UI reagir) quando bate um
-// dia de jogo, surge uma proposta nova, ou a temporada regular termina.
+// dias sem nada (registrando qualquer transferência de IA que aconteça
+// nesse meio-tempo) e só para (devolve o save pra UI reagir) quando bate
+// um dia de jogo, surge uma proposta nova, ou a temporada regular termina.
 // Nunca avança com uma proposta sem resposta pendente — o usuário precisa
 // decidir antes do tempo seguir (aceitar/rejeitar na aba Propostas).
+// `lastDayEvents` no save devolvido é a lista do que aconteceu nesse
+// avanço — a UI (CareerHub) mostra como feed "o que aconteceu".
 export function advanceDay(save) {
   if (save.pendingOffers?.length) return { save, event: 'offers-pending' };
   const myDivisionKey = save.clubs[save.myClubId].division === 'A' ? 'divisionA' : 'divisionB';
+  let current = save;
   let day = save.calendarDay;
+  const events = [];
   while (day < 365) {
     day += 1;
-    const division = save[myDivisionKey];
+    const division = current[myDivisionKey];
     const nextRoundIdx = division.round;
     if (nextRoundIdx >= division.fixtures.length) {
-      return { save: { ...save, calendarDay: day }, event: 'season-end' };
+      return { save: { ...current, calendarDay: day, lastDayEvents: events }, event: 'season-end' };
     }
-    if (day === save.seasonCalendar[nextRoundIdx]) {
-      const played = playRound(save, nextRoundIdx, null);
-      return { save: { ...played, calendarDay: day }, event: 'match', roundIdx: nextRoundIdx };
+    if (day === current.seasonCalendar[nextRoundIdx]) {
+      const played = playRound(current, nextRoundIdx, null);
+      const myMatch = findMyMatchResult(played, nextRoundIdx);
+      if (myMatch) events.push({ type: 'match', day, ...myMatch });
+      return { save: { ...played, calendarDay: day, lastDayEvents: events }, event: 'match', roundIdx: nextRoundIdx };
     }
     if (isTransferWindowOpen(day)) {
-      const rand = makePrng(hashSeed(`${save.seed}|offer-check|${day}`));
-      if (rand() < DAILY_OFFER_CHANCE) {
-        const offer = generateUserOffer(save, rand);
+      const offerRand = makePrng(hashSeed(`${current.seed}|offer-check|${day}`));
+      if (offerRand() < DAILY_OFFER_CHANCE) {
+        const offer = generateUserOffer(current, offerRand, current.recentOfferNames);
         if (offer) {
-          return { save: { ...save, calendarDay: day, pendingOffers: [...(save.pendingOffers || []), offer] }, event: 'offer' };
+          events.push({ type: 'offer', day, ...offer });
+          const recentOfferNames = [...(current.recentOfferNames || []), offer.playerName].slice(-OFFER_COOLDOWN_SIZE);
+          return { save: { ...current, calendarDay: day, pendingOffers: [...(current.pendingOffers || []), offer], recentOfferNames, lastDayEvents: events }, event: 'offer' };
+        }
+      }
+      const aiRand = makePrng(hashSeed(`${current.seed}|ai-transfer|${day}`));
+      if (aiRand() < DAILY_AI_TRANSFER_CHANCE) {
+        const result = tryAiToAiTransfer(current, aiRand);
+        if (result) {
+          current = result.save;
+          events.push({ day, ...result.event });
         }
       }
     }
   }
-  return { save: { ...save, calendarDay: 365 }, event: 'season-end' };
+  return { save: { ...current, calendarDay: 365, lastDayEvents: events }, event: 'season-end' };
 }
 
 // Pra cada um dos 40 clubes, pergunta pro resolveDivisionEnd já existente
@@ -411,6 +485,40 @@ export function respondToOffer(save, offerIndex, accept) {
       [offer.fromClubId]: { ...buyer, roster: [...buyer.roster, player], budget: buyer.budget - offer.amount },
     },
   };
+}
+
+// "Simular até o fim da temporada" — avança dia a dia sem parar pra
+// perguntar nada ao usuário até bater o fim da temporada regular (ou um
+// mata-mata de acesso do PRÓPRIO usuário, que fica pendente pra ele jogar
+// nas telas normais). Qualquer proposta de compra pelo jogador do usuário
+// que surgir no meio do caminho é automaticamente REJEITADA (mantém o
+// elenco intacto) — decisão de simplicidade: vender é algo que o usuário
+// deveria decidir com calma, não no meio de um "fast forward". Devolve
+// `daySummary` com a contagem de partidas/transferências que aconteceram,
+// pra UI mostrar um resumo em vez do feed dia a dia.
+export function simulateRestOfSeason(save) {
+  let current = save;
+  let matches = 0;
+  let aiTransfers = 0;
+  let guard = 0;
+  while (guard < 400) {
+    guard++;
+    if (current.pendingOffers?.length) {
+      current = { ...current, pendingOffers: [] };
+      continue;
+    }
+    const { save: afterDay, event } = advanceDay(current);
+    current = afterDay;
+    for (const ev of afterDay.lastDayEvents || []) {
+      if (ev.type === 'match') matches++;
+      if (ev.type === 'transfer-ai') aiTransfers++;
+    }
+    if (event === 'season-end') {
+      current = endOfSeason(current);
+      break;
+    }
+  }
+  return { save: current, daySummary: { matches, aiTransfers } };
 }
 
 // Reconstrói as duas divisões (membros, tabela zerada, calendário novo)

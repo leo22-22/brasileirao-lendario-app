@@ -16,7 +16,28 @@ function myDivisionData(save) {
   return { key: division, data: division === 'A' ? save.divisionA : save.divisionB };
 }
 
-export function CareerHub({ save, onNavigate, onAdvanceDay, onExit }) {
+function eventLine(ev, myClubId) {
+  if (ev.type === 'match') {
+    const isHome = ev.homeId === myClubId;
+    const oppId = isHome ? ev.awayId : ev.homeId;
+    const oppTeam = TEAMS.find(t => t.id === oppId);
+    const myGoals = isHome ? ev.homeGoals : ev.awayGoals;
+    const oppGoals = isHome ? ev.awayGoals : ev.homeGoals;
+    const result = myGoals > oppGoals ? '🟢' : myGoals < oppGoals ? '🔴' : '🟡';
+    return `${result} Você ${myGoals} x ${oppGoals} ${oppTeam?.club || ''}`;
+  }
+  if (ev.type === 'transfer-ai') {
+    const from = TEAMS.find(t => t.id === ev.fromClubId);
+    const to = TEAMS.find(t => t.id === ev.toClubId);
+    return `🔄 ${from?.club} comprou ${ev.playerName} do ${to?.club} por ${formatMoney(ev.amount)}`;
+  }
+  if (ev.type === 'offer') {
+    return `📨 Proposta recebida pelo ${ev.playerName}`;
+  }
+  return null;
+}
+
+export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, onExit }) {
   const team = TEAMS.find(t => t.id === save.myClubId);
   const club = save.clubs[save.myClubId];
   const logo = CLUB_LOGOS[team.club];
@@ -26,6 +47,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onExit }) {
   const nextMatch = nextMatches.find(m => m.homeId === save.myClubId || m.awayId === save.myClubId);
   const seasonOver = division.round >= division.fixtures.length;
   const offerCount = save.pendingOffers?.length || 0;
+  const dayEvents = (save.lastDayEvents || []).map(ev => eventLine(ev, save.myClubId)).filter(Boolean);
 
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
@@ -40,6 +62,16 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onExit }) {
       </div>
 
       <TransferWindowBadge day={save.calendarDay} style={{ marginBottom: 12 }} />
+
+      {dayEvents.length > 0 && (
+        <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 12 }}>
+          <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>O que aconteceu</div>
+          {dayEvents.map((line, i) => (
+            <div key={i} style={{ fontSize: 12.5, marginBottom: i < dayEvents.length - 1 ? 4 : 0, lineHeight: 1.4 }}>{line}</div>
+          ))}
+        </div>
+      )}
+
       {offerCount > 0 && (
         <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)', marginBottom: 12, fontSize: 12, color: '#d4a23c', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('market')}>
           📨 {offerCount} proposta{offerCount > 1 ? 's' : ''} esperando resposta — toque pra ver
@@ -73,14 +105,23 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onExit }) {
         <button onClick={() => onNavigate('formation')} style={navBtnStyle}>🧩 Formação</button>
         <button onClick={() => onNavigate('market')} style={navBtnStyle}>💰 Mercado{offerCount > 0 ? ` (${offerCount})` : ''}</button>
         <button onClick={() => onNavigate('table')} style={navBtnStyle}>📊 Tabela</button>
+        <button onClick={() => onNavigate('calendar')} style={{ ...navBtnStyle, gridColumn: '1 / -1' }}>📅 Calendário</button>
       </div>
 
       <button onClick={onAdvanceDay} disabled={offerCount > 0} style={{
         width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', cursor: offerCount > 0 ? 'default' : 'pointer',
-        background: offerCount > 0 ? 'rgba(212,162,60,0.3)' : '#d4a23c', color: '#0B1A12', fontSize: 15, fontWeight: 700,
+        background: offerCount > 0 ? 'rgba(212,162,60,0.3)' : '#d4a23c', color: '#0B1A12', fontSize: 15, fontWeight: 700, marginBottom: 8,
       }}>
         {offerCount > 0 ? 'Responda as propostas primeiro' : seasonOver ? 'Encerrar temporada →' : 'Avançar →'}
       </button>
+      {!seasonOver && (
+        <button onClick={onSimulateSeason} disabled={offerCount > 0} style={{
+          width: '100%', padding: '11px 0', borderRadius: 10, cursor: offerCount > 0 ? 'default' : 'pointer',
+          border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(244,241,234,0.7)', fontSize: 12.5, fontWeight: 600,
+        }}>
+          ⏩ Simular temporada até o fim
+        </button>
+      )}
     </div>
   );
 }
