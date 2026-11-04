@@ -7364,7 +7364,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
             </button>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={styles.teamEditLabel}>Conquistas em destaque</div>
+              <div style={styles.homeSectionTitle}>Conquistas em destaque</div>
               <button onClick={() => setShowAchievements(true)} style={{ background: 'none', border: 'none', color: mc, fontSize: 11, cursor: 'pointer', padding: 0 }}>
                 Ver todas ({Object.keys(ACHIEVEMENT_CATALOG).length}) →
               </button>
@@ -7393,7 +7393,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
             ModeDifficultyModal, que já escolhe a dificuldade E entra no modo
             num só passo. */}
         <div style={{ marginBottom: 18 }}>
-          <div style={styles.teamEditLabel}>Escolha o modo</div>
+          <div style={styles.homeSectionTitle}>Escolha o modo</div>
           <button
             onClick={() => onOpenCareer()}
             className="mode-card-hover"
@@ -7430,7 +7430,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
                 <span style={{ fontSize: 22, flexShrink: 0 }}>{m.icon}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 1, color: mc, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</div>
-                  <div style={{ fontSize: 10.5, opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.sub}</div>
+                  <div style={{ fontSize: 10.5, opacity: 0.6, color: '#F4F1EA', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.sub}</div>
                 </div>
               </button>
             ))}
@@ -14508,7 +14508,13 @@ const styles = {
   featIcon: { fontSize: 24, marginBottom: 8 },
   featTitle: { fontWeight: 700, fontSize: 13, marginBottom: 6 },
   featDesc: { fontSize: 12, opacity: 0.6, lineHeight: 1.5 },
-  introSectionLabel: { fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', opacity: 0.4, marginBottom: 12, textAlign: 'center' },
+  introSectionLabel: { fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 18, letterSpacing: 0.3, textTransform: 'uppercase', opacity: 0.85, marginBottom: 14, textAlign: 'center', color: '#F4F1EA' },
+  // Título de seção da home (Conquistas em destaque, Escolha o modo) — bem
+  // maior/mais chamativo que teamEditLabel (que é um rótulo de campo
+  // pequeno, usado em formulário/dificuldade/etc e não pode crescer senão
+  // quebra essas outras telas). Pedido do usuário: títulos de seção
+  // "iguais ao do exemplo" que ele mandou (referência com headers grandes).
+  homeSectionTitle: { display: 'block', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 18, letterSpacing: 0.2, opacity: 0.95, marginBottom: 12, color: '#F4F1EA' },
   introMarqueeWrap: {
     overflow: 'hidden', marginBottom: 32,
     maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
