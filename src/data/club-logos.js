@@ -38,4 +38,21 @@ export const CLUB_LOGOS = {
   'Juventude': 'https://r2.thesportsdb.com/images/media/team/badge/1ntter1766506778.png',
   'Avai': 'https://r2.thesportsdb.com/images/media/team/badge/bblkat1766506007.png',
   'Atletico-GO': 'https://r2.thesportsdb.com/images/media/team/badge/l7382k1766505911.png',
+  // Alias: teams.js usa o nome 'Atletico Goianiense' pra esse clube (igual
+  // ao Transfermarkt), mas o escudo já estava cadastrado aqui como
+  // 'Atletico-GO' — mantém as duas chaves em vez de renomear, pra não
+  // quebrar nada que já lia 'Atletico-GO'.
+  'Atletico Goianiense': 'https://r2.thesportsdb.com/images/media/team/badge/l7382k1766505911.png',
+  // Times da Série B 2026 adicionados nesta sessão (Modo Carreira) — faltavam
+  // escudos pra estes 10 clubes.
+  'Novorizontino': 'https://r2.thesportsdb.com/images/media/team/badge/2qwxw51617198963.png',
+  'Athletic Club': 'https://r2.thesportsdb.com/images/media/team/badge/myl7c31677056352.png',
+  'CRB': 'https://r2.thesportsdb.com/images/media/team/badge/vpypuq1472069179.png',
+  'Vila Nova': 'https://r2.thesportsdb.com/images/media/team/badge/nwd4ns1740851638.png',
+  'Cuiaba': 'https://r2.thesportsdb.com/images/media/team/badge/ykbxfa1766506334.png',
+  'Operario-PR': 'https://r2.thesportsdb.com/images/media/team/badge/fhrc6i1560791704.png',
+  'Sao Bernardo': 'https://r2.thesportsdb.com/images/media/team/badge/0kt1ah1688106304.png',
+  'Botafogo-SP': 'https://r2.thesportsdb.com/images/media/team/badge/kg3xsd1701366652.png',
+  'Londrina': 'https://r2.thesportsdb.com/images/media/team/badge/xp2z9j1740846583.png',
+  'Nautico': 'https://r2.thesportsdb.com/images/media/team/badge/wywuwv1464886832.png',
 };
