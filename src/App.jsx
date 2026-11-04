@@ -7302,25 +7302,28 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
           <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>
         </button>
 
+        {/* Cada passo com uma cor própria (azul → âmbar → dourado) em vez
+            dos 3 cards idênticos de antes — dá uma leitura de progressão
+            (sorteio → montagem → conquista) só pela cor, e entram em
+            cascata (anim-rise + delay crescente) em vez de surgirem
+            estáticos de uma vez. */}
         <div style={styles.featGrid} className="feat-grid-3">
-          <div style={styles.featCard} className="feat-card-hover">
-            <span style={styles.featIndex}>01</span>
-            <div style={{ ...styles.featIconWrap, background: hexToRgba(mc, 0.14), border: `1px solid ${hexToRgba(mc, 0.35)}` }}>🎲</div>
-            <div style={styles.featTitle}>Role o dado</div>
-            <div style={styles.featDesc}>Sorteie times campeões lendários. Recuse até 3 que não te interessar.</div>
-          </div>
-          <div style={styles.featCard} className="feat-card-hover">
-            <span style={styles.featIndex}>02</span>
-            <div style={{ ...styles.featIconWrap, background: hexToRgba(mc, 0.14), border: `1px solid ${hexToRgba(mc, 0.35)}` }}>🏟️</div>
-            <div style={styles.featTitle}>Monte o Plantel</div>
-            <div style={styles.featDesc}>Escolha 11 titulares e 5 reservas entre os maiores craques de cada era.</div>
-          </div>
-          <div style={styles.featCard} className="feat-card-hover">
-            <span style={styles.featIndex}>03</span>
-            <div style={{ ...styles.featIconWrap, background: hexToRgba(mc, 0.14), border: `1px solid ${hexToRgba(mc, 0.35)}` }}>🏆</div>
-            <div style={styles.featTitle}>Dispute o título</div>
-            <div style={styles.featDesc}>Liga com 20 times, 38 rodadas e gols aparecendo minuto a minuto.</div>
-          </div>
+          {[
+            { num: '01', icon: '🎲', color: '#5dade2', title: 'Role o dado', desc: 'Sorteie times campeões lendários. Recuse até 3 que não te interessar.' },
+            { num: '02', icon: '🏟️', color: '#e8a33d', title: 'Monte o Plantel', desc: 'Escolha 11 titulares e 5 reservas entre os maiores craques de cada era.' },
+            { num: '03', icon: '🏆', color: mc, title: 'Dispute o título', desc: 'Liga com 20 times, 38 rodadas e gols aparecendo minuto a minuto.' },
+          ].map((f, i) => (
+            <div
+              key={f.num}
+              style={{ ...styles.featCard, '--rise-delay': `${i * 90}ms` }}
+              className="feat-card-hover anim-rise"
+            >
+              <span style={{ ...styles.featIndex, color: f.color, opacity: 0.55 }}>{f.num}</span>
+              <div style={{ ...styles.featIconWrap, background: hexToRgba(f.color, 0.16), border: `1px solid ${hexToRgba(f.color, 0.4)}` }}>{f.icon}</div>
+              <div style={styles.featTitle}>{f.title}</div>
+              <div style={styles.featDesc}>{f.desc}</div>
+            </div>
+          ))}
         </div>
 
         <div style={styles.introSectionLabel}>{TEAMS.length} times lendários no elenco</div>
@@ -7396,14 +7399,18 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
           <div style={styles.homeSectionTitle}>Escolha o modo</div>
           <button
             onClick={() => onOpenCareer()}
-            className="mode-card-hover"
+            className="mode-card-hover card-glow-pulse anim-rise"
             style={{
-              width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 10,
+              width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 10, position: 'relative',
               display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
               borderRadius: 12, border: '2px solid rgba(212,162,60,0.4)',
               background: 'linear-gradient(135deg, rgba(212,162,60,0.14), rgba(212,162,60,0.04))',
             }}
           >
+            <span style={{
+              position: 'absolute', top: -8, right: 14, fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
+              padding: '3px 7px', borderRadius: 999, background: '#d4a23c', color: '#0B1A12',
+            }}>NOVO</span>
             <span style={{ fontSize: 28, flexShrink: 0 }}>💼</span>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2, color: '#d4a23c' }}>Modo Carreira</div>
@@ -7411,25 +7418,31 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
             </div>
             <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>
           </button>
+          {/* Cada modo com uma cor própria (em vez dos 4 cards idênticos de
+              antes, só diferenciados por ícone/texto) — Brasileirão fica
+              com o dourado principal (é o modo "padrão"), Copa com azul
+              (mata-mata), Atual com âmbar (calendário real/"ao vivo") e
+              Livre com roxo (customização livre). */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }} className="mode-cards-grid">
             {[
-              { id: 'serieab', icon: '🏆', title: 'Brasileirão', sub: '40 times · Série A e B', onConfirm: () => { onSetGameMode('serieab'); onClearLivre(); onStart(); } },
-              { id: 'copa', icon: '🏆', title: 'Copa do Brasil', sub: '32 times · Mata-mata', onConfirm: () => { onSetGameMode('copa'); onClearLivre(); onStart(); } },
-              { id: 'atual2026', icon: '📅', title: 'Brasileirão Atual', sub: '20 times reais · 2026', onConfirm: () => onOpenSerieAtual() },
-              { id: 'livre', icon: '🎯', title: 'Modo Livre', sub: livreTeamIds ? `${livreTeamIds.length} times escolhidos` : 'Escolha 16 times', onConfirm: () => onOpenLivrePicker() },
-            ].map(m => (
+              { id: 'serieab', icon: '🏆', color: mc, title: 'Brasileirão', sub: '40 times · Série A e B', onConfirm: () => { onSetGameMode('serieab'); onClearLivre(); onStart(); } },
+              { id: 'copa', icon: '⚔️', color: '#5dade2', title: 'Copa do Brasil', sub: '32 times · Mata-mata', onConfirm: () => { onSetGameMode('copa'); onClearLivre(); onStart(); } },
+              { id: 'atual2026', icon: '📅', color: '#e8a33d', title: 'Brasileirão Atual', sub: '20 times reais · 2026', onConfirm: () => onOpenSerieAtual() },
+              { id: 'livre', icon: '🎯', color: '#b48ce0', title: 'Modo Livre', sub: livreTeamIds ? `${livreTeamIds.length} times escolhidos` : 'Escolha 16 times', onConfirm: () => onOpenLivrePicker() },
+            ].map((m, i) => (
               <button
                 key={m.id}
                 onClick={() => setPendingMode(m)}
-                className="mode-card-hover"
+                className="mode-card-hover anim-rise"
                 style={{
+                  '--rise-delay': `${80 + i * 70}ms`,
                   textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '12px 14px', borderRadius: 12, border: `2px solid ${hexToRgba(mc, 0.3)}`, background: hexToRgba(mc, 0.05),
+                  padding: '12px 14px', borderRadius: 12, border: `2px solid ${hexToRgba(m.color, 0.3)}`, background: hexToRgba(m.color, 0.06),
                 }}
               >
                 <span style={{ fontSize: 22, flexShrink: 0 }}>{m.icon}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 1, color: mc, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</div>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 1, color: m.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</div>
                   <div style={{ fontSize: 10.5, opacity: 0.6, color: '#F4F1EA', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.sub}</div>
                 </div>
               </button>
@@ -7488,7 +7501,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
           onSetDifficulty={onSetDifficulty}
           onConfirm={() => { pendingMode.onConfirm(); setPendingMode(null); }}
           onClose={() => setPendingMode(null)}
-          myTeamColor={mc}
+          myTeamColor={pendingMode.color || mc}
         />
       )}
     </>
@@ -14203,6 +14216,19 @@ const globalCss = `
   @keyframes fadeSlideIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:translateY(0); } }
   @keyframes shimmer { 0%{background-position:-200% center} 100%{background-position:200% center} }
   @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+  /* Entrada da home: cards sobem com um leve atraso em cascata via
+     --rise-delay (inline, por item), em vez de tudo aparecer estático de
+     uma vez — pedido do usuário pra tirar a cara de "tela morta/padrão". */
+  .anim-rise { animation: fadeSlideIn 0.5s ease-out both; animation-delay: var(--rise-delay, 0ms); }
+  @keyframes cardGlowPulse {
+    0%, 100% { box-shadow: 0 0 0 0 rgba(212,162,60,0); }
+    50% { box-shadow: 0 0 22px 2px rgba(212,162,60,0.22); }
+  }
+  .card-glow-pulse { animation: cardGlowPulse 3.2s ease-in-out infinite; }
+  @media (prefers-reduced-motion: reduce) {
+    .anim-rise { animation: none !important; }
+    .card-glow-pulse { animation: none !important; }
+  }
 
   /* ── Transição do chaveamento ────────────────────────────────
      Quando uma fase termina, o chaveamento abre e os classificados "sobem"
