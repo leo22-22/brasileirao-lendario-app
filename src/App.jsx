@@ -104,7 +104,7 @@ async function peerOptions() {
 const MULTI_CONNECT_TIMEOUT_MS = 25000;
 
 // Seeded PRNG (mulberry32) — garante mesmos resultados em todos os clientes
-function makePrng(seed) {
+export function makePrng(seed) {
   let s = seed >>> 0;
   return () => {
     s = (s + 0x6D2B79F5) | 0;
@@ -115,7 +115,7 @@ function makePrng(seed) {
 }
 
 // Deriva uma seed numérica estável a partir de uma string (djb2-like)
-function hashSeed(str) {
+export function hashSeed(str) {
   let h = 0;
   for (let i = 0; i < str.length; i++) h = (Math.imul(h, 31) + str.charCodeAt(i)) | 0;
   return h >>> 0;
@@ -123,7 +123,7 @@ function hashSeed(str) {
 
 // PRNG independente por partida: dado a mesma seed de sala + rodada + confronto,
 // todo peer chega ao mesmo placar, mesmo que cada um simule localmente.
-function matchPrng(roomSeed, roundKey, homeId, awayId) {
+export function matchPrng(roomSeed, roundKey, homeId, awayId) {
   if (roomSeed == null) return Math.random;
   return makePrng(hashSeed(`${roomSeed}|${roundKey}|${homeId}|${awayId}`));
 }
@@ -738,7 +738,7 @@ function tryAssignStarters(starterSlots, playersByOvrDesc) {
 // é a validação que evita escalar algo inviável. `fullBench` (Brasileirão
 // Atual) manda TODO mundo que sobrou pro banco, não só os 5 melhores — o
 // elenco real inteiro fica disponível pelo editor de escalação depois.
-function autoFillTeamIntoSlots(team, starterSlots, { fullBench = false } = {}) {
+export function autoFillTeamIntoSlots(team, starterSlots, { fullBench = false } = {}) {
   const players = team.players;
   if (!players) return null;
   const byOvrDesc = players.map((p, i) => ({ p, i })).sort((a, b) => b.p.ovr - a.p.ovr);
@@ -773,7 +773,7 @@ function autoFillTeamIntoSlots(team, starterSlots, { fullBench = false } = {}) {
 // Tenta TODAS as formações prontas e fica com a que rende o maior OVR
 // titular somado pra esse elenco específico — usado pelo atalho "Já sei
 // qual time eu quero" (o jogo escolhe por você).
-function autoFillSquadFromTeam(team, { fullBench = false } = {}) {
+export function autoFillSquadFromTeam(team, { fullBench = false } = {}) {
   const players = team.players;
   if (!players || players.length < 16) return null;
   let best = null;
@@ -814,7 +814,7 @@ function generateRoomCode() {
 // ============================================================
 // MOTOR DE SIMULAÇÃO
 // ============================================================
-function teamStrength(xi) {
+export function teamStrength(xi) {
   const vals = Object.values(xi).filter(p => !p.isBench);
   if (vals.length === 0) return 50;
   const baseOvr = vals.reduce((s, p) => s + p.ovr, 0) / vals.length;
@@ -877,7 +877,7 @@ function DifficultyBadge({ difficulty, style }) {
   );
 }
 
-function applyDifficultyToPlayers(players, difficultyKey) {
+export function applyDifficultyToPlayers(players, difficultyKey) {
   const adjust = DIFFICULTY_LEVELS[difficultyKey]?.aiOvrAdjust || 0;
   if (adjust === 0) return players;
   return players.map(p => ({ ...p, ovr: Math.max(40, Math.min(99, p.ovr + adjust)) }));
@@ -943,7 +943,7 @@ const MY_TEAM_ID = '__myteam__';
 // Calendario real do Brasileirao Serie A 2026 (Tabela Basica oficial da CBF,
 // edicao 2026 - turno rodadas 1-19 + returno espelhado com mando invertido,
 // exatamente como a CBF publica). IDs batem com as entradas ano:2026 de TEAMS.
-const SERIE_A_2026_TEAM_IDS = ['fluminense2026', 'gremio2026', 'botafogo2026', 'cruzeiro2026', 'saopaulo2026', 'flamengo2026', 'corinthians2026', 'bahia2026', 'mirassol2026', 'vasco2026', 'atleticomg2026', 'palmeiras2026', 'internacional2026', 'athleticopr2026', 'coritiba2026', 'bragantino2026', 'vitoria2026', 'remo2026', 'chapecoense2026', 'santos2026'];
+export const SERIE_A_2026_TEAM_IDS = ['fluminense2026', 'gremio2026', 'botafogo2026', 'cruzeiro2026', 'saopaulo2026', 'flamengo2026', 'corinthians2026', 'bahia2026', 'mirassol2026', 'vasco2026', 'atleticomg2026', 'palmeiras2026', 'internacional2026', 'athleticopr2026', 'coritiba2026', 'bragantino2026', 'vitoria2026', 'remo2026', 'chapecoense2026', 'santos2026'];
 const SERIE_A_2026_FIXTURES = [
   [{ homeId: 'fluminense2026', awayId: 'gremio2026' }, { homeId: 'botafogo2026', awayId: 'cruzeiro2026' }, { homeId: 'saopaulo2026', awayId: 'flamengo2026' }, { homeId: 'corinthians2026', awayId: 'bahia2026' }, { homeId: 'mirassol2026', awayId: 'vasco2026' }, { homeId: 'atleticomg2026', awayId: 'palmeiras2026' }, { homeId: 'internacional2026', awayId: 'athleticopr2026' }, { homeId: 'coritiba2026', awayId: 'bragantino2026' }, { homeId: 'vitoria2026', awayId: 'remo2026' }, { homeId: 'chapecoense2026', awayId: 'santos2026' }], // Rodada 1
   [{ homeId: 'flamengo2026', awayId: 'internacional2026' }, { homeId: 'vasco2026', awayId: 'chapecoense2026' }, { homeId: 'santos2026', awayId: 'saopaulo2026' }, { homeId: 'palmeiras2026', awayId: 'vitoria2026' }, { homeId: 'bragantino2026', awayId: 'atleticomg2026' }, { homeId: 'cruzeiro2026', awayId: 'coritiba2026' }, { homeId: 'gremio2026', awayId: 'botafogo2026' }, { homeId: 'athleticopr2026', awayId: 'corinthians2026' }, { homeId: 'bahia2026', awayId: 'fluminense2026' }, { homeId: 'remo2026', awayId: 'mirassol2026' }], // Rodada 2
@@ -1006,7 +1006,7 @@ function generateRoundRobin(teamIds) {
 }
 
 // Brasileirão: turno + returno (38 rodadas para 20 times)
-function generateDoubleRoundRobin(teamIds) {
+export function generateDoubleRoundRobin(teamIds) {
   const first = generateRoundRobin(teamIds);
   const second = first.map(round => round.map(m => ({ homeId: m.awayId, awayId: m.homeId })));
   return [...first, ...second];
@@ -1016,7 +1016,7 @@ function generateDoubleRoundRobin(teamIds) {
 // (3/1/0, desempate por saldo então gols pró) — extraída aqui pra dar pra
 // avançar a tabela da divisão espelho da Série B sem duplicar a lógica de
 // pontuação em dois lugares que podiam divergir.
-function applyRoundToTable(table, results) {
+export function applyRoundToTable(table, results) {
   const tbl = table.map(r => ({ ...r }));
   results.forEach(res => {
     const h = tbl.find(t => t.id === res.homeId);
@@ -1036,9 +1036,9 @@ function applyRoundToTable(table, results) {
 // sobem direto; 3ºx6º e 4ºx5º jogam mata-mata de acesso (ida e volta) pela
 // vaga. Isso soma 4 subindo, batendo com os 4 últimos da Série A caindo —
 // as duas divisões continuam com 20 times na temporada seguinte.
-const RELEGATION_SPOTS = 4;
-const DIRECT_PROMOTION_SPOTS = 2;
-const PLAYOFF_ZONE = [3, 4, 5, 6]; // posições (1-based) que disputam o mata-mata
+export const RELEGATION_SPOTS = 4;
+export const DIRECT_PROMOTION_SPOTS = 2;
+export const PLAYOFF_ZONE = [3, 4, 5, 6]; // posições (1-based) que disputam o mata-mata
 
 // A quem cada posição da zona de playoff enfrenta: 3ºx6º, 4ºx5º.
 function playoffOpponentPosition(pos) {
@@ -1053,7 +1053,7 @@ function playoffOpponentPosition(pos) {
 // pela simulação direta (fastForwardBrasileirao), que sem isso tinham cada
 // uma sua própria lógica de fim de temporada e a segunda nunca soube de
 // promoção/rebaixamento.
-function resolveDivisionEnd(finalTable, myTeamId, myDivision) {
+export function resolveDivisionEnd(finalTable, myTeamId, myDivision) {
   const myPos = finalTable.findIndex(t => t.id === myTeamId) + 1;
   if (myDivision === 'A') {
     return { move: myPos > 20 - RELEGATION_SPOTS ? 'relegated' : 'stayed', tie: null };
@@ -1409,7 +1409,7 @@ function getEligibleRoster(team, unavailableNames) {
 // era titular, quem entrou no lugar (ou aviso de que não tinha reserva na
 // posição, então o time joga com um a menos). Ambos ordenados por posição
 // (GOL → defesa → meio → ataque), não pela ordem de inserção no elenco.
-function buildSquadView(team, suspensions, injuries) {
+export function buildSquadView(team, suspensions, injuries) {
   if (!team) return { starters: [], bench: [], unavailable: [] };
   const all = team.players || [];
   const prefix = `${team.id}::`;
@@ -1647,7 +1647,7 @@ function pickGkName(xi) {
   return (xi || []).find(p => p.pos?.[0] === 'GOL')?.name || null;
 }
 
-function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
+export function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   const homeXI = getStarters(homeTeam);
   const awayXI = getStarters(awayTeam);
 
