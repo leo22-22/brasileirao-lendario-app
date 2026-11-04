@@ -11491,6 +11491,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-serie-b-times',
+    date: 'Novembro de 2026',
+    title: 'Adição: times da Série B 2026 nos Times Históricos (eram 200, agora são 220)',
+    desc: 'Entraram os elencos reais dos 20 times que estão disputando a Série B do Brasileirão 2026, com overall estimado a partir do valor de mercado real (Transfermarkt) — dá pra conferir o elenco completo de cada um na aba Times Históricos. É o primeiro passo pro Modo Carreira, que está vindo: Série A e B juntas, com orçamento, renda por partida e transferências entre times de verdade.',
+  },
+  {
     id: '2026-09-atual-escalacao-manual',
     date: 'Setembro de 2026',
     title: 'Ajuste: escalação manual no Brasileirão Atual',
