@@ -11548,6 +11548,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-modo-carreira',
+    date: 'Novembro de 2026',
+    title: 'Novidade: Modo Carreira',
+    desc: 'Escolha um dos 40 clubes reais da Série A ou B de 2026 e assuma o comando: orçamento de verdade (renda de público em casa, premiação por posição e venda de jogadores), mercado de transferências com os 39 outros clubes (preço real do Transfermarkt ou calculado pelo overall), propostas de outros clubes pelos seus jogadores, categoria de base gerando novos talentos a cada temporada — com chance rara de sair uma joia mesmo num clube pequeno — e acesso/queda entre as duas séries. O tempo passa dia a dia: a janela de transferências abre em janeiro e julho/agosto, e o jogo para sozinho sempre que tiver um jogo seu ou uma negociação pra responder. É só clicar em "Modo de jogo" na home.',
+  },
+  {
     id: '2026-11-serie-b-times',
     date: 'Novembro de 2026',
     title: 'Adição: times da Série B 2026 nos Times Históricos (eram 200, agora são 220)',
