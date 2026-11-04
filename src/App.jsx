@@ -8,6 +8,7 @@ import { TEAMS } from './data/teams.js';
 // qual time eu quero") usa esta lista sem eles.
 const LEGACY_TEAMS = TEAMS.filter(t => t.year !== 2026);
 import { CLUB_LOGOS } from './data/club-logos.js';
+import { CareerApp } from './career/CareerApp.jsx';
 import { INFO_TABS, INFO_ROUTES, CLUB_STADIUMS } from './data/info-content.js';
 import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from './lib/format.js';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
@@ -2354,6 +2355,18 @@ function shortName(name) {
 const MAX_SKIPS = 3;
 
 export default function App() {
+  // ── Modo Carreira ──────────────────────────────────────────
+  // Sub-app lateral (src/career/CareerApp.jsx): quando ativo, substitui
+  // todo o corpo normal abaixo do cabeçalho. Tem save e estado próprios
+  // (brl_career_save) — nunca lê/escreve `phase`, `gameMode` ou `brl_save`.
+  // `careerHud` é a única informação que atravessa a fronteira, pro
+  // cabeçalho (sempre renderizado) mostrar o pill de orçamento.
+  const [careerOpen, setCareerOpen] = useState(false);
+  const [careerHud, setCareerHud] = useState(null);
+  const [hasCareerSaveFlag] = useState(() => {
+    try { return !!localStorage.getItem('brl_career_save'); } catch { return false; }
+  });
+
   // ── LocalStorage restore ──────────────────────────────────
   const _sv = (() => {
     try { const s = localStorage.getItem('brl_save'); return s ? JSON.parse(s) : null; } catch { return null; }
@@ -6242,6 +6255,21 @@ export default function App() {
                 pra não virar uma fileira confusa de botões sem hierarquia. */}
             {phase === 'intro' && !multiPhase && (
               <>
+                {hasCareerSaveFlag && !careerOpen && (
+                  <button
+                    onClick={() => setCareerOpen(true)}
+                    className="mode-card-hover tap-target-sm"
+                    title="Voltar pra sua carreira salva"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
+                      padding: '7px 12px', borderRadius: 999, color: '#d4a23c',
+                      border: '1.5px solid rgba(212,162,60,0.4)', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                      background: 'rgba(212,162,60,0.1)',
+                    }}
+                  >
+                    💼 Continuar Carreira
+                  </button>
+                )}
                 {describePhase(savedPhase) && (
                   <button
                     onClick={continueSavedGame}
@@ -6280,6 +6308,23 @@ export default function App() {
                 )}
                 <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
               </>
+            )}
+            {careerHud?.active && (
+              <button
+                onClick={() => setCareerOpen(true)}
+                title={`Orçamento do ${careerHud.clubLabel} no Modo Carreira`}
+                className="tap-target-sm"
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
+                  padding: '7px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                  color: careerHud.clubColor || '#d4a23c',
+                  border: `1.5px solid ${hexToRgba(careerHud.clubColor || '#d4a23c', 0.4)}`,
+                  background: hexToRgba(careerHud.clubColor || '#d4a23c', 0.1),
+                  fontFamily: "'Space Mono', monospace",
+                }}
+              >
+                💰 R$ {careerHud.balance.toLocaleString('pt-BR')}
+              </button>
             )}
             <button
               onClick={shareApp}
@@ -6422,6 +6467,7 @@ export default function App() {
           onOpenSerieAtual={() => setShowSerieAtualPicker(true)}
           onOpenLivrePicker={() => setShowLivrePicker(true)}
           onClearLivre={() => setLivreTeamIds(null)}
+          onOpenCareer={() => setCareerOpen(true)}
         />
       )}
       {showLivrePicker && (
@@ -6491,6 +6537,9 @@ export default function App() {
         <AchievementToast achievements={newAchievements} onClose={() => setNewAchievements([])} />
       )}
 
+      {careerOpen ? (
+        <CareerApp onExit={() => setCareerOpen(false)} onHudChange={setCareerHud} />
+      ) : (
       <main style={{ ...styles.main, maxWidth: wideMainMaxWidth || styles.main.maxWidth }} className="main-pad">
         {/* TELAS MULTIPLAYER */}
         {multiPhase === 'lobby' && (
@@ -6779,6 +6828,7 @@ export default function App() {
           />
         )}
       </main>
+      )}
       {showLeaveConfirm && (
         <div onClick={() => setShowLeaveConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, textAlign: 'center' }}>
@@ -8953,8 +9003,14 @@ function TeamPickerModal({ onClose, onPick, onlyIds = null, title = 'Escolha um 
 // modal — cresce bem melhor que o grid antigo agora que são 4 opções.
 // Brasileirão/Copa continuam marcando `gameMode`; Brasileirão Atual e Modo
 // Livre são navegação/configuração à parte (não ficam "selecionados").
-function GameModeModal({ onClose, gameMode, onSetGameMode, livreTeamIds, onOpenSerieAtual, onOpenLivrePicker, onClearLivre }) {
+function GameModeModal({ onClose, gameMode, onSetGameMode, livreTeamIds, onOpenSerieAtual, onOpenLivrePicker, onClearLivre, onOpenCareer }) {
   const modes = [
+    {
+      id: 'carreira',
+      trophy: '💼',
+      title: 'Modo Carreira',
+      sub: 'Orçamento, transferências e categoria de base · 40 clubes reais da Série A e B',
+    },
     {
       id: 'serieab',
       trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/02ftjh1684945323.png',
@@ -8989,14 +9045,15 @@ function GameModeModal({ onClose, gameMode, onSetGameMode, livreTeamIds, onOpenS
         </div>
         <div style={{ display: 'grid', gap: 10 }}>
           {modes.map(m => {
-            const isSpecial = m.id === 'atual2026' || m.id === 'livre';
+            const isSpecial = m.id === 'atual2026' || m.id === 'livre' || m.id === 'carreira';
             const isSelected = !isSpecial && gameMode === m.id;
             const isConfigured = m.id === 'livre' && !!livreTeamIds;
             return (
               <button
                 key={m.id}
                 onClick={() => {
-                  if (m.id === 'atual2026') { onOpenSerieAtual(); onClose(); }
+                  if (m.id === 'carreira') { onOpenCareer(); onClose(); }
+                  else if (m.id === 'atual2026') { onOpenSerieAtual(); onClose(); }
                   else if (m.id === 'livre') { onOpenLivrePicker(); }
                   // Escolher Brasileirão/Copa direto (fora do Modo Livre)
                   // precisa soltar a restrição dos 16 times — senão o draft

@@ -162,6 +162,36 @@ function resolvePlayoffTieAuto(save, tie, rand) {
   return { winnerId, loserId };
 }
 
+// Simula o mata-mata de acesso do PRÓPRIO usuário com o time real dos
+// dois lados (nada de o jogador escolher o resultado) — a experiência de
+// jogar os 2 jogos minuto a minuto, como o modo `serieab` já faz, fica
+// pra uma atualização futura; por ora, o resultado é decidido pela força
+// real dos elencos + aleatoriedade, igual a qualquer outra partida do
+// motor. Não aplica nada no save — só devolve o placar pra tela mostrar
+// antes de chamar finalizeSeasonAfterUserTie.
+export function simulateUserTie(save) {
+  const tie = save.pendingUserTie;
+  if (!tie) return null;
+  const rand = makePrng(hashSeed(`${save.seed}|user-tie|${save.season}`));
+  const home1 = teamForSim(save, tie.leg1Match.homeId);
+  const away1 = teamForSim(save, tie.leg1Match.awayId);
+  const leg1 = simAiMatch(home1, away1, rand);
+  const home2 = teamForSim(save, tie.leg1Match.awayId);
+  const away2 = teamForSim(save, tie.leg1Match.homeId);
+  const leg2 = simAiMatch(home2, away2, rand);
+  const iAmA = tie.aId === save.myClubId;
+  const myId = iAmA ? tie.aId : tie.bId;
+  const oppId = iAmA ? tie.bId : tie.aId;
+  const myLeg1IsHome = tie.leg1Match.homeId === myId;
+  const myAggGoals = myLeg1IsHome ? leg1.homeGoals + leg2.awayGoals : leg1.awayGoals + leg2.homeGoals;
+  const oppAggGoals = myLeg1IsHome ? leg1.awayGoals + leg2.homeGoals : leg1.homeGoals + leg2.awayGoals;
+  const penaltyWinnerIsMe = myAggGoals === oppAggGoals ? rand() < 0.5 : null;
+  return {
+    myId, oppId, leg1, leg2, myAggGoals, oppAggGoals, penaltyWinnerIsMe,
+    wentToPenalties: myAggGoals === oppAggGoals,
+  };
+}
+
 // Fim de temporada: prêmios, categoria de base e janela de transferências
 // da IA sempre acontecem (não dependem de nenhum mata-mata). Acesso/queda
 // é aplicado pra todo clube que não está no par do usuário; esse par fica
