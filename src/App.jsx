@@ -2408,7 +2408,6 @@ export default function App() {
   // parte: continua sendo Brasileirão/Copa por baixo, só muda de ONDE o
   // draft sorteia.
   const [livreTeamIds, setLivreTeamIds] = useState(_sv?.livreTeamIds ?? null);
-  const [showGameModeModal, setShowGameModeModal] = useState(false);
   const [showLivrePicker, setShowLivrePicker] = useState(false);
   // Pool de onde o draft sorteia — os 200 de sempre, ou só os 16 do Modo
   // Livre quando configurado. Usado nos 3 pontos que rolam um novo time
@@ -6208,14 +6207,16 @@ export default function App() {
   }, [roomSnap?.phase, roomSnap?.seed]);
 
   // Fases com painel de jogadores à esquerda + campinho fixo à direita
-  // (Draft/Squad/Mercado) também sofriam com os 760px de sempre. Não usa
-  // "sem limite" como a home: nessas telas a lista de jogadores é quem
-  // sobra de espaço do grid (`1fr 380px`, o campinho já cresceu pro
-  // tamanho máximo dele), e liberar o limite deixava cada linha da lista
-  // enorme, com um vão vazio à direita do nome/overall — 1100 dá folga
-  // real sem esvaziar as linhas. Já a home ('intro') vai sem limite mesmo
-  // — é a tela de marketing/menu, pediram pra ocupar o espaço todo do PC.
-  const wideMainMaxWidth = multiPhase ? null : phase === 'intro' ? 'none' : ['draft', 'squad', 'transfer'].includes(phase) ? 1100 : null;
+  // (Draft/Squad/Mercado) também sofriam com os 760px de sempre: a lista de
+  // jogadores é quem sobra de espaço do grid (`1fr 380px`, o campinho já
+  // cresceu pro tamanho máximo dele), e liberar o limite deixava cada linha
+  // da lista enorme, com um vão vazio à direita do nome/overall — 1100 dá
+  // folga real sem esvaziar as linhas. A home ('intro') já teve "sem
+  // limite nenhum" (pedido anterior do usuário, pra ocupar a tela toda do
+  // PC) — revertido depois a pedido do próprio usuário: "mais centralizado
+  // e bonito" fica melhor numa coluna mais estreita, igual à maioria dos
+  // sites desse estilo (menu/dashboard, não uma landing page larga).
+  const wideMainMaxWidth = multiPhase ? null : phase === 'intro' ? 880 : ['draft', 'squad', 'transfer'].includes(phase) ? 1100 : null;
 
   return (
     <div style={styles.page}>
@@ -6458,18 +6459,6 @@ export default function App() {
           onPick={startSerieAtual}
         />
       )}
-      {showGameModeModal && (
-        <GameModeModal
-          onClose={() => setShowGameModeModal(false)}
-          gameMode={gameMode}
-          onSetGameMode={setGameMode}
-          livreTeamIds={livreTeamIds}
-          onOpenSerieAtual={() => setShowSerieAtualPicker(true)}
-          onOpenLivrePicker={() => setShowLivrePicker(true)}
-          onClearLivre={() => setLivreTeamIds(null)}
-          onOpenCareer={() => setCareerOpen(true)}
-        />
-      )}
       {showLivrePicker && (
         <LivreTeamPickerModal
           initialSelected={livreTeamIds || []}
@@ -6595,7 +6584,9 @@ export default function App() {
             onOpenDailyChallenge={() => setShowDailyChallenge(true)}
             onOpenSerieAtual={() => setShowSerieAtualPicker(true)}
             livreTeamIds={livreTeamIds}
-            onOpenGameModeModal={() => setShowGameModeModal(true)}
+            onClearLivre={() => setLivreTeamIds(null)}
+            onOpenLivrePicker={() => setShowLivrePicker(true)}
+            onOpenCareer={() => setCareerOpen(true)}
           />
         )}
         {showDailyChallenge && (
@@ -7262,12 +7253,13 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge, onOpenSerieAtual, livreTeamIds, onOpenGameModeModal }) {
+function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showWeeklyTeam, setShowWeeklyTeam] = useState(false);
+  const [pendingMode, setPendingMode] = useState(null); // modo clicado aguardando escolha de dificuldade no modal
   const weeklyCraque = WEEKLY_TEAM_OF_THE_WEEK.players.find(p => p.craque);
 
   return (
@@ -7393,77 +7385,56 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
           </div>
         )}
 
-        {/* Modo de jogo — antes era um grid de cards direto na home; virou
-            um botão-resumo que abre um modal (GameModeModal), pra a home não
-            crescer toda vez que um modo novo entra (agora tem 4: Brasileirão,
-            Copa, Brasileirão Atual, Modo Livre). Mesmo formato de "Jogar com
-            Amigos" logo abaixo (título + subtítulo, borda colorida) — a
-            primeira versão só tinha uma linha de texto curta ("Brasileirão"),
-            que em telas largas (a home não tem largura máxima) sobrava um
-            vão enorme até a seta e ficava com cara de quebrado.
-            [feedback do usuário 2026-09: "uma merda" nessa tela] */}
-        <button
-          onClick={onOpenGameModeModal}
-          className="mode-card-hover"
-          style={{
-            width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 18,
-            display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
-            borderRadius: 12, border: `2px solid ${hexToRgba(mc, 0.35)}`, background: hexToRgba(mc, 0.06),
-          }}
-        >
-          <span style={{ fontSize: 28, flexShrink: 0 }}>{gameMode === 'copa' ? '🏆' : '📅'}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2, color: mc }}>
-              Modo de jogo: {gameMode === 'copa' ? 'Copa do Brasil' : 'Brasileirão'}
+        {/* Modos de jogo — todos à vista direto na home (era um botão-
+            resumo que abria um modal listando os modos; o usuário pediu pra
+            inverter: mostrar tudo aqui, e só abrir modal na hora de escolher
+            a DIFICULDADE de cada modo). Modo Carreira em destaque numa linha
+            própria (não usa dificuldade — vai direto); os outros 4 abrem
+            ModeDifficultyModal, que já escolhe a dificuldade E entra no modo
+            num só passo. */}
+        <div style={{ marginBottom: 18 }}>
+          <div style={styles.teamEditLabel}>Escolha o modo</div>
+          <button
+            onClick={() => onOpenCareer()}
+            className="mode-card-hover"
+            style={{
+              width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 10,
+              display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
+              borderRadius: 12, border: '2px solid rgba(212,162,60,0.4)',
+              background: 'linear-gradient(135deg, rgba(212,162,60,0.14), rgba(212,162,60,0.04))',
+            }}
+          >
+            <span style={{ fontSize: 28, flexShrink: 0 }}>💼</span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2, color: '#d4a23c' }}>Modo Carreira</div>
+              <div style={{ fontSize: 11, opacity: 0.65, color: '#F4F1EA' }}>Orçamento, transferências e categoria de base · 40 clubes reais da Série A e B</div>
             </div>
-            <div style={{ fontSize: 11, opacity: 0.6, color: '#F4F1EA' }}>
-              {livreTeamIds
-                ? `🎯 Modo Livre — draft restrito aos ${livreTeamIds.length} times que você escolheu`
-                : gameMode === 'copa' ? '32 times · Mata-mata · Ida e volta' : '40 times · Série A e B · Acesso e queda a cada temporada'}
-            </div>
+            <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>
+          </button>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }} className="mode-cards-grid">
+            {[
+              { id: 'serieab', icon: '🏆', title: 'Brasileirão', sub: '40 times · Série A e B', onConfirm: () => { onSetGameMode('serieab'); onClearLivre(); onStart(); } },
+              { id: 'copa', icon: '🏆', title: 'Copa do Brasil', sub: '32 times · Mata-mata', onConfirm: () => { onSetGameMode('copa'); onClearLivre(); onStart(); } },
+              { id: 'atual2026', icon: '📅', title: 'Brasileirão Atual', sub: '20 times reais · 2026', onConfirm: () => onOpenSerieAtual() },
+              { id: 'livre', icon: '🎯', title: 'Modo Livre', sub: livreTeamIds ? `${livreTeamIds.length} times escolhidos` : 'Escolha 16 times', onConfirm: () => onOpenLivrePicker() },
+            ].map(m => (
+              <button
+                key={m.id}
+                onClick={() => setPendingMode(m)}
+                className="mode-card-hover"
+                style={{
+                  textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '12px 14px', borderRadius: 12, border: `2px solid ${hexToRgba(mc, 0.3)}`, background: hexToRgba(mc, 0.05),
+                }}
+              >
+                <span style={{ fontSize: 22, flexShrink: 0 }}>{m.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 1, color: mc, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</div>
+                  <div style={{ fontSize: 10.5, opacity: 0.6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.sub}</div>
+                </div>
+              </button>
+            ))}
           </div>
-          <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>
-        </button>
-
-        {/* Dificuldade */}
-        <div style={{ marginBottom: 18, padding: 16, borderRadius: 14, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <div style={styles.teamEditLabel}>Dificuldade</div>
-          {/* Cada nível usa a cor que já é dele em outros lugares do jogo
-              (explicador do ranking, DifficultyBadge) — fácil=verde,
-              normal=neutro, difícil=âmbar, lendário=vermelho — em vez das
-              4 opções ficarem visualmente idênticas, só diferenciadas por
-              qual tem borda acesa. O multiplicador de ranking embaixo do
-              nome também já era mostrado noutra tela; repetir aqui dá
-              contexto sem precisar abrir o explicador. */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }} className="difficulty-grid">
-            {Object.entries(DIFFICULTY_LEVELS).map(([key, d]) => {
-              const tone = DIFFICULTY_UI[key]?.tone || mc;
-              const active = difficulty === key;
-              return (
-                <button
-                  key={key}
-                  onClick={() => onSetDifficulty(key)}
-                  title={d.desc}
-                  className="mode-card-hover"
-                  aria-pressed={active}
-                  style={{
-                    padding: '10px 6px', borderRadius: 10, border: '2px solid',
-                    borderColor: active ? tone : 'rgba(255,255,255,0.12)',
-                    background: active ? hexToRgba(tone, 0.12) : 'rgba(255,255,255,0.03)',
-                    color: active ? tone : '#F4F1EA',
-                    cursor: 'pointer', textAlign: 'center', fontSize: 12, fontWeight: 700,
-                    transition: 'all 0.12s',
-                  }}
-                >
-                  {d.short}
-                  <div style={{ fontSize: 9.5, fontWeight: 400, opacity: active ? 0.8 : 0.4, marginTop: 2, fontFamily: "'Space Mono', monospace" }}>
-                    {DIFFICULTY_UI[key]?.mult}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ fontSize: 11, opacity: 0.5, marginTop: 6, lineHeight: 1.4 }}>{DIFFICULTY_LEVELS[difficulty]?.desc}</div>
         </div>
 
         {/* Jogar com Amigos */}
@@ -7483,13 +7454,6 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
             <div style={{ fontSize: 11, opacity: 0.6 }}>Brasileirão (até 20) · Copa do Brasil (até 32) · Sala por código</div>
           </div>
           <span style={{ marginLeft: 'auto', fontSize: 18, opacity: 0.5 }}>→</span>
-        </button>
-
-        {/* Sem repetir o modo aqui — já escolhido nos cards acima, e
-            "Escolher formação — Brasileirão →" estourava pra 2 linhas em
-            qualquer tela de celular. */}
-        <button style={{ ...styles.btnIntro, background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: '#0B1A12', boxShadow: `0 8px 24px ${hexToRgba(mc, 0.35)}` }} onClick={onStart}>
-          Escolher formação →
         </button>
 
         {/* Rodapé institucional */}
@@ -7517,7 +7481,80 @@ function Intro({ onStart, gameMode, onSetGameMode, difficulty, onSetDifficulty, 
       {showWeeklyTeam && (
         <WeeklyTeamModal onClose={() => setShowWeeklyTeam(false)} />
       )}
+      {pendingMode && (
+        <ModeDifficultyModal
+          mode={pendingMode}
+          difficulty={difficulty}
+          onSetDifficulty={onSetDifficulty}
+          onConfirm={() => { pendingMode.onConfirm(); setPendingMode(null); }}
+          onClose={() => setPendingMode(null)}
+          myTeamColor={mc}
+        />
+      )}
     </>
+  );
+}
+
+// Modal de dificuldade por modo — aberto ao clicar num dos cards de modo na
+// home (exceto Modo Carreira, que não usa dificuldade). Junta escolha de
+// dificuldade + entrar no modo num só passo, em vez de ter uma seção de
+// dificuldade solta na home valendo pra "o modo atual" de forma implícita.
+function ModeDifficultyModal({ mode, difficulty, onSetDifficulty, onConfirm, onClose, myTeamColor }) {
+  const mc = myTeamColor || '#d4a23c';
+  return (
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: 22 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ fontSize: 30 }}>{mode.icon}</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 16 }}>{mode.title}</div>
+              <div style={{ fontSize: 11.5, opacity: 0.6 }}>{mode.sub}</div>
+            </div>
+          </div>
+          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 28, height: 28, flexShrink: 0 }}>×</button>
+        </div>
+        <div style={styles.teamEditLabel}>Dificuldade</div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }} className="difficulty-grid">
+          {Object.entries(DIFFICULTY_LEVELS).map(([key, d]) => {
+            const tone = DIFFICULTY_UI[key]?.tone || mc;
+            const active = difficulty === key;
+            return (
+              <button
+                key={key}
+                onClick={() => onSetDifficulty(key)}
+                title={d.desc}
+                className="mode-card-hover"
+                aria-pressed={active}
+                style={{
+                  padding: '10px 6px', borderRadius: 10, border: '2px solid',
+                  borderColor: active ? tone : 'rgba(255,255,255,0.12)',
+                  background: active ? hexToRgba(tone, 0.12) : 'rgba(255,255,255,0.03)',
+                  color: active ? tone : '#F4F1EA',
+                  cursor: 'pointer', textAlign: 'center', fontSize: 12, fontWeight: 700,
+                  transition: 'all 0.12s',
+                }}
+              >
+                {d.short}
+                <div style={{ fontSize: 9.5, fontWeight: 400, opacity: active ? 0.8 : 0.4, marginTop: 2, fontFamily: "'Space Mono', monospace" }}>
+                  {DIFFICULTY_UI[key]?.mult}
+                </div>
+              </button>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 11, opacity: 0.5, margin: '6px 0 18px', lineHeight: 1.4 }}>{DIFFICULTY_LEVELS[difficulty]?.desc}</div>
+        <button
+          onClick={onConfirm}
+          style={{
+            width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', cursor: 'pointer',
+            background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: '#0B1A12', fontSize: 15, fontWeight: 700,
+          }}
+        >
+          Jogar →
+        </button>
+      </div>
+    </div>
   );
 }
 
@@ -9003,93 +9040,6 @@ function TeamPickerModal({ onClose, onPick, onlyIds = null, title = 'Escolha um 
 // modal — cresce bem melhor que o grid antigo agora que são 4 opções.
 // Brasileirão/Copa continuam marcando `gameMode`; Brasileirão Atual e Modo
 // Livre são navegação/configuração à parte (não ficam "selecionados").
-function GameModeModal({ onClose, gameMode, onSetGameMode, livreTeamIds, onOpenSerieAtual, onOpenLivrePicker, onClearLivre, onOpenCareer }) {
-  const modes = [
-    {
-      id: 'carreira',
-      trophy: '💼',
-      title: 'Modo Carreira',
-      sub: 'Orçamento, transferências e categoria de base · 40 clubes reais da Série A e B',
-    },
-    {
-      id: 'serieab',
-      trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/02ftjh1684945323.png',
-      title: 'Brasileirão',
-      sub: '40 times · Série A e B · Acesso e queda a cada temporada',
-    },
-    {
-      id: 'copa',
-      trophy: 'https://r2.thesportsdb.com/images/media/league/trophy/jv27c41776553182.png',
-      title: 'Copa do Brasil',
-      sub: '32 times · Mata-mata · Ida e volta',
-    },
-    {
-      id: 'atual2026',
-      trophy: '📅',
-      title: 'Brasileirão Atual',
-      sub: '20 times reais da Série A 2026 · calendário oficial da CBF',
-    },
-    {
-      id: 'livre',
-      trophy: '🎯',
-      title: 'Modo Livre',
-      sub: livreTeamIds ? `${livreTeamIds.length} times escolhidos por você — toque pra trocar` : 'Escolha 16 times pro draft sortear só entre eles',
-    },
-  ];
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '85vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px 16px 0 0', padding: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>Modo de jogo</div>
-          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
-        </div>
-        <div style={{ display: 'grid', gap: 10 }}>
-          {modes.map(m => {
-            const isSpecial = m.id === 'atual2026' || m.id === 'livre' || m.id === 'carreira';
-            const isSelected = !isSpecial && gameMode === m.id;
-            const isConfigured = m.id === 'livre' && !!livreTeamIds;
-            return (
-              <button
-                key={m.id}
-                onClick={() => {
-                  if (m.id === 'carreira') { onOpenCareer(); onClose(); }
-                  else if (m.id === 'atual2026') { onOpenSerieAtual(); onClose(); }
-                  else if (m.id === 'livre') { onOpenLivrePicker(); }
-                  // Escolher Brasileirão/Copa direto (fora do Modo Livre)
-                  // precisa soltar a restrição dos 16 times — senão o draft
-                  // continuava restrito mesmo depois de trocar de modo.
-                  else { onSetGameMode(m.id); onClearLivre(); onClose(); }
-                }}
-                className="mode-card-hover"
-                aria-pressed={isSelected}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 12, padding: '14px 14px', borderRadius: 12, border: '2px solid', position: 'relative',
-                  borderColor: isSelected ? '#d4a23c' : isConfigured ? 'rgba(212,162,60,0.5)' : isSpecial ? 'rgba(212,162,60,0.3)' : 'rgba(255,255,255,0.1)',
-                  background: isSelected ? 'rgba(212,162,60,0.1)' : isConfigured ? 'rgba(212,162,60,0.07)' : 'rgba(255,255,255,0.03)',
-                  color: '#F4F1EA', cursor: 'pointer', textAlign: 'left', transition: 'all 0.12s',
-                }}
-              >
-                {isSelected && (
-                  <div style={{ position: 'absolute', top: 10, right: 10, width: 18, height: 18, borderRadius: '50%', background: '#d4a23c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 900, color: '#0B1A12' }}>✓</div>
-                )}
-                {m.trophy.startsWith('http') ? (
-                  <img src={m.trophy} alt={m.title} style={{ height: 36, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
-                ) : (
-                  <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>{m.trophy}</span>
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 3, color: '#F4F1EA' }}>{m.title}</div>
-                  <div style={{ fontSize: 11, opacity: 0.5, lineHeight: 1.4 }}>{m.sub}</div>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 // Modo Livre: em vez de sortear entre os 200 times históricos, o draft
 // sorteia só entre os 16 escolhidos aqui — controle total sobre quais eras/
 // times podem aparecer, sem trocar a liga em si (Brasileirão/Copa continuam
