@@ -7,8 +7,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { TEAMS } from '../data/teams.js';
 import { ClubPickerScreen } from './screens/ClubPickerScreen.jsx';
 import { CareerHub } from './screens/CareerHub.jsx';
+import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
+import { CareerFormationScreen } from './screens/CareerFormationScreen.jsx';
+import { CareerTableScreen } from './screens/CareerTableScreen.jsx';
+import { CareerTransferMarket } from './screens/CareerTransferMarket.jsx';
 import { loadCareerSave, saveCareerSave } from './state/careerStorage.js';
-import { createCareerSave, playRound, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie } from './engine/seasonEngine.js';
+import { createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie, respondToOffer } from './engine/seasonEngine.js';
+import { sellPlayer, buyPlayer } from './engine/rosterStore.js';
 
 function PlayoffTieScreen({ save, onResolve }) {
   const [result, setResult] = useState(null);
@@ -41,18 +46,6 @@ function PlayoffTieScreen({ save, onResolve }) {
   );
 }
 
-function PlaceholderScreen({ title, onBack }) {
-  return (
-    <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Voltar</button>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 10 }}>{title}</h2>
-      <p style={{ opacity: 0.6, fontSize: 13 }}>Esta tela ainda está em construção — chega numa próxima atualização do Modo Carreira.</p>
-    </div>
-  );
-}
-
-const SCREEN_TITLES = { squad: 'Elenco', formation: 'Formação', market: 'Mercado de Transferências', table: 'Tabela' };
-
 export function CareerApp({ onExit, onHudChange }) {
   const [save, setSave] = useState(() => loadCareerSave());
   const [screen, setScreen] = useState(() => {
@@ -80,17 +73,21 @@ export function CareerApp({ onExit, onHudChange }) {
     setScreen('hub');
   }, []);
 
-  const handleAdvanceRound = useCallback(() => {
+  // Avança o calendário dia a dia (pula sozinho os dias sem nada) até
+  // bater um jogo, surgir uma proposta de negociação, ou a temporada
+  // regular acabar — nesse último caso já encadeia o fim de temporada.
+  const handleAdvanceDay = useCallback(() => {
     setSave(prev => {
       if (!prev) return prev;
-      const myDivisionKey = prev.clubs[prev.myClubId].division === 'A' ? 'divisionA' : 'divisionB';
-      const division = prev[myDivisionKey];
-      if (division.round >= division.fixtures.length) {
-        const after = endOfSeason(prev);
+      const { save: afterDay, event } = advanceDay(prev);
+      if (event === 'offers-pending') { setScreen('market'); return afterDay; }
+      if (event === 'offer') { setScreen('market'); return afterDay; }
+      if (event === 'season-end') {
+        const after = endOfSeason(afterDay);
         setScreen(after.screen);
         return after;
       }
-      return playRound(prev, division.round, null);
+      return afterDay; // 'match' — fica no hub mostrando o resultado/próximo jogo
     });
   }, []);
 
@@ -104,6 +101,31 @@ export function CareerApp({ onExit, onHudChange }) {
     });
   }, []);
 
+  const handleConfirmFormation = useCallback(({ myStarters, myFormationLabel }) => {
+    setSave(prev => prev && { ...prev, myStarters, myFormationLabel });
+    setScreen('hub');
+  }, []);
+
+  const handleSell = useCallback((playerName) => {
+    setSave(prev => {
+      if (!prev) return prev;
+      const result = sellPlayer(prev, prev.myClubId, playerName);
+      return result.save;
+    });
+  }, []);
+
+  const handleBuy = useCallback((sellerId, playerName) => {
+    setSave(prev => {
+      if (!prev) return prev;
+      const result = buyPlayer(prev, prev.myClubId, sellerId, playerName);
+      return result.save;
+    });
+  }, []);
+
+  const handleRespondOffer = useCallback((offerIndex, accept) => {
+    setSave(prev => prev && respondToOffer(prev, offerIndex, accept));
+  }, []);
+
   if (!save || screen === 'picker') {
     return <ClubPickerScreen onPick={handlePick} onBack={onExit} />;
   }
@@ -112,9 +134,10 @@ export function CareerApp({ onExit, onHudChange }) {
     return <PlayoffTieScreen save={save} onResolve={handleResolvePlayoffTie} />;
   }
 
-  if (['squad', 'formation', 'market', 'table'].includes(screen)) {
-    return <PlaceholderScreen title={SCREEN_TITLES[screen]} onBack={() => setScreen('hub')} />;
-  }
+  if (screen === 'squad') return <CareerSquadScreen save={save} onBack={() => setScreen('hub')} />;
+  if (screen === 'formation') return <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onBack={() => setScreen('hub')} />;
+  if (screen === 'table') return <CareerTableScreen save={save} onBack={() => setScreen('hub')} />;
+  if (screen === 'market') return <CareerTransferMarket save={save} onSell={handleSell} onBuy={handleBuy} onRespondOffer={handleRespondOffer} onBack={() => setScreen('hub')} />;
 
-  return <CareerHub save={save} onNavigate={setScreen} onAdvanceRound={handleAdvanceRound} onExit={onExit} />;
+  return <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onExit={onExit} />;
 }

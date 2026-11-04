@@ -1,7 +1,11 @@
 // Painel principal do Modo Carreira — escudo/orçamento/posição/próximo
 // jogo + atalhos pras outras telas (Elenco, Formação, Mercado, Tabela).
+// "Avançar" pula os dias sem nada sozinho e só para num dia de jogo, numa
+// proposta de negociação nova, ou no fim da temporada.
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
+import { formatCalendarDay } from '../engine/calendar.js';
+import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
 
 function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
@@ -12,7 +16,7 @@ function myDivisionData(save) {
   return { key: division, data: division === 'A' ? save.divisionA : save.divisionB };
 }
 
-export function CareerHub({ save, onNavigate, onAdvanceRound, onExit }) {
+export function CareerHub({ save, onNavigate, onAdvanceDay, onExit }) {
   const team = TEAMS.find(t => t.id === save.myClubId);
   const club = save.clubs[save.myClubId];
   const logo = CLUB_LOGOS[team.club];
@@ -21,6 +25,7 @@ export function CareerHub({ save, onNavigate, onAdvanceRound, onExit }) {
   const nextMatches = division.fixtures[division.round] || [];
   const nextMatch = nextMatches.find(m => m.homeId === save.myClubId || m.awayId === save.myClubId);
   const seasonOver = division.round >= division.fixtures.length;
+  const offerCount = save.pendingOffers?.length || 0;
 
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
@@ -30,9 +35,16 @@ export function CareerHub({ save, onNavigate, onAdvanceRound, onExit }) {
         {logo && <img src={logo} alt={team.club} style={{ width: 48, height: 48, objectFit: 'contain' }} />}
         <div>
           <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20 }}>{team.club}</div>
-          <div style={{ fontSize: 12, opacity: 0.6 }}>Temporada {save.season} · Série {divisionKey} · {myPos}º lugar</div>
+          <div style={{ fontSize: 12, opacity: 0.6 }}>{formatCalendarDay(save.calendarDay)} · Temporada {save.season} · Série {divisionKey} · {myPos}º lugar</div>
         </div>
       </div>
+
+      <TransferWindowBadge day={save.calendarDay} style={{ marginBottom: 12 }} />
+      {offerCount > 0 && (
+        <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)', marginBottom: 12, fontSize: 12, color: '#d4a23c', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('market')}>
+          📨 {offerCount} proposta{offerCount > 1 ? 's' : ''} esperando resposta — toque pra ver
+        </div>
+      )}
 
       <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)', marginBottom: 16 }}>
         <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5 }}>Orçamento</div>
@@ -44,7 +56,7 @@ export function CareerHub({ save, onNavigate, onAdvanceRound, onExit }) {
           <div style={{ fontSize: 13, opacity: 0.8 }}>Temporada {save.season} terminada — confira a tabela e avance pro fim de temporada.</div>
         ) : nextMatch ? (
           <>
-            <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Rodada {division.round + 1}</div>
+            <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
             <div style={{ fontSize: 13, fontWeight: 600 }}>
               {nextMatch.homeId === save.myClubId ? 'Você (casa)' : TEAMS.find(t => t.id === nextMatch.homeId)?.club}
               {' vs '}
@@ -59,15 +71,15 @@ export function CareerHub({ save, onNavigate, onAdvanceRound, onExit }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 20 }}>
         <button onClick={() => onNavigate('squad')} style={navBtnStyle}>👕 Elenco</button>
         <button onClick={() => onNavigate('formation')} style={navBtnStyle}>🧩 Formação</button>
-        <button onClick={() => onNavigate('market')} style={navBtnStyle}>💰 Mercado</button>
+        <button onClick={() => onNavigate('market')} style={navBtnStyle}>💰 Mercado{offerCount > 0 ? ` (${offerCount})` : ''}</button>
         <button onClick={() => onNavigate('table')} style={navBtnStyle}>📊 Tabela</button>
       </div>
 
-      <button onClick={onAdvanceRound} style={{
-        width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', cursor: 'pointer',
-        background: '#d4a23c', color: '#0B1A12', fontSize: 15, fontWeight: 700,
+      <button onClick={onAdvanceDay} disabled={offerCount > 0} style={{
+        width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', cursor: offerCount > 0 ? 'default' : 'pointer',
+        background: offerCount > 0 ? 'rgba(212,162,60,0.3)' : '#d4a23c', color: '#0B1A12', fontSize: 15, fontWeight: 700,
       }}>
-        {seasonOver ? 'Encerrar temporada →' : 'Avançar rodada →'}
+        {offerCount > 0 ? 'Responda as propostas primeiro' : seasonOver ? 'Encerrar temporada →' : 'Avançar →'}
       </button>
     </div>
   );

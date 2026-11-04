@@ -14,10 +14,13 @@ import {
   matchPrng, hashSeed, makePrng, teamStrength,
 } from '../../App.jsx';
 import { CAREER_CLUB_IDS, SERIE_A_2026_TEAM_IDS, SERIE_B_2026_TEAM_IDS, careerClubTier } from '../../data/career-clubs.js';
-import { cloneAllRosters, addPlayersToClub, creditBudget, buyPlayer, replaceRoster } from './rosterStore.js';
+import { cloneAllRosters, addPlayersToClub, creditBudget, buyPlayer, replaceRoster, canSell, MIN_SQUAD_SIZE } from './rosterStore.js';
 import { computePrizeMoney } from './economy.js';
 import { generateClubYouthBatch, applyYouthGrowth } from './youth.js';
 import { decideAiListings, decideAiOffers } from './aiTransfers.js';
+import { buildSeasonCalendar, isTransferWindowOpen } from './calendar.js';
+
+export { isTransferWindowOpen } from './calendar.js';
 
 function emptyTableRow(clubId) {
   const team = TEAMS.find(t => t.id === clubId);
@@ -50,19 +53,33 @@ export function createCareerSave(myClubId, seedOverride) {
     divisionB: buildDivision(SERIE_B_2026_TEAM_IDS, rand),
     pendingUserTie: null,
     pendingOffers: [],
+    // Começa em 1º de janeiro — dentro da janela de pré-temporada, de
+    // propósito (dá pra reforçar o elenco antes da temporada começar).
+    calendarDay: 1,
+    seasonCalendar: buildSeasonCalendar(38),
     screen: 'hub',
   };
 }
 
 // Monta o "time pra simular" de um clube a partir do save — nunca lê
 // team.players de TEAMS, só save.clubs[id].roster (a cópia mutável).
-// Titulares = os 11 de maior OVR (sem se preocupar com formação/posição;
-// isso só importa pro elenco do próprio usuário, tratado em telas
-// separadas — aqui é só pra alimentar simAiMatch dos outros 39 clubes).
+// Titulares = os 11 de maior OVR (sem se preocupar com formação/posição) —
+// EXCETO pro próprio clube do usuário, que usa a escalação de verdade
+// escolhida na tela de Formação (save.myStarters, nomes na ordem titular
+// → banco, calculada por autoFillSquadFromTeam em CareerFormationScreen).
+// Sem isso, a tela de Formação seria só cosmética.
 function teamForSim(save, clubId) {
   const base = TEAMS.find(t => t.id === clubId);
   const roster = save.clubs[clubId].roster;
-  const ordered = [...roster].sort((a, b) => b.ovr - a.ovr);
+  let ordered;
+  if (clubId === save.myClubId && save.myStarters?.length) {
+    const starterSet = new Set(save.myStarters);
+    const starters = save.myStarters.map(name => roster.find(p => p.name === name)).filter(Boolean);
+    const rest = roster.filter(p => !starterSet.has(p.name)).sort((a, b) => b.ovr - a.ovr);
+    ordered = [...starters, ...rest];
+  } else {
+    ordered = [...roster].sort((a, b) => b.ovr - a.ovr);
+  }
   const players = ordered.map((p, i) => ({ ...p, club: base.club, isBench: i >= 11 }));
   return {
     id: clubId,
@@ -108,6 +125,64 @@ export function playRound(save, roundIdx, userMatch) {
   const divisionA = playDivisionRound(save, 'divisionA', roundIdx, myDivisionKey === 'divisionA' ? userMatch : null);
   const divisionB = playDivisionRound(save, 'divisionB', roundIdx, myDivisionKey === 'divisionB' ? userMatch : null);
   return { ...save, divisionA, divisionB };
+}
+
+// Chance de surgir uma sondagem por um jogador do usuário em cada dia
+// dentro de uma janela aberta — baixa o bastante pra não virar uma
+// proposta por dia, alta o bastante pra aparecer algumas vezes em 31+62
+// dias de janela por temporada.
+const DAILY_OFFER_CHANCE = 0.08;
+
+// Sonda se algum dos outros 39 clubes quer comprar um jogador do usuário
+// hoje — reaproveita decideAiOffers tratando o elenco do usuário inteiro
+// como "disponível pra sondagem" (diferente de decideAiListings, que só
+// marca a gordura de elenco das IAs entre si; aqui qualquer jogador do
+// usuário pode receber uma oferta, já que é o próprio jogador quem decide
+// vender ou não — ver respondToOffer).
+function generateUserOffer(save, rand) {
+  const myRoster = save.clubs[save.myClubId].roster;
+  if (myRoster.length <= MIN_SQUAD_SIZE) return null;
+  const clubsForOffers = {};
+  const listingsByClub = {};
+  for (const clubId of CAREER_CLUB_IDS) {
+    clubsForOffers[clubId] = { roster: save.clubs[clubId].roster, budget: save.clubs[clubId].budget, tier: careerClubTier(clubId) };
+    listingsByClub[clubId] = clubId === save.myClubId ? myRoster.map(p => p.name) : decideAiListings(save.clubs[clubId].roster);
+  }
+  const offers = decideAiOffers(clubsForOffers, listingsByClub, rand);
+  return offers.find(o => o.toClubId === save.myClubId) || null;
+}
+
+// Avança o calendário dia a dia dentro de UM clique: pula em silêncio os
+// dias sem nada e só para (devolve o save pra UI reagir) quando bate um
+// dia de jogo, surge uma proposta nova, ou a temporada regular termina.
+// Nunca avança com uma proposta sem resposta pendente — o usuário precisa
+// decidir antes do tempo seguir (aceitar/rejeitar na aba Propostas).
+export function advanceDay(save) {
+  if (save.pendingOffers?.length) return { save, event: 'offers-pending' };
+  const myDivisionKey = save.clubs[save.myClubId].division === 'A' ? 'divisionA' : 'divisionB';
+  let day = save.calendarDay;
+  while (day < 365) {
+    day += 1;
+    const division = save[myDivisionKey];
+    const nextRoundIdx = division.round;
+    if (nextRoundIdx >= division.fixtures.length) {
+      return { save: { ...save, calendarDay: day }, event: 'season-end' };
+    }
+    if (day === save.seasonCalendar[nextRoundIdx]) {
+      const played = playRound(save, nextRoundIdx, null);
+      return { save: { ...played, calendarDay: day }, event: 'match', roundIdx: nextRoundIdx };
+    }
+    if (isTransferWindowOpen(day)) {
+      const rand = makePrng(hashSeed(`${save.seed}|offer-check|${day}`));
+      if (rand() < DAILY_OFFER_CHANCE) {
+        const offer = generateUserOffer(save, rand);
+        if (offer) {
+          return { save: { ...save, calendarDay: day, pendingOffers: [...(save.pendingOffers || []), offer] }, event: 'offer' };
+        }
+      }
+    }
+  }
+  return { save: { ...save, calendarDay: 365 }, event: 'season-end' };
 }
 
 // Pra cada um dos 40 clubes, pergunta pro resolveDivisionEnd já existente
@@ -220,20 +295,25 @@ export function endOfSeason(save) {
     next = addPlayersToClub(next, clubId, batch);
   }
 
-  // 3) Janela de transferências da IA — no máximo 1 proposta por clube,
-  //    aplicada direto (sem o usuário participar; os clubes de IA entre
-  //    si não perguntam pra ninguém). Se um jogador já foi vendido antes
-  //    nesta mesma janela, buyPlayer simplesmente falha (ok:false) e a
-  //    oferta é ignorada — sem lógica extra de "remover da lista".
+  // 3) Arrumação de elenco da IA (entre os OUTROS 39 clubes, nunca
+  //    envolvendo o usuário) — acontece nos bastidores no fim de cada
+  //    temporada, fora das janelas de verdade (que agora são só
+  //    janeiro/julho-agosto, dia a dia — ver advanceDay abaixo). Propostas
+  //    pelo jogador do usuário só surgem durante uma janela aberta, uma
+  //    por vez, através de advanceDay — nunca aqui. No máximo 1 proposta
+  //    por clube comprador; se um jogador já foi vendido antes nesta mesma
+  //    leva, buyPlayer simplesmente falha (ok:false) e a oferta é ignorada.
   const listingsByClub = {};
-  for (const clubId of CAREER_CLUB_IDS) listingsByClub[clubId] = decideAiListings(next.clubs[clubId].roster);
+  for (const clubId of CAREER_CLUB_IDS) {
+    listingsByClub[clubId] = clubId === next.myClubId ? [] : decideAiListings(next.clubs[clubId].roster);
+  }
   const clubsForOffers = {};
   for (const clubId of CAREER_CLUB_IDS) {
     clubsForOffers[clubId] = { roster: next.clubs[clubId].roster, budget: next.clubs[clubId].budget, tier: careerClubTier(clubId) };
   }
   const offers = decideAiOffers(clubsForOffers, listingsByClub, rand);
   for (const offer of offers) {
-    if (offer.fromClubId === next.myClubId || offer.toClubId === next.myClubId) continue; // o usuário decide o próprio caso na aba Propostas, não aqui
+    if (offer.fromClubId === next.myClubId || offer.toClubId === next.myClubId) continue;
     const result = buyPlayer(next, offer.fromClubId, offer.toClubId, offer.playerName);
     if (result.ok) next = result.save;
   }
@@ -300,6 +380,39 @@ export function finalizeSeasonAfterUserTie(save, myAggGoals, oppAggGoals, penalt
   return startNextSeason(next);
 }
 
+// Usuário aceita ou rejeita uma proposta recebida (save.pendingOffers[i])
+// pelo próprio jogador — `offer.toClubId` é sempre o clube do usuário (só
+// ofertas assim entram em pendingOffers, ver endOfSeason). Rejeitar só
+// remove da lista; aceitar vende pelo valor exato que foi oferecido
+// (pode ser até 10% acima do valor calculado — ver aiTransfers.js) desde
+// que o comprador realmente tenha o dinheiro (a oferta foi gerada
+// checando o valor BASE, não o valor com o acréscimo de até 10%, então
+// esse recheck evita o comprador de IA ficar com orçamento negativo) e o
+// elenco do usuário continue com pelo menos 16 jogadores.
+export function respondToOffer(save, offerIndex, accept) {
+  const offer = save.pendingOffers[offerIndex];
+  if (!offer) return save;
+  const remaining = save.pendingOffers.filter((_, i) => i !== offerIndex);
+  if (!accept) return { ...save, pendingOffers: remaining };
+
+  const seller = save.clubs[offer.toClubId];
+  const buyer = save.clubs[offer.fromClubId];
+  if (!seller || !buyer) return { ...save, pendingOffers: remaining };
+  if (!canSell(seller.roster)) return { ...save, pendingOffers: remaining };
+  const player = seller.roster.find(p => p.name === offer.playerName);
+  if (!player || buyer.budget < offer.amount) return { ...save, pendingOffers: remaining };
+
+  return {
+    ...save,
+    pendingOffers: remaining,
+    clubs: {
+      ...save.clubs,
+      [offer.toClubId]: { ...seller, roster: seller.roster.filter(p => p.name !== offer.playerName), budget: seller.budget + offer.amount },
+      [offer.fromClubId]: { ...buyer, roster: [...buyer.roster, player], budget: buyer.budget - offer.amount },
+    },
+  };
+}
+
 // Reconstrói as duas divisões (membros, tabela zerada, calendário novo)
 // a partir de `clubs[].division` já atualizado, e avança a temporada.
 function startNextSeason(save) {
@@ -312,6 +425,8 @@ function startNextSeason(save) {
     divisionA: buildDivision(aIds, rand),
     divisionB: buildDivision(bIds, rand),
     pendingUserTie: null,
+    calendarDay: 1,
+    seasonCalendar: buildSeasonCalendar(38),
     screen: 'hub',
   };
 }

@@ -14,6 +14,10 @@ function formatMoney(n) {
   return 'R$ ' + (n / 1_000_000).toFixed(0) + 'M';
 }
 
+function normalize(s) {
+  return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
 function ClubCard({ clubId, onPick }) {
   const team = TEAMS.find(t => t.id === clubId);
   const meta = CAREER_CLUB_META[clubId];
@@ -48,7 +52,10 @@ function ClubCard({ clubId, onPick }) {
 
 export function ClubPickerScreen({ onPick, onBack }) {
   const [division, setDivision] = useState('A');
+  const [query, setQuery] = useState('');
   const ids = division === 'A' ? SERIE_A_2026_TEAM_IDS : SERIE_B_2026_TEAM_IDS;
+  const q = normalize(query.trim());
+  const filteredIds = ids.filter(id => !q || normalize(TEAMS.find(t => t.id === id).club).includes(q));
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Voltar</button>
@@ -56,6 +63,15 @@ export function ClubPickerScreen({ onPick, onBack }) {
       <p style={{ fontSize: 13, opacity: 0.65, marginBottom: 16, lineHeight: 1.5 }}>
         Comece o Modo Carreira num dos 40 clubes reais da Série A ou B de 2026. Orçamento inicial e qualidade da categoria de base variam pelo tamanho do clube — mas uma joia rara pode sair em qualquer um.
       </p>
+      <input
+        value={query}
+        onChange={e => setQuery(e.target.value)}
+        placeholder="🔍 Buscar clube pelo nome..."
+        style={{
+          width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 8, marginBottom: 10,
+          border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.03)', color: '#F4F1EA', fontSize: 13, outline: 'none',
+        }}
+      />
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {['A', 'B'].map(d => (
           <button
@@ -70,8 +86,9 @@ export function ClubPickerScreen({ onPick, onBack }) {
           >Série {d}</button>
         ))}
       </div>
+      {filteredIds.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum clube encontrado com esse nome nesta divisão.</p>}
       <div style={{ display: 'grid', gap: 8 }}>
-        {ids.map(id => <ClubCard key={id} clubId={id} onPick={onPick} />)}
+        {filteredIds.map(id => <ClubCard key={id} clubId={id} onPick={onPick} />)}
       </div>
     </div>
   );
