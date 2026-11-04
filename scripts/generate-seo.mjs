@@ -202,6 +202,34 @@ function renderTeamBody(team, stats) {
     </main>`;
 }
 
+// Home ("/") — até aqui a única rota NUNCA coberta por este script: o
+// servidor já sabia procurar dist/_prerender/index.html pra ela (ver
+// server/index.ts), mas nada escrevia esse arquivo, então a home sempre
+// caía na casca genérica (<div id="root"></div> vazio até o JS rodar).
+// Pra quem não executa JS pesado — incluindo a revisão do Google AdSense,
+// que bateu "tela sem conteúdo do editor" bem na URL raiz do site — isso
+// aparecia como uma página sem texto nenhum. Mesmo texto do "Como Jogar",
+// resumido, mais os números reais (quantidade de times) direto de TEAMS.
+function renderHomeBody() {
+  const items = HOW_TO_PLAY_STEPS
+    .map(s => `<li><strong>${s.icon} ${escapeHtml(s.title)}.</strong> ${escapeHtml(s.text)}</li>`)
+    .join('\n          ');
+  return `
+    <header><nav aria-label="Trilha de navegação"><span>Início</span></nav></header>
+    <main>
+      <article>
+        <h1>Brasileirão Lendário</h1>
+        <p>Simulador de futebol brasileiro grátis: monte seu elenco no draft com craques históricos de ${TEAMS.length} times do futebol brasileiro (1959-2026), escale a formação e dispute o Brasileirão (Série A/B) ou a Copa do Brasil — sozinho ou com amigos no multiplayer.</p>
+        <h2>Como funciona</h2>
+        <ol>
+          ${items}
+        </ol>
+        <p><a href="/times">Veja os ${TEAMS.length} times históricos disponíveis →</a></p>
+        <p><a href="/como-jogar">Aprenda a jogar em detalhes →</a></p>
+      </article>
+    </main>`;
+}
+
 // Texto idêntico ao que já é mostrado dentro do app (InfoPage em
 // src/content/ContentPages.jsx) — reaproveitado aqui, não reescrito, pra não
 // divergir dos Termos/Privacidade reais com o tempo.
@@ -334,6 +362,16 @@ function main() {
   const template = fs.readFileSync(templatePath, 'utf8');
 
   let count = 0;
+
+  writeRoute('/', patchHtml(template, {
+    title: 'Brasileirão Lendário — Monte seu time com lendas do futebol brasileiro',
+    description: `Simulador de futebol grátis: monte seu elenco com craques históricos de ${TEAMS.length} times do futebol brasileiro (1959-2026), escale a formação e dispute o Brasileirão (Série A/B), a Copa do Brasil ou o Desafio do Dia sozinho ou com amigos no multiplayer.`,
+    routePath: '/',
+    robots: 'index, follow',
+    ogImage: `${SITE_URL}/og-image.png`,
+    bodyHtml: renderHomeBody(),
+  }));
+  count++;
 
   const INFO_PAGES = [
     {
