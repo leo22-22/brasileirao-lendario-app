@@ -53,9 +53,9 @@ function PlayerSearchBar({ query, setQuery, pos, setPos, resultCount }) {
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', gap: 6 }}>
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 Buscar jogador pelo nome..." style={{ ...inputStyle, flex: 1 }} />
-        <select value={pos} onChange={e => setPos(e.target.value)} style={{ ...inputStyle, flexShrink: 0 }}>
-          <option value="">Todas posições</option>
-          {POSITIONS.map(p => <option key={p} value={p}>{p}</option>)}
+        <select value={pos} onChange={e => setPos(e.target.value)} style={{ ...inputStyle, flexShrink: 0, colorScheme: 'dark' }}>
+          <option value="" style={{ background: '#13241a', color: '#F4F1EA' }}>Todas posições</option>
+          {POSITIONS.map(p => <option key={p} value={p} style={{ background: '#13241a', color: '#F4F1EA' }}>{p}</option>)}
         </select>
       </div>
       {(query || pos) && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 5 }}>{resultCount} jogador{resultCount === 1 ? '' : 'es'} encontrado{resultCount === 1 ? '' : 's'}</div>}

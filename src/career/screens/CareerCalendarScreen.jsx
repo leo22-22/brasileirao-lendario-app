@@ -9,6 +9,7 @@ import { formatCalendarDay } from '../engine/calendar.js';
 export function CareerCalendarScreen({ save, onBack }) {
   const myDivisionKey = save.clubs[save.myClubId].division === 'A' ? 'divisionA' : 'divisionB';
   const division = save[myDivisionKey];
+  const myTeam = TEAMS.find(t => t.id === save.myClubId);
 
   const rounds = division.fixtures.map((matches, roundIdx) => {
     const myMatch = matches.find(m => m.homeId === save.myClubId || m.awayId === save.myClubId);
@@ -39,7 +40,7 @@ export function CareerCalendarScreen({ save, onBack }) {
           }}>
             <div style={{ width: 54, fontSize: 11, opacity: 0.55, fontFamily: "'Space Mono', monospace" }}>{formatCalendarDay(r.day)}</div>
             <div style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {r.isHome ? 'Você' : r.oppTeam?.club} <span style={{ opacity: 0.5, fontWeight: 400 }}>x</span> {r.isHome ? r.oppTeam?.club : 'Você'}
+              {r.isHome ? myTeam?.club : r.oppTeam?.club} <span style={{ opacity: 0.5, fontWeight: 400 }}>x</span> {r.isHome ? r.oppTeam?.club : myTeam?.club}
             </div>
             {r.played && r.result ? (
               <div style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 14, color: '#d4a23c' }}>{r.result.homeGoals} - {r.result.awayGoals}</div>

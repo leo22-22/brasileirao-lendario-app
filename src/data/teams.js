@@ -3016,9 +3016,7 @@ export const TEAMS = [
       { name: 'Vini Lira', pos: ['LE'], ovr: 76 },
       { name: 'Gustavinho', pos: ['VOL', 'MC', 'LD'], ovr: 78 },
       { name: 'Rony Rustico', pos: ['ATA', 'PD', 'PE'], ovr: 77 },
-      { name: 'Thaciano', pos: ['ATA', 'PD', 'MD', 'MC'], ovr: 77 },
       { name: 'Philippe Coutinho', pos: ['MEI', 'PE', 'MC'], ovr: 80 },
-      { name: 'Arthur Melo', pos: ['MC', 'VOL', 'MEI'], ovr: 82 },
       { name: 'Rodinei', pos: ['LD', 'MD', 'PD'], ovr: 81 },
       { name: 'Lima', pos: ['MEI', 'MC', 'ME', 'MD'], ovr: 77 },
     ]
