@@ -62,16 +62,18 @@ function PlayerCard({ p, clubId, expanded, onToggle }) {
             <span style={{ opacity: 0.6 }}>Valor de mercado</span>
             <span style={{ fontFamily: "'Space Mono', monospace", color: '#d4a23c' }}>{formatMoney(value)}</span>
           </div>
-          {p.isYouth ? (
+          {p.age != null ? (
             <>
               <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                 <span style={{ opacity: 0.6 }}>Idade</span>
                 <span>{p.age} anos</span>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ opacity: 0.6 }}>Potencial</span>
-                <span style={{ color: p.potential > p.ovr ? '#7fd99a' : undefined }}>{p.potential > p.ovr ? `até ${p.potential}` : 'já no teto'}</span>
-              </div>
+              {p.potential != null && (
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ opacity: 0.6 }}>Potencial</span>
+                  <span style={{ color: p.potential > p.ovr ? '#7fd99a' : undefined }}>{p.potential > p.ovr ? `até ${p.potential}` : 'já no teto'}</span>
+                </div>
+              )}
               {p.isStar && <div style={{ color: '#d4a23c', fontWeight: 600 }}>⭐ Joia da categoria de base</div>}
             </>
           ) : (

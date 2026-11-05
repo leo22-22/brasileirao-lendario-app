@@ -2354,6 +2354,14 @@ function shortName(name) {
 // ============================================================
 const MAX_SKIPS = 3;
 
+// Cadeado temporário no Modo Carreira — ainda falta a Fase 7 do pacote
+// grande (idade real/aposentadoria/evolução dos ~846 jogadores reais), e o
+// usuário pediu pra travar a entrada enquanto isso não fecha, em vez de
+// deixar o modo incompleto visível pros jogadores. Reverter pra `false`
+// quando a Fase 7 estiver pronta — não precisa de mais nenhuma mudança
+// além disso (os 3 pontos de entrada já checam essa flag via openCareer).
+const CAREER_MODE_LOCKED = true;
+
 export default function App() {
   // ── Modo Carreira ──────────────────────────────────────────
   // Sub-app lateral (src/career/CareerApp.jsx): quando ativo, substitui
@@ -2366,6 +2374,13 @@ export default function App() {
   const [hasCareerSaveFlag] = useState(() => {
     try { return !!localStorage.getItem('brl_career_save'); } catch { return false; }
   });
+  const openCareer = useCallback(() => {
+    if (CAREER_MODE_LOCKED) {
+      alert('Modo Carreira está em manutenção no momento — voltando em breve com mais melhorias! Sua carreira salva não foi perdida.');
+      return;
+    }
+    setCareerOpen(true);
+  }, []);
 
   // ── LocalStorage restore ──────────────────────────────────
   const _sv = (() => {
@@ -6256,9 +6271,9 @@ export default function App() {
                 pra não virar uma fileira confusa de botões sem hierarquia. */}
             {phase === 'intro' && !multiPhase && (
               <>
-                {hasCareerSaveFlag && !careerOpen && (
+                {hasCareerSaveFlag && !careerOpen && !CAREER_MODE_LOCKED && (
                   <button
-                    onClick={() => setCareerOpen(true)}
+                    onClick={openCareer}
                     className="mode-card-hover tap-target-sm"
                     title="Voltar pra sua carreira salva"
                     style={{
@@ -6312,7 +6327,7 @@ export default function App() {
             )}
             {careerHud?.active && (
               <button
-                onClick={() => setCareerOpen(true)}
+                onClick={openCareer}
                 title={`Orçamento do ${careerHud.clubLabel} no Modo Carreira`}
                 className="tap-target-sm"
                 style={{
@@ -6592,7 +6607,7 @@ export default function App() {
             livreTeamIds={livreTeamIds}
             onClearLivre={() => setLivreTeamIds(null)}
             onOpenLivrePicker={() => setShowLivrePicker(true)}
-            onOpenCareer={() => setCareerOpen(true)}
+            onOpenCareer={openCareer}
           />
         )}
         {showDailyChallenge && (
@@ -7405,24 +7420,31 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
           <div style={styles.homeSectionTitle}>Escolha o modo</div>
           <button
             onClick={() => onOpenCareer()}
-            className="mode-card-hover card-glow-pulse anim-rise"
+            className={CAREER_MODE_LOCKED ? 'anim-rise' : 'mode-card-hover card-glow-pulse anim-rise'}
             style={{
-              width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 10, position: 'relative',
+              width: '100%', textAlign: 'left', cursor: CAREER_MODE_LOCKED ? 'default' : 'pointer', marginBottom: 10, position: 'relative',
               display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
-              borderRadius: 12, border: '2px solid rgba(212,162,60,0.4)',
-              background: 'linear-gradient(135deg, rgba(212,162,60,0.14), rgba(212,162,60,0.04))',
+              borderRadius: 12, border: `2px solid ${CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.15)' : 'rgba(212,162,60,0.4)'}`,
+              background: CAREER_MODE_LOCKED ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg, rgba(212,162,60,0.14), rgba(212,162,60,0.04))',
+              opacity: CAREER_MODE_LOCKED ? 0.7 : 1,
             }}
           >
             <span style={{
               position: 'absolute', top: -8, right: 14, fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
-              padding: '3px 7px', borderRadius: 999, background: '#d4a23c', color: '#0B1A12',
-            }}>NOVO</span>
-            <span style={{ fontSize: 28, flexShrink: 0 }}>💼</span>
+              padding: '3px 7px', borderRadius: 999,
+              background: CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.25)' : '#d4a23c',
+              color: CAREER_MODE_LOCKED ? '#F4F1EA' : '#0B1A12',
+            }}>{CAREER_MODE_LOCKED ? 'EM MANUTENÇÃO' : 'NOVO'}</span>
+            <span style={{ fontSize: 28, flexShrink: 0 }}>{CAREER_MODE_LOCKED ? '🔒' : '💼'}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2, color: '#d4a23c' }}>Modo Carreira</div>
-              <div style={{ fontSize: 11, opacity: 0.65, color: '#F4F1EA' }}>Orçamento, transferências e categoria de base · 40 clubes reais da Série A e B</div>
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2, color: CAREER_MODE_LOCKED ? '#F4F1EA' : '#d4a23c' }}>Modo Carreira</div>
+              <div style={{ fontSize: 11, opacity: 0.65, color: '#F4F1EA' }}>
+                {CAREER_MODE_LOCKED
+                  ? 'Em manutenção — voltando em breve com mais melhorias. Sua carreira salva não foi perdida.'
+                  : 'Orçamento, transferências e categoria de base · 40 clubes reais da Série A e B'}
+              </div>
             </div>
-            <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>
+            {!CAREER_MODE_LOCKED && <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>}
           </button>
           {/* Cada modo com uma cor própria (em vez dos 4 cards idênticos de
               antes, só diferenciados por ícone/texto) — Brasileirão fica

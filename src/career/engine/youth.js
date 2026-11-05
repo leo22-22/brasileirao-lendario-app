@@ -108,13 +108,3 @@ export function generateClubYouthBatch(makePrngFn, hashSeedFn, saveSeed, clubId,
   return Array.from({ length: count }, () => generateYouthProspect(rand, tier));
 }
 
-// Aplica o crescimento de uma temporada a um jogador da base já no
-// elenco (envelhece +1 e sobe o overall até o potencial, se ainda não
-// chegou lá). Jogador sem `isYouth` (elenco real original) não é afetado.
-export function applyYouthGrowth(player) {
-  if (!player.isYouth || player.ovr >= player.potential) {
-    return player.isYouth ? { ...player, age: player.age + 1 } : player;
-  }
-  const nextOvr = Math.min(player.potential, player.ovr + player.growthPerSeason);
-  return { ...player, age: player.age + 1, ovr: nextOvr };
-}

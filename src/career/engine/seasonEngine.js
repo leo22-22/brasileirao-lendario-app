@@ -17,7 +17,8 @@ import {
 import { CAREER_CLUB_IDS, SERIE_A_2026_TEAM_IDS, SERIE_B_2026_TEAM_IDS, careerClubTier } from '../../data/career-clubs.js';
 import { cloneAllRosters, addPlayersToClub, creditBudget, buyPlayer, replaceRoster, canSell, MIN_SQUAD_SIZE } from './rosterStore.js';
 import { computePrizeMoney } from './economy.js';
-import { generateClubYouthBatch, applyYouthGrowth } from './youth.js';
+import { generateClubYouthBatch } from './youth.js';
+import { applySeasonAging } from './aging.js';
 import { decideAiListings, decideAiOffers } from './aiTransfers.js';
 import { buildSeasonCalendar, isTransferWindowOpen } from './calendar.js';
 import { teamForSim, resolveTwoLegTieAuto, simulateTwoLegTieForUser } from './simHelpers.js';
@@ -409,11 +410,18 @@ export function endOfSeason(save) {
     });
   }
 
-  // 2) Categoria de base: 2-3 jovens por clube, idade/overall/potencial
-  //    sorteados; jovens já existentes envelhecem e crescem até o potencial.
+  // 2) Envelhecimento de TODO jogador com idade conhecida (real ou da
+  //    base) — aposenta quem a sorte mandar aposentar (35+, praticamente
+  //    certo aos 41) e ajusta overall (cresce quem é jovem, decai quem tá
+  //    envelhecendo; jovem da base ainda em crescimento usa a curva
+  //    própria até o potencial — ver aging.js). Depois, a categoria de
+  //    base de sempre: 2-3 jovens novos por clube.
   for (const clubId of CAREER_CLUB_IDS) {
-    const grown = next.clubs[clubId].roster.map(applyYouthGrowth);
-    next = replaceRoster(next, clubId, grown);
+    const agingRand = makePrng(hashSeed(`${save.seed}|aging|${clubId}|${save.season}`));
+    const survivors = next.clubs[clubId].roster
+      .map(p => applySeasonAging(p, agingRand))
+      .filter(Boolean);
+    next = replaceRoster(next, clubId, survivors);
     const batch = generateClubYouthBatch(makePrng, hashSeed, save.seed, clubId, save.season);
     next = addPlayersToClub(next, clubId, batch);
   }
