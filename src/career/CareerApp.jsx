@@ -137,8 +137,8 @@ export function CareerApp({ onExit, onHudChange }) {
     });
   }, []);
 
-  const handleConfirmFormation = useCallback(({ myStarters, myFormationLabel }) => {
-    setSave(prev => prev && { ...prev, myStarters, myFormationLabel });
+  const handleConfirmFormation = useCallback(({ myStarters, myFormationLabel, myFormationKey }) => {
+    setSave(prev => prev && { ...prev, myStarters, myFormationLabel, myFormationKey });
     setScreen('hub');
   }, []);
 
