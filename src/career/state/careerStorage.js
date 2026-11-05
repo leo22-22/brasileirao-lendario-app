@@ -3,16 +3,33 @@
 // já usada no projeto. Nunca lida por nenhum outro modo; nunca escreve em
 // `brl_save`.
 import { buildSeasonCalendar } from '../engine/calendar.js';
+import { drawCopaBracket } from '../engine/copaEngine.js';
+import { makePrng, hashSeed } from '../../App.jsx';
 
 const KEY = 'brl_career_save';
 
-// Preenche campos que saves antigos (de antes do calendário dia a dia)
-// não tinham — evita quebrar um save salvo numa versão anterior do Modo
-// Carreira em vez de forçar o jogador a começar de novo.
+// Preenche campos que saves antigos (de antes do calendário dia a dia, da
+// lista de transferências, ou da Copa do Brasil) não tinham — evita
+// quebrar um save salvo numa versão anterior do Modo Carreira em vez de
+// forçar o jogador a começar de novo.
 function backfill(save) {
   if (!save) return save;
-  if (save.calendarDay != null && save.seasonCalendar) return save;
-  return { ...save, calendarDay: save.calendarDay ?? 32, seasonCalendar: save.seasonCalendar ?? buildSeasonCalendar(38) };
+  let next = save;
+  if (next.calendarDay == null || !next.seasonCalendar) {
+    next = { ...next, calendarDay: next.calendarDay ?? 32, seasonCalendar: next.seasonCalendar ?? buildSeasonCalendar(38) };
+  }
+  // `transferList` (lista de transferências) é mais recente que o
+  // calendário — saves que já tinham calendário mas não essa lista caíam
+  // no `return save` acima antes desse campo existir.
+  if (!next.transferList) next = { ...next, transferList: [] };
+  // Copa do Brasil é mais recente ainda — save antigo sem ela ganha uma
+  // Copa nova sorteada na hora, a partir do elenco atual (o calendário
+  // dela usa `next.seasonCalendar`, que já existe nesse ponto).
+  if (!next.copa) {
+    const rand = makePrng(hashSeed(`${next.seed}|copa-backfill|${next.season}`));
+    next = { ...next, copa: drawCopaBracket(next, rand, next.seasonCalendar), pendingUserCopaTie: next.pendingUserCopaTie ?? null };
+  }
+  return next;
 }
 
 export function loadCareerSave() {

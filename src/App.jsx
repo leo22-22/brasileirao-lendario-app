@@ -11517,6 +11517,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-copa-do-brasil-carreira',
+    date: 'Novembro de 2026',
+    title: 'Novidade: Copa do Brasil dentro do Modo Carreira',
+    desc: 'O Modo Carreira ganhou a Copa do Brasil de verdade, rodando em paralelo ao Brasileirão, com a premiação real da CBF: R$2 milhões pra entrar na fase de 32, R$3 milhões nas oitavas, R$4 milhões nas quartas, R$9 milhões na semifinal, R$34 milhões pro vice e R$78 milhões pro campeão. Também ficou mais vivo o mercado de transferências: agora dá pra colocar um jogador na lista de transferências (aumenta a chance de vir proposta por ele), as propostas geralmente vêm abaixo do valor de mercado (só 1 em cada 5 vem acima), e dá pra mandar uma contraproposta em vez de só aceitar ou rejeitar. A premiação do Brasileirão Série A/B também foi atualizada com os valores reais da CBF, e agora dá pra escolher um orçamento inicial personalizado (até R$1 bilhão) ao criar uma carreira nova.',
+  },
+  {
     id: '2026-11-modo-carreira',
     date: 'Novembro de 2026',
     title: 'Novidade: Modo Carreira',

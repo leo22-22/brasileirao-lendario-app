@@ -34,18 +34,6 @@ export function cloneAllRosters() {
 // (trava de 16, orçamento insuficiente, jogador não encontrado), devolvem
 // `save` inalterado com `ok: false` e um `reason` legível pra UI.
 
-export function sellPlayer(save, clubId, playerName) {
-  const club = save.clubs[clubId];
-  if (!club) return { save, ok: false, reason: 'clube inválido' };
-  if (!canSell(club.roster)) return { save, ok: false, reason: `elenco no mínimo de ${MIN_SQUAD_SIZE} jogadores` };
-  const player = club.roster.find(p => p.name === playerName);
-  if (!player) return { save, ok: false, reason: 'jogador não encontrado' };
-  const value = computePlayerValue(player, clubId);
-  const newClub = { ...club, roster: club.roster.filter(p => p.name !== playerName), budget: club.budget + value };
-  const newSave = { ...save, clubs: { ...save.clubs, [clubId]: newClub } };
-  return { save: newSave, ok: true, value, player };
-}
-
 export function buyPlayer(save, buyerId, sellerId, playerName) {
   const buyer = save.clubs[buyerId];
   const seller = save.clubs[sellerId];

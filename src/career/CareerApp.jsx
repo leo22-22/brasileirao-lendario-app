@@ -11,24 +11,30 @@ import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
 import { CareerFormationScreen } from './screens/CareerFormationScreen.jsx';
 import { CareerTableScreen } from './screens/CareerTableScreen.jsx';
 import { CareerCalendarScreen } from './screens/CareerCalendarScreen.jsx';
+import { CareerCopaScreen } from './screens/CareerCopaScreen.jsx';
 import { CareerTransferMarket } from './screens/CareerTransferMarket.jsx';
 import { loadCareerSave, saveCareerSave } from './state/careerStorage.js';
-import { createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie, simulateRestOfSeason, respondToOffer } from './engine/seasonEngine.js';
-import { sellPlayer, buyPlayer } from './engine/rosterStore.js';
+import {
+  createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie,
+  simulateUserCopaTie, finalizeCopaUserTie, simulateRestOfSeason, respondToOffer, counterOffer, toggleTransferList,
+} from './engine/seasonEngine.js';
+import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
+import { buyPlayer } from './engine/rosterStore.js';
 
-function PlayoffTieScreen({ save, onResolve }) {
+// Tela de confronto de ida+volta genérica — usada tanto pro mata-mata de
+// acesso (promoção/queda) quanto pros confrontos da Copa do Brasil. Quem
+// chama decide o texto e o que simular/aplicar; a tela só mostra os 2
+// placares + o agregado (e pênaltis, se empatar) igual nos dois casos.
+function TwoLegTieScreen({ title, subtitle, winLabel, loseLabel, onSimulate, onContinue }) {
   const [result, setResult] = useState(null);
-  const tie = save.pendingUserTie;
-  const oppId = tie.aId === save.myClubId ? tie.bId : tie.aId;
-  const oppTeam = TEAMS.find(t => t.id === oppId);
-
-  const handleSimulate = () => setResult(simulateUserTie(save));
-  const handleContinue = () => onResolve(result);
+  const handleSimulate = () => setResult(onSimulate());
+  const handleContinue = () => onContinue(result);
+  const iWon = result ? (result.myAggGoals > result.oppAggGoals || (result.wentToPenalties && result.penaltyWinnerIsMe)) : false;
 
   return (
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px', textAlign: 'center' }}>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, marginBottom: 10 }}>Mata-mata de acesso</h2>
-      <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 20 }}>Ida e volta contra {oppTeam?.club} — quem passar garante vaga na Série A.</p>
+      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, marginBottom: 10 }}>{title}</h2>
+      <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 20 }}>{subtitle}</p>
       {!result ? (
         <button onClick={handleSimulate} style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontWeight: 700, cursor: 'pointer' }}>Jogar os 2 jogos →</button>
       ) : (
@@ -37,8 +43,8 @@ function PlayoffTieScreen({ save, onResolve }) {
           <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 12 }}>Volta: {result.leg2.homeGoals} x {result.leg2.awayGoals}</div>
           <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Agregado: {result.myAggGoals} x {result.oppAggGoals}</div>
           {result.wentToPenalties && <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>Empate no agregado — decidido nos pênaltis.</div>}
-          <div style={{ fontSize: 15, fontWeight: 700, color: (result.myAggGoals > result.oppAggGoals || (result.wentToPenalties && result.penaltyWinnerIsMe)) ? '#7fd99a' : '#e05050', marginBottom: 20 }}>
-            {(result.myAggGoals > result.oppAggGoals || (result.wentToPenalties && result.penaltyWinnerIsMe)) ? '🏆 Vaga garantida na Série A!' : 'Eliminado — segue na Série B'}
+          <div style={{ fontSize: 15, fontWeight: 700, color: iWon ? '#7fd99a' : '#e05050', marginBottom: 20 }}>
+            {iWon ? winLabel : loseLabel}
           </div>
           <button onClick={handleContinue} style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontWeight: 700, cursor: 'pointer' }}>Continuar →</button>
         </>
@@ -69,8 +75,8 @@ export function CareerApp({ onExit, onHudChange }) {
     return () => onHudChange(null);
   }, [save, onHudChange]);
 
-  const handlePick = useCallback((clubId) => {
-    setSave(createCareerSave(clubId));
+  const handlePick = useCallback((clubId, customBudget) => {
+    setSave(createCareerSave(clubId, customBudget));
     setScreen('hub');
   }, []);
 
@@ -114,17 +120,17 @@ export function CareerApp({ onExit, onHudChange }) {
     });
   }, []);
 
+  const handleResolveCopaTie = useCallback((result) => {
+    setSave(prev => {
+      if (!prev?.pendingUserCopaTie || !result) return prev;
+      const iWon = result.myAggGoals !== result.oppAggGoals ? result.myAggGoals > result.oppAggGoals : !!result.penaltyWinnerIsMe;
+      return finalizeCopaUserTie(prev, iWon);
+    });
+  }, []);
+
   const handleConfirmFormation = useCallback(({ myStarters, myFormationLabel }) => {
     setSave(prev => prev && { ...prev, myStarters, myFormationLabel });
     setScreen('hub');
-  }, []);
-
-  const handleSell = useCallback((playerName) => {
-    setSave(prev => {
-      if (!prev) return prev;
-      const result = sellPlayer(prev, prev.myClubId, playerName);
-      return result.save;
-    });
   }, []);
 
   const handleBuy = useCallback((sellerId, playerName) => {
@@ -139,19 +145,55 @@ export function CareerApp({ onExit, onHudChange }) {
     setSave(prev => prev && respondToOffer(prev, offerIndex, accept));
   }, []);
 
+  const handleCounterOffer = useCallback((offerIndex, counterAmount) => {
+    setSave(prev => prev ? counterOffer(prev, offerIndex, counterAmount).save : prev);
+  }, []);
+
+  const handleToggleListed = useCallback((playerName) => {
+    setSave(prev => prev && toggleTransferList(prev, playerName));
+  }, []);
+
   if (!save || screen === 'picker') {
     return <ClubPickerScreen onPick={handlePick} onBack={onExit} />;
   }
 
   if (save.pendingUserTie) {
-    return <PlayoffTieScreen save={save} onResolve={handleResolvePlayoffTie} />;
+    const tie = save.pendingUserTie;
+    const oppTeam = TEAMS.find(t => t.id === (tie.aId === save.myClubId ? tie.bId : tie.aId));
+    return (
+      <TwoLegTieScreen
+        title="Mata-mata de acesso"
+        subtitle={`Ida e volta contra ${oppTeam?.club} — quem passar garante vaga na Série A.`}
+        winLabel="🏆 Vaga garantida na Série A!"
+        loseLabel="Eliminado — segue na Série B"
+        onSimulate={() => simulateUserTie(save)}
+        onContinue={handleResolvePlayoffTie}
+      />
+    );
+  }
+
+  if (save.pendingUserCopaTie) {
+    const tie = save.pendingUserCopaTie;
+    const oppTeam = TEAMS.find(t => t.id === (tie.aId === save.myClubId ? tie.bId : tie.aId));
+    const roundLabel = COPA_ROUND_LABELS[save.copa.round];
+    return (
+      <TwoLegTieScreen
+        title={`Copa do Brasil — ${roundLabel}`}
+        subtitle={`Ida e volta contra ${oppTeam?.club} — quem passar avança de fase.`}
+        winLabel="🏆 Avançou de fase!"
+        loseLabel="Eliminado da Copa do Brasil"
+        onSimulate={() => simulateUserCopaTie(save)}
+        onContinue={handleResolveCopaTie}
+      />
+    );
   }
 
   if (screen === 'squad') return <CareerSquadScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'formation') return <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onBack={() => setScreen('hub')} />;
   if (screen === 'table') return <CareerTableScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'calendar') return <CareerCalendarScreen save={save} onBack={() => setScreen('hub')} />;
-  if (screen === 'market') return <CareerTransferMarket save={save} onSell={handleSell} onBuy={handleBuy} onRespondOffer={handleRespondOffer} onBack={() => setScreen('hub')} />;
+  if (screen === 'copa') return <CareerCopaScreen save={save} onBack={() => setScreen('hub')} />;
+  if (screen === 'market') return <CareerTransferMarket save={save} onBuy={handleBuy} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onBack={() => setScreen('hub')} />;
 
   return <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onSimulateSeason={handleSimulateSeason} onExit={onExit} />;
 }

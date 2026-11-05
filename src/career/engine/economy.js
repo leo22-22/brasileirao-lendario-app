@@ -30,15 +30,23 @@ export function computeMatchdayRevenue(clubId, isHome) {
   return Math.round(meta.stadiumCapacity * occupancy * ticketPrice);
 }
 
-// Premiação por posição final (índice 0 = 1º lugar). Série B recebe 35%
-// do valor equivalente da Série A — menos dinheiro em jogo, mas ainda
-// relevante pra disputa de acesso.
+// Premiação por posição final (índice 0 = 1º lugar) — valores de
+// referência reais da CBF (2026-11-05, dados passados pelo usuário).
+// Série A: só o 1º-16º recebe prêmio por posição; 17º-20º (Z-4) não leva
+// nada além das cotas fixas de participação (já embutidas no orçamento
+// inicial/renda de bilheteria, não nesta tabela).
 export const PRIZE_MONEY_SERIE_A = [
-  12_000_000, 9_000_000, 7_000_000, 6_000_000, 5_000_000, 4_200_000, 3_600_000, 3_100_000,
-  2_700_000, 2_300_000, 2_000_000, 1_700_000, 1_450_000, 1_250_000, 1_050_000, 900_000,
-  750_000, 650_000, 550_000, 450_000,
+  48_100_000, 45_700_000, 43_300_000, 40_900_000, 38_500_000, 36_100_000, 33_700_000, 31_300_000,
+  28_900_000, 26_500_000, 20_500_000, 19_200_000, 17_600_000, 17_200_000, 16_700_000, 16_200_000,
+  0, 0, 0, 0,
 ];
-export const PRIZE_MONEY_SERIE_B = PRIZE_MONEY_SERIE_A.map(v => Math.round(v * 0.35));
+// Série B: só o G-4 (quem sobe) recebe prêmio extra da CBF por posição —
+// 5º-20º fica só com a cota fixa de participação (mesma lógica do Z-4 da
+// Série A, fora desta tabela).
+export const PRIZE_MONEY_SERIE_B = [
+  3_500_000, 1_500_000, 1_500_000, 1_500_000,
+  0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+];
 
 // `position` é 1-based (1º, 2º, ...).
 export function computePrizeMoney(position, division) {

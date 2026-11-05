@@ -1,9 +1,11 @@
 // Mercado de transferências do Modo Carreira — com orçamento de verdade,
 // diferente do TransferMarket usado pelos outros modos (App.jsx, troca
-// direta sem preço). Três abas: vender do próprio elenco, comprar de
-// qualquer um dos outros 39 clubes, e responder propostas recebidas.
-// Busca por nome + filtro de posição em toda lista de jogador, e busca
-// por nome + divisão na lista de clubes.
+// direta sem preço). Três abas: listar/consultar o próprio elenco (sem
+// venda direta — só marca disponibilidade e espera proposta, estilo "lista
+// de transferências" de EA FC), comprar de qualquer um dos outros 39
+// clubes, e responder propostas recebidas (aceitar, rejeitar ou mandar
+// contraproposta). Busca por nome + filtro de posição em toda lista de
+// jogador, e busca por nome + divisão na lista de clubes.
 import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
@@ -85,35 +87,38 @@ function TabBar({ tab, setTab, offerCount }) {
   );
 }
 
-function MyRosterTab({ save, onSell, windowOpen }) {
+function MyRosterTab({ save, onToggleListed, windowOpen }) {
   const [query, setQuery] = useState('');
   const [pos, setPos] = useState('');
   const roster = save.clubs[save.myClubId].roster;
-  const canSellNow = windowOpen && roster.length > MIN_SQUAD_SIZE;
+  const transferList = save.transferList || [];
   const filtered = filterPlayers(roster, query, pos);
   return (
     <div>
-      {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — só dá pra consultar os preços, não vender.</p>}
-      {windowOpen && roster.length <= MIN_SQUAD_SIZE && <p style={{ fontSize: 12, color: '#e0a33d', marginBottom: 10 }}>Elenco no mínimo de {MIN_SQUAD_SIZE} jogadores — não dá pra vender mais ninguém agora.</p>}
+      {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — pode listar jogadores agora, mas as propostas só chegam quando ela abrir (janeiro, ou julho-agosto).</p>}
+      {roster.length <= MIN_SQUAD_SIZE && <p style={{ fontSize: 12, color: '#e0a33d', marginBottom: 10 }}>Elenco no mínimo de {MIN_SQUAD_SIZE} jogadores — mesmo que venha proposta, não vai dar pra vender até o elenco crescer.</p>}
+      <p style={{ fontSize: 11.5, opacity: 0.55, marginBottom: 10, lineHeight: 1.4 }}>📋 Não dá pra vender direto — coloque o jogador na lista de transferências (aumenta em 50% a chance de vir proposta por ele) e aguarde alguém se interessar. Aceite, rejeite ou mande uma contraproposta na aba Propostas.</p>
       <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} />
       {filtered.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
       {filtered.map(p => {
         const value = computePlayerValue(p, save.myClubId);
+        const listed = transferList.includes(p.name);
         return (
-          <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', marginBottom: 4 }}>
+          <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: listed ? 'rgba(212,162,60,0.07)' : 'rgba(255,255,255,0.03)', border: listed ? '1px solid rgba(212,162,60,0.25)' : '1px solid transparent', marginBottom: 4 }}>
             <span style={{ width: 32, fontSize: 10.5, opacity: 0.5, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{p.pos[0]}</span>
             <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
             <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 13 }}>{p.ovr}</span>
             <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11.5, opacity: 0.7, minWidth: 90, textAlign: 'right' }}>{formatMoney(value)}</span>
             <button
-              onClick={() => onSell(p.name)}
-              disabled={!canSellNow}
+              onClick={() => onToggleListed(p.name)}
+              title={listed ? 'Tirar da lista de transferências' : 'Colocar na lista de transferências (+50% chance de proposta)'}
               style={{
-                padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: canSellNow ? 'pointer' : 'default',
-                border: '1px solid rgba(224,80,80,0.4)', background: canSellNow ? 'rgba(224,80,80,0.12)' : 'transparent',
-                color: canSellNow ? '#e05050' : 'rgba(224,80,80,0.3)',
+                padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                border: `1px solid ${listed ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`,
+                background: listed ? 'rgba(212,162,60,0.15)' : 'transparent',
+                color: listed ? '#d4a23c' : 'rgba(244,241,234,0.6)',
               }}
-            >Vender</button>
+            >{listed ? '📋 Na lista' : '📋 Listar'}</button>
           </div>
         );
       })}
@@ -216,29 +221,66 @@ function OtherClubsTab({ save, onBuy, windowOpen }) {
   );
 }
 
-function OffersTab({ save, onRespond }) {
-  if (!save.pendingOffers?.length) {
-    return <p style={{ fontSize: 13, opacity: 0.6 }}>Nenhuma proposta por enquanto — elas podem surgir durante uma janela de transferências aberta (janeiro, ou julho-agosto), quando um clube de IA se interessa por algum jogador seu.</p>;
-  }
+function OfferCard({ offer, idx, onRespond, onCounterOffer }) {
+  const [countering, setCountering] = useState(false);
+  const [counterInput, setCounterInput] = useState('');
+  const buyerTeam = TEAMS.find(t => t.id === offer.fromClubId);
+  const counterAmount = counterInput ? parseInt(counterInput, 10) : 0;
+
+  const handleSendCounter = () => {
+    if (counterAmount <= offer.amount) return;
+    onCounterOffer(idx, counterAmount);
+    setCountering(false);
+    setCounterInput('');
+  };
+
   return (
-    <div>
-      {save.pendingOffers.map((offer, idx) => {
-        const buyerTeam = TEAMS.find(t => t.id === offer.fromClubId);
-        return (
-          <div key={`${offer.fromClubId}-${offer.playerName}-${idx}`} style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 8 }}>
-            <div style={{ fontSize: 13, marginBottom: 6 }}><b>{buyerTeam?.club}</b> oferece <b style={{ color: '#d4a23c' }}>{formatMoney(offer.amount)}</b> por <b>{offer.playerName}</b></div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => onRespond(idx, true)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: '#7fd99a', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Aceitar</button>
-              <button onClick={() => onRespond(idx, false)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Rejeitar</button>
-            </div>
+    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 8 }}>
+      <div style={{ fontSize: 13, marginBottom: 6 }}><b>{buyerTeam?.club}</b> oferece <b style={{ color: '#d4a23c' }}>{formatMoney(offer.amount)}</b> por <b>{offer.playerName}</b></div>
+      {!countering ? (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => onRespond(idx, true)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: '#7fd99a', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Aceitar</button>
+          <button onClick={() => setCountering(true)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid rgba(212,162,60,0.4)', background: 'rgba(212,162,60,0.1)', color: '#d4a23c', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Contraproposta</button>
+          <button onClick={() => onRespond(idx, false)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Rejeitar</button>
+        </div>
+      ) : (
+        <div>
+          <p style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>Peça um valor maior — se o clube topar pagar, a venda sai nesse valor; se achar caro demais, desiste e a proposta cai.</p>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              value={counterInput ? Number(counterInput).toLocaleString('pt-BR') : ''}
+              onChange={e => setCounterInput(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              placeholder={`Maior que ${formatMoney(offer.amount)}`}
+              inputMode="numeric"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={handleSendCounter}
+              disabled={counterAmount <= offer.amount}
+              style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: counterAmount > offer.amount ? '#d4a23c' : 'rgba(212,162,60,0.3)', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: counterAmount > offer.amount ? 'pointer' : 'default' }}
+            >Enviar</button>
+            <button onClick={() => { setCountering(false); setCounterInput(''); }} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
           </div>
-        );
-      })}
+        </div>
+      )}
     </div>
   );
 }
 
-export function CareerTransferMarket({ save, onSell, onBuy, onRespondOffer, onBack }) {
+function OffersTab({ save, onRespond, onCounterOffer }) {
+  if (!save.pendingOffers?.length) {
+    return <p style={{ fontSize: 13, opacity: 0.6 }}>Nenhuma proposta por enquanto — elas podem surgir durante uma janela de transferências aberta (janeiro, ou julho-agosto), quando um clube de IA se interessa por algum jogador seu. Colocar o jogador na lista de transferências (aba "Meu elenco") aumenta a chance.</p>;
+  }
+  return (
+    <div>
+      {save.pendingOffers.map((offer, idx) => (
+        <OfferCard key={`${offer.fromClubId}-${offer.playerName}-${idx}`} offer={offer} idx={idx} onRespond={onRespond} onCounterOffer={onCounterOffer} />
+      ))}
+    </div>
+  );
+}
+
+export function CareerTransferMarket({ save, onBuy, onRespondOffer, onCounterOffer, onToggleListed, onBack }) {
   const [tab, setTab] = useState(save.pendingOffers?.length ? 'offers' : 'mine');
   const windowOpen = isTransferWindowOpen(save.calendarDay);
   return (
@@ -248,9 +290,9 @@ export function CareerTransferMarket({ save, onSell, onBuy, onRespondOffer, onBa
       <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Orçamento: <b style={{ color: '#d4a23c' }}>{formatMoney(save.clubs[save.myClubId].budget)}</b></p>
       <TransferWindowBadge day={save.calendarDay} style={{ marginBottom: 12 }} />
       <TabBar tab={tab} setTab={setTab} offerCount={save.pendingOffers?.length || 0} />
-      {tab === 'mine' && <MyRosterTab save={save} onSell={onSell} windowOpen={windowOpen} />}
+      {tab === 'mine' && <MyRosterTab save={save} onToggleListed={onToggleListed} windowOpen={windowOpen} />}
       {tab === 'other' && <OtherClubsTab save={save} onBuy={onBuy} windowOpen={windowOpen} />}
-      {tab === 'offers' && <OffersTab save={save} onRespond={onRespondOffer} />}
+      {tab === 'offers' && <OffersTab save={save} onRespond={onRespondOffer} onCounterOffer={onCounterOffer} />}
     </div>
   );
 }

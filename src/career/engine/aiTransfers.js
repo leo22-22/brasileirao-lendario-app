@@ -81,7 +81,16 @@ export function decideAiOffers(clubs, listingsByClub, rand = Math.random) {
     const picked = rand() < 0.7
       ? candidates.reduce((min, c) => (c.price < min.price ? c : min))
       : candidates[Math.floor(rand() * candidates.length)];
-    const amount = Math.round(picked.price * (1 + rand() * 0.1)); // 100%-110%
+    // Proposta realista, estilo "EA FC": o clube comprador quase sempre
+    // tenta pagar menos (ou no máximo o valor de mercado) — só 20% das
+    // vezes vem uma proposta acima do valor calculado. Esse `amount` só é
+    // de fato gasto quando a oferta é pro próprio jogador do usuário (ver
+    // respondToOffer/counterOffer em seasonEngine.js); entre clubes de IA
+    // o buyPlayer recalcula o preço por conta própria, então essa variação
+    // não afeta a economia deles.
+    const amount = rand() < 0.2
+      ? Math.round(picked.price * (1 + rand() * 0.15)) // 20%: 100%-115% (acima do valor)
+      : Math.round(picked.price * (0.70 + rand() * 0.30)); // 80%: 70%-100% (abaixo ou igual)
     offers.push({
       fromClubId: buyerId,
       toClubId: picked.sellerId,

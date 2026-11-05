@@ -34,6 +34,9 @@ function eventLine(ev, myClubId) {
   if (ev.type === 'offer') {
     return `📨 Proposta recebida pelo ${ev.playerName}`;
   }
+  if (ev.type === 'copa-round') {
+    return `🏆 Copa do Brasil — ${ev.roundLabel} resolvida`;
+  }
   return null;
 }
 
@@ -105,7 +108,8 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
         <button onClick={() => onNavigate('formation')} style={navBtnStyle}>🧩 Formação</button>
         <button onClick={() => onNavigate('market')} style={navBtnStyle}>💰 Mercado{offerCount > 0 ? ` (${offerCount})` : ''}</button>
         <button onClick={() => onNavigate('table')} style={navBtnStyle}>📊 Tabela</button>
-        <button onClick={() => onNavigate('calendar')} style={{ ...navBtnStyle, gridColumn: '1 / -1' }}>📅 Calendário</button>
+        <button onClick={() => onNavigate('calendar')} style={navBtnStyle}>📅 Calendário</button>
+        <button onClick={() => onNavigate('copa')} style={navBtnStyle}>🏆 Copa do Brasil</button>
       </div>
 
       <button onClick={onAdvanceDay} disabled={offerCount > 0} style={{
