@@ -7,7 +7,7 @@ import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { formatCalendarDay } from '../engine/calendar.js';
 import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
-import { CareerAdvanceOverlay } from '../components/CareerAdvanceOverlay.jsx';
+import { CareerAdvanceModal } from '../components/CareerAdvanceModal.jsx';
 import { backButtonStyle } from '../components/styles.js';
 
 function formatMoney(n) {
@@ -69,7 +69,8 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
       {advancing && (
-        <CareerAdvanceOverlay
+        <CareerAdvanceModal
+          save={save}
           fromDay={advancing.fromDay}
           toDay={save.calendarDay}
           eventLines={dayEvents}

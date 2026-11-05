@@ -9718,13 +9718,24 @@ const bkBlockY = (r, i) => BK_PITCH * Math.pow(2, r) * (i + 0.5);
 // Coluna de uma fase: lado esquerdo conta da borda pro meio, direito espelhado.
 const bkColOf = (r, side) => (side === 'L' ? r : 8 - r);
 
-function CupBracketModal({
+export function CupBracketModal({
   cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo, myTeamBadge, onViewTeam, onClose,
   // Transição: `advance` é o momento em que uma fase acabou de ser decidida.
   // { intoRoundIdx, winnerIds } numa fase comum; { championId } na final.
   advance = null, simActive = false, simStatus = '', onSimulateAll, onCancelSim,
 }) {
   const mc = myTeamColor || '#d4a23c';
+  // Vários clubes têm preto como cor primária (ex.: Santos) — nesse caso o
+  // botão "Fechar" (fundo = mc) com o texto escuro padrão do btnPrimary
+  // ficava ilegível (preto sobre quase-preto). Texto claro quando o fundo é
+  // escuro, escuro quando é claro — só pra esse botão, que é o único lugar
+  // deste componente que usa a cor do clube como FUNDO sólido.
+  const mcIsDark = (() => {
+    const hex = (mc || '').replace('#', '');
+    if (hex.length !== 6) return true;
+    const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) < 140;
+  })();
   const wrapRef = useRef(null);
   const autoZoomedRef = useRef(false);
   const [fitScale, setFitScale] = useState(1);
@@ -10087,7 +10098,7 @@ function CupBracketModal({
                 ⏭ Simular até o campeão
               </button>
             )}
-            <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', marginTop: advance ? 14 : 8, background: isChampionMoment ? BK_GOLD : mc, color: '#0B1A12' }}>
+            <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', marginTop: advance ? 14 : 8, background: isChampionMoment ? BK_GOLD : mc, color: isChampionMoment ? '#0B1A12' : mcIsDark ? '#F4F1EA' : '#0B1A12' }}>
               {isChampionMoment ? 'Ver resultado final →' : advance ? 'Continuar →' : 'Fechar'}
             </button>
           </>
