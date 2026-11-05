@@ -6,20 +6,23 @@
 //
 // O universo do Modo Carreira só tem 40 clubes (não os ~92 da Copa de
 // verdade, que inclui times de Série C/D/estaduais que não existem aqui).
-// Adaptação: os 16 clubes com elenco atual mais fraco (por `teamStrength`)
-// jogam uma "Primeira Fase" — SÓ NOSSA, sem prêmio — pra fechar os 32 que
-// a Copa de verdade já tem prontos pra entrar na fase que ela chama de
-// "Fase 5". A partir daí, 32 clubes jogam exatamente as 5 fases nomeadas
-// da Copa real, com a premiação exata da tabela oficial. Os nomes das
-// fases são repetidos aqui (em vez de importados de App.jsx, que já tem
-// `CUP_ROUND_NAMES` igual pro modo Copa clássico) de propósito: `App.jsx`
-// importa `CareerApp.jsx` (pra montar o Modo Carreira), que importa este
-// arquivo — importar uma `const` de volta de App.jsx nesse ciclo quebra
-// com "Cannot access before initialization" (TDZ), diferente de importar
-// uma function declaration (hoisted, por isso `teamStrength`/`makePrng`/
-// `hashSeed` abaixo funcionam sem problema).
+// Adaptação (pedida pelo usuário): a "Primeira Fase" — SÓ NOSSA, sem
+// prêmio — é só entre os 16 clubes de SÉRIE B com elenco atual mais
+// fraco (por `teamStrength`); os 4 de Série B mais fortes folgam direto
+// pros 16avos, junto com os 20 de Série A inteiros (sempre folgam —
+// 20+4+8=32, fechando o chaveamento que a Copa de verdade já tem pronto
+// pra "Fase 5"). A partir daí, 32 clubes jogam exatamente as 5 fases
+// nomeadas da Copa real, com a premiação exata da tabela oficial. Os
+// nomes das fases são repetidos aqui (em vez de importados de App.jsx,
+// que já tem `CUP_ROUND_NAMES` igual pro modo Copa clássico) de
+// propósito: `App.jsx` importa `CareerApp.jsx` (pra montar o Modo
+// Carreira), que importa este arquivo — importar uma `const` de volta de
+// App.jsx nesse ciclo quebra com "Cannot access before initialization"
+// (TDZ), diferente de importar uma function declaration (hoisted, por
+// isso `teamStrength`/`makePrng`/`hashSeed` abaixo funcionam sem
+// problema).
 import { teamStrength, makePrng, hashSeed } from '../../App.jsx';
-import { CAREER_CLUB_IDS } from '../../data/career-clubs.js';
+import { CAREER_CLUB_IDS, careerClubDivision } from '../../data/career-clubs.js';
 import { creditBudget } from './rosterStore.js';
 import { resolveTwoLegTieAuto } from './simHelpers.js';
 
@@ -57,19 +60,23 @@ function clubStrength(save, clubId) {
 // dentro do primeiro terço da temporada, em vez de se espalhar pelo ano
 // inteiro como na vida real).
 export function drawCopaBracket(save, rand, leagueCalendar) {
-  const sorted = [...CAREER_CLUB_IDS].sort((a, b) => clubStrength(save, a) - clubStrength(save, b));
-  const weakest16 = sorted.slice(0, 16);
-  const strongest24 = sorted.slice(16);
+  const serieAIds = CAREER_CLUB_IDS.filter(id => careerClubDivision(id) === 'A');
+  const serieBSorted = CAREER_CLUB_IDS
+    .filter(id => careerClubDivision(id) === 'B')
+    .sort((a, b) => clubStrength(save, a) - clubStrength(save, b));
+  const weakest16SerieB = serieBSorted.slice(0, 16);
+  const strongest4SerieB = serieBSorted.slice(16);
   const calendar = leagueCalendar.slice(0, COPA_ROUND_LABELS.length).map(day => day + 3);
   return {
     round: 0,
     calendar,
-    ties: pairConsecutive(shuffle(weakest16, rand)),
-    // Os 24 clubes mais fortes não jogam a Primeira Fase — entram direto
-    // na fase seguinte junto com os 8 vencedores dela (24+8=32, fechando
-    // o chaveamento que a Copa de verdade já tem pronto). Só importa na
-    // transição da rodada 0 pra 1; nas rodadas seguintes fica vazio.
-    byeIds: strongest24,
+    ties: pairConsecutive(shuffle(weakest16SerieB, rand)),
+    // Os 20 clubes de Série A SEMPRE folgam da Primeira Fase (ela é só
+    // entre times de Série B), junto com os 4 de Série B mais fortes —
+    // 20+4+8(vencedores da Primeira Fase)=32, fechando o chaveamento que
+    // a Copa de verdade já tem pronto. Só importa na transição da rodada
+    // 0 pra 1; nas rodadas seguintes fica vazio.
+    byeIds: [...serieAIds, ...strongest4SerieB],
     pendingRoundWinners: null,
     champion: null,
     phase: 'active',
