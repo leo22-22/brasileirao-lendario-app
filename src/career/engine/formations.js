@@ -50,18 +50,62 @@ const BASE_COORDS = {
   ATA: { x: 50, y: 11 },
 };
 
-// Geometria simplificada em relação ao campinho clássico (que faz um
-// agrupamento fino de linhas pra espalhar VOL/MC/MD/ME juntos) — aqui
-// cada posição usa sua própria coordenada base, só espalhando
-// horizontalmente quando tem mais de uma (ex.: 2 ZAG). Mais simples,
-// ainda sem sobreposição visual pros 20 esquemas acima, e sem precisar
-// replicar toda a heurística do campinho clássico.
+// Geometria do campinho — portada 1:1 do campinho clássico (App.jsx,
+// `buildPitchSlots`) depois de um bug real: a primeira versão daqui
+// (mais simples, cada posição na sua própria linha de BASE_COORDS) não
+// agrupava VOL/MC/MD/ME na mesma altura quando cada um tinha qty 1 — um
+// "4-3-3 Equilibrado" (VOL+MC+MEI, 1 de cada) ficava com os 3 EMPILHADOS
+// verticalmente no centro do campo (todos em x=50), em vez de VOL+MC lado
+// a lado como um time de verdade escala. Os dados de FORMATIONS/
+// BASE_COORDS já eram idênticos aos do campinho clássico (só formatados
+// diferente) — só faltava essa heurística de agrupar linhas.
 export function buildPitchSlots(formationKey) {
   const scheme = FORMATIONS[formationKey] || FORMATIONS['4-3-3-misto'];
+  const { counts } = scheme;
+
+  // VOL e MC, quando os dois têm qty 1, ficam lado a lado na mesma linha
+  // (em vez de um atrás do outro) — só a função muda, não a altura no
+  // campo. MD/ME sempre entram na linha do MC quando ele existe (MD-MC-ME);
+  // sem MC, entram na linha do MEI (MD-MEI-ME); sem os dois, ficam com o
+  // VOL (o "4" plano de um 4-4-2 tradicional, por exemplo).
+  const mergeVolMc = counts.VOL === 1 && counts.MC === 1;
+  const hasMC = !!counts.MC;
+  const hasMEI = !!counts.MEI;
+  const hasWide = !!counts.MD || !!counts.ME;
+  const wideJoinsMei = !hasMC && hasMEI && hasWide;
+  const volJoinsWide = !hasMC && !hasMEI && hasWide;
+
+  const mcRowY = mergeVolMc ? 58 : 52;
+  const volRowY = mergeVolMc ? 58 : volJoinsWide ? 52 : 68;
+  const meiRowY = 36;
+  const wideRowY = hasMC ? mcRowY : hasMEI ? meiRowY : volRowY;
+
+  const ROW_ORDER = { ME: 0, VOL: 1, MC: 2, MEI: 2, MD: 3 };
+  const rows = new Map(); // y -> [{ pos, order }]
+  const pushToRow = (pos, qty, rowY, order) => {
+    if (!qty) return;
+    if (!rows.has(rowY)) rows.set(rowY, []);
+    const arr = rows.get(rowY);
+    for (let i = 0; i < qty; i++) arr.push({ pos, order });
+  };
+  pushToRow('VOL', mergeVolMc ? 1 : counts.VOL, volRowY, ROW_ORDER.VOL);
+  pushToRow('MC', mergeVolMc ? 1 : counts.MC, mcRowY, ROW_ORDER.MC);
+  pushToRow('MD', counts.MD, wideRowY, ROW_ORDER.MD);
+  pushToRow('ME', counts.ME, wideRowY, ROW_ORDER.ME);
+  if (wideJoinsMei) pushToRow('MEI', counts.MEI, wideRowY, ROW_ORDER.MEI);
+
+  const groupedPos = new Set(['VOL', 'MC', 'MD', 'ME']);
+  if (wideJoinsMei) groupedPos.add('MEI');
+
   const slots = [];
-  for (const [pos, qty] of Object.entries(scheme.counts)) {
+  Object.entries(counts).forEach(([pos, qty]) => {
+    if (groupedPos.has(pos)) return; // tratado abaixo via `rows`
     const base = BASE_COORDS[pos];
-    if (!base) continue;
+    if (!base) return;
+    // MEI sozinho (sem se juntar à linha do MD/ME) usa a própria linha
+    // (36) em vez do y padrão de BASE_COORDS (46), que ficaria colado na
+    // linha do MC (52).
+    const y = pos === 'MEI' ? meiRowY : base.y;
     for (let i = 0; i < qty; i++) {
       const key = qty === 1 ? pos : `${pos}${i + 1}`;
       let x = base.x;
@@ -70,8 +114,33 @@ export function buildPitchSlots(formationKey) {
         const offset = (i - (qty - 1) / 2) * (spread * 2 / Math.max(qty - 1, 1));
         x = Math.max(8, Math.min(92, base.x + offset));
       }
-      slots.push({ key, label: pos, realPos: pos, x, y: base.y });
+      slots.push({ key, label: pos, realPos: pos, x, y });
     }
+  });
+
+  const counters = {};
+  for (const [rowY, items] of rows.entries()) {
+    items.sort((a, b) => a.order - b.order);
+    const n = items.length;
+    const spread = n <= 1 ? 0 : n === 2 ? 18 : n === 3 ? 26 : 36;
+    items.forEach((item, i) => {
+      const offset = n <= 1 ? 0 : (i - (n - 1) / 2) * (spread * 2 / Math.max(n - 1, 1));
+      const x = Math.max(8, Math.min(92, 50 + offset));
+      counters[item.pos] = (counters[item.pos] ?? 0) + 1;
+      const key = counts[item.pos] === 1 ? item.pos : `${item.pos}${counters[item.pos]}`;
+      slots.push({ key, label: item.pos, realPos: item.pos, x, y: rowY });
+    });
   }
+
+  // 4-2-2-2: os MEIs ficam mais avançados e abertos, os volantes mais
+  // fechados e recuados — não sobrepõem, mas também não ficam achatados
+  // numa linha só.
+  if (formationKey === '4-4-2-quadrado') {
+    slots.forEach(s => {
+      if (s.realPos === 'MEI') { s.y = 38; s.x = s.x < 50 ? 28 : 72; }
+      if (s.realPos === 'VOL') { s.x = s.x < 50 ? 42 : 58; }
+    });
+  }
+
   return slots;
 }
