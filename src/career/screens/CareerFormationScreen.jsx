@@ -36,10 +36,41 @@ function autoFillFromPool(pool, slots) {
   return starters;
 }
 
-function initialStarters(roster, preferredNames, slots) {
-  const preferred = (preferredNames || []).map(n => roster.find(p => p.name === n)).filter(Boolean);
-  const rest = [...roster].filter(p => !preferred.some(q => q.name === p.name)).sort((a, b) => b.ovr - a.ovr);
-  return autoFillFromPool([...preferred, ...rest], slots);
+// Reconstrói o titular de cada vaga ao abrir a tela. Se o esquema salvo
+// bate com o atual, reaproveita a vaga EXATA de cada titular — mesma
+// ordem slots[i] <-> save.myStarters[i] que handleConfirm usa pra
+// gravar — em vez de reembaralhar tudo via autoFillFromPool (que só bate
+// por posição PRIMÁRIA: perdia quem tinha sido escalado numa posição
+// secundária, ex. um ponta numa vaga de ATA, e podia trocar os titulares
+// de um "2x ATA"/"2x MC" entre si sem nenhuma mudança real do usuário).
+// Bug real reportado pelo usuário — "não tá confirmando a escalação
+// quando eu mudo": o jogador escolhido sumia ao reabrir a tela. Só cai
+// pro preenchimento automático pras vagas que sobrarem vazias (esquema
+// mudou, ou o titular daquela vaga não existe mais no elenco — vendido/
+// aposentado no fim de temporada).
+function initialStarters(roster, save, slots, formationKey) {
+  const rosterNames = new Set(roster.map(p => p.name));
+  const starters = {};
+  const usedNames = new Set();
+  if (save.myFormationKey === formationKey && save.myStarters?.length === slots.length) {
+    slots.forEach((slot, i) => {
+      const name = save.myStarters[i];
+      if (name && rosterNames.has(name) && !usedNames.has(name)) {
+        starters[slot.key] = name;
+        usedNames.add(name);
+      }
+    });
+  }
+  const emptySlots = slots.filter(s => !starters[s.key]);
+  if (emptySlots.length > 0) {
+    const preferred = (save.myStarters || [])
+      .filter(n => rosterNames.has(n) && !usedNames.has(n))
+      .map(n => roster.find(p => p.name === n))
+      .filter(Boolean);
+    const rest = [...roster].filter(p => !usedNames.has(p.name) && !preferred.some(q => q.name === p.name)).sort((a, b) => b.ovr - a.ovr);
+    Object.assign(starters, autoFillFromPool([...preferred, ...rest], emptySlots));
+  }
+  return starters;
 }
 
 function PitchSlotCircle({ slot, player, pending, onClick }) {
@@ -173,7 +204,7 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
   const roster = save.clubs[save.myClubId].roster;
   const [formationKey, setFormationKey] = useState(() => (FORMATIONS[save.myFormationKey] ? save.myFormationKey : DEFAULT_FORMATION));
   const slots = useMemo(() => buildPitchSlots(formationKey), [formationKey]);
-  const [starters, setStarters] = useState(() => initialStarters(roster, save.myStarters, slots));
+  const [starters, setStarters] = useState(() => initialStarters(roster, save, slots, formationKey));
   const [pendingSlotKey, setPendingSlotKey] = useState(null);
 
   const byName = useMemo(() => Object.fromEntries(roster.map(p => [p.name, p])), [roster]);
