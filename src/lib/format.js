@@ -24,6 +24,21 @@ export function posOrderIndex(pos) {
   return i === -1 ? POS_ORDER.length : i;
 }
 
+// Cor por grupo de posição — usada no Modo Carreira (Mercado/Elenco/
+// Formação) pra dar identidade visual a cada setor do time, igual um
+// editor de escalação de verdade. Goleiro âmbar, defesa azul, meio
+// verde, meia ofensivo roxo, ataque laranja.
+export const POS_COLOR = {
+  GOL: '#e8a33d',
+  ZAG: '#5dade2', LD: '#5dade2', LE: '#5dade2',
+  VOL: '#7fd99a', MC: '#7fd99a', MD: '#7fd99a', ME: '#7fd99a',
+  MEI: '#b48ce0',
+  PD: '#f2994a', PE: '#f2994a', ATA: '#f2994a',
+};
+export function posColor(pos) {
+  return POS_COLOR[pos] || '#9fb3a8';
+}
+
 // Extrai o nome base e a conquista (texto entre parênteses no fim do label,
 // quando existe, ex.: "Guarani 1978 (Campeao Brasileiro)") — só reformata
 // o que já está no dado de TEAMS, não inventa nenhum fato novo.

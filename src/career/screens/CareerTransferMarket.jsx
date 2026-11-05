@@ -2,10 +2,12 @@
 // diferente do TransferMarket usado pelos outros modos (App.jsx, troca
 // direta sem preço). Três abas: listar/consultar o próprio elenco (sem
 // venda direta — só marca disponibilidade e espera proposta, estilo "lista
-// de transferências" de EA FC), comprar de qualquer um dos outros 39
-// clubes, e responder propostas recebidas (aceitar, rejeitar ou mandar
-// contraproposta). Busca por nome + filtro de posição em toda lista de
-// jogador, e busca por nome + divisão na lista de clubes.
+// de transferências" de EA FC), fazer proposta por um jogador de qualquer
+// um dos outros 39 clubes (o clube vendedor decide aceitar ou não, estilo
+// FIFA/Football Manager — nunca uma compra automática), e responder
+// propostas recebidas (aceitar, rejeitar ou mandar contraproposta). Busca
+// por nome + filtro de posição em toda lista de jogador, e busca por nome
+// + divisão na lista de clubes.
 import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
@@ -14,7 +16,7 @@ import { computePlayerValue } from '../engine/pricing.js';
 import { MIN_SQUAD_SIZE } from '../engine/rosterStore.js';
 import { isTransferWindowOpen } from '../engine/calendar.js';
 import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
-import { ovrColor, posOrderIndex, POS_ORDER } from '../../lib/format.js';
+import { ovrColor, posOrderIndex, posColor, POS_ORDER } from '../../lib/format.js';
 
 // Reaproveita POS_ORDER (lib/format.js) em vez de manter uma lista própria
 // — já cobre os 12 códigos de posição que existem nos dados (inclusive MD/
@@ -44,9 +46,20 @@ function filterPlayers(roster, query, pos) {
 }
 
 const inputStyle = {
-  padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
-  background: 'rgba(255,255,255,0.03)', color: '#F4F1EA', fontSize: 12.5, outline: 'none',
+  padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
+  background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 12.5, outline: 'none',
 };
+
+function PosBadge({ pos }) {
+  const c = posColor(pos);
+  return (
+    <span style={{
+      width: 34, flexShrink: 0, textAlign: 'center', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.3,
+      fontFamily: "'Space Mono', monospace", padding: '3px 0', borderRadius: 6,
+      color: c, background: `${c}22`, border: `1px solid ${c}55`,
+    }}>{pos}</span>
+  );
+}
 
 function PlayerSearchBar({ query, setQuery, pos, setPos, resultCount }) {
   return (
@@ -87,6 +100,19 @@ function TabBar({ tab, setTab, offerCount }) {
   );
 }
 
+function PlayerRowShell({ pos, children }) {
+  const c = posColor(pos);
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 10,
+      background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.07)',
+      borderLeft: `3px solid ${c}`, marginBottom: 6,
+    }}>
+      {children}
+    </div>
+  );
+}
+
 function MyRosterTab({ save, onToggleListed, windowOpen }) {
   const [query, setQuery] = useState('');
   const [pos, setPos] = useState('');
@@ -104,70 +130,149 @@ function MyRosterTab({ save, onToggleListed, windowOpen }) {
         const value = computePlayerValue(p, save.myClubId);
         const listed = transferList.includes(p.name);
         return (
-          <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, background: listed ? 'rgba(212,162,60,0.07)' : 'rgba(255,255,255,0.03)', border: listed ? '1px solid rgba(212,162,60,0.25)' : '1px solid transparent', marginBottom: 4 }}>
-            <span style={{ width: 32, fontSize: 10.5, opacity: 0.5, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{p.pos[0]}</span>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 13 }}>{p.ovr}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11.5, opacity: 0.7, minWidth: 90, textAlign: 'right' }}>{formatMoney(value)}</span>
-            <button
-              onClick={() => onToggleListed(p.name)}
-              title={listed ? 'Tirar da lista de transferências' : 'Colocar na lista de transferências (+50% chance de proposta)'}
-              style={{
-                padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                border: `1px solid ${listed ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`,
-                background: listed ? 'rgba(212,162,60,0.15)' : 'transparent',
-                color: listed ? '#d4a23c' : 'rgba(244,241,234,0.6)',
-              }}
-            >{listed ? '📋 Na lista' : '📋 Listar'}</button>
-          </div>
+          <PlayerRowShell key={p.name} pos={p.pos[0]}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <PosBadge pos={p.pos[0]} />
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 13 }}>{p.ovr}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, opacity: 0.7 }}>{formatMoney(value)}</span>
+              <button
+                onClick={() => onToggleListed(p.name)}
+                title={listed ? 'Tirar da lista de transferências' : 'Colocar na lista de transferências (+50% chance de proposta)'}
+                style={{
+                  padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                  border: `1px solid ${listed ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`,
+                  background: listed ? 'rgba(212,162,60,0.15)' : 'transparent',
+                  color: listed ? '#d4a23c' : 'rgba(244,241,234,0.6)',
+                }}
+              >{listed ? '📋 Na lista' : '📋 Listar'}</button>
+            </div>
+          </PlayerRowShell>
         );
       })}
     </div>
   );
 }
 
-function ClubRosterList({ save, clubId, onBuy, windowOpen }) {
+// Linha de um jogador de outro clube, com proposta inline — digita um
+// valor e envia; o clube vendedor decide aceitar ou recusar (nunca uma
+// compra automática). `onPropose` já devolve o resultado síncrono pra
+// tela mostrar na hora.
+function ProposeRow({ player, price, enabled, disabledReason, onPropose }) {
+  const [proposing, setProposing] = useState(false);
+  const [amountInput, setAmountInput] = useState('');
+  const amount = amountInput ? parseInt(amountInput, 10) : 0;
+
+  const handleOpen = () => {
+    setAmountInput(String(price));
+    setProposing(true);
+  };
+  const handleSend = () => {
+    if (amount <= 0) return;
+    onPropose(player.name, amount);
+    setProposing(false);
+    setAmountInput('');
+  };
+
+  return (
+    <PlayerRowShell pos={player.pos[0]}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <PosBadge pos={player.pos[0]} />
+        <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
+        <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(player.ovr), fontSize: 13 }}>{player.ovr}</span>
+      </div>
+      {!proposing ? (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, opacity: 0.7 }}>Valor de mercado: {formatMoney(price)}</span>
+          <button
+            onClick={handleOpen}
+            disabled={!enabled}
+            title={disabledReason}
+            style={{
+              padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: enabled ? 'pointer' : 'default',
+              border: '1px solid rgba(127,217,154,0.4)', background: enabled ? 'rgba(127,217,154,0.12)' : 'transparent',
+              color: enabled ? '#7fd99a' : 'rgba(127,217,154,0.3)',
+            }}
+          >💰 Fazer proposta</button>
+        </div>
+      ) : (
+        <div>
+          <p style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>Quanto menor que {formatMoney(price)}, menor a chance do clube aceitar.</p>
+          <div style={{ display: 'flex', gap: 6 }}>
+            <input
+              value={amountInput ? Number(amountInput).toLocaleString('pt-BR') : ''}
+              onChange={e => setAmountInput(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              inputMode="numeric"
+              style={{ ...inputStyle, flex: 1 }}
+            />
+            <button
+              onClick={handleSend}
+              disabled={amount <= 0}
+              style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: amount > 0 ? '#7fd99a' : 'rgba(127,217,154,0.3)', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: amount > 0 ? 'pointer' : 'default' }}
+            >Enviar</button>
+            <button onClick={() => setProposing(false)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+          </div>
+        </div>
+      )}
+    </PlayerRowShell>
+  );
+}
+
+function ClubRosterList({ save, clubId, onPropose, windowOpen }) {
   const [query, setQuery] = useState('');
   const [pos, setPos] = useState('');
+  const [lastResult, setLastResult] = useState(null); // { playerName, accepted, reason, price }
   const team = TEAMS.find(t => t.id === clubId);
+  const logo = CLUB_LOGOS[team.club];
   const roster = save.clubs[clubId].roster;
   const myBudget = save.clubs[save.myClubId].budget;
   const sellerCanSell = roster.length > MIN_SQUAD_SIZE;
   const filtered = filterPlayers(roster, query, pos);
+
+  const handlePropose = (playerName, amount) => {
+    const res = onPropose(clubId, playerName, amount);
+    setLastResult({ playerName, ...res });
+  };
+
   return (
     <div>
-      <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>{team.club}</div>
-      {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — só dá pra consultar os preços, não comprar.</p>}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+        {logo && <img src={logo} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
+        <div style={{ fontWeight: 700, fontSize: 15 }}>{team.club}</div>
+      </div>
+      {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — só dá pra consultar os preços, não propor.</p>}
+      {lastResult && (
+        <div style={{
+          padding: '9px 12px', borderRadius: 8, marginBottom: 10, fontSize: 12.5,
+          background: lastResult.accepted ? 'rgba(127,217,154,0.1)' : 'rgba(224,80,80,0.1)',
+          border: `1px solid ${lastResult.accepted ? 'rgba(127,217,154,0.35)' : 'rgba(224,80,80,0.35)'}`,
+          color: lastResult.accepted ? '#7fd99a' : '#e05050',
+        }}>
+          {lastResult.accepted
+            ? `✅ Proposta por ${lastResult.playerName} aceita — comprado por ${formatMoney(lastResult.price)}!`
+            : lastResult.reason === 'orçamento insuficiente'
+              ? `❌ Não foi possível propor por ${lastResult.playerName}: orçamento insuficiente.`
+              : `❌ Proposta por ${lastResult.playerName} recusada — tente um valor mais perto do de mercado.`}
+        </div>
+      )}
       <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} />
       {filtered.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
       {filtered.map(p => {
         const price = computePlayerValue(p, clubId);
-        const canAfford = myBudget >= price;
+        const canAfford = myBudget >= price * 0.5; // precisa dar pra propor pelo menos um valor com chance real
         const enabled = windowOpen && canAfford && sellerCanSell;
+        const disabledReason = !windowOpen ? 'Janela de transferências fechada' : !canAfford ? 'Orçamento insuficiente pra uma proposta com chance real' : !sellerCanSell ? 'Clube vendedor no mínimo de elenco' : '';
         return (
-          <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', marginBottom: 4 }}>
-            <span style={{ width: 32, fontSize: 10.5, opacity: 0.5, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{p.pos[0]}</span>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 13 }}>{p.ovr}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11.5, opacity: 0.7, minWidth: 90, textAlign: 'right' }}>{formatMoney(price)}</span>
-            <button
-              onClick={() => onBuy(clubId, p.name)}
-              disabled={!enabled}
-              title={!windowOpen ? 'Janela de transferências fechada' : !canAfford ? 'Orçamento insuficiente' : !sellerCanSell ? 'Clube vendedor no mínimo de elenco' : ''}
-              style={{
-                padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: enabled ? 'pointer' : 'default',
-                border: '1px solid rgba(127,217,154,0.4)', background: enabled ? 'rgba(127,217,154,0.12)' : 'transparent',
-                color: enabled ? '#7fd99a' : 'rgba(127,217,154,0.3)',
-              }}
-            >Comprar</button>
-          </div>
+          <ProposeRow key={p.name} player={p} price={price} enabled={enabled} disabledReason={disabledReason} onPropose={handlePropose} />
         );
       })}
     </div>
   );
 }
 
-function OtherClubsTab({ save, onBuy, windowOpen }) {
+function OtherClubsTab({ save, onPropose, windowOpen }) {
   const [clubId, setClubId] = useState(null);
   const [clubQuery, setClubQuery] = useState('');
   const [division, setDivision] = useState('A');
@@ -176,7 +281,7 @@ function OtherClubsTab({ save, onBuy, windowOpen }) {
     return (
       <div>
         <button onClick={() => setClubId(null)} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 12, cursor: 'pointer', marginBottom: 10, padding: 0 }}>← Outro clube</button>
-        <ClubRosterList key={clubId} save={save} clubId={clubId} onBuy={onBuy} windowOpen={windowOpen} />
+        <ClubRosterList key={clubId} save={save} clubId={clubId} onPropose={onPropose} windowOpen={windowOpen} />
       </div>
     );
   }
@@ -205,14 +310,14 @@ function OtherClubsTab({ save, onBuy, windowOpen }) {
         ))}
       </div>
       {filteredIds.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum clube encontrado com esse nome.</p>}
-      <div style={{ display: 'grid', gap: 6 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {filteredIds.map(id => {
           const team = TEAMS.find(t => t.id === id);
           const logo = CLUB_LOGOS[team.club];
           return (
-            <button key={id} onClick={() => setClubId(id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.03)', color: '#F4F1EA', cursor: 'pointer', textAlign: 'left' }}>
-              {logo && <img src={logo} alt="" style={{ width: 22, height: 22, objectFit: 'contain' }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
-              <span style={{ fontSize: 13, fontWeight: 600 }}>{team.club}</span>
+            <button key={id} onClick={() => setClubId(id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)', color: '#F4F1EA', cursor: 'pointer', textAlign: 'left' }} className="mode-card-hover">
+              {logo && <img src={logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
+              <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.club}</span>
             </button>
           );
         })}
@@ -280,7 +385,7 @@ function OffersTab({ save, onRespond, onCounterOffer }) {
   );
 }
 
-export function CareerTransferMarket({ save, onBuy, onRespondOffer, onCounterOffer, onToggleListed, onBack }) {
+export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounterOffer, onToggleListed, onBack }) {
   const [tab, setTab] = useState(save.pendingOffers?.length ? 'offers' : 'mine');
   const windowOpen = isTransferWindowOpen(save.calendarDay);
   return (
@@ -291,7 +396,7 @@ export function CareerTransferMarket({ save, onBuy, onRespondOffer, onCounterOff
       <TransferWindowBadge day={save.calendarDay} style={{ marginBottom: 12 }} />
       <TabBar tab={tab} setTab={setTab} offerCount={save.pendingOffers?.length || 0} />
       {tab === 'mine' && <MyRosterTab save={save} onToggleListed={onToggleListed} windowOpen={windowOpen} />}
-      {tab === 'other' && <OtherClubsTab save={save} onBuy={onBuy} windowOpen={windowOpen} />}
+      {tab === 'other' && <OtherClubsTab save={save} onPropose={onPropose} windowOpen={windowOpen} />}
       {tab === 'offers' && <OffersTab save={save} onRespond={onRespondOffer} onCounterOffer={onCounterOffer} />}
     </div>
   );

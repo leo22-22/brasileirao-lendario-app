@@ -54,6 +54,49 @@ export function buyPlayer(save, buyerId, sellerId, playerName) {
   return { save: newSave, ok: true, price, player };
 }
 
+// Curva de aceitação de proposta do usuário por um jogador de OUTRO
+// clube — estilo FIFA/Football Manager: abaixo de 60% do valor calculado,
+// o clube NUNCA aceita (impede uma proposta "absurda" tipo R$1M por um
+// jogador de R$100M); de 60% a 100%, a chance cresce suavemente (não é um
+// degrau seco); a partir de 100%, aceita sempre.
+function acceptanceChance(offeredAmount, askingValue) {
+  const ratio = offeredAmount / askingValue;
+  if (ratio >= 1) return 1;
+  if (ratio < 0.6) return 0;
+  const t = (ratio - 0.6) / 0.4; // 0..1
+  return 0.05 + t * 0.85; // 5%-90% dentro da faixa
+}
+
+// Usuário propõe um valor por um jogador de outro clube — diferente de
+// `buyPlayer` (compra instantânea ao preço calculado, usada só entre
+// clubes de IA), aqui o clube vendedor DECIDE aceitar ou não com base em
+// quão perto a proposta está do valor real do jogador. `rand` é a chance
+// de aceitar sendo sorteada — não precisa ser determinística (é uma ação
+// direta do usuário, não um passo do calendário).
+export function proposeTransfer(save, buyerId, sellerId, playerName, offeredAmount, rand = Math.random) {
+  const buyer = save.clubs[buyerId];
+  const seller = save.clubs[sellerId];
+  if (!buyer || !seller) return { save, accepted: false, reason: 'clube inválido' };
+  if (!canSell(seller.roster)) return { save, accepted: false, reason: `elenco do vendedor no mínimo de ${MIN_SQUAD_SIZE} jogadores` };
+  const player = seller.roster.find(p => p.name === playerName);
+  if (!player) return { save, accepted: false, reason: 'jogador não encontrado' };
+  if (offeredAmount <= 0 || buyer.budget < offeredAmount) return { save, accepted: false, reason: 'orçamento insuficiente' };
+
+  const askingValue = computePlayerValue(player, sellerId);
+  const accepted = rand() < acceptanceChance(offeredAmount, askingValue);
+  if (!accepted) return { save, accepted: false, reason: 'proposta recusada', askingValue };
+
+  const newSave = {
+    ...save,
+    clubs: {
+      ...save.clubs,
+      [sellerId]: { ...seller, roster: seller.roster.filter(p => p.name !== playerName), budget: seller.budget + offeredAmount },
+      [buyerId]: { ...buyer, roster: [...buyer.roster, player], budget: buyer.budget - offeredAmount },
+    },
+  };
+  return { save: newSave, accepted: true, price: offeredAmount, player };
+}
+
 // Entrada da categoria de base (sem custo) e crédito de premiação —
 // usados só pelo motor de fim de temporada (seasonEngine.js).
 export function addPlayersToClub(save, clubId, players) {

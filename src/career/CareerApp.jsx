@@ -20,7 +20,7 @@ import {
   simulateUserCopaTie, finalizeCopaUserTie, simulateRestOfSeason, respondToOffer, counterOffer, toggleTransferList,
 } from './engine/seasonEngine.js';
 import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
-import { buyPlayer } from './engine/rosterStore.js';
+import { proposeTransfer } from './engine/rosterStore.js';
 
 // Tela de confronto de ida+volta genérica — usada tanto pro mata-mata de
 // acesso (promoção/queda) quanto pros confrontos da Copa do Brasil. Quem
@@ -142,13 +142,18 @@ export function CareerApp({ onExit, onHudChange }) {
     setScreen('hub');
   }, []);
 
-  const handleBuy = useCallback((sellerId, playerName) => {
-    setSave(prev => {
-      if (!prev) return prev;
-      const result = buyPlayer(prev, prev.myClubId, sellerId, playerName);
-      return result.save;
-    });
-  }, []);
+  // Proposta do usuário por um jogador de outro clube — diferente de uma
+  // compra instantânea, o clube vendedor decide aceitar ou não (ver
+  // proposeTransfer em rosterStore.js). Lê `save` direto (não via
+  // updater) porque quem chama precisa do resultado (aceita/recusada) na
+  // hora, pra tela mostrar — side-effect único por clique, sem risco de
+  // valor desatualizado.
+  const handleProposeTransfer = useCallback((sellerId, playerName, offeredAmount) => {
+    if (!save) return { accepted: false, reason: 'sem carreira ativa' };
+    const result = proposeTransfer(save, save.myClubId, sellerId, playerName, offeredAmount);
+    setSave(result.save);
+    return result;
+  }, [save]);
 
   const handleRespondOffer = useCallback((offerIndex, accept) => {
     setSave(prev => prev && respondToOffer(prev, offerIndex, accept));
@@ -213,7 +218,7 @@ export function CareerApp({ onExit, onHudChange }) {
   if (screen === 'table') return <CareerTableScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'calendar') return <CareerCalendarScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'copa') return <CareerCopaScreen save={save} onBack={() => setScreen('hub')} />;
-  if (screen === 'market') return <CareerTransferMarket save={save} onBuy={handleBuy} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onBack={() => setScreen('hub')} />;
+  if (screen === 'market') return <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onBack={() => setScreen('hub')} />;
 
   return <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onSimulateSeason={handleSimulateSeason} onExit={onExit} />;
 }
