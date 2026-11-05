@@ -9,6 +9,7 @@ import { ClubPickerScreen } from './screens/ClubPickerScreen.jsx';
 import { CareerStartScreen } from './screens/CareerStartScreen.jsx';
 import { CareerHub } from './screens/CareerHub.jsx';
 import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
+import { CareerMatchDayScreen } from './screens/CareerMatchDayScreen.jsx';
 import { CareerFormationScreen } from './screens/CareerFormationScreen.jsx';
 import { CareerTableScreen } from './screens/CareerTableScreen.jsx';
 import { CareerCalendarScreen } from './screens/CareerCalendarScreen.jsx';
@@ -18,6 +19,7 @@ import { loadCareerSave, saveCareerSave, clearCareerSave } from './state/careerS
 import {
   createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie,
   simulateUserCopaTie, finalizeCopaUserTie, simulateRestOfSeason, respondToOffer, counterOffer, toggleTransferList,
+  resolveUserMatch,
 } from './engine/seasonEngine.js';
 import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
 import { proposeTransfer } from './engine/rosterStore.js';
@@ -167,6 +169,12 @@ export function CareerApp({ onExit, onHudChange }) {
     setSave(prev => prev && toggleTransferList(prev, playerName));
   }, []);
 
+  // Fim da partida ao vivo do próprio usuário (CareerMatchDayScreen) —
+  // só agora a rodada inteira é de fato resolvida e aplicada no save.
+  const handleFinishUserMatch = useCallback(() => {
+    setSave(prev => prev && resolveUserMatch(prev));
+  }, []);
+
   if (!save || screen === 'picker') {
     return <ClubPickerScreen onPick={handlePick} onBack={onExit} />;
   }
@@ -180,6 +188,10 @@ export function CareerApp({ onExit, onHudChange }) {
         onBack={onExit}
       />
     );
+  }
+
+  if (save.pendingUserMatch) {
+    return <CareerMatchDayScreen save={save} onFinish={handleFinishUserMatch} />;
   }
 
   if (save.pendingUserTie) {

@@ -12,7 +12,7 @@
 import { TEAMS } from '../../data/teams.js';
 import {
   applyRoundToTable, resolveDivisionEnd, simAiMatch, generateDoubleRoundRobin,
-  matchPrng, hashSeed, makePrng,
+  matchPrng, hashSeed, makePrng, buildLiveMatchEvents,
 } from '../../App.jsx';
 import { CAREER_CLUB_IDS, SERIE_A_2026_TEAM_IDS, SERIE_B_2026_TEAM_IDS, careerClubTier } from '../../data/career-clubs.js';
 import { cloneAllRosters, addPlayersToClub, creditBudget, buyPlayer, replaceRoster, canSell, MIN_SQUAD_SIZE } from './rosterStore.js';
@@ -231,6 +231,30 @@ export function advanceDay(save) {
       return { save: { ...current, calendarDay: day, lastDayEvents: events }, event: 'season-end' };
     }
     if (day === current.seasonCalendar[nextRoundIdx]) {
+      const matches = division.fixtures[nextRoundIdx] || [];
+      const myFixture = matches.find(m => m.homeId === current.myClubId || m.awayId === current.myClubId);
+      // Jogo do PRÓPRIO usuário: pára aqui sem resolver a rodada ainda — a
+      // tela de partida ao vivo (CareerMatchDayScreen) anima esse confronto
+      // minuto a minuto; só quando o usuário confirmar (resolveUserMatch)
+      // é que a rodada inteira (esse jogo + todos os outros 9 de cada
+      // divisão) é de fato resolvida, igual sempre foi. O resultado já sai
+      // pré-calculado aqui (mesma seed/chave que playDivisionRound usaria
+      // pra esse confronto) só pra a tela ter o que animar.
+      if (myFixture) {
+        const homeTeamFull = teamForSim(current, myFixture.homeId);
+        const awayTeamFull = teamForSim(current, myFixture.awayId);
+        const rand = matchPrng(current.seed, `s${current.season}-r${nextRoundIdx}`, myFixture.homeId, myFixture.awayId);
+        const sim = simAiMatch(homeTeamFull, awayTeamFull, rand);
+        const liveEvents = buildLiveMatchEvents(sim, homeTeamFull, homeTeamFull.players.slice(0, 11), awayTeamFull, awayTeamFull.players.slice(0, 11));
+        const pendingUserMatch = {
+          roundIdx: nextRoundIdx, day,
+          homeId: myFixture.homeId, awayId: myFixture.awayId,
+          homeTeam: { id: homeTeamFull.id, label: homeTeamFull.label, club: homeTeamFull.club, color: homeTeamFull.color },
+          awayTeam: { id: awayTeamFull.id, label: awayTeamFull.label, club: awayTeamFull.club, color: awayTeamFull.color },
+          sim: { homeGoals: sim.homeGoals, awayGoals: sim.awayGoals, ratings: sim.ratings, events: liveEvents },
+        };
+        return { save: { ...current, calendarDay: day, pendingUserMatch, lastDayEvents: events }, event: 'user-match' };
+      }
       const played = playRound(current, nextRoundIdx, null);
       const myMatch = findMyMatchResult(played, nextRoundIdx);
       if (myMatch) events.push({ type: 'match', day, ...myMatch });
@@ -287,6 +311,23 @@ export function advanceDay(save) {
     }
   }
   return { save: { ...current, calendarDay: 365, lastDayEvents: events }, event: 'season-end' };
+}
+
+// Chamada pela tela de partida ao vivo (CareerMatchDayScreen) depois que o
+// usuário termina de assistir/pular o próprio jogo — só agora a rodada
+// INTEIRA (o jogo do usuário, já decidido, + os outros 9 de cada divisão,
+// simulados aqui igual sempre foi) é de fato aplicada na tabela.
+export function resolveUserMatch(save) {
+  const pending = save.pendingUserMatch;
+  if (!pending) return save;
+  const userMatch = { homeId: pending.homeId, awayId: pending.awayId, homeGoals: pending.sim.homeGoals, awayGoals: pending.sim.awayGoals };
+  const played = playRound(save, pending.roundIdx, userMatch);
+  const myMatch = findMyMatchResult(played, pending.roundIdx);
+  return {
+    ...played,
+    pendingUserMatch: null,
+    lastDayEvents: myMatch ? [{ type: 'match', day: pending.day, ...myMatch }] : [],
+  };
 }
 
 // Pra cada um dos 40 clubes, pergunta pro resolveDivisionEnd já existente
@@ -564,6 +605,15 @@ export function simulateRestOfSeason(save) {
     }
     const { save: afterDay, event } = advanceDay(current);
     current = afterDay;
+    // Jogo do próprio usuário dentro de um "simular até o fim" — ao vivo
+    // só faz sentido quando o usuário está acompanhando; aqui resolve na
+    // hora (igual sempre foi antes da tela de partida ao vivo existir) e
+    // segue o laço sem parar, só contando como mais uma partida simulada.
+    if (event === 'user-match') {
+      current = resolveUserMatch(current);
+      matches++;
+      continue;
+    }
     for (const ev of afterDay.lastDayEvents || []) {
       if (ev.type === 'match') matches++;
       if (ev.type === 'transfer-ai') aiTransfers++;

@@ -10,6 +10,7 @@
 import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { getZoneInfo } from '../../App.jsx';
+import { backButtonStyle } from '../components/styles.js';
 
 function serieBZone(pos, total) {
   if (pos <= 2) return { color: '#7fd99a', label: 'Acesso', title: 'Acesso direto à Série A' };
@@ -53,7 +54,7 @@ export function CareerTableScreen({ save, onBack }) {
 
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Voltar</button>
+      <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
       <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 12 }}>Tabela</h2>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>

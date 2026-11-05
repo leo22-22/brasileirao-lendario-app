@@ -7,6 +7,7 @@
 import { TEAMS } from '../../data/teams.js';
 import { formatCalendarDay } from '../engine/calendar.js';
 import { COPA_ROUND_LABELS } from '../engine/copaEngine.js';
+import { backButtonStyle } from '../components/styles.js';
 
 export function CareerCopaScreen({ save, onBack }) {
   const copa = save.copa;
@@ -18,7 +19,7 @@ export function CareerCopaScreen({ save, onBack }) {
     const iAmChampion = copa.champion === myClubId;
     return (
       <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
-        <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Voltar</button>
+        <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
         <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 16 }}>Copa do Brasil</h2>
         <div style={{ textAlign: 'center', padding: '32px 16px', borderRadius: 14, background: iAmChampion ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.03)', border: iAmChampion ? '1px solid rgba(212,162,60,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
@@ -37,7 +38,7 @@ export function CareerCopaScreen({ save, onBack }) {
 
   return (
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Voltar</button>
+      <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
       <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Copa do Brasil</h2>
       <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 16 }}>{roundLabel} · {formatCalendarDay(copa.calendar[copa.round])}</p>
 

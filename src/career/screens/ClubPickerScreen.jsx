@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { SERIE_A_2026_TEAM_IDS, SERIE_B_2026_TEAM_IDS, CAREER_CLUB_META } from '../../data/career-clubs.js';
+import { backButtonStyle } from '../components/styles.js';
 
 const TIER_LABEL = { elite: 'Elite', grande: 'Grande', medio: 'Médio', pequeno: 'Pequeno' };
 const TIER_COLOR = { elite: '#d4a23c', grande: '#7fd99a', medio: '#9fb3a8', pequeno: '#8a8a8a' };
@@ -72,7 +73,7 @@ export function ClubPickerScreen({ onPick, onBack }) {
 
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Voltar</button>
+      <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
       <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, marginBottom: 6 }}>Escolha seu clube</h1>
       <p style={{ fontSize: 13, opacity: 0.65, marginBottom: 16, lineHeight: 1.5 }}>
         Comece o Modo Carreira num dos 40 clubes reais da Série A ou B de 2026 — selecione um clube, defina o orçamento inicial que quiser e confirme.

@@ -5,6 +5,7 @@
 // calendário que os outros modos já têm pro Brasileirão/Copa do Brasil.
 import { TEAMS } from '../../data/teams.js';
 import { formatCalendarDay } from '../engine/calendar.js';
+import { backButtonStyle } from '../components/styles.js';
 
 export function CareerCalendarScreen({ save, onBack }) {
   const myDivisionKey = save.clubs[save.myClubId].division === 'A' ? 'divisionA' : 'divisionB';
@@ -27,7 +28,7 @@ export function CareerCalendarScreen({ save, onBack }) {
 
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Voltar</button>
+      <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
       <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Calendário da temporada {save.season}</h2>
       <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 16 }}>Série {save.clubs[save.myClubId].division} · {rounds.filter(r => r.played).length}/{rounds.length} rodadas jogadas.</p>
 

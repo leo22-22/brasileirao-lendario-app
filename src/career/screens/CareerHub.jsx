@@ -2,10 +2,13 @@
 // jogo + atalhos pras outras telas (Elenco, Formação, Mercado, Tabela).
 // "Avançar" pula os dias sem nada sozinho e só para num dia de jogo, numa
 // proposta de negociação nova, ou no fim da temporada.
+import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { formatCalendarDay } from '../engine/calendar.js';
 import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
+import { CareerAdvanceOverlay } from '../components/CareerAdvanceOverlay.jsx';
+import { backButtonStyle } from '../components/styles.js';
 
 function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
@@ -16,7 +19,7 @@ function myDivisionData(save) {
   return { key: division, data: division === 'A' ? save.divisionA : save.divisionB };
 }
 
-function eventLine(ev, myClubId) {
+export function eventLine(ev, myClubId) {
   if (ev.type === 'match') {
     const isHome = ev.homeId === myClubId;
     const oppId = isHome ? ev.awayId : ev.homeId;
@@ -42,6 +45,16 @@ function eventLine(ev, myClubId) {
 }
 
 export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, onExit }) {
+  // Overlay do calendário "passando" — guarda o dia de ANTES do clique;
+  // o dia de DEPOIS já está em `save.calendarDay` assim que a animação
+  // começa a rodar (onAdvanceDay/onSimulateSeason já atualizaram o save
+  // síncronamente, via setState do componente pai). Some sozinho; se o
+  // clique trocar de tela (proposta/partida ao vivo/fim de temporada),
+  // este componente desmonta e a animação só é cortada — sem problema.
+  const [advancing, setAdvancing] = useState(null); // { fromDay } | null
+  const handleAdvanceClick = () => { setAdvancing({ fromDay: save.calendarDay }); onAdvanceDay(); };
+  const handleSimulateClick = () => { setAdvancing({ fromDay: save.calendarDay }); onSimulateSeason(); };
+
   const team = TEAMS.find(t => t.id === save.myClubId);
   const club = save.clubs[save.myClubId];
   const logo = CLUB_LOGOS[team.club];
@@ -55,7 +68,15 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
 
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onExit} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Sair da carreira</button>
+      {advancing && (
+        <CareerAdvanceOverlay
+          fromDay={advancing.fromDay}
+          toDay={save.calendarDay}
+          eventLines={dayEvents}
+          onDone={() => setAdvancing(null)}
+        />
+      )}
+      <button onClick={onExit} style={backButtonStyle}>← Sair da carreira</button>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
         {logo && <img src={logo} alt={team.club} style={{ width: 48, height: 48, objectFit: 'contain' }} />}
@@ -113,14 +134,14 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
         <button onClick={() => onNavigate('copa')} style={navBtnStyle}>🏆 Copa do Brasil</button>
       </div>
 
-      <button onClick={onAdvanceDay} disabled={offerCount > 0} style={{
+      <button onClick={handleAdvanceClick} disabled={offerCount > 0} style={{
         width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', cursor: offerCount > 0 ? 'default' : 'pointer',
         background: offerCount > 0 ? 'rgba(212,162,60,0.3)' : '#d4a23c', color: '#0B1A12', fontSize: 15, fontWeight: 700, marginBottom: 8,
       }}>
         {offerCount > 0 ? 'Responda as propostas primeiro' : seasonOver ? 'Encerrar temporada →' : 'Avançar →'}
       </button>
       {!seasonOver && (
-        <button onClick={onSimulateSeason} disabled={offerCount > 0} style={{
+        <button onClick={handleSimulateClick} disabled={offerCount > 0} style={{
           width: '100%', padding: '11px 0', borderRadius: 10, cursor: offerCount > 0 ? 'default' : 'pointer',
           border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(244,241,234,0.7)', fontSize: 12.5, fontWeight: 600,
         }}>

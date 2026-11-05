@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
+import { backButtonStyle } from '../components/styles.js';
 
 function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
@@ -19,7 +20,7 @@ export function CareerStartScreen({ save, onContinue, onNewCareer, onBack }) {
 
   return (
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 20, padding: 0 }}>← Voltar ao menu</button>
+      <button onClick={onBack} style={{ ...backButtonStyle, marginBottom: 20 }}>← Voltar ao menu</button>
       <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, marginBottom: 20, textAlign: 'center' }}>Modo Carreira</h1>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)', marginBottom: 20 }}>

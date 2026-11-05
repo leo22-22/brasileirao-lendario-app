@@ -1572,7 +1572,7 @@ function pickGoalOutcome(scoringTeam, scoringXI, concedingTeam, concedingXI, ran
 // fonte da verdade, placar/cartões/lesões batem em qualquer cliente; só o
 // minuto de cada evento aqui é sorteado localmente (cosmético, não precisa
 // bater entre clientes).
-function buildLiveMatchEvents(sim, homeTeam, homeXI, awayTeam, awayXI) {
+export function buildLiveMatchEvents(sim, homeTeam, homeXI, awayTeam, awayXI) {
   const usedMin = new Set();
   const randMin = (minM = 1, maxM = 90) => {
     // Sorteia um minuto ainda livre. A busca é por tentativa, então precisa de

@@ -12,6 +12,7 @@
 import { useMemo, useState } from 'react';
 import { ovrColor, posColor, posOrderIndex } from '../../lib/format.js';
 import { FORMATIONS, buildPitchSlots } from '../engine/formations.js';
+import { backButtonStyle } from '../components/styles.js';
 
 const DEFAULT_FORMATION = '4-3-3-misto';
 
@@ -184,7 +185,7 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
 
   return (
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Voltar</button>
+      <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
       <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Formação</h2>
       <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 12 }}>Clique numa vaga do campinho pra escalar ou tirar um jogador — edite quantas vezes quiser durante a temporada. OVR titular médio {avgOvr}.</p>
 

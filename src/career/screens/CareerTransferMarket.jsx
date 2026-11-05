@@ -16,6 +16,7 @@ import { computePlayerValue } from '../engine/pricing.js';
 import { MIN_SQUAD_SIZE } from '../engine/rosterStore.js';
 import { isTransferWindowOpen } from '../engine/calendar.js';
 import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
+import { backButtonStyle } from '../components/styles.js';
 import { ovrColor, posOrderIndex, posColor, POS_ORDER } from '../../lib/format.js';
 
 // Reaproveita POS_ORDER (lib/format.js) em vez de manter uma lista própria
@@ -280,7 +281,7 @@ function OtherClubsTab({ save, onPropose, windowOpen }) {
   if (clubId) {
     return (
       <div>
-        <button onClick={() => setClubId(null)} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 12, cursor: 'pointer', marginBottom: 10, padding: 0 }}>← Outro clube</button>
+        <button onClick={() => setClubId(null)} style={{ ...backButtonStyle, fontSize: 12, padding: '6px 12px', marginBottom: 10 }}>← Outro clube</button>
         <ClubRosterList key={clubId} save={save} clubId={clubId} onPropose={onPropose} windowOpen={windowOpen} />
       </div>
     );
@@ -390,7 +391,7 @@ export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounte
   const windowOpen = isTransferWindowOpen(save.calendarDay);
   return (
     <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Voltar</button>
+      <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
       <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Mercado de Transferências</h2>
       <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Orçamento: <b style={{ color: '#d4a23c' }}>{formatMoney(save.clubs[save.myClubId].budget)}</b></p>
       <TransferWindowBadge day={save.calendarDay} style={{ marginBottom: 12 }} />

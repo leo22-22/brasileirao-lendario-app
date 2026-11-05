@@ -8,6 +8,7 @@
 import { useState } from 'react';
 import { posOrderIndex, ovrColor, posColor } from '../../lib/format.js';
 import { computePlayerValue } from '../engine/pricing.js';
+import { backButtonStyle } from '../components/styles.js';
 
 const POS_GROUP_LABEL = {
   GOL: 'Goleiros', ZAG: 'Zagueiros', LD: 'Laterais', LE: 'Laterais',
@@ -111,7 +112,7 @@ export function CareerSquadScreen({ save, onBack }) {
 
   return (
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#d4a23c', fontSize: 13, cursor: 'pointer', marginBottom: 12, padding: 0 }}>← Voltar</button>
+      <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
       <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Elenco</h2>
       <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 12 }}>{roster.length} jogadores · 🌱 = da categoria de base · toque num jogador pra ver detalhes</p>
 
