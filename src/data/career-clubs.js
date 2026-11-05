@@ -30,54 +30,62 @@ export const SERIE_B_2026_TEAM_IDS = [
 
 export const CAREER_CLUB_IDS = [...SERIE_A_2026_TEAM_IDS, ...SERIE_B_2026_TEAM_IDS];
 
-// tier: 'elite' | 'grande' | 'medio' | 'pequeno' — lista própria do jogo,
-// não precisa bater 100% com o "G12" real; é só pra equilibrar preços e
-// categoria de base.
+// tier: 'elite' | 'grande' | 'medio' | 'pequeno' — classificação passada
+// pelo usuário (2026-11-05): Gigantes/Grandes/Médios/Pequenos, por clube
+// real, não por fórmula. Só pra equilibrar preços e categoria de base.
 export const CAREER_CLUB_META = {
-  // Série A 2026
+  // ---- Série A 2026 ----
+  // Gigantes ('elite')
+  santos2026: { tier: 'elite', stadiumCapacity: 16068 }, // Vila Belmiro
+  saopaulo2026: { tier: 'elite', stadiumCapacity: 66795 }, // MorumBIS
   flamengo2026: { tier: 'elite', stadiumCapacity: 78838 }, // Maracanã
   palmeiras2026: { tier: 'elite', stadiumCapacity: 43713 }, // Allianz Parque
   cruzeiro2026: { tier: 'elite', stadiumCapacity: 61846 }, // Mineirão
-  corinthians2026: { tier: 'elite', stadiumCapacity: 49205 }, // Neo Química Arena
-  botafogo2026: { tier: 'elite', stadiumCapacity: 46931 }, // Nilton Santos
-  fluminense2026: { tier: 'elite', stadiumCapacity: 78838 }, // Maracanã
-  saopaulo2026: { tier: 'elite', stadiumCapacity: 66795 }, // MorumBIS
-  bahia2026: { tier: 'elite', stadiumCapacity: 50025 }, // Arena Fonte Nova
-  vasco2026: { tier: 'elite', stadiumCapacity: 21880 }, // São Januário
-  atleticomg2026: { tier: 'elite', stadiumCapacity: 46000 }, // Arena MRV
-  internacional2026: { tier: 'elite', stadiumCapacity: 50128 }, // Beira-Rio
   gremio2026: { tier: 'elite', stadiumCapacity: 55662 }, // Arena do Grêmio
+  corinthians2026: { tier: 'elite', stadiumCapacity: 49205 }, // Neo Química Arena
+  internacional2026: { tier: 'elite', stadiumCapacity: 50128 }, // Beira-Rio
 
-  mirassol2026: { tier: 'grande', stadiumCapacity: 15100 }, // Mirassolão
+  // Grandes ('grande')
+  vasco2026: { tier: 'grande', stadiumCapacity: 21880 }, // São Januário
+  atleticomg2026: { tier: 'grande', stadiumCapacity: 46000 }, // Arena MRV
+  fluminense2026: { tier: 'grande', stadiumCapacity: 78838 }, // Maracanã
+  botafogo2026: { tier: 'grande', stadiumCapacity: 46931 }, // Nilton Santos
+  bahia2026: { tier: 'grande', stadiumCapacity: 50025 }, // Arena Fonte Nova
   athleticopr2026: { tier: 'grande', stadiumCapacity: 42372 }, // Arena da Baixada
-  coritiba2026: { tier: 'grande', stadiumCapacity: 40000 }, // Couto Pereira
-  bragantino2026: { tier: 'grande', stadiumCapacity: 17500 }, // Nabi Abi Chedid
-  vitoria2026: { tier: 'grande', stadiumCapacity: 30000 }, // Barradão
-  remo2026: { tier: 'grande', stadiumCapacity: 16200 }, // Baenão
-  chapecoense2026: { tier: 'grande', stadiumCapacity: 19500 }, // Arena Condá
-  santos2026: { tier: 'grande', stadiumCapacity: 16068 }, // Vila Belmiro
 
-  // Série B 2026
+  // Médios ('medio')
+  coritiba2026: { tier: 'medio', stadiumCapacity: 40000 }, // Couto Pereira
+  vitoria2026: { tier: 'medio', stadiumCapacity: 30000 }, // Barradão
+
+  // Pequenos ('pequeno')
+  bragantino2026: { tier: 'pequeno', stadiumCapacity: 17500 }, // Nabi Abi Chedid
+  chapecoense2026: { tier: 'pequeno', stadiumCapacity: 19500 }, // Arena Condá
+  mirassol2026: { tier: 'pequeno', stadiumCapacity: 15100 }, // Mirassolão
+  remo2026: { tier: 'pequeno', stadiumCapacity: 16200 }, // Baenão
+
+  // ---- Série B 2026 ----
+  // Médios ('medio')
   fortaleza2026: { tier: 'medio', stadiumCapacity: 63903 }, // Castelão (compartilhado)
   sport2026: { tier: 'medio', stadiumCapacity: 30000 }, // Ilha do Retiro
-  juventude2026: { tier: 'medio', stadiumCapacity: 19924 }, // Alfredo Jaconi
   ceara2026: { tier: 'medio', stadiumCapacity: 63903 }, // Castelão (compartilhado)
   goias2026: { tier: 'medio', stadiumCapacity: 12500 }, // Serrinha
+  pontepreta2026: { tier: 'medio', stadiumCapacity: 19728 }, // Moisés Lucarelli
+  juventude2026: { tier: 'medio', stadiumCapacity: 19924 }, // Alfredo Jaconi
   americamg2026: { tier: 'medio', stadiumCapacity: 23018 }, // Raimundo Sampaio
-  avai2026: { tier: 'medio', stadiumCapacity: 17800 }, // Aderbal Ramos da Silva
   criciuma2026: { tier: 'medio', stadiumCapacity: 19225 }, // Heriberto Hülse
-  vilanova2026: { tier: 'medio', stadiumCapacity: 11788 }, // Onésio Brasileiro Alvarenga
 
-  novorizontino2026: { tier: 'pequeno', stadiumCapacity: 10041 }, // Jorge Ismael de Biasi
-  athletic2026: { tier: 'pequeno', stadiumCapacity: 4655 }, // Joaquim Portugal
-  crb2026: { tier: 'pequeno', stadiumCapacity: 20800 }, // Rei Pelé
+  // Pequenos ('pequeno')
   cuiaba2026: { tier: 'pequeno', stadiumCapacity: 44097 }, // Arena Pantanal
   atleticogo2026: { tier: 'pequeno', stadiumCapacity: 13000 }, // Antônio Accioly
+  novorizontino2026: { tier: 'pequeno', stadiumCapacity: 10041 }, // Jorge Ismael de Biasi
   operario2026: { tier: 'pequeno', stadiumCapacity: 10632 }, // Germano Krüger
-  saobernardo2026: { tier: 'pequeno', stadiumCapacity: 16000 }, // Primeiro de Maio
+  avai2026: { tier: 'pequeno', stadiumCapacity: 17800 }, // Aderbal Ramos da Silva
+  vilanova2026: { tier: 'pequeno', stadiumCapacity: 11788 }, // Onésio Brasileiro Alvarenga
+  crb2026: { tier: 'pequeno', stadiumCapacity: 20800 }, // Rei Pelé
   botafogosp2026: { tier: 'pequeno', stadiumCapacity: 29292 }, // Santa Cruz
+  athletic2026: { tier: 'pequeno', stadiumCapacity: 4655 }, // Joaquim Portugal
+  saobernardo2026: { tier: 'pequeno', stadiumCapacity: 16000 }, // Primeiro de Maio
   londrina2026: { tier: 'pequeno', stadiumCapacity: 36000 }, // Jacy Scaff
-  pontepreta2026: { tier: 'pequeno', stadiumCapacity: 19728 }, // Moisés Lucarelli
   nautico2026: { tier: 'pequeno', stadiumCapacity: 19800 }, // Eládio de Barros Carvalho
 };
 
