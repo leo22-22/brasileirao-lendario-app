@@ -21,10 +21,11 @@ function eventLine(ev, myClubId) {
     const isHome = ev.homeId === myClubId;
     const oppId = isHome ? ev.awayId : ev.homeId;
     const oppTeam = TEAMS.find(t => t.id === oppId);
+    const myTeam = TEAMS.find(t => t.id === myClubId);
     const myGoals = isHome ? ev.homeGoals : ev.awayGoals;
     const oppGoals = isHome ? ev.awayGoals : ev.homeGoals;
     const result = myGoals > oppGoals ? '🟢' : myGoals < oppGoals ? '🔴' : '🟡';
-    return `${result} Você ${myGoals} x ${oppGoals} ${oppTeam?.club || ''}`;
+    return `${result} ${myTeam?.club || ''} ${myGoals} x ${oppGoals} ${oppTeam?.club || ''}`;
   }
   if (ev.type === 'transfer-ai') {
     const from = TEAMS.find(t => t.id === ev.fromClubId);
@@ -93,9 +94,9 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
           <>
             <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
             <div style={{ fontSize: 13, fontWeight: 600 }}>
-              {nextMatch.homeId === save.myClubId ? 'Você (casa)' : TEAMS.find(t => t.id === nextMatch.homeId)?.club}
+              {TEAMS.find(t => t.id === nextMatch.homeId)?.club}
               {' vs '}
-              {nextMatch.awayId === save.myClubId ? 'Você (fora)' : TEAMS.find(t => t.id === nextMatch.awayId)?.club}
+              {TEAMS.find(t => t.id === nextMatch.awayId)?.club}
             </div>
           </>
         ) : (
