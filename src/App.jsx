@@ -10264,7 +10264,7 @@ function TeamViewModal({ team, onClose, myTeamColor, suspensions, injuries }) {
 }
 
 // Zonas da tabela do Brasileirão
-function getZoneInfo(pos, total) {
+export function getZoneInfo(pos, total) {
   if (pos <= 4) return { color: '#22c55e', label: 'G4', title: 'Libertadores - Fase de Grupos' };
   if (pos <= 6) return { color: '#86efac', label: 'G6', title: 'Libertadores - Pre' };
   if (pos <= 12) return { color: '#60a5fa', label: 'SA', title: 'Sul-Americana' };

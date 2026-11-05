@@ -1,21 +1,55 @@
 // Tabela do Modo Carreira — Série A e B lado a lado por abas, com o
-// clube do usuário destacado e a zona de acesso/queda marcada.
+// clube do usuário destacado. Série A usa as mesmas zonas coloridas de
+// classificação continental que o modo clássico já tem (getZoneInfo,
+// App.jsx) — Libertadores/pré-Libertadores/Sul-Americana/rebaixamento —
+// mesmo sem existir um torneio de Libertadores jogável aqui (decisão de
+// escopo confirmada com o usuário: só informação visual na tabela,
+// inclusive a regra de vaga extra quando o campeão da Copa do Brasil já
+// está no G4). Série B mantém sua própria zona (acesso direto/playoff/
+// rebaixamento), que é sobre promoção, não sobre competição continental.
 import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
+import { getZoneInfo } from '../../App.jsx';
 
-function zoneColor(pos, division) {
-  if (division === 'A' && pos > 16) return '#e05050'; // 17-20: zona de rebaixamento
-  if (division === 'B') {
-    if (pos <= 2) return '#7fd99a'; // acesso direto
-    if (pos <= 6) return '#d4a23c'; // zona de playoff de acesso
-  }
-  return 'transparent';
+function serieBZone(pos, total) {
+  if (pos <= 2) return { color: '#7fd99a', label: 'Acesso', title: 'Acesso direto à Série A' };
+  if (pos <= 6) return { color: '#d4a23c', label: 'Playoff', title: 'Disputa o acesso via playoff' };
+  if (pos >= total - 3) return { color: '#e05050', label: 'Z4', title: 'Rebaixamento' };
+  return null;
 }
+
+const SERIE_A_LEGEND = [
+  { color: '#22c55e', text: 'G4 — Libertadores (fase de grupos)' },
+  { color: '#86efac', text: 'G6 — Libertadores (pré)' },
+  { color: '#60a5fa', text: 'até 12º — Sul-Americana' },
+  { color: '#ef4444', text: 'Z4 — rebaixamento' },
+];
+const SERIE_B_LEGEND = [
+  { color: '#7fd99a', text: '1º-2º — acesso direto à Série A' },
+  { color: '#d4a23c', text: '3º-6º — disputam o acesso (playoff)' },
+  { color: '#e05050', text: 'Z4 — rebaixamento (sem acesso, segue/cai de divisão)' },
+];
 
 export function CareerTableScreen({ save, onBack }) {
   const myDivision = save.clubs[save.myClubId].division;
   const [division, setDivision] = useState(myDivision);
   const data = division === 'A' ? save.divisionA : save.divisionB;
+
+  // Se o campeão da Copa do Brasil (desta carreira) já terminou a Série A
+  // no G4, uma vaga extra de Libertadores abre pro 5º colocado — igual na
+  // vida real. Só efeito visual (vira G4 também), sem torneio de verdade.
+  const copaChampionId = save.copa?.phase === 'done' ? save.copa.champion : null;
+  const copaChampionInG4 = division === 'A' && copaChampionId
+    ? save.divisionA.table.slice(0, 4).some(r => r.id === copaChampionId)
+    : false;
+
+  const getZone = (pos) => {
+    if (division === 'B') return serieBZone(pos, data.table.length);
+    if (copaChampionInG4 && pos === 5) {
+      return { color: '#22c55e', label: 'G4', title: 'Libertadores — vaga extra (campeão da Copa do Brasil já está no G4)' };
+    }
+    return getZoneInfo(pos, data.table.length);
+  };
 
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
@@ -56,9 +90,10 @@ export function CareerTableScreen({ save, onBack }) {
               const pos = idx + 1;
               const isMe = row.id === save.myClubId;
               const team = TEAMS.find(t => t.id === row.id);
+              const zone = getZone(pos);
               return (
-                <tr key={row.id} style={{ background: isMe ? 'rgba(212,162,60,0.1)' : 'transparent', fontWeight: isMe ? 700 : 400 }}>
-                  <td style={{ padding: '6px', borderLeft: `3px solid ${zoneColor(pos, division)}` }}>{pos}</td>
+                <tr key={row.id} style={{ background: isMe ? 'rgba(212,162,60,0.1)' : 'transparent', fontWeight: isMe ? 700 : 400 }} title={zone?.title}>
+                  <td style={{ padding: '6px', borderLeft: `3px solid ${zone?.color || 'transparent'}` }}>{pos}</td>
                   <td style={{ padding: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{team?.club || row.label}</td>
                   <td style={{ padding: '6px', textAlign: 'center' }}>{row.pj}</td>
                   <td style={{ padding: '6px', textAlign: 'center' }}>{row.v}</td>
@@ -72,12 +107,20 @@ export function CareerTableScreen({ save, onBack }) {
           </tbody>
         </table>
       </div>
-      {division === 'B' && (
-        <p style={{ fontSize: 11, opacity: 0.5, marginTop: 10 }}>🟢 1º-2º sobem direto · 🟡 3º-6º disputam o acesso</p>
-      )}
-      {division === 'A' && (
-        <p style={{ fontSize: 11, opacity: 0.5, marginTop: 10 }}>🔴 17º-20º caem pra Série B</p>
-      )}
+
+      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {(division === 'A' ? SERIE_A_LEGEND : SERIE_B_LEGEND).map(l => (
+          <div key={l.text} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, opacity: 0.6 }}>
+            <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, flexShrink: 0 }} />
+            {l.text}
+          </div>
+        ))}
+        {division === 'A' && copaChampionInG4 && (
+          <div style={{ fontSize: 11, color: '#22c55e', marginTop: 2 }}>
+            🏆 O campeão da Copa do Brasil está no G4 — uma vaga extra de Libertadores abriu pro 5º colocado.
+          </div>
+        )}
+      </div>
     </div>
   );
 }
