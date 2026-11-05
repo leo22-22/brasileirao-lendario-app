@@ -10,6 +10,7 @@ import { CareerStartScreen } from './screens/CareerStartScreen.jsx';
 import { CareerHub } from './screens/CareerHub.jsx';
 import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
 import { CareerMatchDayScreen } from './screens/CareerMatchDayScreen.jsx';
+import { CareerTwoLegScreen } from './screens/CareerTwoLegScreen.jsx';
 import { CareerFormationScreen } from './screens/CareerFormationScreen.jsx';
 import { CareerTableScreen } from './screens/CareerTableScreen.jsx';
 import { CareerCalendarScreen } from './screens/CareerCalendarScreen.jsx';
@@ -23,38 +24,6 @@ import {
 } from './engine/seasonEngine.js';
 import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
 import { proposeTransfer } from './engine/rosterStore.js';
-
-// Tela de confronto de ida+volta genérica — usada tanto pro mata-mata de
-// acesso (promoção/queda) quanto pros confrontos da Copa do Brasil. Quem
-// chama decide o texto e o que simular/aplicar; a tela só mostra os 2
-// placares + o agregado (e pênaltis, se empatar) igual nos dois casos.
-function TwoLegTieScreen({ title, subtitle, winLabel, loseLabel, onSimulate, onContinue }) {
-  const [result, setResult] = useState(null);
-  const handleSimulate = () => setResult(onSimulate());
-  const handleContinue = () => onContinue(result);
-  const iWon = result ? (result.myAggGoals > result.oppAggGoals || (result.wentToPenalties && result.penaltyWinnerIsMe)) : false;
-
-  return (
-    <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px', textAlign: 'center' }}>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, marginBottom: 10 }}>{title}</h2>
-      <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 20 }}>{subtitle}</p>
-      {!result ? (
-        <button onClick={handleSimulate} style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontWeight: 700, cursor: 'pointer' }}>Jogar os 2 jogos →</button>
-      ) : (
-        <>
-          <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 8 }}>Ida: {result.leg1.homeGoals} x {result.leg1.awayGoals}</div>
-          <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 12 }}>Volta: {result.leg2.homeGoals} x {result.leg2.awayGoals}</div>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Agregado: {result.myAggGoals} x {result.oppAggGoals}</div>
-          {result.wentToPenalties && <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>Empate no agregado — decidido nos pênaltis.</div>}
-          <div style={{ fontSize: 15, fontWeight: 700, color: iWon ? '#7fd99a' : '#e05050', marginBottom: 20 }}>
-            {iWon ? winLabel : loseLabel}
-          </div>
-          <button onClick={handleContinue} style={{ padding: '12px 24px', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontWeight: 700, cursor: 'pointer' }}>Continuar →</button>
-        </>
-      )}
-    </div>
-  );
-}
 
 export function CareerApp({ onExit, onHudChange }) {
   const [save, setSave] = useState(() => loadCareerSave());
@@ -135,7 +104,7 @@ export function CareerApp({ onExit, onHudChange }) {
     setSave(prev => {
       if (!prev?.pendingUserCopaTie || !result) return prev;
       const iWon = result.myAggGoals !== result.oppAggGoals ? result.myAggGoals > result.oppAggGoals : !!result.penaltyWinnerIsMe;
-      return finalizeCopaUserTie(prev, iWon);
+      return finalizeCopaUserTie(prev, iWon, result);
     });
   }, []);
 
@@ -198,12 +167,12 @@ export function CareerApp({ onExit, onHudChange }) {
     const tie = save.pendingUserTie;
     const oppTeam = TEAMS.find(t => t.id === (tie.aId === save.myClubId ? tie.bId : tie.aId));
     return (
-      <TwoLegTieScreen
+      <CareerTwoLegScreen
         title="Mata-mata de acesso"
         subtitle={`Ida e volta contra ${oppTeam?.club} — quem passar garante vaga na Série A.`}
         winLabel="🏆 Vaga garantida na Série A!"
         loseLabel="Eliminado — segue na Série B"
-        onSimulate={() => simulateUserTie(save)}
+        prepare={() => simulateUserTie(save)}
         onContinue={handleResolvePlayoffTie}
       />
     );
@@ -214,12 +183,12 @@ export function CareerApp({ onExit, onHudChange }) {
     const oppTeam = TEAMS.find(t => t.id === (tie.aId === save.myClubId ? tie.bId : tie.aId));
     const roundLabel = COPA_ROUND_LABELS[save.copa.round];
     return (
-      <TwoLegTieScreen
+      <CareerTwoLegScreen
         title={`Copa do Brasil — ${roundLabel}`}
         subtitle={`Ida e volta contra ${oppTeam?.club} — quem passar avança de fase.`}
         winLabel="🏆 Avançou de fase!"
         loseLabel="Eliminado da Copa do Brasil"
-        onSimulate={() => simulateUserCopaTie(save)}
+        prepare={() => simulateUserCopaTie(save)}
         onContinue={handleResolveCopaTie}
       />
     );

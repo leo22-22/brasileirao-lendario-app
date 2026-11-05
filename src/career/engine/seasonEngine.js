@@ -21,7 +21,7 @@ import { generateClubYouthBatch } from './youth.js';
 import { applySeasonAging } from './aging.js';
 import { decideAiListings, decideAiOffers } from './aiTransfers.js';
 import { buildSeasonCalendar, isTransferWindowOpen } from './calendar.js';
-import { teamForSim, resolveTwoLegTieAuto, simulateTwoLegTieForUser } from './simHelpers.js';
+import { teamForSim, resolveTwoLegTieAuto, prepareTwoLegTieForUser } from './simHelpers.js';
 import { drawCopaBracket, playCopaRound, finalizeCopaUserTie } from './copaEngine.js';
 
 export { isTransferWindowOpen } from './calendar.js';
@@ -363,30 +363,29 @@ function resolvePlayoffTieAuto(save, tie, rand) {
   return resolveTwoLegTieAuto(save, tie.leg1Match.homeId, tie.leg1Match.awayId, rand);
 }
 
-// Simula o mata-mata de acesso do PRÓPRIO usuário com o time real dos
-// dois lados (nada de o jogador escolher o resultado) — a experiência de
-// jogar os 2 jogos minuto a minuto, como o modo `serieab` já faz, fica
-// pra uma atualização futura; por ora, o resultado é decidido pela força
-// real dos elencos + aleatoriedade, igual a qualquer outra partida do
-// motor. Não aplica nada no save — só devolve o placar pra tela mostrar
-// antes de chamar finalizeSeasonAfterUserTie.
+// Prepara o mata-mata de acesso do PRÓPRIO usuário com o time real dos
+// dois lados (nada de o jogador escolher o resultado) — cada perna (ida/
+// volta) vem com o timeline minuto a minuto pronto pra animar, igual o
+// jogo comum do Brasileirão, não mais um botão só resolvendo os 2 jogos
+// de uma vez. Não aplica nada no save — só devolve os dados pra tela
+// jogar antes de chamar finalizeSeasonAfterUserTie.
 export function simulateUserTie(save) {
   const tie = save.pendingUserTie;
   if (!tie) return null;
   const rand = makePrng(hashSeed(`${save.seed}|user-tie|${save.season}`));
   const myId = tie.aId === save.myClubId ? tie.aId : tie.bId;
-  return simulateTwoLegTieForUser(save, tie.leg1Match.homeId, tie.leg1Match.awayId, myId, rand);
+  return prepareTwoLegTieForUser(save, tie.leg1Match.homeId, tie.leg1Match.awayId, myId, rand);
 }
 
 // Mesma mecânica de simulateUserTie, pro confronto do PRÓPRIO usuário na
-// Copa do Brasil (ver copaEngine.js) — devolve o placar pra tela mostrar
+// Copa do Brasil (ver copaEngine.js) — devolve os dados pra tela jogar
 // antes de chamar finalizeCopaUserTie (reexportada abaixo).
 export function simulateUserCopaTie(save) {
   const tie = save.pendingUserCopaTie;
   if (!tie) return null;
   const rand = makePrng(hashSeed(`${save.seed}|copa-user-tie|${save.season}|${save.copa.round}`));
   const myId = tie.aId === save.myClubId ? tie.aId : tie.bId;
-  return simulateTwoLegTieForUser(save, tie.leg1Match.homeId, tie.leg1Match.awayId, myId, rand);
+  return prepareTwoLegTieForUser(save, tie.leg1Match.homeId, tie.leg1Match.awayId, myId, rand);
 }
 
 export { finalizeCopaUserTie } from './copaEngine.js';

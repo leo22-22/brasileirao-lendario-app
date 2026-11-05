@@ -5,109 +5,24 @@
 // simulação ao vivo dos outros modos, e no fim mostra as notas dos
 // jogadores. "Continuar" chama `onFinish`, que resolve a rodada inteira
 // (esse jogo + todos os outros) e aplica no save de verdade.
-import { useEffect, useRef, useState } from 'react';
-import { CLUB_LOGOS } from '../../data/club-logos.js';
+import {
+  eventIcon, eventText, TeamBadge, RatingsList, useLiveMatchPlayer,
+  wrapStyle, cardStyle, labelStyle, primaryBtnStyle, secondaryBtnStyle,
+} from '../components/liveMatchUI.jsx';
 
-const SIM_STEP_MS = 55;
-const SIM_MINUTES_PER_TICK = 2;
-
-function eventIcon(ev) {
-  if (ev.type === 'goal') return ev.isOwnGoal ? '⚽ contra' : ev.isPenalty ? '⚽ pênalti' : '⚽';
-  if (ev.type === 'yellow') return '🟨';
-  if (ev.type === 'red') return '🟥';
-  if (ev.type === 'injury') return '🩼';
-  return '•';
-}
-
-function eventText(ev) {
-  if (ev.type === 'goal') return `${ev.scorer}${ev.assist ? ` (assist. ${ev.assist})` : ''} — ${ev.teamLabel}`;
-  if (ev.type === 'yellow') return `${ev.player} — ${ev.teamLabel}`;
-  if (ev.type === 'red') return `${ev.player}${ev.secondYellow ? ' (2º amarelo)' : ''} — ${ev.teamLabel}`;
-  if (ev.type === 'injury') return `${ev.player} sentiu uma lesão (${ev.teamLabel}) — entra ${ev.replacementName || 'um reserva'}`;
-  return '';
-}
-
-function TeamBadge({ team }) {
-  const logo = CLUB_LOGOS[team.club];
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 96 }}>
-      {logo ? (
-        <img src={logo} alt={team.club} style={{ width: 42, height: 42, objectFit: 'contain' }} />
-      ) : (
-        <div style={{ width: 42, height: 42, borderRadius: '50%', background: team.color || '#333' }} />
-      )}
-      <div style={{ fontSize: 11.5, fontWeight: 600, textAlign: 'center', lineHeight: 1.2 }}>{team.club}</div>
-    </div>
-  );
-}
-
-function RatingsList({ ratings, homeTeam, awayTeam }) {
-  const ratingColor = r => (r >= 8 ? '#7fd99a' : r >= 6.5 ? '#d4a23c' : r >= 5 ? '#e0b050' : '#e05050');
-  const Col = ({ team }) => {
-    const list = ratings.filter(r => r.teamId === team.id).sort((a, b) => b.rating - a.rating);
-    return (
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 6, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.club}</div>
-        {list.map(p => (
-          <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 11.5, marginBottom: 3 }}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ratingColor(p.rating), flexShrink: 0 }}>{p.rating.toFixed(1)}</span>
-          </div>
-        ))}
-      </div>
-    );
-  };
-  return (
-    <div style={{ display: 'flex', gap: 16, marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-      <Col team={homeTeam} />
-      <Col team={awayTeam} />
-    </div>
-  );
-}
+const EMPTY_PENDING = { homeTeam: { club: '' }, awayTeam: { club: '' }, sim: { homeGoals: 0, awayGoals: 0, ratings: [], events: [] } };
 
 export function CareerMatchDayScreen({ save, onFinish }) {
   const pending = save.pendingUserMatch;
-  const [phase, setPhase] = useState('intro'); // intro | playing | done
-  const [minute, setMinute] = useState(0);
-  const [homeGoals, setHomeGoals] = useState(0);
-  const [awayGoals, setAwayGoals] = useState(0);
-  const [shownEvents, setShownEvents] = useState([]);
-  const timerRef = useRef(null);
-
-  useEffect(() => () => clearInterval(timerRef.current), []);
-
-  if (!pending) return null;
-  const { homeTeam, awayTeam, sim } = pending;
+  // O hook precisa ser chamado incondicionalmente (regra dos hooks) — usa
+  // um "pending" vazio quando ainda não existe, e só sai de verdade DEPOIS
+  // da chamada (na prática o pai só monta essa tela quando pendingUserMatch
+  // já existe, então esse fallback nunca aparece pro usuário).
+  const { homeTeam, awayTeam, sim } = pending || EMPTY_PENDING;
   const division = save.clubs[save.myClubId].division;
   const competitionLabel = `Campeonato Brasileiro · Série ${division}`;
-  const motm = [...sim.ratings].sort((a, b) => b.rating - a.rating)[0];
-
-  function skipToEnd() {
-    clearInterval(timerRef.current);
-    setMinute(90);
-    setHomeGoals(sim.homeGoals);
-    setAwayGoals(sim.awayGoals);
-    setShownEvents(sim.events);
-    setPhase('done');
-  }
-
-  function startPlaying() {
-    setPhase('playing');
-    timerRef.current = setInterval(() => {
-      setMinute(m => {
-        const next = Math.min(90, m + SIM_MINUTES_PER_TICK);
-        const due = sim.events.filter(ev => ev.minute <= next);
-        setShownEvents(due);
-        setHomeGoals(due.filter(ev => ev.type === 'goal' && ev.teamId === homeTeam.id).length);
-        setAwayGoals(due.filter(ev => ev.type === 'goal' && ev.teamId === awayTeam.id).length);
-        if (next >= 90) {
-          clearInterval(timerRef.current);
-          setPhase('done');
-        }
-        return next;
-      });
-    }, SIM_STEP_MS);
-  }
+  const { phase, minute, homeGoals, awayGoals, shownEvents, startPlaying, skipToEnd, motm } = useLiveMatchPlayer(sim, homeTeam, awayTeam);
+  if (!pending) return null;
 
   if (phase === 'intro') {
     return (
@@ -171,9 +86,3 @@ export function CareerMatchDayScreen({ save, onFinish }) {
     </div>
   );
 }
-
-const wrapStyle = { width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' };
-const cardStyle = { padding: '14px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' };
-const labelStyle = { fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 4 };
-const primaryBtnStyle = { width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontSize: 14, fontWeight: 700, cursor: 'pointer' };
-const secondaryBtnStyle = { width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(244,241,234,0.8)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 8 };

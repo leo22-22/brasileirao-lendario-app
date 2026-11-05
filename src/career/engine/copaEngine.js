@@ -52,6 +52,20 @@ function clubStrength(save, clubId) {
   return teamStrength(Object.fromEntries(ordered.map((p, i) => [i, p])));
 }
 
+// Agregado de ida+volta de um confronto já resolvido, no formato que o
+// histórico guarda — aceita tanto o resultado cru de resolveTwoLegTieAuto
+// (winnerId/leg1/leg2, confrontos de IA) quanto um objeto já pronto com
+// aggA/aggB (confronto do próprio usuário, montado em finalizeCopaUserTie
+// a partir do resultado que a tela de ida+volta devolve).
+function tieAggregate(tie, aId, bId) {
+  if (tie.aggA != null) return tie;
+  return {
+    aId, bId, winnerId: tie.winnerId,
+    aggA: tie.leg1.homeGoals + tie.leg2.awayGoals,
+    aggB: tie.leg1.awayGoals + tie.leg2.homeGoals,
+  };
+}
+
 // Sorteia a Copa do Brasil inteira pra uma temporada nova. `leagueCalendar`
 // é o `seasonCalendar` do Brasileirão já sorteado pra essa temporada — as
 // 6 datas da Copa (Primeira Fase + 5 fases nomeadas) caem 3 dias depois
@@ -78,6 +92,11 @@ export function drawCopaBracket(save, rand, leagueCalendar) {
     // 0 pra 1; nas rodadas seguintes fica vazio.
     byeIds: [...serieAIds, ...strongest4SerieB],
     pendingRoundWinners: null,
+    pendingRoundTieResults: null,
+    // Fases já resolvidas — [{ round, roundLabel, day, ties: [{aId,bId,
+    // winnerId,aggA,aggB}] }] — só pro calendário mostrar o confronto e o
+    // agregado de uma fase passada (ver CareerCalendarScreen.jsx).
+    history: [],
     champion: null,
     phase: 'active',
   };
@@ -88,8 +107,10 @@ export function drawCopaBracket(save, rand, leagueCalendar) {
 // campeão/vice) se essa era a Final, ou sorteia os confrontos da próxima
 // fase entre os vencedores (mais os clubes de bye, só na transição da
 // Primeira Fase pra "16 Avos de Final").
-function advanceCopaRound(save, winners, rand) {
+function advanceCopaRound(save, winners, rand, tieResults) {
   const copa = save.copa;
+  const historyEntry = { round: copa.round, roundLabel: COPA_ROUND_LABELS[copa.round], day: copa.calendar[copa.round], ties: tieResults || [] };
+  const history = [...(copa.history || []), historyEntry];
   const isFinalRound = copa.round === COPA_ROUND_LABELS.length - 1;
   if (isFinalRound) {
     const championId = winners[0];
@@ -97,12 +118,12 @@ function advanceCopaRound(save, winners, rand) {
     const runnerUpId = finalTie.aId === championId ? finalTie.bId : finalTie.aId;
     let next = creditBudget(save, championId, COPA_CHAMPION_PRIZE);
     next = creditBudget(next, runnerUpId, COPA_RUNNER_UP_PRIZE);
-    return { ...next, copa: { ...copa, champion: championId, phase: 'done' } };
+    return { ...next, copa: { ...copa, champion: championId, phase: 'done', history, pendingRoundTieResults: null } };
   }
   const pool = copa.round === 0 ? [...winners, ...(copa.byeIds || [])] : winners;
   return {
     ...save,
-    copa: { ...copa, round: copa.round + 1, ties: pairConsecutive(shuffle(pool, rand)), byeIds: [], pendingRoundWinners: null },
+    copa: { ...copa, round: copa.round + 1, ties: pairConsecutive(shuffle(pool, rand)), byeIds: [], pendingRoundWinners: null, pendingRoundTieResults: null, history },
   };
 }
 
@@ -127,11 +148,12 @@ export function playCopaRound(save, rand) {
 
   const myTie = copa.ties.find(t => t.aId === next.myClubId || t.bId === next.myClubId);
   const aiTies = copa.ties.filter(t => t !== myTie);
-  const aiWinners = aiTies.map(t => resolveTwoLegTieAuto(next, t.aId, t.bId, rand).winnerId);
+  const aiResults = aiTies.map(t => tieAggregate(resolveTwoLegTieAuto(next, t.aId, t.bId, rand), t.aId, t.bId));
+  const aiWinners = aiResults.map(r => r.winnerId);
 
   if (myTie) {
     return {
-      save: { ...next, copa: { ...copa, pendingRoundWinners: aiWinners } },
+      save: { ...next, copa: { ...copa, pendingRoundWinners: aiWinners, pendingRoundTieResults: aiResults } },
       pendingUserCopaTie: { aId: myTie.aId, bId: myTie.bId, leg1Match: { homeId: myTie.aId, awayId: myTie.bId } },
       event: 'copa-tie',
       roundLabel: COPA_ROUND_LABELS[copa.round],
@@ -139,7 +161,7 @@ export function playCopaRound(save, rand) {
   }
 
   return {
-    save: advanceCopaRound(next, aiWinners, rand),
+    save: advanceCopaRound(next, aiWinners, rand, aiResults),
     pendingUserCopaTie: null,
     event: 'copa-round',
     roundLabel: COPA_ROUND_LABELS[copa.round],
@@ -150,12 +172,19 @@ export function playCopaRound(save, rand) {
 // do próprio confronto da Copa — combina o resultado dele com os
 // confrontos de IA já resolvidos na mesma fase (ver playCopaRound) e
 // termina o trabalho de avançar a fase (ou fechar o campeonato).
-export function finalizeCopaUserTie(save, iWon) {
+export function finalizeCopaUserTie(save, iWon, result) {
   const tie = save.pendingUserCopaTie;
   if (!tie) return save;
   const myWinnerId = iWon ? save.myClubId : (tie.aId === save.myClubId ? tie.bId : tie.aId);
   const winners = [...(save.copa.pendingRoundWinners || []), myWinnerId];
+  const myIsA = tie.aId === save.myClubId;
+  const userTieResult = {
+    aId: tie.aId, bId: tie.bId, winnerId: myWinnerId,
+    aggA: result ? (myIsA ? result.myAggGoals : result.oppAggGoals) : null,
+    aggB: result ? (myIsA ? result.oppAggGoals : result.myAggGoals) : null,
+  };
+  const tieResults = [...(save.copa.pendingRoundTieResults || []), userTieResult];
   const rand = makePrng(hashSeed(`${save.seed}|copa-advance|${save.season}|${save.copa.round}`));
-  const advanced = advanceCopaRound(save, winners, rand);
+  const advanced = advanceCopaRound(save, winners, rand, tieResults);
   return { ...advanced, pendingUserCopaTie: null };
 }
