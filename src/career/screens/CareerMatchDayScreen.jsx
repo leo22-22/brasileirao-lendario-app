@@ -72,7 +72,6 @@ export function CareerMatchDayScreen({ save, onFinish }) {
   const [homeGoals, setHomeGoals] = useState(0);
   const [awayGoals, setAwayGoals] = useState(0);
   const [shownEvents, setShownEvents] = useState([]);
-  const [showRatings, setShowRatings] = useState(false);
   const timerRef = useRef(null);
 
   useEffect(() => () => clearInterval(timerRef.current), []);
@@ -81,6 +80,7 @@ export function CareerMatchDayScreen({ save, onFinish }) {
   const { homeTeam, awayTeam, sim } = pending;
   const division = save.clubs[save.myClubId].division;
   const competitionLabel = `Campeonato Brasileiro · Série ${division}`;
+  const motm = [...sim.ratings].sort((a, b) => b.rating - a.rating)[0];
 
   function skipToEnd() {
     clearInterval(timerRef.current);
@@ -112,11 +112,13 @@ export function CareerMatchDayScreen({ save, onFinish }) {
   if (phase === 'intro') {
     return (
       <div style={wrapStyle}>
-        <div style={labelStyle}>{competitionLabel}</div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '28px 0 32px' }}>
-          <TeamBadge team={homeTeam} />
-          <div style={{ fontSize: 13, opacity: 0.4, fontWeight: 700 }}>x</div>
-          <TeamBadge team={awayTeam} />
+        <div style={cardStyle}>
+          <div style={labelStyle}>{competitionLabel}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 0 24px' }}>
+            <TeamBadge team={homeTeam} />
+            <div style={{ fontSize: 13, opacity: 0.4, fontWeight: 700 }}>x</div>
+            <TeamBadge team={awayTeam} />
+          </div>
         </div>
         <button onClick={startPlaying} style={primaryBtnStyle}>▶ Jogar partida</button>
       </div>
@@ -125,17 +127,19 @@ export function CareerMatchDayScreen({ save, onFinish }) {
 
   return (
     <div style={wrapStyle}>
-      <div style={labelStyle}>{competitionLabel}</div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, marginBottom: 4 }}>
-        <TeamBadge team={homeTeam} />
-        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700 }}>{homeGoals} - {awayGoals}</div>
-        <TeamBadge team={awayTeam} />
-      </div>
-      <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, margin: '6px 0 16px', fontFamily: "'Space Mono', monospace" }}>
-        {phase === 'playing' ? `${minute}'` : 'Fim de jogo'}
+      <div style={{ ...cardStyle, marginBottom: 16 }}>
+        <div style={labelStyle}>{competitionLabel}</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, margin: '8px 0 4px' }}>
+          <TeamBadge team={homeTeam} />
+          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700 }}>{homeGoals} - {awayGoals}</div>
+          <TeamBadge team={awayTeam} />
+        </div>
+        <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>
+          {phase === 'playing' ? `${minute}'` : 'Fim de jogo'}
+        </div>
       </div>
 
-      <div style={{ minHeight: 140, marginBottom: 16, display: 'grid', gap: 6 }}>
+      <div style={{ minHeight: 140, marginBottom: 16, display: 'grid', gap: 6, padding: 10, borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
         {shownEvents.length === 0 && phase === 'playing' && (
           <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.4, padding: '20px 0' }}>Bola rolando...</div>
         )}
@@ -154,10 +158,13 @@ export function CareerMatchDayScreen({ save, onFinish }) {
 
       {phase === 'done' && (
         <>
-          <button onClick={() => setShowRatings(s => !s)} style={secondaryBtnStyle}>
-            {showRatings ? 'Ocultar notas' : '📋 Ver notas dos jogadores'}
-          </button>
-          {showRatings && <RatingsList ratings={sim.ratings} homeTeam={homeTeam} awayTeam={awayTeam} />}
+          {motm && (
+            <div style={{ textAlign: 'center', background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
+              🌟 Craque da partida: <b style={{ color: '#d4a23c' }}>{motm.name}</b>{' '}
+              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
+            </div>
+          )}
+          <RatingsList ratings={sim.ratings} homeTeam={homeTeam} awayTeam={awayTeam} />
           <button onClick={onFinish} style={{ ...primaryBtnStyle, marginTop: 4 }}>Continuar →</button>
         </>
       )}
@@ -166,6 +173,7 @@ export function CareerMatchDayScreen({ save, onFinish }) {
 }
 
 const wrapStyle = { width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' };
+const cardStyle = { padding: '14px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' };
 const labelStyle = { fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 4 };
 const primaryBtnStyle = { width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontSize: 14, fontWeight: 700, cursor: 'pointer' };
 const secondaryBtnStyle = { width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(244,241,234,0.8)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 8 };

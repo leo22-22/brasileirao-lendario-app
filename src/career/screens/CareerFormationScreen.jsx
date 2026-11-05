@@ -140,6 +140,35 @@ function PlayerPoolPicker({ pos, pool, onPick, onCancel }) {
   );
 }
 
+// Bolinha de jogador do banco — mesma cara dos círculos do campinho
+// (OVR dentro, cor por posição), num carrossel horizontal em vez da
+// lista de pílulas de texto anterior. Ordenado por posição, então as
+// bolinhas da mesma cor já ficam naturalmente agrupadas lado a lado
+// (visual pedido pelo usuário: "separadas pela cor e por posição").
+function BenchBubble({ p }) {
+  const c = posColor(p.pos[0]);
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0, width: 60, scrollSnapAlign: 'start' }}>
+      <div style={{
+        width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 12, fontWeight: 800, fontFamily: "'Space Mono', monospace",
+        background: c, color: '#0B1A12', border: '2px solid rgba(255,255,255,0.5)', boxShadow: '0 3px 7px rgba(0,0,0,0.4)',
+      }}>{p.ovr}</div>
+      <div style={{ fontSize: 9, fontWeight: 700, color: c, fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</div>
+      <div style={{ fontSize: 9, fontWeight: 600, textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.85 }}>{p.name}</div>
+    </div>
+  );
+}
+
+function BenchCarousel({ players }) {
+  const sorted = [...players].sort((a, b) => posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]) || b.ovr - a.ovr);
+  return (
+    <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 6, scrollSnapType: 'x proximity' }}>
+      {sorted.map(p => <BenchBubble key={p.name} p={p} />)}
+    </div>
+  );
+}
+
 export function CareerFormationScreen({ save, onConfirm, onBack }) {
   const roster = save.clubs[save.myClubId].roster;
   const [formationKey, setFormationKey] = useState(() => (FORMATIONS[save.myFormationKey] ? save.myFormationKey : DEFAULT_FORMATION));
@@ -184,6 +213,11 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
     setPendingSlotKey(null);
   };
 
+  const handleClear = () => {
+    setStarters({});
+    setPendingSlotKey(null);
+  };
+
   const canConfirm = filledCount === 11;
   const handleConfirm = () => {
     const myStarters = slots.map(s => starters[s.key]).filter(Boolean);
@@ -214,6 +248,9 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
         <button onClick={handleSuggest} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '0 12px', fontSize: 11, color: 'rgba(244,241,234,0.7)', cursor: 'pointer' }}>
           🪄 Sugerir
         </button>
+        <button onClick={handleClear} style={{ background: 'none', border: '1px solid rgba(224,80,80,0.35)', borderRadius: 8, padding: '0 12px', fontSize: 11, color: '#e08080', cursor: 'pointer' }}>
+          🧹 Limpar
+        </button>
       </div>
 
       <div style={{ fontSize: 13, fontWeight: 700, color: filledCount === 11 ? '#7fd99a' : '#d4a23c', marginBottom: 8 }}>Titulares: {filledCount}/11</div>
@@ -224,19 +261,9 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
         <PlayerPoolPicker pos={pendingPos} pool={bench} onPick={handlePick} onCancel={() => setPendingSlotKey(null)} />
       )}
 
-      <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Banco ({bench.length})</div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
-        {bench
-          .slice()
-          .sort((a, b) => posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]) || b.ovr - a.ovr)
-          .map(p => (
-            <div key={p.name} style={{
-              padding: '5px 9px', borderRadius: 999, fontSize: 11, background: 'rgba(255,255,255,0.04)',
-              border: `1px solid ${posColor(p.pos[0])}44`, color: 'rgba(244,241,234,0.75)',
-            }}>
-              <span style={{ color: posColor(p.pos[0]), fontWeight: 700 }}>{p.pos[0]}</span> {p.name} <span style={{ opacity: 0.6 }}>{p.ovr}</span>
-            </div>
-          ))}
+      <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Banco ({bench.length})</div>
+      <div style={{ marginBottom: 16 }}>
+        <BenchCarousel players={bench} />
       </div>
 
       <button onClick={handleConfirm} disabled={!canConfirm} style={{
