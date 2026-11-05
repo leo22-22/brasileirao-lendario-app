@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { TEAMS } from '../data/teams.js';
 import { ClubPickerScreen } from './screens/ClubPickerScreen.jsx';
+import { CareerStartScreen } from './screens/CareerStartScreen.jsx';
 import { CareerHub } from './screens/CareerHub.jsx';
 import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
 import { CareerFormationScreen } from './screens/CareerFormationScreen.jsx';
@@ -13,7 +14,7 @@ import { CareerTableScreen } from './screens/CareerTableScreen.jsx';
 import { CareerCalendarScreen } from './screens/CareerCalendarScreen.jsx';
 import { CareerCopaScreen } from './screens/CareerCopaScreen.jsx';
 import { CareerTransferMarket } from './screens/CareerTransferMarket.jsx';
-import { loadCareerSave, saveCareerSave } from './state/careerStorage.js';
+import { loadCareerSave, saveCareerSave, clearCareerSave } from './state/careerStorage.js';
 import {
   createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie,
   simulateUserCopaTie, finalizeCopaUserTie, simulateRestOfSeason, respondToOffer, counterOffer, toggleTransferList,
@@ -55,10 +56,10 @@ function TwoLegTieScreen({ title, subtitle, winLabel, loseLabel, onSimulate, onC
 
 export function CareerApp({ onExit, onHudChange }) {
   const [save, setSave] = useState(() => loadCareerSave());
-  const [screen, setScreen] = useState(() => {
-    const existing = loadCareerSave();
-    return existing ? (existing.screen || 'hub') : 'picker';
-  });
+  // Com carreira salva, SEMPRE para na tela de "Continuar ou nova carreira"
+  // primeiro — sem isso, não tinha nenhum jeito de recomeçar: toda entrada
+  // no Modo Carreira carregava direto a carreira salva, sem opção nenhuma.
+  const [screen, setScreen] = useState(() => (loadCareerSave() ? 'start' : 'picker'));
 
   useEffect(() => {
     if (save) saveCareerSave(save);
@@ -78,6 +79,14 @@ export function CareerApp({ onExit, onHudChange }) {
   const handlePick = useCallback((clubId, customBudget) => {
     setSave(createCareerSave(clubId, customBudget));
     setScreen('hub');
+  }, []);
+
+  // "Nova carreira" na tela de entrada — apaga o save salvo pra sempre e
+  // manda pra escolha de clube, igual quem nunca jogou antes.
+  const handleNewCareer = useCallback(() => {
+    clearCareerSave();
+    setSave(null);
+    setScreen('picker');
   }, []);
 
   // Avança o calendário dia a dia (pula sozinho os dias sem nada) até
@@ -155,6 +164,17 @@ export function CareerApp({ onExit, onHudChange }) {
 
   if (!save || screen === 'picker') {
     return <ClubPickerScreen onPick={handlePick} onBack={onExit} />;
+  }
+
+  if (screen === 'start') {
+    return (
+      <CareerStartScreen
+        save={save}
+        onContinue={() => setScreen(save.screen || 'hub')}
+        onNewCareer={handleNewCareer}
+        onBack={onExit}
+      />
+    );
   }
 
   if (save.pendingUserTie) {
