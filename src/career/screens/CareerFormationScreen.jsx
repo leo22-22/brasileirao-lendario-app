@@ -102,7 +102,15 @@ function PitchField({ slots, starters, roster, pendingSlotKey, onSlotClick }) {
 }
 
 function PlayerPoolPicker({ pos, pool, onPick, onCancel }) {
-  const sorted = [...pool].sort((a, b) => (a.pos[0] === pos ? -1 : 1) - (b.pos[0] === pos ? -1 : 1) || b.ovr - a.ovr);
+  // Filtra de verdade pela posição clicada (antes só ordenava, deixando o
+  // elenco inteiro visível — incluindo goleiro/zagueiro numa vaga de
+  // ponta, bug real reportado pelo usuário). `p.pos` pode ter mais de uma
+  // posição (ex.: ['PD','ME']) — qualquer uma batendo já qualifica.
+  // Quando ninguém do banco joga ali, cai pro banco inteiro (com aviso),
+  // em vez de travar a escalação sem ter quem escalar.
+  const compatible = pool.filter(p => p.pos.includes(pos));
+  const usingFallback = compatible.length === 0 && pool.length > 0;
+  const sorted = [...(usingFallback ? pool : compatible)].sort((a, b) => b.ovr - a.ovr);
   return (
     <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)', marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -110,6 +118,7 @@ function PlayerPoolPicker({ pos, pool, onPick, onCancel }) {
         <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.6)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
       </div>
       {sorted.length === 0 && <p style={{ fontSize: 12, opacity: 0.5 }}>Todo mundo já tá escalado em outra vaga.</p>}
+      {usingFallback && <p style={{ fontSize: 11, opacity: 0.55, marginBottom: 6 }}>Ninguém do banco joga de {pos} — mostrando o banco inteiro.</p>}
       <div style={{ display: 'grid', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
         {sorted.map(p => (
           <button
@@ -117,8 +126,8 @@ function PlayerPoolPicker({ pos, pool, onPick, onCancel }) {
             onClick={() => onPick(p.name)}
             style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
-              background: p.pos[0] === pos ? 'rgba(127,217,154,0.1)' : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${p.pos[0] === pos ? 'rgba(127,217,154,0.3)' : 'rgba(255,255,255,0.08)'}`, color: '#F4F1EA',
+              background: p.pos.includes(pos) ? 'rgba(127,217,154,0.1)' : 'rgba(255,255,255,0.03)',
+              border: `1px solid ${p.pos.includes(pos) ? 'rgba(127,217,154,0.3)' : 'rgba(255,255,255,0.08)'}`, color: '#F4F1EA',
             }}
           >
             <span style={{ width: 28, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</span>
