@@ -263,7 +263,7 @@ export function CareerApp({ onExit, onHudChange }) {
     );
   }
 
-  if (screen === 'squad') return <CareerSquadScreen save={save} onBack={() => setScreen('hub')} />;
+  if (screen === 'squad') return <CareerSquadScreen save={save} onToggleListed={handleToggleListed} onBack={() => setScreen('hub')} />;
   if (screen === 'formation') return <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onBack={() => setScreen('hub')} />;
   if (screen === 'table') return <CareerTableScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'calendar') return <CareerCalendarScreen save={save} onBack={() => setScreen('hub')} />;
