@@ -41,7 +41,7 @@
 import { teamStrength, makePrng, hashSeed, simAiMatch } from '../../App.jsx';
 import { CAREER_CLUB_IDS, careerClubDivision } from '../../data/career-clubs.js';
 import { creditBudget } from './rosterStore.js';
-import { teamForSim, resolveTwoLegTieAuto } from './simHelpers.js';
+import { teamForSim, resolveTwoLegTieAuto, legPackage } from './simHelpers.js';
 
 export const COPA_ROUND_LABELS = ['Primeira Fase', '16 Avos de Final', 'Oitavas de Final', 'Quartas de Final', 'Semifinal', 'Final'];
 
@@ -105,21 +105,42 @@ function resolveBracketTieAuto(save, aId, bId, rand) {
   };
 }
 
-// Sorteia a Copa do Brasil inteira pra uma temporada nova. `leagueCalendar`
-// é o `seasonCalendar` do Brasileirão já sorteado pra essa temporada — as
-// 6 datas da Copa (Primeira Fase + 5 fases nomeadas) caem 3 dias depois
-// das 6 primeiras rodadas dele, o que nunca colide e já pula o buraco de
-// julho-agosto de graça (decisão de simplicidade: a Copa termina rápido,
-// dentro do primeiro terço da temporada, em vez de se espalhar pelo ano
-// inteiro como na vida real).
-export function drawCopaBracket(save, rand, leagueCalendar) {
+// A FINAL é jogo único (pedido explícito do usuário, 2026-11-06: "final da
+// copa do brasil é jogo único") — sem volta, decide nos pênaltis se empatar
+// (sem jogo extra), igual toda outra fase.
+function resolveFinalMatchAuto(save, aId, bId, rand) {
+  const sim = simAiMatch(teamForSim(save, aId), teamForSim(save, bId), rand);
+  let winnerId, onPens = false;
+  if (sim.homeGoals !== sim.awayGoals) {
+    winnerId = sim.homeGoals > sim.awayGoals ? aId : bId;
+  } else {
+    onPens = true;
+    winnerId = rand() < 0.5 ? aId : bId;
+  }
+  return { aId, bId, winnerId, onPens, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
+}
+
+// Dias (dia-do-ano, 1-365) de cada fase da Copa — espalhados mês sim, mês
+// não ao longo da temporada inteira (pedido do usuário, 2026-11-06: "copa
+// do brasil geralmente acontece mes sim e mes nao"), em vez de amontoados
+// nas primeiras semanas como antes. Fixos (não derivados de
+// `seasonCalendar`) porque a estrutura do calendário da temporada já é
+// sempre a mesma (38 rodadas semanais a partir de 1º de fevereiro, pulando
+// julho-agosto) independente do sorteio — só os CONFRONTOS de cada rodada
+// mudam, nunca os dias. Conferido um a um pra nenhum cair em cima do dia de
+// uma rodada do Brasileirão (senão o dia da Copa nunca seria resolvido —
+// `advanceDay` só trata UM evento por dia).
+const COPA_DAYS = [40, 100, 160, 220, 280, 340];
+
+// Sorteia a Copa do Brasil inteira pra uma temporada nova.
+export function drawCopaBracket(save, rand) {
   const serieAIds = CAREER_CLUB_IDS.filter(id => careerClubDivision(id) === 'A');
   const serieBSorted = CAREER_CLUB_IDS
     .filter(id => careerClubDivision(id) === 'B')
     .sort((a, b) => clubStrength(save, a) - clubStrength(save, b));
   const weakest16SerieB = serieBSorted.slice(0, 16);
   const strongest4SerieB = serieBSorted.slice(16);
-  const calendar = leagueCalendar.slice(0, COPA_ROUND_LABELS.length).map(day => day + 3);
+  const calendar = COPA_DAYS;
   return {
     round: 0,
     calendar,
@@ -190,20 +211,14 @@ function advanceBracketRound(save, results) {
   const day = copa.calendar[copa.round];
   const isFinalRound = copa.round === COPA_ROUND_LABELS.length - 1;
 
-  // A final é jogo único no modo clássico (CupBracketModal detecta
-  // `matches.length===1` e lê só `results[0]`, sem leg1) — guardamos o
-  // AGREGADO ida+volta ali mesmo, pra mostrar o placar certo sem precisar
-  // mudar o motor (o Modo Carreira continua jogando a final em ida+volta,
-  // igual toda outra fase).
+  // A final é jogo único (sem leg1 — `cupMatchOutcome` no modo clássico já
+  // detecta isso sozinho via `matches.length===1` e lê só `results[0]`).
   const roundEntry = isFinalRound
     ? {
         name: COPA_ROUND_LABELS[copa.round],
         matches: [{ homeId: results[0].aId, awayId: results[0].bId }],
         leg1Results: [],
-        results: [{
-          homeGoals: results[0].leg1.homeGoals + results[0].leg2.awayGoals,
-          awayGoals: results[0].leg1.awayGoals + results[0].leg2.homeGoals,
-        }],
+        results: [{ homeGoals: results[0].homeGoals, awayGoals: results[0].awayGoals }],
         penaltyResults: results[0].onPens ? [{ matchIdx: 0, winner: results[0].winnerId }] : [],
       }
     : {
@@ -217,11 +232,13 @@ function advanceBracketRound(save, results) {
   const rounds = [...(copa.rounds || [])];
   rounds[classicIdx] = roundEntry;
 
-  const historyTies = results.map(r => ({
-    aId: r.aId, bId: r.bId, winnerId: r.winnerId,
-    aggA: r.leg1.homeGoals + r.leg2.awayGoals,
-    aggB: r.leg1.awayGoals + r.leg2.homeGoals,
-  }));
+  const historyTies = isFinalRound
+    ? results.map(r => ({ aId: r.aId, bId: r.bId, winnerId: r.winnerId, aggA: r.homeGoals, aggB: r.awayGoals }))
+    : results.map(r => ({
+        aId: r.aId, bId: r.bId, winnerId: r.winnerId,
+        aggA: r.leg1.homeGoals + r.leg2.awayGoals,
+        aggB: r.leg1.awayGoals + r.leg2.homeGoals,
+      }));
   const history = [...(copa.history || []), { round: copa.round, roundLabel: COPA_ROUND_LABELS[copa.round], day, ties: historyTies }];
 
   if (isFinalRound) {
@@ -259,22 +276,33 @@ export function playCopaRound(save, rand) {
   }
 
   const isPrimeiraFase = copa.round === 0;
+  const isFinal = copa.round === COPA_ROUND_LABELS.length - 1;
   const myTieIdx = copa.ties.findIndex(t => t.aId === next.myClubId || t.bId === next.myClubId);
   const myTie = myTieIdx >= 0 ? copa.ties[myTieIdx] : null;
 
   // Resultados na MESMA ordem de `copa.ties` (posição fixa do chaveamento) —
-  // `null` no slot do usuário, preenchido depois por `finalizeCopaUserTie`.
+  // `null` no slot do usuário, preenchido depois por `finalizeCopaUserTie`
+  // (Primeira Fase e fases de ida+volta) ou `resolveCopaFinalUserMatch`
+  // (final, jogo único).
   const results = copa.ties.map((t, i) => {
     if (i === myTieIdx) return null;
-    return isPrimeiraFase
-      ? tieAggregate(resolveTwoLegTieAuto(next, t.aId, t.bId, rand), t.aId, t.bId)
-      : resolveBracketTieAuto(next, t.aId, t.bId, rand);
+    if (isPrimeiraFase) return tieAggregate(resolveTwoLegTieAuto(next, t.aId, t.bId, rand), t.aId, t.bId);
+    if (isFinal) return resolveFinalMatchAuto(next, t.aId, t.bId, rand);
+    return resolveBracketTieAuto(next, t.aId, t.bId, rand);
   });
 
   if (myTie) {
+    // A final é jogo único — o placar já sai pronto aqui (mesma convenção
+    // de `pendingUserMatch` pro jogo comum do Brasileirão: a tela de
+    // partida ao vivo só ANIMA o que já foi decidido, não decide nada).
+    // Nas outras fases, quem decide é a tela de ida+volta (prepara os 2
+    // jogos só quando monta, ver CareerTwoLegScreen.jsx).
+    const pendingUserCopaTie = isFinal
+      ? { aId: myTie.aId, bId: myTie.bId, isFinal: true, finalMatch: legPackage(next, myTie.aId, myTie.bId, rand) }
+      : { aId: myTie.aId, bId: myTie.bId, leg1Match: { homeId: myTie.aId, awayId: myTie.bId } };
     return {
       save: { ...next, copa: { ...copa, pendingRoundTieResults: results } },
-      pendingUserCopaTie: { aId: myTie.aId, bId: myTie.bId, leg1Match: { homeId: myTie.aId, awayId: myTie.bId } },
+      pendingUserCopaTie,
       event: 'copa-tie',
       roundLabel: COPA_ROUND_LABELS[copa.round],
     };
@@ -323,5 +351,32 @@ export function finalizeCopaUserTie(save, iWon, result) {
   const advanced = isPrimeiraFase
     ? advancePrimeiraFase(save, results.map(r => r.winnerId), rand)
     : advanceBracketRound(save, results);
+  return { ...advanced, pendingUserCopaTie: null };
+}
+
+// Chamada pela tela de partida única (CareerMatchDayScreen reaproveitada,
+// ver CareerApp.jsx) depois que o usuário jogou a FINAL da Copa do Brasil —
+// o placar já saiu pronto em `pendingUserCopaTie.finalMatch.sim` (mesma
+// convenção de `resolveUserMatch` pro jogo comum do Brasileirão: só aplica
+// o que já foi decidido, sem pedir nenhum resultado de volta).
+export function resolveCopaFinalUserMatch(save) {
+  const tie = save.pendingUserCopaTie;
+  if (!tie?.isFinal) return save;
+  const { homeGoals, awayGoals } = tie.finalMatch.sim;
+  const rand = makePrng(hashSeed(`${save.seed}|copa-final-pens|${save.season}`));
+  let winnerId, onPens = false;
+  if (homeGoals !== awayGoals) {
+    winnerId = homeGoals > awayGoals ? tie.aId : tie.bId;
+  } else {
+    onPens = true;
+    winnerId = rand() < 0.5 ? tie.aId : tie.bId;
+  }
+  const myResult = { aId: tie.aId, bId: tie.bId, winnerId, onPens, homeGoals, awayGoals };
+
+  const myTieIdx = save.copa.ties.findIndex(t => t.aId === tie.aId && t.bId === tie.bId);
+  const results = [...(save.copa.pendingRoundTieResults || [])];
+  results[myTieIdx] = myResult;
+
+  const advanced = advanceBracketRound(save, results);
   return { ...advanced, pendingUserCopaTie: null };
 }

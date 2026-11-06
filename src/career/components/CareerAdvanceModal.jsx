@@ -20,8 +20,12 @@ import {
   dayOfYearToMonthDay, dayOfYearFor, monthMatrix,
 } from './monthCalendar.jsx';
 
-const MAX_STEPS = 26;
-const STEP_MS = 45;
+// Pedido explícito do usuário (2026-11-06: "nunca pular tudo"): o cursor
+// anda UM dia de cada vez, sempre — nunca interpola/pula dias pra encurtar
+// um pulo grande (ex.: "Simular temporada até o fim"). STEP_MS pequeno o
+// bastante pra um pulo de temporada inteira (~300 dias) não demorar mais
+// que uns 10s, mas ainda dar pra ver cada card virando.
+const STEP_MS = 32;
 
 export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone }) {
   const [cursorDay, setCursorDay] = useState(fromDay);
@@ -72,9 +76,9 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
     return myTie.winnerId === save.myClubId ? 'V' : 'D';
   }
 
-  // Cursor anda de fromDay até toDay em passos iguais (no máximo MAX_STEPS,
-  // pra não demorar uma eternidade quando o pulo é de muitos dias) — troca
-  // de mês sozinho quando o cursor cruza a fronteira.
+  // Cursor anda de fromDay até toDay UM DIA DE CADA VEZ, sempre — nunca
+  // pula/interpola (pedido explícito do usuário) — trocando de mês sozinho
+  // quando cruza a fronteira.
   useEffect(() => {
     if (toDay <= fromDay) {
       setCursorDay(toDay);
@@ -82,14 +86,12 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
       setEventsVisible(true);
       return;
     }
-    const totalSteps = Math.min(toDay - fromDay, MAX_STEPS);
-    let step = 0;
+    let day = fromDay;
     const interval = setInterval(() => {
-      step++;
-      const day = step >= totalSteps ? toDay : Math.round(fromDay + ((toDay - fromDay) * step) / totalSteps);
+      day += 1;
       setCursorDay(day);
       setViewMonth(dayOfYearToMonthDay(day).month);
-      if (step >= totalSteps) {
+      if (day >= toDay) {
         clearInterval(interval);
         setEventsVisible(true);
       }
@@ -133,6 +135,11 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
               const hasCopa = copaRound !== undefined;
               const hasAny = hasRound || hasCopa;
               const isCursor = dayOfYear === cursorDay;
+              // Pedido explícito do usuário: o card do dia atual fica
+              // AMARELO; assim que o cursor passa pra frente, o card do dia
+              // anterior vira CINZA (não só "sem destaque" — visivelmente
+              // marcado como já percorrido).
+              const isPast = dayOfYear < cursorDay;
               const played = hasRound && round < division.round;
               const result = played ? userRoundResult(division.results?.[round]) : null;
               const copaResult = hasCopa ? copaUserResult(copaRound) : null;
@@ -143,14 +150,14 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
                   title={hasRound ? `Rodada ${round + 1}${opponent?.team ? ` · ${opponent.team.club}` : ''}` : hasCopa ? `Copa do Brasil · ${COPA_ROUND_LABELS[copaRound]}` : undefined}
                   style={{
                     minHeight: 56, padding: '4px 2px', borderRadius: 8, textAlign: 'center',
-                    border: `1px solid ${isCursor ? 'rgba(212,162,60,0.8)' : hasAny ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}`,
-                    background: isCursor ? 'rgba(212,162,60,0.22)' : hasAny ? 'rgba(255,255,255,0.04)' : 'transparent',
+                    border: `1px solid ${isCursor ? 'rgba(212,162,60,0.8)' : isPast ? 'rgba(255,255,255,0.14)' : hasAny ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}`,
+                    background: isCursor ? 'rgba(212,162,60,0.22)' : isPast ? 'rgba(255,255,255,0.08)' : hasAny ? 'rgba(255,255,255,0.04)' : 'transparent',
                     boxShadow: isCursor ? '0 0 10px rgba(212,162,60,0.4)' : 'none',
                     color: '#F4F1EA', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
-                    transition: 'background 0.15s, border 0.15s',
+                    transition: 'background 0.12s, border 0.12s',
                   }}
                 >
-                  <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", opacity: hasAny || isCursor ? 0.85 : 0.3 }}>{dayOfMonth}</span>
+                  <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", fontWeight: isCursor ? 700 : 400, color: isCursor ? '#d4a23c' : isPast ? 'rgba(244,241,234,0.4)' : '#F4F1EA', opacity: hasAny || isCursor ? 0.95 : isPast ? 0.6 : 0.3 }}>{dayOfMonth}</span>
                   {hasRound && <TinyCrest team={opponent?.team} ring={result ? RESULT_COLORS[result.res] : null} />}
                   {hasRound && !result && (
                     <span style={{ fontSize: 8.5, color: '#d4a23c', fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>R{round + 1}</span>

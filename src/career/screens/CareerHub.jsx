@@ -2,12 +2,10 @@
 // jogo + atalhos pras outras telas (Elenco, Formação, Mercado, Tabela).
 // "Avançar" pula os dias sem nada sozinho e só para num dia de jogo, numa
 // proposta de negociação nova, ou no fim da temporada.
-import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { formatCalendarDay } from '../engine/calendar.js';
 import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
-import { CareerAdvanceModal } from '../components/CareerAdvanceModal.jsx';
 import { backButtonStyle } from '../components/styles.js';
 
 function formatMoney(n) {
@@ -45,16 +43,6 @@ export function eventLine(ev, myClubId) {
 }
 
 export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, onExit }) {
-  // Overlay do calendário "passando" — guarda o dia de ANTES do clique;
-  // o dia de DEPOIS já está em `save.calendarDay` assim que a animação
-  // começa a rodar (onAdvanceDay/onSimulateSeason já atualizaram o save
-  // síncronamente, via setState do componente pai). Some sozinho; se o
-  // clique trocar de tela (proposta/partida ao vivo/fim de temporada),
-  // este componente desmonta e a animação só é cortada — sem problema.
-  const [advancing, setAdvancing] = useState(null); // { fromDay } | null
-  const handleAdvanceClick = () => { setAdvancing({ fromDay: save.calendarDay }); onAdvanceDay(); };
-  const handleSimulateClick = () => { setAdvancing({ fromDay: save.calendarDay }); onSimulateSeason(); };
-
   const team = TEAMS.find(t => t.id === save.myClubId);
   const club = save.clubs[save.myClubId];
   const logo = CLUB_LOGOS[team.club];
@@ -68,15 +56,6 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
 
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
-      {advancing && (
-        <CareerAdvanceModal
-          save={save}
-          fromDay={advancing.fromDay}
-          toDay={save.calendarDay}
-          eventLines={dayEvents}
-          onDone={() => setAdvancing(null)}
-        />
-      )}
       <button onClick={onExit} style={backButtonStyle}>← Sair da carreira</button>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18 }}>
@@ -114,12 +93,24 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
           <div style={{ fontSize: 13, opacity: 0.8 }}>Temporada {save.season} terminada — confira a tabela e avance pro fim de temporada.</div>
         ) : nextMatch ? (
           <>
-            <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>
-              {TEAMS.find(t => t.id === nextMatch.homeId)?.club}
-              {' vs '}
-              {TEAMS.find(t => t.id === nextMatch.awayId)?.club}
-            </div>
+            <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
+            {(() => {
+              const homeTeam = TEAMS.find(t => t.id === nextMatch.homeId);
+              const awayTeam = TEAMS.find(t => t.id === nextMatch.awayId);
+              return (
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, justifyContent: 'flex-end', minWidth: 0 }}>
+                    <span style={{ fontSize: 13, fontWeight: 600, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeam?.club}</span>
+                    {CLUB_LOGOS[homeTeam?.club] && <img src={CLUB_LOGOS[homeTeam.club]} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} />}
+                  </div>
+                  <span style={{ fontSize: 11, opacity: 0.4, fontWeight: 700, flexShrink: 0 }}>x</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
+                    {CLUB_LOGOS[awayTeam?.club] && <img src={CLUB_LOGOS[awayTeam.club]} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} />}
+                    <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeam?.club}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </>
         ) : (
           <div style={{ fontSize: 13, opacity: 0.6 }}>Sem jogo seu nesta rodada.</div>
@@ -135,14 +126,14 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
         <button onClick={() => onNavigate('copa')} style={navBtnStyle}>🏆 Copa do Brasil</button>
       </div>
 
-      <button onClick={handleAdvanceClick} disabled={offerCount > 0} style={{
+      <button onClick={onAdvanceDay} disabled={offerCount > 0} style={{
         width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', cursor: offerCount > 0 ? 'default' : 'pointer',
         background: offerCount > 0 ? 'rgba(212,162,60,0.3)' : '#d4a23c', color: '#0B1A12', fontSize: 15, fontWeight: 700, marginBottom: 8,
       }}>
         {offerCount > 0 ? 'Responda as propostas primeiro' : seasonOver ? 'Encerrar temporada →' : 'Avançar →'}
       </button>
       {!seasonOver && (
-        <button onClick={handleSimulateClick} disabled={offerCount > 0} style={{
+        <button onClick={onSimulateSeason} disabled={offerCount > 0} style={{
           width: '100%', padding: '11px 0', borderRadius: 10, cursor: offerCount > 0 ? 'default' : 'pointer',
           border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(244,241,234,0.7)', fontSize: 12.5, fontWeight: 600,
         }}>

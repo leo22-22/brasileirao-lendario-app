@@ -26,6 +26,7 @@ import { drawCopaBracket, playCopaRound, finalizeCopaUserTie } from './copaEngin
 
 export { isTransferWindowOpen } from './calendar.js';
 export { teamForSim } from './simHelpers.js';
+export { resolveCopaFinalUserMatch } from './copaEngine.js';
 
 function emptyTableRow(clubId) {
   const team = TEAMS.find(t => t.id === clubId);
@@ -77,7 +78,7 @@ export function createCareerSave(myClubId, customBudget, seedOverride) {
     // propósito (dá pra reforçar o elenco antes da temporada começar).
     calendarDay: 1,
     seasonCalendar,
-    copa: drawCopaBracket({ clubs }, rand, seasonCalendar),
+    copa: drawCopaBracket({ clubs }, rand),
     screen: 'hub',
   };
 }
@@ -653,7 +654,7 @@ function startNextSeason(save) {
     pendingUserCopaTie: null,
     calendarDay: 1,
     seasonCalendar,
-    copa: drawCopaBracket(save, rand, seasonCalendar),
+    copa: drawCopaBracket(save, rand),
     screen: 'hub',
   };
 }

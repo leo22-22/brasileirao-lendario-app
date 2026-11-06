@@ -1,10 +1,13 @@
 // Tela de partida ao vivo do Modo Carreira — mostrada sempre que
 // `save.pendingUserMatch` existe (ver advanceDay/resolveUserMatch em
-// seasonEngine.js). O resultado já vem pré-calculado (mesma seed que a
-// rodada usaria) — essa tela só ANIMA os eventos minuto a minuto, igual a
-// simulação ao vivo dos outros modos, e no fim mostra as notas dos
-// jogadores. "Continuar" chama `onFinish`, que resolve a rodada inteira
-// (esse jogo + todos os outros) e aplica no save de verdade.
+// seasonEngine.js), e reaproveitada pra FINAL da Copa do Brasil (jogo
+// único, ver `pendingUserCopaTie.finalMatch` em copaEngine.js/CareerApp.jsx)
+// passando `pending`/`competitionLabel` por fora em vez dos valores padrão
+// do Brasileirão. O resultado já vem pré-calculado (mesma seed que a
+// rodada/partida usaria) — essa tela só ANIMA os eventos minuto a minuto,
+// igual a simulação ao vivo dos outros modos, e no fim mostra as notas dos
+// jogadores. "Continuar" chama `onFinish`, que resolve o que tiver que
+// resolver (a rodada inteira, ou a Copa) e aplica no save de verdade.
 import {
   eventIcon, eventText, TeamBadge, RatingsList, useLiveMatchPlayer,
   wrapStyle, cardStyle, labelStyle, primaryBtnStyle, secondaryBtnStyle,
@@ -12,15 +15,15 @@ import {
 
 const EMPTY_PENDING = { homeTeam: { club: '' }, awayTeam: { club: '' }, sim: { homeGoals: 0, awayGoals: 0, ratings: [], events: [] } };
 
-export function CareerMatchDayScreen({ save, onFinish }) {
-  const pending = save.pendingUserMatch;
+export function CareerMatchDayScreen({ save, onFinish, pending: pendingOverride, competitionLabel: labelOverride }) {
+  const pending = pendingOverride || save.pendingUserMatch;
   // O hook precisa ser chamado incondicionalmente (regra dos hooks) — usa
   // um "pending" vazio quando ainda não existe, e só sai de verdade DEPOIS
   // da chamada (na prática o pai só monta essa tela quando pendingUserMatch
   // já existe, então esse fallback nunca aparece pro usuário).
   const { homeTeam, awayTeam, sim } = pending || EMPTY_PENDING;
   const division = save.clubs[save.myClubId].division;
-  const competitionLabel = `Campeonato Brasileiro · Série ${division}`;
+  const competitionLabel = labelOverride || `Campeonato Brasileiro · Série ${division}`;
   const { phase, minute, homeGoals, awayGoals, shownEvents, startPlaying, skipToEnd, motm } = useLiveMatchPlayer(sim, homeTeam, awayTeam);
   if (!pending) return null;
 

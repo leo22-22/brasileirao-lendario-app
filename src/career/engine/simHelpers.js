@@ -59,8 +59,9 @@ export function resolveTwoLegTieAuto(save, homeId1, awayId1, rand) {
 // Monta UMA perna (ida ou volta) com o timeline minuto a minuto pronto pra
 // animar — mesmo formato que `pendingUserMatch` já usa pro jogo comum do
 // Brasileirão (ver advanceDay em seasonEngine.js), reaproveitado aqui pra
-// cada perna de um confronto eliminatório.
-function legPackage(save, homeId, awayId, rand) {
+// cada perna de um confronto eliminatório (e pra PARTIDA ÚNICA da final da
+// Copa do Brasil, ver copaEngine.js — a final não tem volta).
+export function legPackage(save, homeId, awayId, rand) {
   const homeTeamFull = teamForSim(save, homeId);
   const awayTeamFull = teamForSim(save, awayId);
   const sim = simAiMatch(homeTeamFull, awayTeamFull, rand);

@@ -7,7 +7,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { TEAMS } from '../data/teams.js';
 import { ClubPickerScreen } from './screens/ClubPickerScreen.jsx';
 import { CareerStartScreen } from './screens/CareerStartScreen.jsx';
-import { CareerHub } from './screens/CareerHub.jsx';
+import { CareerHub, eventLine } from './screens/CareerHub.jsx';
+import { CareerAdvanceModal } from './components/CareerAdvanceModal.jsx';
 import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
 import { CareerMatchDayScreen } from './screens/CareerMatchDayScreen.jsx';
 import { CareerTwoLegScreen } from './screens/CareerTwoLegScreen.jsx';
@@ -19,7 +20,7 @@ import { CareerTransferMarket } from './screens/CareerTransferMarket.jsx';
 import { loadCareerSave, saveCareerSave, clearCareerSave } from './state/careerStorage.js';
 import {
   createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie,
-  simulateUserCopaTie, finalizeCopaUserTie, simulateRestOfSeason, respondToOffer, counterOffer, toggleTransferList,
+  simulateUserCopaTie, finalizeCopaUserTie, resolveCopaFinalUserMatch, simulateRestOfSeason, respondToOffer, counterOffer, toggleTransferList,
   resolveUserMatch,
 } from './engine/seasonEngine.js';
 import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
@@ -31,6 +32,16 @@ export function CareerApp({ onExit, onHudChange }) {
   // primeiro — sem isso, não tinha nenhum jeito de recomeçar: toda entrada
   // no Modo Carreira carregava direto a carreira salva, sem opção nenhuma.
   const [screen, setScreen] = useState(() => (loadCareerSave() ? 'start' : 'picker'));
+  // Overlay do calendário "passando" — vive AQUI (não dentro de CareerHub)
+  // de propósito: quando o "Avançar" cai direto numa partida/confronto
+  // pendente, o roteamento de tela troca pra CareerMatchDayScreen/
+  // CareerTwoLegScreen imediatamente, o que desmontava o hub (e a animação
+  // junto) antes de mostrar qualquer coisa — pedido explícito do usuário
+  // pra NUNCA pular a animação ("nunca pular tudo"). Com o estado aqui, a
+  // checagem de `advancing` roda ANTES de qualquer outro roteamento de
+  // tela (ver fim do componente), garantindo que o calendário sempre
+  // termina de andar até o dia certo antes de abrir a partida/confronto.
+  const [advancing, setAdvancing] = useState(null); // { fromDay } | null
 
   useEffect(() => {
     if (save) saveCareerSave(save);
@@ -66,6 +77,7 @@ export function CareerApp({ onExit, onHudChange }) {
   const handleAdvanceDay = useCallback(() => {
     setSave(prev => {
       if (!prev) return prev;
+      setAdvancing({ fromDay: prev.calendarDay });
       const { save: afterDay, event } = advanceDay(prev);
       if (event === 'offers-pending') { setScreen('market'); return afterDay; }
       if (event === 'offer') { setScreen('market'); return afterDay; }
@@ -84,6 +96,7 @@ export function CareerApp({ onExit, onHudChange }) {
   const handleSimulateSeason = useCallback(() => {
     setSave(prev => {
       if (!prev) return prev;
+      setAdvancing({ fromDay: prev.calendarDay });
       const { save: after } = simulateRestOfSeason(prev);
       setScreen(after.screen || (after.pendingUserTie ? 'playoff-tie' : 'hub'));
       return after;
@@ -106,6 +119,13 @@ export function CareerApp({ onExit, onHudChange }) {
       const iWon = result.myAggGoals !== result.oppAggGoals ? result.myAggGoals > result.oppAggGoals : !!result.penaltyWinnerIsMe;
       return finalizeCopaUserTie(prev, iWon, result);
     });
+  }, []);
+
+  // Final da Copa do Brasil — jogo único (ver resolveCopaFinalUserMatch):
+  // o placar já saiu pronto junto com pendingUserCopaTie, essa tela só
+  // anima; "Continuar" só precisa aplicar o que já foi decidido.
+  const handleFinishCopaFinal = useCallback(() => {
+    setSave(prev => prev && resolveCopaFinalUserMatch(prev));
   }, []);
 
   const handleConfirmFormation = useCallback(({ myStarters, myFormationLabel, myFormationKey }) => {
@@ -159,6 +179,22 @@ export function CareerApp({ onExit, onHudChange }) {
     );
   }
 
+  // Checado ANTES de qualquer tela de partida/confronto pendente — garante
+  // que o calendário sempre termina de animar até o dia certo primeiro
+  // (ver comentário no useState de `advancing` acima).
+  if (advancing) {
+    const dayEvents = (save.lastDayEvents || []).map(ev => eventLine(ev, save.myClubId)).filter(Boolean);
+    return (
+      <CareerAdvanceModal
+        save={save}
+        fromDay={advancing.fromDay}
+        toDay={save.calendarDay}
+        eventLines={dayEvents}
+        onDone={() => setAdvancing(null)}
+      />
+    );
+  }
+
   if (save.pendingUserMatch) {
     return <CareerMatchDayScreen save={save} onFinish={handleFinishUserMatch} />;
   }
@@ -180,6 +216,12 @@ export function CareerApp({ onExit, onHudChange }) {
 
   if (save.pendingUserCopaTie) {
     const tie = save.pendingUserCopaTie;
+    // A final é jogo único — reaproveita a mesma tela de partida ao vivo do
+    // Brasileirão (CareerMatchDayScreen), só passando o jogo e o rótulo da
+    // Copa por fora. As outras fases continuam ida+volta de verdade.
+    if (tie.isFinal) {
+      return <CareerMatchDayScreen save={save} pending={tie.finalMatch} competitionLabel="🏆 Copa do Brasil — Final" onFinish={handleFinishCopaFinal} />;
+    }
     const oppTeam = TEAMS.find(t => t.id === (tie.aId === save.myClubId ? tie.bId : tie.aId));
     const roundLabel = COPA_ROUND_LABELS[save.copa.round];
     return (
