@@ -201,7 +201,9 @@ function BenchCarousel({ players }) {
 }
 
 export function CareerFormationScreen({ save, onConfirm, onBack }) {
-  const roster = save.clubs[save.myClubId].roster;
+  // Jogador da categoria de base não pode ser escalado até ser promovido
+  // ou completar 20 anos (ver CareerYouthScreen.jsx).
+  const roster = save.clubs[save.myClubId].roster.filter(p => !p.inAcademy);
   const [formationKey, setFormationKey] = useState(() => (FORMATIONS[save.myFormationKey] ? save.myFormationKey : DEFAULT_FORMATION));
   const slots = useMemo(() => buildPitchSlots(formationKey), [formationKey]);
   const [starters, setStarters] = useState(() => initialStarters(roster, save, slots, formationKey));

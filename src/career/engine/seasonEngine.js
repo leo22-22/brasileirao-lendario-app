@@ -430,8 +430,11 @@ export function endOfSeason(save) {
     const retiredNames = [];
     for (const p of roster) {
       const aged = applySeasonAging(p, agingRand);
-      if (aged) survivors.push(aged);
-      else if (p.age != null) retiredNames.push(p.name); // null por aposentadoria (não por falta de idade)
+      if (!aged) { if (p.age != null) retiredNames.push(p.name); continue; } // null por aposentadoria (não por falta de idade)
+      // Graduação automática da categoria de base aos 20 anos — a outra
+      // forma de sair é o usuário promover manualmente (ver
+      // promoteYouthPlayer em rosterStore.js).
+      survivors.push(aged.inAcademy && aged.age >= 20 ? { ...aged, inAcademy: false } : aged);
     }
     next = replaceRoster(next, clubId, survivors);
     // Histórico só registra a aposentadoria de jogador do PRÓPRIO usuário —

@@ -129,6 +129,17 @@ export function debitBudget(save, clubId, amount) {
   return creditBudget(save, clubId, -amount);
 }
 
+// Promove um jogador da categoria de base pro elenco profissional — a
+// outra forma de sair da base é completar 20 anos (automático, ver o laço
+// de envelhecimento em seasonEngine.js). Não move nada de clube, só tira a
+// flag `inAcademy` que escondia o jogador do Elenco/Formação/Mercado.
+export function promoteYouthPlayer(save, clubId, playerName) {
+  const club = save.clubs[clubId];
+  if (!club) return save;
+  const roster = club.roster.map(p => (p.name === playerName ? { ...p, inAcademy: false } : p));
+  return replaceRoster(save, clubId, roster);
+}
+
 export function replaceRoster(save, clubId, roster) {
   const club = save.clubs[clubId];
   if (!club) return save;

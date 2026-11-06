@@ -16,6 +16,7 @@ import { CareerFormationScreen } from './screens/CareerFormationScreen.jsx';
 import { CareerTableScreen } from './screens/CareerTableScreen.jsx';
 import { CareerCalendarScreen } from './screens/CareerCalendarScreen.jsx';
 import { CareerCopaScreen } from './screens/CareerCopaScreen.jsx';
+import { CareerYouthScreen } from './screens/CareerYouthScreen.jsx';
 import { CareerTransferMarket } from './screens/CareerTransferMarket.jsx';
 import { loadCareerSave, saveCareerSave, clearCareerSave } from './state/careerStorage.js';
 import {
@@ -24,7 +25,7 @@ import {
   resolveUserMatch,
 } from './engine/seasonEngine.js';
 import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
-import { proposeTransfer } from './engine/rosterStore.js';
+import { proposeTransfer, promoteYouthPlayer } from './engine/rosterStore.js';
 import { loanPlayerOut, requestLoanIn } from './engine/loans.js';
 
 export function CareerApp({ onExit, onHudChange }) {
@@ -162,6 +163,10 @@ export function CareerApp({ onExit, onHudChange }) {
     setSave(prev => prev && toggleTransferList(prev, playerName));
   }, []);
 
+  const handlePromoteYouth = useCallback((playerName) => {
+    setSave(prev => prev && promoteYouthPlayer(prev, prev.myClubId, playerName));
+  }, []);
+
   // Empréstimo — nas duas direções quem decide é o clube dono do jogador
   // na hora do pedido (ver loans.js); lê `save` direto (não via updater)
   // pelo mesmo motivo de handleProposeTransfer: quem chama precisa do
@@ -263,6 +268,7 @@ export function CareerApp({ onExit, onHudChange }) {
   if (screen === 'table') return <CareerTableScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'calendar') return <CareerCalendarScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'copa') return <CareerCopaScreen save={save} onBack={() => setScreen('hub')} />;
+  if (screen === 'youth') return <CareerYouthScreen save={save} onPromote={handlePromoteYouth} onBack={() => setScreen('hub')} />;
   if (screen === 'market') return <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onLoanOut={handleLoanOut} onRequestLoan={handleRequestLoan} onBack={() => setScreen('hub')} />;
 
   return <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onSimulateSeason={handleSimulateSeason} onExit={onExit} />;

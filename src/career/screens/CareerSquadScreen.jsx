@@ -86,7 +86,9 @@ function PlayerCard({ p, clubId, expanded, onToggle }) {
 }
 
 export function CareerSquadScreen({ save, onBack }) {
-  const roster = save.clubs[save.myClubId].roster;
+  // Jogador da categoria de base não aparece aqui — tem tela própria (ver
+  // CareerYouthScreen.jsx) até ser promovido ou completar 20 anos.
+  const roster = save.clubs[save.myClubId].roster.filter(p => !p.inAcademy);
   const [query, setQuery] = useState('');
   const [expandedName, setExpandedName] = useState(null);
 

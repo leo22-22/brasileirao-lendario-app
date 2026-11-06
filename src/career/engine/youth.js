@@ -95,6 +95,11 @@ export function generateYouthProspect(rand, tier) {
     growthPerSeason,
     isStar,
     isYouth: true,
+    // Começa na categoria de base (fora do elenco profissional — não
+    // aparece no Elenco/Formação/Mercado) até o usuário promover ou
+    // completar 20 anos (ver promoteYouthPlayer em rosterStore.js e a
+    // graduação automática em seasonEngine.js).
+    inAcademy: true,
   };
 }
 

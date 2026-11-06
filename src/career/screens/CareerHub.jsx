@@ -238,6 +238,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
   const seasonOver = division.round >= division.fixtures.length;
   const offerCount = save.pendingOffers?.length || 0;
   const dayEvents = (save.lastDayEvents || []).map(ev => eventLine(ev, save.myClubId)).filter(Boolean);
+  const academyCount = club.roster.filter(p => p.inAcademy).length;
 
   return (
     <div className="career-hub-grid">
@@ -288,6 +289,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
           <button className="career-nav-btn" onClick={() => onNavigate('table')} style={navBtnStyle}>📊 Tabela</button>
           <button className="career-nav-btn" onClick={() => onNavigate('calendar')} style={navBtnStyle}>📅 Calendário</button>
           <button className="career-nav-btn" onClick={() => onNavigate('copa')} style={navBtnStyle}>🏆 Copa do Brasil</button>
+          <button className="career-nav-btn" onClick={() => onNavigate('youth')} style={{ ...navBtnStyle, gridColumn: '1 / -1' }}>🌱 Categoria de Base{academyCount > 0 ? ` (${academyCount})` : ''}</button>
         </div>
 
         <button className="career-advance-btn" onClick={onAdvanceDay} disabled={offerCount > 0} style={{

@@ -15,7 +15,12 @@ import { simAiMatch, teamStrength, buildLiveMatchEvents } from '../../App.jsx';
 // escolhida na tela de Formação (save.myStarters).
 export function teamForSim(save, clubId) {
   const base = TEAMS.find(t => t.id === clubId);
-  const roster = save.clubs[clubId].roster;
+  // Jogador da categoria de base nunca entra em campo (nem como reserva) —
+  // só depois de promovido ou completar 20 anos (ver inAcademy, youth.js/
+  // rosterStore.js/seasonEngine.js). Rede de segurança: a Formação já não
+  // oferece esses jogadores pra escalar, isso aqui cobre qualquer save
+  // antigo ou caminho que não passe por lá.
+  const roster = save.clubs[clubId].roster.filter(p => !p.inAcademy);
   let ordered;
   if (clubId === save.myClubId && save.myStarters?.length) {
     const starterSet = new Set(save.myStarters);

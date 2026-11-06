@@ -193,7 +193,7 @@ function MyRosterTab({ save, onToggleListed, onLoanOut, windowOpen }) {
   const [query, setQuery] = useState('');
   const [pos, setPos] = useState('');
   const [loaningName, setLoaningName] = useState(null);
-  const roster = save.clubs[save.myClubId].roster;
+  const roster = save.clubs[save.myClubId].roster.filter(p => !p.inAcademy);
   const transferList = save.transferList || [];
   const filtered = filterPlayers(roster, query, pos);
   return (
@@ -356,7 +356,7 @@ function ClubRosterList({ save, clubId, onPropose, onRequestLoan, windowOpen }) 
   const [lastResult, setLastResult] = useState(null); // { playerName, accepted, reason, price }
   const team = TEAMS.find(t => t.id === clubId);
   const logo = CLUB_LOGOS[team.club];
-  const roster = save.clubs[clubId].roster;
+  const roster = save.clubs[clubId].roster.filter(p => !p.inAcademy);
   const myBudget = save.clubs[save.myClubId].budget;
   const sellerCanSell = roster.length > MIN_SQUAD_SIZE;
   const filtered = filterPlayers(roster, query, pos);
