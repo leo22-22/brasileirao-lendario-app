@@ -22,10 +22,13 @@ import {
 
 // Pedido explícito do usuário (2026-11-06: "nunca pular tudo"): o cursor
 // anda UM dia de cada vez, sempre — nunca interpola/pula dias pra encurtar
-// um pulo grande (ex.: "Simular temporada até o fim"). STEP_MS pequeno o
-// bastante pra um pulo de temporada inteira (~300 dias) não demorar mais
-// que uns 10s, mas ainda dar pra ver cada card virando.
-const STEP_MS = 32;
+// um pulo grande (ex.: "Simular temporada até o fim"). STEP_MS = 1,5s por
+// dia, também pedido explícito do usuário (2026-11-06: "cada dia tem que
+// 1 segundo e meio") — vale pro "Avançar" normal (pulos curtos) e pro
+// "Simular temporada até o fim" também (pulo pode ser de dezenas/centenas
+// de dias, então essa tela pode demorar bastante nesse caso — é o preço de
+// nunca pular nenhum dia, do jeito que foi pedido).
+const STEP_MS = 1500;
 
 export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone }) {
   const [cursorDay, setCursorDay] = useState(fromDay);
