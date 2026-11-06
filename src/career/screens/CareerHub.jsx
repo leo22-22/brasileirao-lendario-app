@@ -419,14 +419,14 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
   return (
     <div className="career-hub-grid">
       <style>{`
-        /* Largura cheia (pedido explícito do usuário, 2026-11-06: antes as
-           3 colunas ficavam encolhidas no centro com margens pretas enormes
-           nas laterais) — colunas PROPORCIONAIS (1fr/2fr/1fr, equivalente a
-           col-span-3/6/3 de um grid de 12) em vez de largura fixa em px, com
-           um piso mínimo (minmax) só pra não esmagar o conteúdo em telas
-           médias. max-width bem mais alto (1800px) que antes (1100px) pra
-           aproveitar monitor largo de verdade. */
-        .career-hub-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(420px, 2fr) minmax(260px, 1fr); gap: 18px; width: 100%; max-width: 1800px; margin: 0 auto; padding: 24px 20px; box-sizing: border-box; }
+        /* Largura cheia (pedido explícito do usuário, 2026-11-06, reforçado
+           duas vezes: um teto de 1800px ainda deixava faixa preta visível
+           em monitor mais largo) — SEM teto de largura nenhum agora, só
+           98% da tela (igual pedido: "w-full max-w-[98%]"). Colunas
+           PROPORCIONAIS (1fr/2fr/1fr, equivalente a col-span-3/6/3 de um
+           grid de 12) com piso mínimo (minmax) só pra não esmagar o
+           conteúdo em telas médias. */
+        .career-hub-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(420px, 2fr) minmax(260px, 1fr); gap: 18px; width: 98%; max-width: none; margin: 0 auto; padding: 24px 12px; box-sizing: border-box; }
         .career-hub-col { display: grid; gap: 10px; align-content: start; min-width: 0; }
         .career-hub-card { transition: border-color 0.18s ease, transform 0.18s ease; }
         .career-hub-card:hover { border-color: rgba(212,162,60,0.3); }
