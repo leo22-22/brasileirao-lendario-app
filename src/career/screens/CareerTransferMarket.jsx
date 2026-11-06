@@ -15,6 +15,7 @@ import { SERIE_A_2026_TEAM_IDS, SERIE_B_2026_TEAM_IDS } from '../../data/career-
 import { computePlayerValue } from '../engine/pricing.js';
 import { MIN_SQUAD_SIZE } from '../engine/rosterStore.js';
 import { isTransferWindowOpen } from '../engine/calendar.js';
+import { LOAN_DURATIONS } from '../engine/loans.js';
 import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
 import { backButtonStyle } from '../components/styles.js';
 import { ovrColor, posOrderIndex, posColor, POS_ORDER } from '../../lib/format.js';
@@ -82,15 +83,16 @@ function TabBar({ tab, setTab, offerCount }) {
     { id: 'mine', label: 'Meu elenco' },
     { id: 'other', label: 'Outros clubes' },
     { id: 'offers', label: `Propostas${offerCount ? ` (${offerCount})` : ''}` },
+    { id: 'history', label: 'Histórico' },
   ];
   return (
-    <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+    <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
       {tabs.map(t => (
         <button
           key={t.id}
           onClick={() => setTab(t.id)}
           style={{
-            flex: 1, padding: '8px 4px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+            flex: '1 1 auto', padding: '8px 4px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
             border: `1px solid ${tab === t.id ? '#d4a23c' : 'rgba(255,255,255,0.15)'}`,
             background: tab === t.id ? 'rgba(212,162,60,0.12)' : 'transparent',
             color: tab === t.id ? '#d4a23c' : 'rgba(244,241,234,0.6)',
@@ -114,9 +116,83 @@ function PlayerRowShell({ pos, children }) {
   );
 }
 
-function MyRosterTab({ save, onToggleListed, windowOpen }) {
+// Botões de duração (6 meses / 1 temporada / 2 temporadas) reaproveitados
+// nos dois fluxos de empréstimo (emprestar o meu / pedir emprestado).
+function DurationPicker({ kind, setKind }) {
+  return (
+    <div style={{ display: 'flex', gap: 6 }}>
+      {LOAN_DURATIONS.map(d => (
+        <button
+          key={d.kind}
+          onClick={() => setKind(d.kind)}
+          style={{
+            flex: 1, padding: '6px 0', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+            border: `1px solid ${kind === d.kind ? '#6fb8e0' : 'rgba(255,255,255,0.2)'}`,
+            background: kind === d.kind ? 'rgba(111,184,224,0.15)' : 'transparent',
+            color: kind === d.kind ? '#6fb8e0' : 'rgba(244,241,234,0.7)',
+          }}
+        >{d.label}</button>
+      ))}
+    </div>
+  );
+}
+
+// Painel de "emprestar pro clube X" — abre dentro da linha do jogador
+// (Meu elenco): primeiro busca o clube de destino, depois escolhe a
+// duração, depois envia; o clube decide aceitar (ver loanInWillingness em
+// loans.js) e o resultado já aparece na hora.
+function LoanOutPanel({ player, myClubId, onLoanOut, onClose }) {
+  const [clubQuery, setClubQuery] = useState('');
+  const [targetClubId, setTargetClubId] = useState(null);
+  const [kind, setKind] = useState(null);
+  const [result, setResult] = useState(null);
+
+  const q = normalize(clubQuery.trim());
+  const candidates = q
+    ? [...SERIE_A_2026_TEAM_IDS, ...SERIE_B_2026_TEAM_IDS]
+        .filter(id => id !== myClubId)
+        .filter(id => normalize(TEAMS.find(t => t.id === id).club).includes(q))
+        .slice(0, 6)
+    : [];
+
+  if (result) {
+    const targetTeam = TEAMS.find(t => t.id === targetClubId);
+    return (
+      <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 8, fontSize: 12, background: result.accepted ? 'rgba(111,184,224,0.1)' : 'rgba(224,80,80,0.1)', border: `1px solid ${result.accepted ? 'rgba(111,184,224,0.35)' : 'rgba(224,80,80,0.35)'}`, color: result.accepted ? '#6fb8e0' : '#e05050' }}>
+        {result.accepted ? `✅ ${player.name} emprestado pro ${targetTeam?.club}.` : `❌ ${targetTeam?.club} recusou o empréstimo.`}{' '}
+        <button onClick={onClose} style={{ marginLeft: 6, background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer', fontSize: 12 }}>fechar</button>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ marginTop: 8, padding: '10px', borderRadius: 8, background: 'rgba(111,184,224,0.06)', border: '1px solid rgba(111,184,224,0.2)' }}>
+      {!targetClubId ? (
+        <>
+          <input value={clubQuery} onChange={e => setClubQuery(e.target.value)} placeholder="🔍 Buscar clube de destino..." style={{ ...inputStyle, width: '100%', boxSizing: 'border-box', marginBottom: 6 }} />
+          {candidates.map(id => (
+            <button key={id} onClick={() => setTargetClubId(id)} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '6px 8px', borderRadius: 6, border: 'none', background: 'transparent', color: '#F4F1EA', fontSize: 12.5, cursor: 'pointer' }}>{TEAMS.find(t => t.id === id).club}</button>
+          ))}
+        </>
+      ) : (
+        <>
+          <p style={{ fontSize: 11.5, opacity: 0.7, marginBottom: 6 }}>Emprestar pro {TEAMS.find(t => t.id === targetClubId)?.club} por:</p>
+          <DurationPicker kind={kind} setKind={setKind} />
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            <button onClick={() => setResult(onLoanOut(targetClubId, player.name, kind))} disabled={!kind} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: kind ? '#6fb8e0' : 'rgba(111,184,224,0.3)', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: kind ? 'pointer' : 'default' }}>Enviar pedido</button>
+            <button onClick={() => setTargetClubId(null)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Trocar clube</button>
+          </div>
+        </>
+      )}
+      <button onClick={onClose} style={{ marginTop: 6, background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>Cancelar</button>
+    </div>
+  );
+}
+
+function MyRosterTab({ save, onToggleListed, onLoanOut, windowOpen }) {
   const [query, setQuery] = useState('');
   const [pos, setPos] = useState('');
+  const [loaningName, setLoaningName] = useState(null);
   const roster = save.clubs[save.myClubId].roster;
   const transferList = save.transferList || [];
   const filtered = filterPlayers(roster, query, pos);
@@ -124,32 +200,51 @@ function MyRosterTab({ save, onToggleListed, windowOpen }) {
     <div>
       {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — pode listar jogadores agora, mas as propostas só chegam quando ela abrir (janeiro, ou julho-agosto).</p>}
       {roster.length <= MIN_SQUAD_SIZE && <p style={{ fontSize: 12, color: '#e0a33d', marginBottom: 10 }}>Elenco no mínimo de {MIN_SQUAD_SIZE} jogadores — mesmo que venha proposta, não vai dar pra vender até o elenco crescer.</p>}
-      <p style={{ fontSize: 11.5, opacity: 0.55, marginBottom: 10, lineHeight: 1.4 }}>📋 Não dá pra vender direto — coloque o jogador na lista de transferências (aumenta em 50% a chance de vir proposta por ele) e aguarde alguém se interessar. Aceite, rejeite ou mande uma contraproposta na aba Propostas.</p>
+      <p style={{ fontSize: 11.5, opacity: 0.55, marginBottom: 10, lineHeight: 1.4 }}>📋 Não dá pra vender direto — coloque o jogador na lista de transferências (aumenta em 50% a chance de vir proposta por ele) e aguarde alguém se interessar. Aceite, rejeite ou mande uma contraproposta na aba Propostas. 🔁 Empréstimo é uma saída temporária — o jogador volta sozinho quando o prazo bater.</p>
       <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} />
       {filtered.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
       {filtered.map(p => {
         const value = computePlayerValue(p, save.myClubId);
         const listed = transferList.includes(p.name);
+        const borrowed = !!p.onLoanFrom; // jogador que EU peguei emprestado — não dá pra re-emprestar
         return (
           <PlayerRowShell key={p.name} pos={p.pos[0]}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <PosBadge pos={p.pos[0]} />
               <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+              {borrowed && <span style={{ fontSize: 9.5, color: '#6fb8e0', fontWeight: 700, border: '1px solid rgba(111,184,224,0.4)', borderRadius: 999, padding: '2px 6px' }}>EMPRESTADO</span>}
               <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 13 }}>{p.ovr}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, opacity: 0.7 }}>{formatMoney(value)}</span>
-              <button
-                onClick={() => onToggleListed(p.name)}
-                title={listed ? 'Tirar da lista de transferências' : 'Colocar na lista de transferências (+50% chance de proposta)'}
-                style={{
-                  padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                  border: `1px solid ${listed ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`,
-                  background: listed ? 'rgba(212,162,60,0.15)' : 'transparent',
-                  color: listed ? '#d4a23c' : 'rgba(244,241,234,0.6)',
-                }}
-              >{listed ? '📋 Na lista' : '📋 Listar'}</button>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {!borrowed && (
+                  <button
+                    onClick={() => setLoaningName(loaningName === p.name ? null : p.name)}
+                    title="Emprestar pra outro clube"
+                    style={{
+                      padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                      border: `1px solid ${loaningName === p.name ? 'rgba(111,184,224,0.5)' : 'rgba(255,255,255,0.2)'}`,
+                      background: loaningName === p.name ? 'rgba(111,184,224,0.15)' : 'transparent',
+                      color: loaningName === p.name ? '#6fb8e0' : 'rgba(244,241,234,0.6)',
+                    }}
+                  >🔁 Emprestar</button>
+                )}
+                <button
+                  onClick={() => onToggleListed(p.name)}
+                  title={listed ? 'Tirar da lista de transferências' : 'Colocar na lista de transferências (+50% chance de proposta)'}
+                  style={{
+                    padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                    border: `1px solid ${listed ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`,
+                    background: listed ? 'rgba(212,162,60,0.15)' : 'transparent',
+                    color: listed ? '#d4a23c' : 'rgba(244,241,234,0.6)',
+                  }}
+                >{listed ? '📋 Na lista' : '📋 Listar'}</button>
+              </div>
             </div>
+            {loaningName === p.name && (
+              <LoanOutPanel player={p} myClubId={save.myClubId} onLoanOut={onLoanOut} onClose={() => setLoaningName(null)} />
+            )}
           </PlayerRowShell>
         );
       })}
@@ -161,20 +256,27 @@ function MyRosterTab({ save, onToggleListed, windowOpen }) {
 // valor e envia; o clube vendedor decide aceitar ou recusar (nunca uma
 // compra automática). `onPropose` já devolve o resultado síncrono pra
 // tela mostrar na hora.
-function ProposeRow({ player, price, enabled, disabledReason, onPropose }) {
-  const [proposing, setProposing] = useState(false);
+function ProposeRow({ player, price, enabled, disabledReason, onPropose, onRequestLoan }) {
+  const [mode, setMode] = useState(null); // null | 'buy' | 'loan'
   const [amountInput, setAmountInput] = useState('');
+  const [loanKind, setLoanKind] = useState(null);
+  const [loanResult, setLoanResult] = useState(null);
   const amount = amountInput ? parseInt(amountInput, 10) : 0;
+  const borrowed = !!player.onLoanFrom;
 
-  const handleOpen = () => {
+  const handleOpenBuy = () => {
     setAmountInput(String(price));
-    setProposing(true);
+    setMode('buy');
   };
   const handleSend = () => {
     if (amount <= 0) return;
     onPropose(player.name, amount);
-    setProposing(false);
+    setMode(null);
     setAmountInput('');
+  };
+  const handleSendLoan = () => {
+    if (!loanKind) return;
+    setLoanResult(onRequestLoan(player.name, loanKind));
   };
 
   return (
@@ -184,21 +286,31 @@ function ProposeRow({ player, price, enabled, disabledReason, onPropose }) {
         <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
         <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(player.ovr), fontSize: 13 }}>{player.ovr}</span>
       </div>
-      {!proposing ? (
+      {mode === null && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
           <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, opacity: 0.7 }}>Valor de mercado: {formatMoney(price)}</span>
-          <button
-            onClick={handleOpen}
-            disabled={!enabled}
-            title={disabledReason}
-            style={{
-              padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: enabled ? 'pointer' : 'default',
-              border: '1px solid rgba(127,217,154,0.4)', background: enabled ? 'rgba(127,217,154,0.12)' : 'transparent',
-              color: enabled ? '#7fd99a' : 'rgba(127,217,154,0.3)',
-            }}
-          >💰 Fazer proposta</button>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {!borrowed && (
+              <button
+                onClick={() => { setLoanResult(null); setLoanKind(null); setMode('loan'); }}
+                title="Pedir emprestado"
+                style={{ padding: '6px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(111,184,224,0.4)', background: 'transparent', color: '#6fb8e0' }}
+              >🔁 Emprestado</button>
+            )}
+            <button
+              onClick={handleOpenBuy}
+              disabled={!enabled}
+              title={disabledReason}
+              style={{
+                padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: enabled ? 'pointer' : 'default',
+                border: '1px solid rgba(127,217,154,0.4)', background: enabled ? 'rgba(127,217,154,0.12)' : 'transparent',
+                color: enabled ? '#7fd99a' : 'rgba(127,217,154,0.3)',
+              }}
+            >💰 Fazer proposta</button>
+          </div>
         </div>
-      ) : (
+      )}
+      {mode === 'buy' && (
         <div>
           <p style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>Quanto menor que {formatMoney(price)}, menor a chance do clube aceitar.</p>
           <div style={{ display: 'flex', gap: 6 }}>
@@ -213,15 +325,32 @@ function ProposeRow({ player, price, enabled, disabledReason, onPropose }) {
               disabled={amount <= 0}
               style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: amount > 0 ? '#7fd99a' : 'rgba(127,217,154,0.3)', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: amount > 0 ? 'pointer' : 'default' }}
             >Enviar</button>
-            <button onClick={() => setProposing(false)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={() => setMode(null)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
           </div>
         </div>
+      )}
+      {mode === 'loan' && (
+        loanResult ? (
+          <div style={{ fontSize: 12, color: loanResult.accepted ? '#6fb8e0' : '#e05050' }}>
+            {loanResult.accepted ? `✅ ${player.name} veio emprestado!` : '❌ O clube recusou emprestar.'}{' '}
+            <button onClick={() => setMode(null)} style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer', fontSize: 12 }}>fechar</button>
+          </div>
+        ) : (
+          <div>
+            <p style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>Pedir {player.name} emprestado por:</p>
+            <DurationPicker kind={loanKind} setKind={setLoanKind} />
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              <button onClick={handleSendLoan} disabled={!loanKind} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: loanKind ? '#6fb8e0' : 'rgba(111,184,224,0.3)', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: loanKind ? 'pointer' : 'default' }}>Enviar pedido</button>
+              <button onClick={() => setMode(null)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+            </div>
+          </div>
+        )
       )}
     </PlayerRowShell>
   );
 }
 
-function ClubRosterList({ save, clubId, onPropose, windowOpen }) {
+function ClubRosterList({ save, clubId, onPropose, onRequestLoan, windowOpen }) {
   const [query, setQuery] = useState('');
   const [pos, setPos] = useState('');
   const [lastResult, setLastResult] = useState(null); // { playerName, accepted, reason, price }
@@ -236,6 +365,7 @@ function ClubRosterList({ save, clubId, onPropose, windowOpen }) {
     const res = onPropose(clubId, playerName, amount);
     setLastResult({ playerName, ...res });
   };
+  const handleRequestLoan = (playerName, kind) => onRequestLoan(clubId, playerName, kind);
 
   return (
     <div>
@@ -266,14 +396,14 @@ function ClubRosterList({ save, clubId, onPropose, windowOpen }) {
         const enabled = windowOpen && canAfford && sellerCanSell;
         const disabledReason = !windowOpen ? 'Janela de transferências fechada' : !canAfford ? 'Orçamento insuficiente pra uma proposta com chance real' : !sellerCanSell ? 'Clube vendedor no mínimo de elenco' : '';
         return (
-          <ProposeRow key={p.name} player={p} price={price} enabled={enabled} disabledReason={disabledReason} onPropose={handlePropose} />
+          <ProposeRow key={p.name} player={p} price={price} enabled={enabled} disabledReason={disabledReason} onPropose={handlePropose} onRequestLoan={handleRequestLoan} />
         );
       })}
     </div>
   );
 }
 
-function OtherClubsTab({ save, onPropose, windowOpen }) {
+function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
   const [clubId, setClubId] = useState(null);
   const [clubQuery, setClubQuery] = useState('');
   const [division, setDivision] = useState('A');
@@ -282,7 +412,7 @@ function OtherClubsTab({ save, onPropose, windowOpen }) {
     return (
       <div>
         <button onClick={() => setClubId(null)} style={{ ...backButtonStyle, fontSize: 12, padding: '6px 12px', marginBottom: 10 }}>← Outro clube</button>
-        <ClubRosterList key={clubId} save={save} clubId={clubId} onPropose={onPropose} windowOpen={windowOpen} />
+        <ClubRosterList key={clubId} save={save} clubId={clubId} onPropose={onPropose} onRequestLoan={onRequestLoan} windowOpen={windowOpen} />
       </div>
     );
   }
@@ -435,7 +565,75 @@ function OffersTab({ save, onRespond, onCounterOffer }) {
   );
 }
 
-export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounterOffer, onToggleListed, onBack }) {
+const HISTORY_FILTERS = [
+  { id: '', label: 'Todos' },
+  { id: 'user-buy', label: 'Comprados' },
+  { id: 'user-sell', label: 'Vendidos' },
+  { id: 'loan-out', label: 'Emprestados' },
+  { id: 'loan-in', label: 'Pegos emprestado' },
+  { id: 'retired', label: 'Aposentados' },
+];
+
+// Uma linha do histórico, já com ícone/texto/cor prontos pra UI — cada tipo
+// de evento (comprado/vendido/emprestado/pegado emprestado/aposentado) lê
+// os clubes certos pra formar a frase (quem compra/empresta é sempre o
+// outro lado do negócio, nunca o próprio usuário, que a frase já assume).
+function historyLine(entry, myClubId) {
+  const otherId = entry.fromClubId === myClubId ? entry.toClubId : entry.fromClubId;
+  const otherTeam = TEAMS.find(t => t.id === otherId);
+  switch (entry.type) {
+    case 'user-buy':
+      return { icon: '📥', color: '#7fd99a', text: `Comprado — ${entry.playerName} do ${otherTeam?.club} por ${formatMoney(entry.amount)}` };
+    case 'user-sell':
+      return { icon: '📤', color: '#e0a33d', text: `Vendido — ${entry.playerName} para o ${otherTeam?.club} por ${formatMoney(entry.amount)}` };
+    case 'loan-out':
+      return { icon: '🔁', color: '#6fb8e0', text: `Emprestado — ${entry.playerName} para o ${otherTeam?.club}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
+    case 'loan-in':
+      return { icon: '🔁', color: '#6fb8e0', text: `Pego emprestado — ${entry.playerName} do ${otherTeam?.club}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
+    case 'retired':
+      return { icon: '🏁', color: 'rgba(244,241,234,0.6)', text: `Aposentado — ${entry.playerName}` };
+    default:
+      return { icon: '🔄', color: 'rgba(244,241,234,0.6)', text: entry.playerName };
+  }
+}
+
+function HistoryTab({ save }) {
+  const [filter, setFilter] = useState('');
+  const myId = save.myClubId;
+  const mine = (save.transferLog || []).filter(e => e.fromClubId === myId || e.toClubId === myId);
+  const filtered = (filter ? mine.filter(e => e.type === filter) : mine).slice().reverse(); // mais recente primeiro
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
+        {HISTORY_FILTERS.map(f => (
+          <button
+            key={f.id}
+            onClick={() => setFilter(f.id)}
+            style={{
+              padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+              border: `1px solid ${filter === f.id ? '#d4a23c' : 'rgba(255,255,255,0.15)'}`,
+              background: filter === f.id ? 'rgba(212,162,60,0.12)' : 'transparent',
+              color: filter === f.id ? '#d4a23c' : 'rgba(244,241,234,0.55)',
+            }}
+          >{f.label}</button>
+        ))}
+      </div>
+      {filtered.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum registro {filter ? 'desse tipo ' : ''}ainda.</p>}
+      {filtered.map((entry, i) => {
+        const line = historyLine(entry, myId);
+        return (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: 6 }}>
+            <span style={{ fontSize: 15, flexShrink: 0 }}>{line.icon}</span>
+            <span style={{ flex: 1, fontSize: 12.5, color: line.color }}>{line.text}</span>
+            <span style={{ fontSize: 10.5, opacity: 0.4, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>T{entry.season} · d{entry.day}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounterOffer, onToggleListed, onLoanOut, onRequestLoan, onBack }) {
   const [tab, setTab] = useState(save.pendingOffers?.length ? 'offers' : 'mine');
   const windowOpen = isTransferWindowOpen(save.calendarDay);
   return (
@@ -445,9 +643,10 @@ export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounte
       <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Orçamento: <b style={{ color: '#d4a23c' }}>{formatMoney(save.clubs[save.myClubId].budget)}</b></p>
       <TransferWindowBadge day={save.calendarDay} style={{ marginBottom: 12 }} />
       <TabBar tab={tab} setTab={setTab} offerCount={save.pendingOffers?.length || 0} />
-      {tab === 'mine' && <MyRosterTab save={save} onToggleListed={onToggleListed} windowOpen={windowOpen} />}
-      {tab === 'other' && <OtherClubsTab save={save} onPropose={onPropose} windowOpen={windowOpen} />}
+      {tab === 'mine' && <MyRosterTab save={save} onToggleListed={onToggleListed} onLoanOut={onLoanOut} windowOpen={windowOpen} />}
+      {tab === 'other' && <OtherClubsTab save={save} onPropose={onPropose} onRequestLoan={onRequestLoan} windowOpen={windowOpen} />}
       {tab === 'offers' && <OffersTab save={save} onRespond={onRespondOffer} onCounterOffer={onCounterOffer} />}
+      {tab === 'history' && <HistoryTab save={save} />}
     </div>
   );
 }

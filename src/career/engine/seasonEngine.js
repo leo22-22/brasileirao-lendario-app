@@ -23,6 +23,7 @@ import { decideAiListings, decideAiOffers } from './aiTransfers.js';
 import { buildSeasonCalendar, isTransferWindowOpen } from './calendar.js';
 import { teamForSim, resolveTwoLegTieAuto, prepareTwoLegTieForUser } from './simHelpers.js';
 import { drawCopaBracket, playCopaRound, finalizeCopaUserTie } from './copaEngine.js';
+import { returnDueLoans, returnSeasonLoans } from './loans.js';
 
 export { isTransferWindowOpen } from './calendar.js';
 export { teamForSim } from './simHelpers.js';
@@ -232,6 +233,7 @@ export function advanceDay(save) {
   const events = [];
   while (day < 365) {
     day += 1;
+    current = returnDueLoans(current, day);
     const division = current[myDivisionKey];
     const nextRoundIdx = division.round;
     if (nextRoundIdx >= division.fixtures.length) {
@@ -423,10 +425,23 @@ export function endOfSeason(save) {
   //    base de sempre: 2-3 jovens novos por clube.
   for (const clubId of CAREER_CLUB_IDS) {
     const agingRand = makePrng(hashSeed(`${save.seed}|aging|${clubId}|${save.season}`));
-    const survivors = next.clubs[clubId].roster
-      .map(p => applySeasonAging(p, agingRand))
-      .filter(Boolean);
+    const roster = next.clubs[clubId].roster;
+    const survivors = [];
+    const retiredNames = [];
+    for (const p of roster) {
+      const aged = applySeasonAging(p, agingRand);
+      if (aged) survivors.push(aged);
+      else if (p.age != null) retiredNames.push(p.name); // null por aposentadoria (não por falta de idade)
+    }
     next = replaceRoster(next, clubId, survivors);
+    // Histórico só registra a aposentadoria de jogador do PRÓPRIO usuário —
+    // pros outros 39 clubes isso seria ruído sem utilidade nenhuma pra aba
+    // de histórico (que é sobre o elenco do usuário, não da liga inteira).
+    if (clubId === next.myClubId) {
+      for (const name of retiredNames) {
+        next = { ...next, transferLog: appendTransferLog(next, { type: 'retired', playerName: name, fromClubId: clubId, toClubId: null, amount: 0 }) };
+      }
+    }
     const batch = generateClubYouthBatch(makePrng, hashSeed, save.seed, clubId, save.season);
     next = addPlayersToClub(next, clubId, batch);
   }
@@ -648,20 +663,21 @@ export function simulateRestOfSeason(save) {
 // Reconstrói as duas divisões (membros, tabela zerada, calendário novo)
 // a partir de `clubs[].division` já atualizado, e avança a temporada.
 function startNextSeason(save) {
+  const afterLoans = returnSeasonLoans(save); // devolve empréstimo de 1/2 temporadas que bateu o prazo
   const rand = makePrng(hashSeed(`${save.seed}|setup|${save.season + 1}`));
-  const aIds = CAREER_CLUB_IDS.filter(id => save.clubs[id].division === 'A');
-  const bIds = CAREER_CLUB_IDS.filter(id => save.clubs[id].division === 'B');
+  const aIds = CAREER_CLUB_IDS.filter(id => afterLoans.clubs[id].division === 'A');
+  const bIds = CAREER_CLUB_IDS.filter(id => afterLoans.clubs[id].division === 'B');
   const seasonCalendar = buildSeasonCalendar(38);
   return {
-    ...save,
-    season: save.season + 1,
+    ...afterLoans,
+    season: afterLoans.season + 1,
     divisionA: buildDivision(aIds, rand),
     divisionB: buildDivision(bIds, rand),
     pendingUserTie: null,
     pendingUserCopaTie: null,
     calendarDay: 1,
     seasonCalendar,
-    copa: drawCopaBracket(save, rand),
+    copa: drawCopaBracket(afterLoans, rand),
     screen: 'hub',
   };
 }

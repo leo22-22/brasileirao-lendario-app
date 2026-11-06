@@ -71,7 +71,16 @@ function lastMatchResult(save, division) {
   return { oppId, myGoals, oppGoals, isHome, res: myGoals > oppGoals ? 'V' : myGoals < oppGoals ? 'D' : 'E' };
 }
 
-const cardStyle = { padding: '14px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' };
+// Vidro fosco (glassmorphism) — pedido explícito do usuário (2026-11-06,
+// com um briefing de design colado): fundo semi-transparente + blur +
+// borda sutil + sombra, em vez do card "chapado" de antes. `backdropFilter`
+// cai graciosamente pra um fundo um pouco mais opaco em navegadores sem
+// suporte (nenhuma quebra visual, só perde o blur).
+const cardStyle = {
+  padding: '16px', borderRadius: 16,
+  background: 'rgba(20,28,22,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+  border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 10px 28px rgba(0,0,0,0.28)',
+};
 const cardLabelStyle = { fontSize: 10.5, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 };
 const RESULT_COLORS = { V: '#7fd99a', D: '#e05050', E: 'rgba(244,241,234,0.6)' };
 
@@ -85,24 +94,28 @@ function TeamCrest({ teamId, size }) {
 
 function NextMatchCard({ save, division, seasonOver, nextMatch }) {
   return (
-    <div style={cardStyle}>
-      <div style={{ ...cardLabelStyle, textAlign: 'center', marginBottom: 10 }}>Próximo jogo</div>
+    <div className="career-hub-card" style={{ ...cardStyle, position: 'relative', overflow: 'hidden' }}>
+      <div style={{ ...cardLabelStyle, textAlign: 'center', marginBottom: 12, color: '#d4a23c', opacity: 0.85 }}>⚽ Próximo jogo</div>
       {seasonOver ? (
         <div style={{ fontSize: 12.5, opacity: 0.7, textAlign: 'center', padding: '10px 0' }}>Temporada {save.season} terminada.</div>
       ) : nextMatch ? (
         <>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14 }}>
-            <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
-              <TeamCrest teamId={nextMatch.homeId} size={52} />
-              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{TEAMS.find(t => t.id === nextMatch.homeId)?.club}</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, position: 'relative' }}>
+            <div style={{
+              position: 'absolute', left: '50%', top: '38%', transform: 'translate(-50%,-50%)',
+              width: 90, height: 90, borderRadius: '50%', background: 'radial-gradient(circle, rgba(212,162,60,0.16), transparent 70%)', pointerEvents: 'none',
+            }} />
+            <div style={{ textAlign: 'center', flex: 1, minWidth: 0, position: 'relative' }}>
+              <TeamCrest teamId={nextMatch.homeId} size={60} />
+              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{TEAMS.find(t => t.id === nextMatch.homeId)?.club}</div>
             </div>
-            <div style={{ fontSize: 12, opacity: 0.4, fontWeight: 700, flexShrink: 0 }}>×</div>
-            <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
-              <TeamCrest teamId={nextMatch.awayId} size={52} />
-              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{TEAMS.find(t => t.id === nextMatch.awayId)?.club}</div>
+            <div style={{ fontSize: 12, opacity: 0.45, fontWeight: 700, flexShrink: 0, position: 'relative' }}>×</div>
+            <div style={{ textAlign: 'center', flex: 1, minWidth: 0, position: 'relative' }}>
+              <TeamCrest teamId={nextMatch.awayId} size={60} />
+              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{TEAMS.find(t => t.id === nextMatch.awayId)?.club}</div>
             </div>
           </div>
-          <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.55, marginTop: 10 }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
+          <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.55, marginTop: 12, fontFamily: "'Space Mono', monospace" }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
         </>
       ) : (
         <div style={{ fontSize: 12.5, opacity: 0.6, textAlign: 'center', padding: '10px 0' }}>Sem jogo seu nesta rodada.</div>
@@ -117,7 +130,7 @@ function LastGameCard({ save, division }) {
   const oppTeam = TEAMS.find(t => t.id === last.oppId);
   const myGoalsFirst = last.isHome;
   return (
-    <div style={cardStyle}>
+    <div className="career-hub-card" style={cardStyle}>
       <div style={cardLabelStyle}>Último jogo</div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
@@ -150,7 +163,7 @@ function MoneyMeter({ budget }) {
   const r = 68, cx = 90, cy = 80;
   const circ = Math.PI * r;
   return (
-    <div style={cardStyle}>
+    <div className="career-hub-card" style={cardStyle}>
       <div style={{ ...cardLabelStyle, textAlign: 'center' }}>Orçamento</div>
       <svg width="100%" height="92" viewBox="0 0 180 92" style={{ display: 'block', marginTop: 4 }}>
         <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={13} strokeLinecap="round" />
@@ -167,8 +180,8 @@ function MoneyMeter({ budget }) {
 
 function NovidadesCard({ dayEvents }) {
   return (
-    <div style={cardStyle}>
-      <div style={cardLabelStyle}>O que aconteceu</div>
+    <div className="career-hub-card" style={cardStyle}>
+      <div style={cardLabelStyle}>📰 O que aconteceu</div>
       {dayEvents.length === 0 ? (
         <div style={{ fontSize: 12, opacity: 0.45, marginTop: 8 }}>Nada de novo por enquanto.</div>
       ) : (
@@ -188,8 +201,8 @@ function TopTransfersCard({ save }) {
   const seasonLog = (save.transferLog || []).filter(e => e.season === save.season);
   const top = [...seasonLog].sort((a, b) => b.amount - a.amount).slice(0, 5);
   return (
-    <div style={cardStyle}>
-      <div style={cardLabelStyle}>Top transferências na liga</div>
+    <div className="career-hub-card" style={cardStyle}>
+      <div style={cardLabelStyle}>🔥 Top transferências na liga</div>
       {top.length === 0 ? (
         <div style={{ fontSize: 12, opacity: 0.45, marginTop: 8 }}>Nenhuma negociação ainda nesta temporada.</div>
       ) : (
@@ -229,8 +242,15 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
   return (
     <div className="career-hub-grid">
       <style>{`
-        .career-hub-grid { display: grid; grid-template-columns: 240px minmax(0, 560px) 240px; gap: 16px; justify-content: center; max-width: 1080px; margin: 0 auto; padding: 24px 16px; }
-        .career-hub-col { display: grid; gap: 12px; align-content: start; }
+        .career-hub-grid { display: grid; grid-template-columns: 250px minmax(0, 560px) 250px; gap: 14px; justify-content: center; max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
+        .career-hub-col { display: grid; gap: 10px; align-content: start; }
+        .career-hub-card { transition: border-color 0.18s ease, transform 0.18s ease; }
+        .career-hub-card:hover { border-color: rgba(212,162,60,0.3); }
+        .career-nav-btn { transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease; }
+        .career-nav-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(212,162,60,0.4); transform: translateY(-1px); }
+        .career-advance-btn { transition: filter 0.15s ease, transform 0.15s ease; }
+        .career-advance-btn:not(:disabled):hover { filter: brightness(1.08); transform: translateY(-1px); }
+        .career-simulate-btn:not(:disabled):hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.3); }
         @media (max-width: 900px) {
           .career-hub-grid { grid-template-columns: 1fr; max-width: 560px; }
         }
@@ -245,11 +265,11 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
       <div className="career-hub-col">
         <button onClick={onExit} style={backButtonStyle}>← Sair da carreira</button>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="career-hub-card" style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: 12 }}>
           {logo && <img src={logo} alt={team.club} style={{ width: 48, height: 48, objectFit: 'contain' }} />}
           <div>
             <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20 }}>{team.club}</div>
-            <div style={{ fontSize: 12, opacity: 0.6 }}>{formatCalendarDay(save.calendarDay)} · Temporada {save.season} · Série {divisionKey} · {myPos}º lugar</div>
+            <div style={{ fontSize: 12, opacity: 0.6 }}>{formatCalendarDay(save.calendarDay)} · Temporada {save.season} · Série {divisionKey} · <span style={{ color: '#d4a23c', fontWeight: 700 }}>{myPos}º lugar</span></div>
           </div>
         </div>
 
@@ -262,22 +282,24 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
         )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <button onClick={() => onNavigate('squad')} style={navBtnStyle}>👕 Elenco</button>
-          <button onClick={() => onNavigate('formation')} style={navBtnStyle}>🧩 Formação</button>
-          <button onClick={() => onNavigate('market')} style={navBtnStyle}>💰 Mercado{offerCount > 0 ? ` (${offerCount})` : ''}</button>
-          <button onClick={() => onNavigate('table')} style={navBtnStyle}>📊 Tabela</button>
-          <button onClick={() => onNavigate('calendar')} style={navBtnStyle}>📅 Calendário</button>
-          <button onClick={() => onNavigate('copa')} style={navBtnStyle}>🏆 Copa do Brasil</button>
+          <button className="career-nav-btn" onClick={() => onNavigate('squad')} style={navBtnStyle}>👕 Elenco</button>
+          <button className="career-nav-btn" onClick={() => onNavigate('formation')} style={navBtnStyle}>🧩 Formação</button>
+          <button className="career-nav-btn" onClick={() => onNavigate('market')} style={navBtnStyle}>💰 Mercado{offerCount > 0 ? ` (${offerCount})` : ''}</button>
+          <button className="career-nav-btn" onClick={() => onNavigate('table')} style={navBtnStyle}>📊 Tabela</button>
+          <button className="career-nav-btn" onClick={() => onNavigate('calendar')} style={navBtnStyle}>📅 Calendário</button>
+          <button className="career-nav-btn" onClick={() => onNavigate('copa')} style={navBtnStyle}>🏆 Copa do Brasil</button>
         </div>
 
-        <button onClick={onAdvanceDay} disabled={offerCount > 0} style={{
-          width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', cursor: offerCount > 0 ? 'default' : 'pointer',
-          background: offerCount > 0 ? 'rgba(212,162,60,0.3)' : '#d4a23c', color: '#0B1A12', fontSize: 15, fontWeight: 700,
+        <button className="career-advance-btn" onClick={onAdvanceDay} disabled={offerCount > 0} style={{
+          width: '100%', padding: '16px 0', borderRadius: 12, border: 'none', cursor: offerCount > 0 ? 'default' : 'pointer',
+          background: offerCount > 0 ? 'rgba(212,162,60,0.3)' : 'linear-gradient(180deg, #e3b85a, #d4a23c)',
+          color: '#0B1A12', fontSize: 16, fontWeight: 800, letterSpacing: 0.3,
+          boxShadow: offerCount > 0 ? 'none' : '0 0 0 1px rgba(212,162,60,0.35), 0 10px 26px rgba(212,162,60,0.3), 0 2px 6px rgba(0,0,0,0.25)',
         }}>
           {offerCount > 0 ? 'Responda as propostas primeiro' : seasonOver ? 'Encerrar temporada →' : 'Avançar →'}
         </button>
         {!seasonOver && (
-          <button onClick={onSimulateSeason} disabled={offerCount > 0} style={{
+          <button className="career-simulate-btn" onClick={onSimulateSeason} disabled={offerCount > 0} style={{
             width: '100%', padding: '11px 0', borderRadius: 10, cursor: offerCount > 0 ? 'default' : 'pointer',
             border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(244,241,234,0.7)', fontSize: 12.5, fontWeight: 600,
           }}>

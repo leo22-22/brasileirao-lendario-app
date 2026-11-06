@@ -25,6 +25,7 @@ import {
 } from './engine/seasonEngine.js';
 import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
 import { proposeTransfer } from './engine/rosterStore.js';
+import { loanPlayerOut, requestLoanIn } from './engine/loans.js';
 
 export function CareerApp({ onExit, onHudChange }) {
   const [save, setSave] = useState(() => loadCareerSave());
@@ -161,6 +162,24 @@ export function CareerApp({ onExit, onHudChange }) {
     setSave(prev => prev && toggleTransferList(prev, playerName));
   }, []);
 
+  // Empréstimo — nas duas direções quem decide é o clube dono do jogador
+  // na hora do pedido (ver loans.js); lê `save` direto (não via updater)
+  // pelo mesmo motivo de handleProposeTransfer: quem chama precisa do
+  // resultado (aceito/recusado) na hora, pra tela mostrar.
+  const handleLoanOut = useCallback((targetClubId, playerName, kind) => {
+    if (!save) return { accepted: false };
+    const result = loanPlayerOut(save, save.myClubId, targetClubId, playerName, kind);
+    setSave(result.save);
+    return result;
+  }, [save]);
+
+  const handleRequestLoan = useCallback((ownerClubId, playerName, kind) => {
+    if (!save) return { accepted: false };
+    const result = requestLoanIn(save, save.myClubId, ownerClubId, playerName, kind);
+    setSave(result.save);
+    return result;
+  }, [save]);
+
   // Fim da partida ao vivo do próprio usuário (CareerMatchDayScreen) —
   // só agora a rodada inteira é de fato resolvida e aplicada no save.
   const handleFinishUserMatch = useCallback(() => {
@@ -244,7 +263,7 @@ export function CareerApp({ onExit, onHudChange }) {
   if (screen === 'table') return <CareerTableScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'calendar') return <CareerCalendarScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'copa') return <CareerCopaScreen save={save} onBack={() => setScreen('hub')} />;
-  if (screen === 'market') return <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onBack={() => setScreen('hub')} />;
+  if (screen === 'market') return <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onLoanOut={handleLoanOut} onRequestLoan={handleRequestLoan} onBack={() => setScreen('hub')} />;
 
   return <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onSimulateSeason={handleSimulateSeason} onExit={onExit} />;
 }
