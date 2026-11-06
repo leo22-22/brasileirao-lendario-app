@@ -15,7 +15,7 @@ import {
   matchPrng, hashSeed, makePrng, buildLiveMatchEvents,
 } from '../../App.jsx';
 import { CAREER_CLUB_IDS, SERIE_A_2026_TEAM_IDS, SERIE_B_2026_TEAM_IDS, careerClubTier } from '../../data/career-clubs.js';
-import { cloneAllRosters, addPlayersToClub, creditBudget, buyPlayer, replaceRoster, canSell, MIN_SQUAD_SIZE } from './rosterStore.js';
+import { cloneAllRosters, addPlayersToClub, creditBudget, buyPlayer, replaceRoster, canSell, MIN_SQUAD_SIZE, appendTransferLog } from './rosterStore.js';
 import { computePrizeMoney } from './economy.js';
 import { generateClubYouthBatch } from './youth.js';
 import { applySeasonAging } from './aging.js';
@@ -74,6 +74,11 @@ export function createCareerSave(myClubId, customBudget, seedOverride) {
     // — aumenta a chance de vir proposta por eles especificamente, sem
     // impedir que um jogador fora da lista receba uma sondagem rara.
     transferList: [],
+    // Histórico de TODA transferência da carreira (os 40 clubes, não só o
+    // do usuário) — nunca resetado entre temporadas (ver appendTransferLog
+    // em rosterStore.js). Alimenta o painel "Top Transferências" da home e
+    // a aba de histórico de transferências do usuário.
+    transferLog: [],
     // Começa em 1º de janeiro — dentro da janela de pré-temporada, de
     // propósito (dá pra reforçar o elenco antes da temporada começar).
     calendarDay: 1,
@@ -539,6 +544,7 @@ export function respondToOffer(save, offerIndex, accept) {
       [offer.toClubId]: { ...seller, roster: seller.roster.filter(p => p.name !== offer.playerName), budget: seller.budget + offer.amount },
       [offer.fromClubId]: { ...buyer, roster: [...buyer.roster, player], budget: buyer.budget - offer.amount },
     },
+    transferLog: appendTransferLog(save, { type: 'user-sell', playerName: offer.playerName, fromClubId: offer.toClubId, toClubId: offer.fromClubId, amount: offer.amount }),
   };
 }
 
@@ -577,6 +583,7 @@ export function counterOffer(save, offerIndex, counterAmount) {
         [offer.toClubId]: { ...seller, roster: seller.roster.filter(p => p.name !== offer.playerName), budget: seller.budget + counterAmount },
         [offer.fromClubId]: { ...buyer, roster: [...buyer.roster, player], budget: buyer.budget - counterAmount },
       },
+      transferLog: appendTransferLog(save, { type: 'user-sell', playerName: offer.playerName, fromClubId: offer.toClubId, toClubId: offer.fromClubId, amount: counterAmount }),
     },
     accepted: true,
   };

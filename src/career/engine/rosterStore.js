@@ -10,6 +10,15 @@ import { computePlayerValue } from './pricing.js';
 
 export const MIN_SQUAD_SIZE = 16;
 
+// Histórico de transferências da carreira inteira (todos os 40 clubes, não
+// só o do usuário) — alimenta o painel "Top Transferências" da home e a
+// futura aba de histórico do usuário (filtra por fromClubId/toClubId ===
+// myClubId lá). Persiste de temporada em temporada (nunca é resetado).
+export function appendTransferLog(save, entry) {
+  const log = save.transferLog || [];
+  return [...log, { day: save.calendarDay, season: save.season, ...entry }];
+}
+
 export function canSell(roster) {
   return roster.length > MIN_SQUAD_SIZE;
 }
@@ -50,6 +59,7 @@ export function buyPlayer(save, buyerId, sellerId, playerName) {
       [sellerId]: { ...seller, roster: seller.roster.filter(p => p.name !== playerName), budget: seller.budget + price },
       [buyerId]: { ...buyer, roster: [...buyer.roster, player], budget: buyer.budget - price },
     },
+    transferLog: appendTransferLog(save, { type: 'ai', playerName, fromClubId: sellerId, toClubId: buyerId, amount: price }),
   };
   return { save: newSave, ok: true, price, player };
 }
@@ -93,6 +103,10 @@ export function proposeTransfer(save, buyerId, sellerId, playerName, offeredAmou
       [sellerId]: { ...seller, roster: seller.roster.filter(p => p.name !== playerName), budget: seller.budget + offeredAmount },
       [buyerId]: { ...buyer, roster: [...buyer.roster, player], budget: buyer.budget - offeredAmount },
     },
+    transferLog: appendTransferLog(save, {
+      type: buyerId === save.myClubId ? 'user-buy' : 'ai',
+      playerName, fromClubId: sellerId, toClubId: buyerId, amount: offeredAmount,
+    }),
   };
   return { save: newSave, accepted: true, price: offeredAmount, player };
 }

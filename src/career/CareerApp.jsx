@@ -151,8 +151,11 @@ export function CareerApp({ onExit, onHudChange }) {
   }, []);
 
   const handleCounterOffer = useCallback((offerIndex, counterAmount) => {
-    setSave(prev => prev ? counterOffer(prev, offerIndex, counterAmount).save : prev);
-  }, []);
+    if (!save) return { accepted: false };
+    const result = counterOffer(save, offerIndex, counterAmount);
+    setSave(result.save);
+    return result;
+  }, [save]);
 
   const handleToggleListed = useCallback((playerName) => {
     setSave(prev => prev && toggleTransferList(prev, playerName));

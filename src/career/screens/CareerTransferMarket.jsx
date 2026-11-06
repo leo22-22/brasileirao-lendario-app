@@ -327,15 +327,27 @@ function OtherClubsTab({ save, onPropose, windowOpen }) {
   );
 }
 
-function OfferCard({ offer, idx, onRespond, onCounterOffer }) {
+function OfferCard({ offer, idx, onRespond, onCounterOffer, onResult }) {
   const [countering, setCountering] = useState(false);
   const [counterInput, setCounterInput] = useState('');
   const buyerTeam = TEAMS.find(t => t.id === offer.fromClubId);
   const counterAmount = counterInput ? parseInt(counterInput, 10) : 0;
 
+  const handleAccept = () => {
+    onRespond(idx, true);
+    onResult({ type: 'accept', playerName: offer.playerName, clubName: buyerTeam?.club, amount: offer.amount });
+  };
+  const handleReject = () => {
+    onRespond(idx, false);
+    onResult({ type: 'reject', playerName: offer.playerName, clubName: buyerTeam?.club });
+  };
   const handleSendCounter = () => {
     if (counterAmount <= offer.amount) return;
-    onCounterOffer(idx, counterAmount);
+    const result = onCounterOffer(idx, counterAmount);
+    onResult({
+      type: result?.accepted ? 'counter-accept' : 'counter-reject',
+      playerName: offer.playerName, clubName: buyerTeam?.club, amount: counterAmount,
+    });
     setCountering(false);
     setCounterInput('');
   };
@@ -345,9 +357,9 @@ function OfferCard({ offer, idx, onRespond, onCounterOffer }) {
       <div style={{ fontSize: 13, marginBottom: 6 }}><b>{buyerTeam?.club}</b> oferece <b style={{ color: '#d4a23c' }}>{formatMoney(offer.amount)}</b> por <b>{offer.playerName}</b></div>
       {!countering ? (
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={() => onRespond(idx, true)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: '#7fd99a', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Aceitar</button>
+          <button onClick={handleAccept} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: '#7fd99a', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Aceitar</button>
           <button onClick={() => setCountering(true)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid rgba(212,162,60,0.4)', background: 'rgba(212,162,60,0.1)', color: '#d4a23c', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Contraproposta</button>
-          <button onClick={() => onRespond(idx, false)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Rejeitar</button>
+          <button onClick={handleReject} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Rejeitar</button>
         </div>
       ) : (
         <div>
@@ -373,14 +385,51 @@ function OfferCard({ offer, idx, onRespond, onCounterOffer }) {
   );
 }
 
+// Mensagem informativa depois de aceitar/rejeitar/contrapropor — pedido
+// explícito do usuário (2026-11-06: antes a proposta só sumia da lista
+// sem dizer o que aconteceu).
+function offerResultMessage(result) {
+  if (result.type === 'accept') return { ok: true, text: `✅ Proposta aceita — ${result.playerName} foi vendido para o ${result.clubName} por ${formatMoney(result.amount)}.` };
+  if (result.type === 'reject') return { ok: false, text: `❌ Proposta por ${result.playerName} recusada.` };
+  if (result.type === 'counter-accept') return { ok: true, text: `✅ Contraproposta aceita — ${result.playerName} foi vendido para o ${result.clubName} por ${formatMoney(result.amount)}.` };
+  return { ok: false, text: `↩️ O ${result.clubName} não topou pagar ${formatMoney(result.amount)} por ${result.playerName} e desistiu do negócio.` };
+}
+
 function OffersTab({ save, onRespond, onCounterOffer }) {
+  const [lastResult, setLastResult] = useState(null);
   if (!save.pendingOffers?.length) {
-    return <p style={{ fontSize: 13, opacity: 0.6 }}>Nenhuma proposta por enquanto — elas podem surgir durante uma janela de transferências aberta (janeiro, ou julho-agosto), quando um clube de IA se interessa por algum jogador seu. Colocar o jogador na lista de transferências (aba "Meu elenco") aumenta a chance.</p>;
+    return (
+      <div>
+        {lastResult && (() => {
+          const msg = offerResultMessage(lastResult);
+          return (
+            <div style={{
+              padding: '9px 12px', borderRadius: 8, marginBottom: 12, fontSize: 12.5,
+              background: msg.ok ? 'rgba(127,217,154,0.1)' : 'rgba(224,80,80,0.1)',
+              border: `1px solid ${msg.ok ? 'rgba(127,217,154,0.35)' : 'rgba(224,80,80,0.35)'}`,
+              color: msg.ok ? '#7fd99a' : '#e05050',
+            }}>{msg.text}</div>
+          );
+        })()}
+        <p style={{ fontSize: 13, opacity: 0.6 }}>Nenhuma proposta por enquanto — elas podem surgir durante uma janela de transferências aberta (janeiro, ou julho-agosto), quando um clube de IA se interessa por algum jogador seu. Colocar o jogador na lista de transferências (aba "Meu elenco") aumenta a chance.</p>
+      </div>
+    );
   }
   return (
     <div>
+      {lastResult && (() => {
+        const msg = offerResultMessage(lastResult);
+        return (
+          <div style={{
+            padding: '9px 12px', borderRadius: 8, marginBottom: 10, fontSize: 12.5,
+            background: msg.ok ? 'rgba(127,217,154,0.1)' : 'rgba(224,80,80,0.1)',
+            border: `1px solid ${msg.ok ? 'rgba(127,217,154,0.35)' : 'rgba(224,80,80,0.35)'}`,
+            color: msg.ok ? '#7fd99a' : '#e05050',
+          }}>{msg.text}</div>
+        );
+      })()}
       {save.pendingOffers.map((offer, idx) => (
-        <OfferCard key={`${offer.fromClubId}-${offer.playerName}-${idx}`} offer={offer} idx={idx} onRespond={onRespond} onCounterOffer={onCounterOffer} />
+        <OfferCard key={`${offer.fromClubId}-${offer.playerName}-${idx}`} offer={offer} idx={idx} onRespond={onRespond} onCounterOffer={onCounterOffer} onResult={setLastResult} />
       ))}
     </div>
   );
