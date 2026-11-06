@@ -419,8 +419,15 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
   return (
     <div className="career-hub-grid">
       <style>{`
-        .career-hub-grid { display: grid; grid-template-columns: 250px minmax(0, 560px) 250px; gap: 14px; justify-content: center; max-width: 1100px; margin: 0 auto; padding: 24px 16px; }
-        .career-hub-col { display: grid; gap: 10px; align-content: start; }
+        /* Largura cheia (pedido explícito do usuário, 2026-11-06: antes as
+           3 colunas ficavam encolhidas no centro com margens pretas enormes
+           nas laterais) — colunas PROPORCIONAIS (1fr/2fr/1fr, equivalente a
+           col-span-3/6/3 de um grid de 12) em vez de largura fixa em px, com
+           um piso mínimo (minmax) só pra não esmagar o conteúdo em telas
+           médias. max-width bem mais alto (1800px) que antes (1100px) pra
+           aproveitar monitor largo de verdade. */
+        .career-hub-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(420px, 2fr) minmax(260px, 1fr); gap: 18px; width: 100%; max-width: 1800px; margin: 0 auto; padding: 24px 20px; box-sizing: border-box; }
+        .career-hub-col { display: grid; gap: 10px; align-content: start; min-width: 0; }
         .career-hub-card { transition: border-color 0.18s ease, transform 0.18s ease; }
         .career-hub-card:hover { border-color: rgba(212,162,60,0.3); }
         .career-nav-btn { transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease; }
@@ -431,10 +438,17 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
         }
         .career-advance-btn { transition: filter 0.15s ease, transform 0.15s ease; }
         .career-advance-btn:not(:disabled) { animation: careerAdvancePulse 2.5s ease-in-out infinite; }
-        .career-advance-btn:not(:disabled):hover { filter: brightness(1.08); transform: translateY(-1px); }
+        .career-advance-btn:not(:disabled):hover { filter: brightness(1.08); transform: scale(1.01); }
         .career-simulate-btn:not(:disabled):hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.3); }
-        @media (max-width: 900px) {
+        @media (max-width: 1100px) {
+          .career-hub-grid { grid-template-columns: 1fr 1fr; }
+          .career-hub-col:first-child { grid-column: 1; }
+          .career-hub-col:nth-child(2) { grid-column: 1 / -1; order: -1; }
+          .career-hub-col:last-child { grid-column: 2; }
+        }
+        @media (max-width: 760px) {
           .career-hub-grid { grid-template-columns: 1fr; max-width: 560px; }
+          .career-hub-col:first-child, .career-hub-col:nth-child(2), .career-hub-col:last-child { grid-column: 1; order: initial; }
         }
       `}</style>
 
