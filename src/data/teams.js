@@ -2604,7 +2604,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'flamengo2026', club: 'Flamengo', year: 2026, label: 'Flamengo 2026 (Campeao vigente)', coach: 'Leonardo Jardim',
+    id: 'flamengo2026', club: 'Flamengo', year: 2026, label: 'Flamengo 2026', coach: 'Leonardo Jardim',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Rossi', pos: ['GOL'], ovr: 84 },
@@ -2634,7 +2634,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'palmeiras2026', club: 'Palmeiras', year: 2026, label: 'Palmeiras 2026 (Era Abel)', coach: 'Abel Ferreira',
+    id: 'palmeiras2026', club: 'Palmeiras', year: 2026, label: 'Palmeiras 2026', coach: 'Abel Ferreira',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Carlos Miguel', pos: ['GOL'], ovr: 82 },
@@ -2661,7 +2661,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'cruzeiro2026', club: 'Cruzeiro', year: 2026, label: 'Cruzeiro 2026 (Era Artur Jorge)', coach: 'Artur Jorge',
+    id: 'cruzeiro2026', club: 'Cruzeiro', year: 2026, label: 'Cruzeiro 2026', coach: 'Artur Jorge',
     colors: { p: '#0033A0', s: '#ffffff' },
     players: [
       { name: 'Cassio Ramos', pos: ['GOL'], ovr: 82 },
@@ -2687,7 +2687,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'mirassol2026', club: 'Mirassol', year: 2026, label: 'Mirassol 2026 (Estreia na Libertadores)', coach: 'Rafael Guanaes',
+    id: 'mirassol2026', club: 'Mirassol', year: 2026, label: 'Mirassol 2026', coach: 'Rafael Guanaes',
     colors: { p: '#FFD700', s: '#006437' },
     players: [
       { name: 'Alex Muralha', pos: ['GOL'], ovr: 74 },
@@ -2695,6 +2695,7 @@ export const TEAMS = [
       { name: 'Willian Machado', pos: ['ZAG'], ovr: 73 },
       { name: 'Lucas Oliveira', pos: ['ZAG'], ovr: 73 },
       { name: 'Victor Luis', pos: ['LE', 'ME'], ovr: 74 },
+      { name: 'Reinaldo', pos: ['LE', 'ME'], ovr: 76 },
       { name: 'Denilson', pos: ['VOL', 'MC'], ovr: 74 },
       { name: 'Neto Moura', pos: ['MC', 'VOL'], ovr: 74 },
       { name: 'Shaylon', pos: ['MEI', 'MC', 'MD'], ovr: 76 },
@@ -2715,7 +2716,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'botafogo2026', club: 'Botafogo', year: 2026, label: 'Botafogo 2026 (Era Ancelotti)', coach: 'Davide Ancelotti',
+    id: 'botafogo2026', club: 'Botafogo', year: 2026, label: 'Botafogo 2026', coach: 'Davide Ancelotti',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Gabriel Batista', pos: ['GOL'], ovr: 80 },
@@ -2741,7 +2742,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'bahia2026', club: 'Bahia', year: 2026, label: 'Bahia 2026 (Era Ceni)', coach: 'Rogerio Ceni',
+    id: 'bahia2026', club: 'Bahia', year: 2026, label: 'Bahia 2026', coach: 'Rogerio Ceni',
     colors: { p: '#003399', s: '#C8102E' },
     players: [
       { name: 'Guido Herrera', pos: ['GOL'], ovr: 81 },
@@ -2768,7 +2769,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'fluminense2026', club: 'Fluminense', year: 2026, label: 'Fluminense 2026 (Era Marcao)', coach: 'Marcao',
+    id: 'fluminense2026', club: 'Fluminense', year: 2026, label: 'Fluminense 2026', coach: 'Marcao',
     colors: { p: '#7A1921', s: '#006633' },
     players: [
       { name: 'Fabio', pos: ['GOL'], ovr: 82 },
@@ -2782,6 +2783,7 @@ export const TEAMS = [
       { name: 'Hulk', pos: ['ATA', 'PD'], ovr: 86 },
       { name: 'Yeferson Soteldo', pos: ['PE', 'MEI', 'PD'], ovr: 82 },
       { name: 'Kevin Serna', pos: ['PE', 'PD', 'ATA'], ovr: 80 },
+      { name: 'Agustín Canobbio', pos: ['PE', 'PD'], ovr: 80 },
       { name: 'Vitor Eudes', pos: ['GOL'], ovr: 75 },
       { name: 'Guga', pos: ['LD', 'LE'], ovr: 77 },
       { name: 'Ignacio', pos: ['ZAG'], ovr: 78 },
@@ -2795,7 +2797,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo2026', club: 'Sao Paulo', year: 2026, label: 'Sao Paulo 2026 (Era Dorival)', coach: 'Dorival Junior',
+    id: 'saopaulo2026', club: 'Sao Paulo', year: 2026, label: 'Sao Paulo 2026', coach: 'Dorival Junior',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Rafael Pires', pos: ['GOL'], ovr: 80 },
@@ -2850,13 +2852,13 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'corinthians2026', club: 'Corinthians', year: 2026, label: 'Corinthians 2026 (Memphis e Diniz)', coach: 'Fernando Diniz',
+    id: 'corinthians2026', club: 'Corinthians', year: 2026, label: 'Corinthians 2026', coach: 'Fernando Diniz',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Hugo Souza', pos: ['GOL'], ovr: 83 },
       { name: 'Matheuzinho', pos: ['LD', 'MD'], ovr: 80 },
       { name: 'Andre Ramalho', pos: ['ZAG', 'VOL'], ovr: 82 },
-      { name: 'Felix Torres', pos: ['ZAG'], ovr: 81 },
+      { name: 'Gustavo Henrique', pos: ['ZAG'], ovr: 80 },
       { name: 'Fabrizio Angileri', pos: ['LE', 'ME'], ovr: 77 },
       { name: 'Raniele', pos: ['VOL', 'ZAG', 'MC'], ovr: 81 },
       { name: 'Breno Bidon', pos: ['MC', 'VOL', 'MEI'], ovr: 82 },
@@ -2879,7 +2881,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio2026', club: 'Gremio', year: 2026, label: 'Gremio 2026 (Era Luiz Castro)', coach: 'Luiz Castro',
+    id: 'gremio2026', club: 'Gremio', year: 2026, label: 'Gremio 2026', coach: 'Luiz Castro',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Weverton', pos: ['GOL'], ovr: 81 },
@@ -2906,7 +2908,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'vasco2026', club: 'Vasco', year: 2026, label: 'Vasco 2026 (Era Pedro Emanuel)', coach: 'Pedro Emanuel',
+    id: 'vasco2026', club: 'Vasco', year: 2026, label: 'Vasco 2026', coach: 'Pedro Emanuel',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Leo Jardim', pos: ['GOL'], ovr: 81 },
@@ -2935,7 +2937,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticomg2026', club: 'Atletico-MG', year: 2026, label: 'Atletico-MG 2026 (Era Dominguez)', coach: 'Eduardo Dominguez',
+    id: 'atleticomg2026', club: 'Atletico-MG', year: 2026, label: 'Atletico-MG 2026', coach: 'Eduardo Dominguez',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Everson', pos: ['GOL'], ovr: 82 },
@@ -2964,7 +2966,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'internacional2026', club: 'Internacional', year: 2026, label: 'Internacional 2026 (Era Pezzolano)', coach: 'Paulo Pezzolano',
+    id: 'internacional2026', club: 'Internacional', year: 2026, label: 'Internacional 2026', coach: 'Paulo Pezzolano',
     colors: { p: '#D2122E', s: '#ffffff' },
     players: [
       { name: 'Sergio Rochet', pos: ['GOL'], ovr: 82 },
@@ -2973,6 +2975,7 @@ export const TEAMS = [
       { name: 'Guillermo Maripan', pos: ['ZAG'], ovr: 79 },
       { name: 'Alexandro Bernabei', pos: ['LE', 'ME'], ovr: 79 },
       { name: 'Rodrigo Villagra', pos: ['VOL', 'MC'], ovr: 78 },
+      { name: 'Thiago Maia', pos: ['VOL', 'MC'], ovr: 79 },
       { name: 'Bruno Gomes', pos: ['MC', 'VOL', 'LD'], ovr: 77 },
       { name: 'Alan Patrick', pos: ['MEI', 'MC'], ovr: 83 },
       { name: 'Kayky', pos: ['PD', 'MD', 'PE'], ovr: 77 },
@@ -2991,7 +2994,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'santos2026', club: 'Santos', year: 2026, label: 'Santos 2026 (Neymar na Vila)', coach: 'Cuca',
+    id: 'santos2026', club: 'Santos', year: 2026, label: 'Santos 2026', coach: 'Cuca',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Gabriel Brazao', pos: ['GOL'], ovr: 82 },
@@ -3022,7 +3025,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'vitoria2026', club: 'Vitoria', year: 2026, label: 'Vitoria 2026 (Era Jair Ventura)', coach: 'Jair Ventura',
+    id: 'vitoria2026', club: 'Vitoria', year: 2026, label: 'Vitoria 2026', coach: 'Jair Ventura',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Lucas Arcanjo', pos: ['GOL'], ovr: 81 },
@@ -3049,7 +3052,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'athleticopr2026', club: 'Athletico-PR', year: 2026, label: 'Athletico-PR 2026 (Volta a elite)', coach: 'Odair Hellmann',
+    id: 'athleticopr2026', club: 'Athletico-PR', year: 2026, label: 'Athletico-PR 2026', coach: 'Odair Hellmann',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Santos', pos: ['GOL'], ovr: 79 },
@@ -3076,7 +3079,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'coritiba2026', club: 'Coritiba', year: 2026, label: 'Coritiba 2026 (Campeao da Serie B)', coach: 'Fernando Seabra',
+    id: 'coritiba2026', club: 'Coritiba', year: 2026, label: 'Coritiba 2026', coach: 'Fernando Seabra',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Pedro Morisco', pos: ['GOL'], ovr: 78 },
@@ -3103,13 +3106,14 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'chapecoense2026', club: 'Chapecoense', year: 2026, label: 'Chapecoense 2026 (Volta a Serie A)', coach: 'Gilmar Dal Pozzo',
+    id: 'chapecoense2026', club: 'Chapecoense', year: 2026, label: 'Chapecoense 2026', coach: 'Gilmar Dal Pozzo',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Marcelo Carne', pos: ['GOL'], ovr: 75 },
       { name: 'Marcinho', pos: ['PD', 'PE', 'MD', 'ME'], ovr: 73 },
       { name: 'Walter Clar', pos: ['ZAG'], ovr: 76 },
       { name: 'Bruno Leonardo', pos: ['ZAG'], ovr: 74 },
+      { name: 'Kauan', pos: ['ZAG'], ovr: 74 },
       { name: 'Eduardo Doma', pos: ['LE', 'ZAG'], ovr: 74 },
       { name: 'Marcelo Freitas', pos: ['VOL'], ovr: 73 },
       { name: 'Jean Carlos', pos: ['MEI', 'MC'], ovr: 77 },
@@ -3131,7 +3135,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'remo2026', club: 'Remo', year: 2026, label: 'Remo 2026 (Volta apos 32 anos)', coach: 'Leo Conde',
+    id: 'remo2026', club: 'Remo', year: 2026, label: 'Remo 2026', coach: 'Leo Conde',
     colors: { p: '#003399', s: '#ffffff' },
     players: [
       { name: 'Anderson', pos: ['GOL'], ovr: 74 },
@@ -5242,7 +5246,7 @@ export const TEAMS = [
   // valor de mercado real (clube mais fraco que a Série A, então a faixa
   // de overall aqui é mais baixa: ~60-80 em vez de ~70-88).
   {
-    id: 'fortaleza2026', club: 'Fortaleza', year: 2026, label: 'Fortaleza 2026 (Serie B)', coach: 'Martin Palermo',
+    id: 'fortaleza2026', club: 'Fortaleza', year: 2026, label: 'Fortaleza 2026', coach: 'Martin Palermo',
     colors: { p: '#004A93', s: '#C8102E' },
     players: [
       { name: 'Joao Ricardo', pos: ['GOL'], ovr: 66 },
@@ -5272,7 +5276,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'sport2026', club: 'Sport', year: 2026, label: 'Sport 2026 (Serie B)', coach: 'Daniel Paulista',
+    id: 'sport2026', club: 'Sport', year: 2026, label: 'Sport 2026', coach: 'Daniel Paulista',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Thiago Couto', pos: ['GOL'], ovr: 71 },
@@ -5303,7 +5307,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'juventude2026', club: 'Juventude', year: 2026, label: 'Juventude 2026 (Serie B)', coach: 'Thiago Carpini',
+    id: 'juventude2026', club: 'Juventude', year: 2026, label: 'Juventude 2026', coach: 'Thiago Carpini',
     colors: { p: '#00843D', s: '#ffffff' },
     players: [
       { name: 'Jandrei', pos: ['GOL'], ovr: 65 },
@@ -5331,7 +5335,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'ceara2026', club: 'Ceara', year: 2026, label: 'Ceara 2026 (Serie B)', coach: 'Leon Denis',
+    id: 'ceara2026', club: 'Ceara', year: 2026, label: 'Ceara 2026', coach: 'Leon Denis',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Matheus Nogueira', pos: ['GOL'], ovr: 66 },
@@ -5358,7 +5362,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'goias2026', club: 'Goias', year: 2026, label: 'Goias 2026 (Serie B)', coach: 'Nicolas Larcamon',
+    id: 'goias2026', club: 'Goias', year: 2026, label: 'Goias 2026', coach: 'Nicolas Larcamon',
     colors: { p: '#00923F', s: '#ffffff' },
     players: [
       { name: 'Tadeu', pos: ['GOL'], ovr: 71 },
@@ -5385,7 +5389,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'novorizontino2026', club: 'Novorizontino', year: 2026, label: 'Novorizontino 2026 (Serie B)', coach: 'Eduardo Baptista',
+    id: 'novorizontino2026', club: 'Novorizontino', year: 2026, label: 'Novorizontino 2026', coach: 'Eduardo Baptista',
     colors: { p: '#FFD700', s: '#000000' },
     players: [
       { name: 'Jordi', pos: ['GOL'], ovr: 67 },
@@ -5412,7 +5416,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'athletic2026', club: 'Athletic Club', year: 2026, label: 'Athletic Club 2026 (Serie B)', coach: 'Rodrigo Santana',
+    id: 'athletic2026', club: 'Athletic Club', year: 2026, label: 'Athletic Club 2026', coach: 'Rodrigo Santana',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Luan Polli', pos: ['GOL'], ovr: 67 },
@@ -5439,7 +5443,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'criciuma2026', club: 'Criciuma', year: 2026, label: 'Criciuma 2026 (Serie B)', coach: 'Cristovao Borges',
+    id: 'criciuma2026', club: 'Criciuma', year: 2026, label: 'Criciuma 2026', coach: 'Cristovao Borges',
     colors: { p: '#FFD700', s: '#000000' },
     players: [
       { name: 'Alisson', pos: ['GOL'], ovr: 68 },
@@ -5465,7 +5469,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'crb2026', club: 'CRB', year: 2026, label: 'CRB 2026 (Serie B)', coach: 'Rodrigo Chagas',
+    id: 'crb2026', club: 'CRB', year: 2026, label: 'CRB 2026', coach: 'Rodrigo Chagas',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Matheus Albino', pos: ['GOL'], ovr: 67 },
@@ -5491,7 +5495,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'vilanova2026', club: 'Vila Nova', year: 2026, label: 'Vila Nova 2026 (Serie B)', coach: 'Wagner Lopes',
+    id: 'vilanova2026', club: 'Vila Nova', year: 2026, label: 'Vila Nova 2026', coach: 'Wagner Lopes',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Gabriel Atila', pos: ['GOL'], ovr: 66 },
@@ -5517,7 +5521,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'cuiaba2026', club: 'Cuiaba', year: 2026, label: 'Cuiaba 2026 (Serie B)', coach: 'Claudinei Oliveira',
+    id: 'cuiaba2026', club: 'Cuiaba', year: 2026, label: 'Cuiaba 2026', coach: 'Claudinei Oliveira',
     colors: { p: '#FFD700', s: '#006633' },
     players: [
       { name: 'Marcelo Carne', pos: ['GOL'], ovr: 63 },
@@ -5543,7 +5547,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticogo2026', club: 'Atletico Goianiense', year: 2026, label: 'Atletico Goianiense 2026 (Serie B)', coach: 'Claudinei Oliveira',
+    id: 'atleticogo2026', club: 'Atletico Goianiense', year: 2026, label: 'Atletico Goianiense 2026', coach: 'Claudinei Oliveira',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Paulo Vitor', pos: ['GOL'], ovr: 62 },
@@ -5569,7 +5573,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'operario2026', club: 'Operario-PR', year: 2026, label: 'Operario-PR 2026 (Serie B)', coach: 'Matheus Trindade',
+    id: 'operario2026', club: 'Operario-PR', year: 2026, label: 'Operario-PR 2026', coach: 'Matheus Trindade',
     colors: { p: '#00843D', s: '#ffffff' },
     players: [
       { name: 'Elias Curzel', pos: ['GOL'], ovr: 62 },
@@ -5595,7 +5599,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'avai2026', club: 'Avai', year: 2026, label: 'Avai 2026 (Serie B)', coach: 'Claudio Tencati',
+    id: 'avai2026', club: 'Avai', year: 2026, label: 'Avai 2026', coach: 'Claudio Tencati',
     colors: { p: '#0033A0', s: '#ffffff' },
     players: [
       { name: 'Igor Bohn', pos: ['GOL'], ovr: 65 },
@@ -5621,7 +5625,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saobernardo2026', club: 'Sao Bernardo', year: 2026, label: 'Sao Bernardo 2026 (Serie B)', coach: 'Marcelo Vilar',
+    id: 'saobernardo2026', club: 'Sao Bernardo', year: 2026, label: 'Sao Bernardo 2026', coach: 'Marcelo Vilar',
     colors: { p: '#C8102E', s: '#ffffff' },
     players: [
       { name: 'Alex Alves', pos: ['GOL'], ovr: 62 },
@@ -5647,7 +5651,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'botafogosp2026', club: 'Botafogo-SP', year: 2026, label: 'Botafogo-SP 2026 (Serie B)', coach: 'Vini Palmeira',
+    id: 'botafogosp2026', club: 'Botafogo-SP', year: 2026, label: 'Botafogo-SP 2026', coach: 'Vini Palmeira',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Victor Souza', pos: ['GOL'], ovr: 62 },
@@ -5672,7 +5676,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'americamg2026', club: 'America-MG', year: 2026, label: 'America-MG 2026 (Serie B)', coach: 'Lisca',
+    id: 'americamg2026', club: 'America-MG', year: 2026, label: 'America-MG 2026', coach: 'Lisca',
     colors: { p: '#00843D', s: '#ffffff' },
     players: [
       { name: 'Gustavo', pos: ['GOL'], ovr: 64 },
@@ -5698,7 +5702,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'londrina2026', club: 'Londrina', year: 2026, label: 'Londrina 2026 (Serie B)', coach: 'Rodrigo Santana',
+    id: 'londrina2026', club: 'Londrina', year: 2026, label: 'Londrina 2026', coach: 'Rodrigo Santana',
     colors: { p: '#C8102E', s: '#0033A0' },
     players: [
       { name: 'Mauricio Kozlinski', pos: ['GOL'], ovr: 62 },
@@ -5722,7 +5726,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'pontepreta2026', club: 'Ponte Preta', year: 2026, label: 'Ponte Preta 2026 (Serie B)', coach: 'Rodrigo Chagas',
+    id: 'pontepreta2026', club: 'Ponte Preta', year: 2026, label: 'Ponte Preta 2026', coach: 'Rodrigo Chagas',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Vinicius Ferrari', pos: ['GOL'], ovr: 60 },
@@ -5748,7 +5752,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'nautico2026', club: 'Nautico', year: 2026, label: 'Nautico 2026 (Serie B)', coach: 'Marcelo Martelotte',
+    id: 'nautico2026', club: 'Nautico', year: 2026, label: 'Nautico 2026', coach: 'Marcelo Martelotte',
     colors: { p: '#C8102E', s: '#FFFFFF' },
     players: [
       { name: 'Gaston Guruceaga', pos: ['GOL'], ovr: 64 },
