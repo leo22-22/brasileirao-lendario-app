@@ -236,6 +236,24 @@ const WEEKLY_TEAMS = [
       { teamId: 'flamengo2026', name: 'Pedro', posLabel: 'Atacante' },
     ],
   },
+  {
+    round: 34,
+    label: '34ª Rodada',
+    sourceLabel: 'Notas Sofascore',
+    players: [
+      { teamId: 'saopaulo2026', name: 'Rafael Pires', posLabel: 'Goleiro' },
+      { teamId: 'palmeiras2026', name: 'Khellven', posLabel: 'Lateral-Direito' },
+      { teamId: 'chapecoense2026', name: 'Kauan', posLabel: 'Zagueiro' },
+      { teamId: 'cruzeiro2026', name: 'Lucas Romero', posLabel: 'Zagueiro' },
+      { teamId: 'mirassol2026', name: 'Reinaldo', posLabel: 'Lateral-Esquerdo' },
+      { teamId: 'internacional2026', name: 'Thiago Maia', posLabel: 'Volante' },
+      { teamId: 'atleticomg2026', name: 'Gustavo Scarpa', posLabel: 'Meia' },
+      { teamId: 'palmeiras2026', name: 'Jhon Arias', posLabel: 'Ponta-Direita', craque: true },
+      { teamId: 'fluminense2026', name: 'Agustín Canobbio', posLabel: 'Ponta-Esquerda' },
+      { teamId: 'cruzeiro2026', name: 'Kaio Jorge', posLabel: 'Atacante' },
+      { teamId: 'flamengo2026', name: 'Pedro', posLabel: 'Atacante' },
+    ],
+  },
 ];
 const WEEKLY_TEAM_OF_THE_WEEK = WEEKLY_TEAMS[WEEKLY_TEAMS.length - 1];
 
