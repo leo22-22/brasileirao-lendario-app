@@ -249,7 +249,7 @@ const WEEKLY_TEAMS = [
       { teamId: 'internacional2026', name: 'Thiago Maia', posLabel: 'Volante' },
       { teamId: 'atleticomg2026', name: 'Gustavo Scarpa', posLabel: 'Meia' },
       { teamId: 'palmeiras2026', name: 'Jhon Arias', posLabel: 'Ponta-Direita', craque: true },
-      { teamId: 'fluminense2026', name: 'Agustín Canobbio', posLabel: 'Ponta-Esquerda' },
+      { teamId: 'fluminense2026', name: 'Agustín Canobbio', posLabel: 'Ponta-Direita' },
       { teamId: 'cruzeiro2026', name: 'Kaio Jorge', posLabel: 'Atacante' },
       { teamId: 'flamengo2026', name: 'Pedro', posLabel: 'Atacante' },
     ],
