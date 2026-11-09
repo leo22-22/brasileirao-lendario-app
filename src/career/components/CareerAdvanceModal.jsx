@@ -22,18 +22,36 @@ import {
 
 // Pedido explícito do usuário (2026-11-06: "nunca pular tudo"): o cursor
 // anda UM dia de cada vez, sempre — nunca interpola/pula dias pra encurtar
-// um pulo grande (ex.: "Simular temporada até o fim"). STEP_MS = 1,5s por
-// dia, também pedido explícito do usuário (2026-11-06: "cada dia tem que
-// 1 segundo e meio") — vale pro "Avançar" normal (pulos curtos) e pro
-// "Simular temporada até o fim" também (pulo pode ser de dezenas/centenas
-// de dias, então essa tela pode demorar bastante nesse caso — é o preço de
-// nunca pular nenhum dia, do jeito que foi pedido).
-const STEP_MS = 1500;
+// um pulo grande (ex.: "Simular temporada até o fim"). Velocidade
+// selecionável (pedido 2026-11-09): 1x/2x/4x = 1s/0,5s/0,2s por dia,
+// lembrada entre usos via localStorage.
+const SPEEDS = { '1x': 1000, '2x': 500, '4x': 200 };
+const SPEED_KEY = 'brl_career_advance_speed';
+function loadSpeed() {
+  try {
+    const v = localStorage.getItem(SPEED_KEY);
+    return v && SPEEDS[v] ? v : '1x';
+  } catch {
+    return '1x';
+  }
+}
+function saveSpeed(v) {
+  try { localStorage.setItem(SPEED_KEY, v); } catch { /* ignora */ }
+}
 
-export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone }) {
+// `onStop` (pedido 2026-11-09): "Parar" não revela mais o resultado já
+// calculado do pulo grande — ele ABORTA o pulo inteiro e quem chamou
+// (CareerApp.jsx) refaz do zero avançando só 1 rodada a partir do dia em
+// que o pulo começou, exatamente como um clique normal de "Avançar
+// rodada". Evita o usuário ser jogado direto num confronto seu (ex.: Copa
+// do Brasil) que estava semanas à frente dentro de um "Simular temporada
+// até o fim" longo — ver CareerApp.jsx para o porquê.
+export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, onStop }) {
   const [cursorDay, setCursorDay] = useState(fromDay);
   const [eventsVisible, setEventsVisible] = useState(false);
   const [viewMonth, setViewMonth] = useState(dayOfYearToMonthDay(fromDay).month);
+  const [speedKey, setSpeedKey] = useState(loadSpeed);
+  const stepMs = SPEEDS[speedKey];
 
   const myDivisionKey = save.clubs[save.myClubId].division === 'A' ? 'divisionA' : 'divisionB';
   const division = save[myDivisionKey];
@@ -79,18 +97,11 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
     return myTie.winnerId === save.myClubId ? 'V' : 'D';
   }
 
-  const [stopped, setStopped] = useState(false);
-
   // Cursor anda de fromDay até toDay UM DIA DE CADA VEZ, sempre — nunca
   // pula/interpola sozinho (pedido explícito do usuário) — trocando de mês
-  // sozinho quando cruza a fronteira. O botão "Parar" é a única forma de
-  // pular: os dias já foram TODOS calculados de antemão (ver comentário no
-  // topo do arquivo), então parar só revela o resultado final na hora em
-  // vez de esperar a animação terminar sozinha — não muda nada do que já
-  // foi decidido, só poupa tempo em pulos longos (ex.: "Simular temporada
-  // até o fim" com muitos dias pela frente).
+  // sozinho quando cruza a fronteira, no ritmo escolhido em `speedKey`.
   useEffect(() => {
-    if (toDay <= fromDay || stopped) {
+    if (toDay <= fromDay) {
       setCursorDay(toDay);
       setViewMonth(dayOfYearToMonthDay(toDay).month);
       setEventsVisible(true);
@@ -105,10 +116,10 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
         clearInterval(interval);
         setEventsVisible(true);
       }
-    }, STEP_MS);
+    }, stepMs);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromDay, toDay, stopped]);
+  }, [fromDay, toDay, stepMs]);
 
   useEffect(() => {
     if (!eventsVisible) return;
@@ -120,17 +131,32 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,10,8,0.9)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 11, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>📅 Calendário avançando</div>
           {!eventsVisible && (
-            <button
-              onClick={() => setStopped(true)}
-              style={{
-                fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-                padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)',
-                background: 'rgba(255,255,255,0.06)', color: '#F4F1EA', cursor: 'pointer',
-              }}
-            >⏹ Parar</button>
+            <>
+              <div style={{ display: 'flex', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', overflow: 'hidden' }}>
+                {Object.keys(SPEEDS).map(k => (
+                  <button
+                    key={k}
+                    onClick={() => { setSpeedKey(k); saveSpeed(k); }}
+                    style={{
+                      fontSize: 10.5, fontWeight: 700, padding: '3px 9px', border: 'none', cursor: 'pointer',
+                      background: speedKey === k ? 'rgba(212,162,60,0.3)' : 'rgba(255,255,255,0.06)',
+                      color: speedKey === k ? '#d4a23c' : '#F4F1EA',
+                    }}
+                  >{k}</button>
+                ))}
+              </div>
+              <button
+                onClick={onStop}
+                style={{
+                  fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+                  padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)',
+                  background: 'rgba(255,255,255,0.06)', color: '#F4F1EA', cursor: 'pointer',
+                }}
+              >⏹ Parar</button>
+            </>
           )}
         </div>
 

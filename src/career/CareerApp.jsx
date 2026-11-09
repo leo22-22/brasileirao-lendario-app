@@ -46,7 +46,12 @@ export function CareerApp({ onExit, onHudChange }) {
   // checagem de `advancing` roda ANTES de qualquer outro roteamento de
   // tela (ver fim do componente), garantindo que o calendário sempre
   // termina de andar até o dia certo antes de abrir a partida/confronto.
-  const [advancing, setAdvancing] = useState(null); // { fromDay } | null
+  // { fromDay, toDay, originalSave, previewSave, finishScreen } | null — o
+  // resultado (`previewSave`) já foi calculado no clique de "Avançar"/
+  // "Simular", mas só é aplicado ao `save` de verdade quando a animação
+  // termina (handleAdvanceDone) ou é interrompida (handleAdvanceStop) — ver
+  // esses handlers pra entender por quê.
+  const [advancing, setAdvancing] = useState(null);
 
   useEffect(() => {
     if (save) saveCareerSave(save);
@@ -76,35 +81,79 @@ export function CareerApp({ onExit, onHudChange }) {
     setScreen('picker');
   }, []);
 
+  // Resolve só 1 rodada a partir de `prev` — mesma função usada tanto pro
+  // clique normal de "Avançar rodada" quanto pro "Parar" no meio de um
+  // "Simular temporada até o fim" (ver handleAdvanceStop): parar SEMPRE
+  // equivale a isso, nunca a revelar o que já tinha sido calculado mais à
+  // frente (pedido explícito do usuário 2026-11-09: não pode jogar o
+  // usuário direto num confronto seu que estava semanas à frente).
+  function computeSingleAdvance(prev) {
+    const { save: afterDay, event } = advanceDay(prev);
+    if (event === 'offers-pending' || event === 'offer') return { previewSave: afterDay, finishScreen: 'market' };
+    if (event === 'season-end') {
+      const after = endOfSeason(afterDay);
+      return { previewSave: after, finishScreen: after.screen };
+    }
+    return { previewSave: afterDay, finishScreen: 'hub' }; // 'match' — fica no hub mostrando o resultado/próximo jogo
+  }
+
   // Avança o calendário dia a dia (pula sozinho os dias sem nada) até
   // bater um jogo, surgir uma proposta de negociação, ou a temporada
-  // regular acabar — nesse último caso já encadeia o fim de temporada.
+  // regular acabar — nesse último caso já encadeia o fim de temporada. O
+  // resultado só é aplicado de verdade no save quando a animação termina
+  // (handleAdvanceDone) ou é interrompida (handleAdvanceStop) — ver
+  // comentário em `advancing` mais abaixo.
   const handleAdvanceDay = useCallback(() => {
     setSave(prev => {
       if (!prev) return prev;
-      setAdvancing({ fromDay: prev.calendarDay });
-      const { save: afterDay, event } = advanceDay(prev);
-      if (event === 'offers-pending') { setScreen('market'); return afterDay; }
-      if (event === 'offer') { setScreen('market'); return afterDay; }
-      if (event === 'season-end') {
-        const after = endOfSeason(afterDay);
-        setScreen(after.screen);
-        return after;
-      }
-      return afterDay; // 'match' — fica no hub mostrando o resultado/próximo jogo
+      const { previewSave, finishScreen } = computeSingleAdvance(prev);
+      setAdvancing({ fromDay: prev.calendarDay, toDay: previewSave.calendarDay, originalSave: prev, previewSave, finishScreen });
+      return prev;
     });
   }, []);
 
   // "Simular até o fim da temporada" — pula direto pro resumo de fim de
   // temporada sem parar a cada dia; propostas que surgirem no caminho são
-  // rejeitadas automaticamente (ver simulateRestOfSeason).
+  // rejeitadas automaticamente (ver simulateRestOfSeason). Mesmo
+  // adiamento de aplicação que handleAdvanceDay.
   const handleSimulateSeason = useCallback(() => {
     setSave(prev => {
       if (!prev) return prev;
-      setAdvancing({ fromDay: prev.calendarDay });
       const { save: after } = simulateRestOfSeason(prev);
-      setScreen(after.screen || (after.pendingUserTie ? 'playoff-tie' : 'hub'));
-      return after;
+      const finishScreen = after.screen || (after.pendingUserTie ? 'playoff-tie' : 'hub');
+      setAdvancing({ fromDay: prev.calendarDay, toDay: after.calendarDay, originalSave: prev, previewSave: after, finishScreen });
+      return prev;
+    });
+  }, []);
+
+  // Fim natural da animação (cursor chegou no último dia sozinho) — só
+  // agora o resultado (já calculado desde o clique) é de fato aplicado.
+  const handleAdvanceDone = useCallback(() => {
+    setAdvancing(adv => {
+      if (adv) { setSave(adv.previewSave); setScreen(adv.finishScreen); }
+      return null;
+    });
+  }, []);
+
+  // "Parar" (pedido explícito do usuário 2026-11-09): NÃO revela o
+  // resultado que já tinha sido calculado pro pulo grande inteiro — isso
+  // jogaria o usuário direto num confronto seu (ex.: Copa do Brasil) que
+  // podia estar semanas à frente dentro de um "Simular temporada até o
+  // fim" longo. Em vez disso, descarta aquele cálculo inteiro e refaz do
+  // zero avançando só 1 rodada a partir do dia em que o pulo começou —
+  // exatamente como um clique normal de "Avançar rodada" (determinístico:
+  // mesmo seed+dia, mesmo resultado dessa 1ª rodada). Se essa 1 rodada cair
+  // numa partida/confronto do usuário, a tela de jogo aparece normalmente
+  // (não dá pra evitar, é o jogo dele); se não, só volta pro hub com o feed
+  // daquele dia.
+  const handleAdvanceStop = useCallback(() => {
+    setAdvancing(adv => {
+      if (adv) {
+        const { previewSave, finishScreen } = computeSingleAdvance(adv.originalSave);
+        setSave(previewSave);
+        setScreen(finishScreen);
+      }
+      return null;
     });
   }, []);
 
@@ -226,14 +275,15 @@ export function CareerApp({ onExit, onHudChange }) {
   // que o calendário sempre termina de animar até o dia certo primeiro
   // (ver comentário no useState de `advancing` acima).
   if (advancing) {
-    const dayEvents = (save.lastDayEvents || []).map(ev => eventLine(ev, save.myClubId)).filter(Boolean);
+    const dayEvents = (advancing.previewSave.lastDayEvents || []).map(ev => eventLine(ev, advancing.previewSave.myClubId)).filter(Boolean);
     return (
       <CareerAdvanceModal
-        save={save}
+        save={advancing.previewSave}
         fromDay={advancing.fromDay}
-        toDay={save.calendarDay}
+        toDay={advancing.toDay}
         eventLines={dayEvents}
-        onDone={() => setAdvancing(null)}
+        onDone={handleAdvanceDone}
+        onStop={handleAdvanceStop}
       />
     );
   }
