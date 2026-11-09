@@ -23,6 +23,8 @@ import { decideAiListings, decideAiOffers } from './aiTransfers.js';
 import { buildSeasonCalendar, isTransferWindowOpen } from './calendar.js';
 import { teamForSim, resolveTwoLegTieAuto, prepareTwoLegTieForUser, legPackage } from './simHelpers.js';
 import { drawCopaBracket, playCopaRoundIda, playCopaRoundVolta, finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2, copaCurrentDay, COPA_ROUND_LABELS } from './copaEngine.js';
+import { accumulateMatchStats } from './seasonStats.js';
+import { buildSeasonReport } from './seasonReport.js';
 import { returnDueLoans, returnSeasonLoans } from './loans.js';
 
 export { isTransferWindowOpen } from './calendar.js';
@@ -85,6 +87,12 @@ export function createCareerSave(myClubId, customBudget, seedOverride) {
     calendarDay: 1,
     seasonCalendar,
     copa: drawCopaBracket({ clubs }, rand),
+    // Gols/assistências/cartões/jogos sem sofrer gol por jogador NESTA
+    // temporada (zerado a cada advanceToNextSeason) — alimenta o relatório
+    // de fim de temporada (seasonStats.js/seasonReport.js).
+    seasonPlayerStats: {},
+    lastSeasonReport: null,
+    pendingSeasonReportData: null,
     screen: 'hub',
   };
 }
@@ -93,25 +101,33 @@ export function createCareerSave(myClubId, customBudget, seedOverride) {
 // (opcional) é o resultado já pronto da partida do usuário (vinda do
 // fluxo normal de partida ao vivo ou de "simular") — substitui a
 // simulação automática só pra esse confronto específico daquela rodada.
+// Devolve a divisão atualizada + a lista de `sims` de cada partida (pra
+// `playRound` acumular em `seasonPlayerStats`, ver seasonStats.js).
 function playDivisionRound(save, divisionKey, roundIdx, userMatch) {
   const division = save[divisionKey];
   const matches = division.fixtures[roundIdx] || [];
+  const sims = [];
   const roundResults = matches.map(m => {
     if (userMatch && m.homeId === userMatch.homeId && m.awayId === userMatch.awayId) {
+      sims.push(userMatch);
       return { homeId: m.homeId, awayId: m.awayId, homeGoals: userMatch.homeGoals, awayGoals: userMatch.awayGoals };
     }
     const home = teamForSim(save, m.homeId);
     const away = teamForSim(save, m.awayId);
     const rand = matchPrng(save.seed, `s${save.season}-r${roundIdx}`, m.homeId, m.awayId);
     const sim = simAiMatch(home, away, rand);
+    sims.push({ homeId: m.homeId, awayId: m.awayId, ...sim, events: [...(sim.discipline || []), ...(sim.goals || []).map(g => ({ ...g, type: 'goal' }))] });
     return { homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
   });
   const newTable = applyRoundToTable(division.table, roundResults);
   return {
-    ...division,
-    table: newTable,
-    round: roundIdx + 1,
-    results: [...(division.results || []), roundResults],
+    division: {
+      ...division,
+      table: newTable,
+      round: roundIdx + 1,
+      results: [...(division.results || []), roundResults],
+    },
+    sims,
   };
 }
 
@@ -121,9 +137,11 @@ function playDivisionRound(save, divisionKey, roundIdx, userMatch) {
 // divisão onde `save.myClubId` está.
 export function playRound(save, roundIdx, userMatch) {
   const myDivisionKey = save.clubs[save.myClubId].division === 'A' ? 'divisionA' : 'divisionB';
-  const divisionA = playDivisionRound(save, 'divisionA', roundIdx, myDivisionKey === 'divisionA' ? userMatch : null);
-  const divisionB = playDivisionRound(save, 'divisionB', roundIdx, myDivisionKey === 'divisionB' ? userMatch : null);
-  return { ...save, divisionA, divisionB };
+  const a = playDivisionRound(save, 'divisionA', roundIdx, myDivisionKey === 'divisionA' ? userMatch : null);
+  const b = playDivisionRound(save, 'divisionB', roundIdx, myDivisionKey === 'divisionB' ? userMatch : null);
+  let seasonPlayerStats = save.seasonPlayerStats || {};
+  for (const sim of [...a.sims, ...b.sims]) seasonPlayerStats = accumulateMatchStats(seasonPlayerStats, sim);
+  return { ...save, divisionA: a.division, divisionB: b.division, seasonPlayerStats };
 }
 
 // Chance BASE de surgir uma sondagem por um jogador do usuário em cada
@@ -260,7 +278,7 @@ export function advanceDay(save) {
           homeId: myFixture.homeId, awayId: myFixture.awayId,
           homeTeam: { id: homeTeamFull.id, label: homeTeamFull.label, club: homeTeamFull.club, color: homeTeamFull.color },
           awayTeam: { id: awayTeamFull.id, label: awayTeamFull.label, club: awayTeamFull.club, color: awayTeamFull.color },
-          sim: { homeGoals: sim.homeGoals, awayGoals: sim.awayGoals, ratings: sim.ratings, events: liveEvents },
+          sim: { homeGoals: sim.homeGoals, awayGoals: sim.awayGoals, ratings: sim.ratings, events: liveEvents, homeGkName: sim.homeGkName, awayGkName: sim.awayGkName },
         };
         return { save: { ...current, calendarDay: day, pendingUserMatch, lastDayEvents: events }, event: 'user-match' };
       }
@@ -339,7 +357,10 @@ export function advanceDay(save) {
 export function resolveUserMatch(save) {
   const pending = save.pendingUserMatch;
   if (!pending) return save;
-  const userMatch = { homeId: pending.homeId, awayId: pending.awayId, homeGoals: pending.sim.homeGoals, awayGoals: pending.sim.awayGoals };
+  const userMatch = {
+    homeId: pending.homeId, awayId: pending.awayId, homeGoals: pending.sim.homeGoals, awayGoals: pending.sim.awayGoals,
+    events: pending.sim.events, ratings: pending.sim.ratings, homeGkName: pending.sim.homeGkName, awayGkName: pending.sim.awayGkName,
+  };
   const played = playRound(save, pending.roundIdx, userMatch);
   const myMatch = findMyMatchResult(played, pending.roundIdx);
   return {
@@ -444,6 +465,12 @@ export function endOfSeason(save) {
   //    envelhecendo; jovem da base ainda em crescimento usa a curva
   //    própria até o potencial — ver aging.js). Depois, a categoria de
   //    base de sempre: 2-3 jovens novos por clube.
+  //
+  //    `myClubDeltas` captura o antes/depois de CADA jogador do PRÓPRIO
+  //    clube do usuário (os outros 39 não interessam pro relatório de fim
+  //    de temporada) — alimenta a aba "Elenco" do relatório (overall
+  //    subiu/desceu quanto, ou se aposentou).
+  const myClubDeltas = [];
   for (const clubId of CAREER_CLUB_IDS) {
     const agingRand = makePrng(hashSeed(`${save.seed}|aging|${clubId}|${save.season}`));
     const roster = next.clubs[clubId].roster;
@@ -451,7 +478,15 @@ export function endOfSeason(save) {
     const retiredNames = [];
     for (const p of roster) {
       const aged = applySeasonAging(p, agingRand);
-      if (!aged) { if (p.age != null) retiredNames.push(p.name); continue; } // null por aposentadoria (não por falta de idade)
+      const isMine = clubId === next.myClubId;
+      if (!aged) {
+        if (p.age != null) retiredNames.push(p.name);
+        if (isMine) myClubDeltas.push({ name: p.name, pos: p.pos, beforeOvr: p.ovr, afterOvr: null, retired: true });
+        continue; // null por aposentadoria (não por falta de idade)
+      }
+      if (isMine && p.ovr !== aged.ovr) {
+        myClubDeltas.push({ name: p.name, pos: p.pos, beforeOvr: p.ovr, afterOvr: aged.ovr, retired: false });
+      }
       // Graduação automática da categoria de base aos 20 anos — a outra
       // forma de sair é o usuário promover manualmente (ver
       // promoteYouthPlayer em rosterStore.js).
@@ -494,10 +529,13 @@ export function endOfSeason(save) {
   }
 
   // 4) Acesso/queda — resolve os 40 clubes; o par do usuário (se houver)
-  //    fica pendente.
+  //    fica pendente. `divisionMoves` junta os movimentos diretos + os
+  //    mata-matas de IA já resolvidos — vira a aba "Acesso e Queda" do
+  //    relatório de fim de temporada.
   const { direct, ties } = resolveDivisionMovements(next);
   const pendingUserTie = ties.find(t => t.aId === next.myClubId || t.bId === next.myClubId) || null;
   const resolvedTies = ties.filter(t => t !== pendingUserTie);
+  const divisionMoves = direct.filter(d => d.move !== 'stayed').map(d => ({ clubId: d.clubId, move: d.move }));
 
   const divisionById = {};
   for (const clubId of SERIE_A_2026_TEAM_IDS) divisionById[clubId] = 'A';
@@ -510,10 +548,13 @@ export function endOfSeason(save) {
     const { winnerId, loserId } = resolvePlayoffTieAuto(next, tie, rand);
     divisionById[winnerId] = 'A';
     divisionById[loserId] = 'B';
+    divisionMoves.push({ clubId: winnerId, move: 'promoted' }, { clubId: loserId, move: 'relegated' });
   }
   if (pendingUserTie) {
     // Mantém os dois na divisão atual até o usuário jogar o mata-mata —
-    // quem decide o resultado final é finalizeSeasonAfterUserTie.
+    // quem decide o resultado final é finalizeSeasonAfterUserTie (que
+    // também fecha o relatório, com o resultado desse mata-mata já
+    // incluído em divisionMoves).
     divisionById[pendingUserTie.aId] = next.clubs[pendingUserTie.aId].division;
     divisionById[pendingUserTie.bId] = next.clubs[pendingUserTie.bId].division;
   }
@@ -524,9 +565,10 @@ export function endOfSeason(save) {
   }
 
   if (pendingUserTie) {
-    return { ...next, pendingUserTie, screen: 'playoff-tie' };
+    return { ...next, pendingUserTie, screen: 'playoff-tie', pendingSeasonReportData: { myClubDeltas, divisionMoves } };
   }
-  return startNextSeason(next);
+  const lastSeasonReport = buildSeasonReport(next, myClubDeltas, divisionMoves);
+  return { ...next, lastSeasonReport, screen: 'season-report' };
 }
 
 // Chamada pela tela do Modo Carreira depois que o usuário jogou os dois
@@ -536,7 +578,7 @@ export function endOfSeason(save) {
 // o resultado final).
 export function finalizeSeasonAfterUserTie(save, myAggGoals, oppAggGoals, penaltyWinnerIsMe) {
   const tie = save.pendingUserTie;
-  if (!tie) return startNextSeason(save);
+  if (!tie) return save;
   const iAmA = tie.aId === save.myClubId;
   const myId = iAmA ? tie.aId : tie.bId;
   const oppId = iAmA ? tie.bId : tie.aId;
@@ -552,7 +594,13 @@ export function finalizeSeasonAfterUserTie(save, myAggGoals, oppAggGoals, penalt
       [loserId]: { ...save.clubs[loserId], division: 'B' },
     },
   };
-  return startNextSeason(next);
+  // Fecha a aba "Acesso e Queda" do relatório com o resultado do próprio
+  // mata-mata do usuário, somado ao que endOfSeason já tinha resolvido pro
+  // resto da liga (ver pendingSeasonReportData acima).
+  const { myClubDeltas, divisionMoves } = next.pendingSeasonReportData || { myClubDeltas: [], divisionMoves: [] };
+  const fullDivisionMoves = [...divisionMoves, { clubId: winnerId, move: 'promoted' }, { clubId: loserId, move: 'relegated' }];
+  const lastSeasonReport = buildSeasonReport(next, myClubDeltas, fullDivisionMoves);
+  return { ...next, pendingSeasonReportData: null, lastSeasonReport, screen: 'season-report' };
 }
 
 // Usuário aceita ou rejeita uma proposta recebida (save.pendingOffers[i])
@@ -686,7 +734,12 @@ export function simulateRestOfSeason(save) {
 
 // Reconstrói as duas divisões (membros, tabela zerada, calendário novo)
 // a partir de `clubs[].division` já atualizado, e avança a temporada.
-function startNextSeason(save) {
+// Chamada SÓ pelo botão do relatório de fim de temporada
+// (CareerSeasonReportScreen.jsx) — antes era a última etapa automática de
+// endOfSeason/finalizeSeasonAfterUserTie; agora o relatório fica parado
+// até o usuário clicar, e só então a temporada seguinte começa de verdade
+// (ver `screen: 'season-report'` nos dois lugares acima).
+export function advanceToNextSeason(save) {
   const afterLoans = returnSeasonLoans(save); // devolve empréstimo de 1/2 temporadas que bateu o prazo
   const rand = makePrng(hashSeed(`${save.seed}|setup|${save.season + 1}`));
   const aIds = CAREER_CLUB_IDS.filter(id => afterLoans.clubs[id].division === 'A');
@@ -702,6 +755,9 @@ function startNextSeason(save) {
     calendarDay: 1,
     seasonCalendar,
     copa: drawCopaBracket(afterLoans, rand),
+    seasonPlayerStats: {},
+    lastSeasonReport: null,
+    pendingSeasonReportData: null,
     screen: 'hub',
   };
 }

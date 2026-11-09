@@ -42,6 +42,7 @@ import { teamStrength, makePrng, hashSeed, simAiMatch } from '../../App.jsx';
 import { CAREER_CLUB_IDS, careerClubDivision } from '../../data/career-clubs.js';
 import { creditBudget } from './rosterStore.js';
 import { teamForSim, legPackage } from './simHelpers.js';
+import { accumulateMatchStats } from './seasonStats.js';
 
 export const COPA_ROUND_LABELS = ['Primeira Fase', '16 Avos de Final', 'Oitavas de Final', 'Quartas de Final', 'Semifinal', 'Final'];
 
@@ -69,20 +70,34 @@ function clubStrength(save, clubId) {
   return teamStrength(Object.fromEntries(ordered.map((p, i) => [i, p])));
 }
 
-// Simula só a IDA de um confronto de IA (clube `aId` manda) — devolve só o
-// placar dessa perna, pra guardar em `copa.leg1Results` até a volta
-// acontecer (dias de calendário separados, ver COPA_DAYS abaixo).
+// Junta os campos que `accumulateMatchStats` (seasonStats.js) precisa de um
+// `sim` de `simAiMatch` — reaproveitado em toda partida de IA da Copa
+// (ida, volta, final), pra nenhuma ficar de fora do relatório de fim de
+// temporada.
+function statsMatch(sim, homeId, awayId) {
+  return {
+    homeId, awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals,
+    events: [...(sim.discipline || []), ...(sim.goals || []).map(g => ({ ...g, type: 'goal' }))],
+    ratings: sim.ratings, homeGkName: sim.homeGkName, awayGkName: sim.awayGkName,
+  };
+}
+
+// Simula só a IDA de um confronto de IA (clube `aId` manda) — devolve o
+// placar dessa perna (pra guardar em `copa.leg1Results` até a volta
+// acontecer, dias de calendário separados, ver COPA_DAYS abaixo) + o
+// detalhe da partida pro relatório de fim de temporada (`statsMatch`).
 function simLegIda(save, aId, bId, rand) {
   const sim = simAiMatch(teamForSim(save, aId), teamForSim(save, bId), rand);
-  return { homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
+  return { leg1: { homeGoals: sim.homeGoals, awayGoals: sim.awayGoals }, statsMatch: statsMatch(sim, aId, bId) };
 }
 
 // Simula a VOLTA (clube `bId` manda) e decide o confronto combinando com o
 // placar da ida já guardado. Empate no agregado: a Primeira Fase decide com
 // uma partida extra em campo neutro (decisão de simplicidade de sempre —
-// ninguém vê esse confronto, documentado desde a versão anterior); 16avos
-// em diante decide nos pênaltis (`onPens`), igual o chaveamento clássico
-// (`cupMatchOutcome`/`penaltyResults` em App.jsx).
+// ninguém vê esse confronto, documentado desde a versão anterior — essa
+// partida extra NÃO entra nas estatísticas da temporada, só decide o
+// vencedor); 16avos em diante decide nos pênaltis (`onPens`), igual o
+// chaveamento clássico (`cupMatchOutcome`/`penaltyResults` em App.jsx).
 function simLegVoltaAndDecide(save, aId, bId, leg1, rand, isPrimeiraFase) {
   const sim = simAiMatch(teamForSim(save, bId), teamForSim(save, aId), rand);
   const leg2 = { homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
@@ -98,7 +113,7 @@ function simLegVoltaAndDecide(save, aId, bId, leg1, rand, isPrimeiraFase) {
     onPens = true;
     winnerId = rand() < 0.5 ? aId : bId;
   }
-  return { aId, bId, winnerId, onPens, leg1, leg2 };
+  return { result: { aId, bId, winnerId, onPens, leg1, leg2 }, statsMatch: statsMatch(sim, bId, aId) };
 }
 
 // A FINAL é jogo único (pedido explícito do usuário, 2026-11-06: "final da
@@ -113,7 +128,7 @@ function resolveFinalMatchAuto(save, aId, bId, rand) {
     onPens = true;
     winnerId = rand() < 0.5 ? aId : bId;
   }
-  return { aId, bId, winnerId, onPens, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals };
+  return { result: { aId, bId, winnerId, onPens, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals }, statsMatch: statsMatch(sim, aId, bId) };
 }
 
 // Dias (dia-do-ano, 1-365) de cada fase da Copa — espalhados mês sim, mês
@@ -308,7 +323,11 @@ export function playCopaRoundIda(save, rand) {
   const myTie = myTieIdx >= 0 ? copa.ties[myTieIdx] : null;
 
   if (isFinal) {
-    const results = copa.ties.map((t, i) => (i === myTieIdx ? null : resolveFinalMatchAuto(next, t.aId, t.bId, rand)));
+    const resolved = copa.ties.map((t, i) => (i === myTieIdx ? null : resolveFinalMatchAuto(next, t.aId, t.bId, rand)));
+    const results = resolved.map(r => r?.result ?? null);
+    let seasonPlayerStats = next.seasonPlayerStats || {};
+    for (const r of resolved) if (r) seasonPlayerStats = accumulateMatchStats(seasonPlayerStats, r.statsMatch);
+    next = { ...next, seasonPlayerStats };
     if (myTie) {
       return {
         save: { ...next, copa: { ...copa, pendingRoundTieResults: results } },
@@ -322,7 +341,11 @@ export function playCopaRoundIda(save, rand) {
   }
 
   const isPrimeiraFase = copa.round === 0;
-  const leg1Results = copa.ties.map((t, i) => (i === myTieIdx ? null : simLegIda(next, t.aId, t.bId, rand)));
+  const idaResolved = copa.ties.map((t, i) => (i === myTieIdx ? null : simLegIda(next, t.aId, t.bId, rand)));
+  const leg1Results = idaResolved.map(r => r?.leg1 ?? null);
+  let seasonPlayerStats = next.seasonPlayerStats || {};
+  for (const r of idaResolved) if (r) seasonPlayerStats = accumulateMatchStats(seasonPlayerStats, r.statsMatch);
+  next = { ...next, seasonPlayerStats };
 
   if (myTie) {
     return {
@@ -353,10 +376,14 @@ export function playCopaRoundVolta(save, rand) {
   const myTieIdx = copa.ties.findIndex(t => t.aId === save.myClubId || t.bId === save.myClubId);
   const myTie = myTieIdx >= 0 ? copa.ties[myTieIdx] : null;
 
-  const results = copa.ties.map((t, i) => {
+  const voltaResolved = copa.ties.map((t, i) => {
     if (i === myTieIdx) return null;
     return simLegVoltaAndDecide(save, t.aId, t.bId, copa.leg1Results[i], rand, isPrimeiraFase);
   });
+  const results = voltaResolved.map(r => r?.result ?? null);
+  let seasonPlayerStats = save.seasonPlayerStats || {};
+  for (const r of voltaResolved) if (r) seasonPlayerStats = accumulateMatchStats(seasonPlayerStats, r.statsMatch);
+  save = { ...save, seasonPlayerStats };
 
   if (myTie) {
     return {
@@ -385,7 +412,8 @@ export function finalizeCopaUserTieLeg1(save, legResult) {
   const myTieIdx = save.copa.ties.findIndex(t => t.aId === tie.aId && t.bId === tie.bId);
   const leg1Results = [...(save.copa.leg1Results || [])];
   leg1Results[myTieIdx] = { homeGoals: legResult.sim.homeGoals, awayGoals: legResult.sim.awayGoals };
-  return { ...save, copa: { ...save.copa, leg1Results, leg: 'volta' }, pendingUserCopaTie: null };
+  const seasonPlayerStats = accumulateMatchStats(save.seasonPlayerStats || {}, { homeId: tie.aId, awayId: tie.bId, ...legResult.sim });
+  return { ...save, copa: { ...save.copa, leg1Results, leg: 'volta' }, pendingUserCopaTie: null, seasonPlayerStats };
 }
 
 // Chamada depois que o usuário joga A VOLTA — combina com a ida guardada
@@ -416,6 +444,8 @@ export function finalizeCopaUserTieLeg2(save, legResult) {
 
   const results = [...(save.copa.pendingRoundTieResults || [])];
   results[myTieIdx] = myTieResult;
+  const seasonPlayerStats = accumulateMatchStats(save.seasonPlayerStats || {}, { homeId: tie.bId, awayId: tie.aId, ...legResult.sim });
+  save = { ...save, seasonPlayerStats };
 
   const isPrimeiraFase = save.copa.round === 0;
   const advRand = makePrng(hashSeed(`${save.seed}|copa-advance|${save.season}|${save.copa.round}`));
@@ -447,6 +477,8 @@ export function resolveCopaFinalUserMatch(save) {
   const myTieIdx = save.copa.ties.findIndex(t => t.aId === tie.aId && t.bId === tie.bId);
   const results = [...(save.copa.pendingRoundTieResults || [])];
   results[myTieIdx] = myResult;
+  const seasonPlayerStats = accumulateMatchStats(save.seasonPlayerStats || {}, { homeId: tie.aId, awayId: tie.bId, ...tie.finalMatch.sim });
+  save = { ...save, seasonPlayerStats };
 
   const advanced = advanceBracketRound(save, results);
   return { ...advanced, pendingUserCopaTie: null };

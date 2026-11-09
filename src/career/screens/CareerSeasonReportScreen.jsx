@@ -1,0 +1,155 @@
+// Relatório de fim de temporada do Modo Carreira — último passo da
+// temporada que terminou, parado aqui até o usuário clicar em avançar
+// (pedido explícito do usuário, 2026-11-09: "tem um botao de ir para
+// proxima temporada e o ultimo passo antes de pular de temporada, como se
+// fosse para o usuario verificar como o time dele foi"). `report` vem de
+// `save.lastSeasonReport` (montado em endOfSeason/finalizeSeasonAfterUserTie,
+// ver seasonReport.js) — essa tela só EXIBE, não calcula nada.
+import { useState } from 'react';
+import { posColor, ovrColor } from '../../lib/format.js';
+import { CLUB_LOGOS } from '../../data/club-logos.js';
+import { backButtonStyle } from '../components/styles.js';
+import { primaryBtnStyle } from '../components/liveMatchUI.jsx';
+
+const cardStyle = {
+  padding: '14px', borderRadius: 14,
+  background: 'rgba(20,28,22,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
+  border: '1px solid rgba(255,255,255,0.09)',
+};
+
+const TABS = [
+  { id: 'team', label: 'Resumo do time' },
+  { id: 'squad', label: 'Elenco' },
+  { id: 'moves', label: 'Acesso e Queda' },
+];
+
+function StatCard({ label, value, sub, accent }) {
+  return (
+    <div style={cardStyle}>
+      <div style={{ fontSize: 10, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>{label}</div>
+      <div style={{ fontSize: 24, fontWeight: 800, color: accent || '#F4F1EA', fontFamily: "'Space Mono', monospace", marginTop: 4 }}>{value}</div>
+      {sub && <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 2 }}>{sub}</div>}
+    </div>
+  );
+}
+
+function ClubRow({ club, move }) {
+  const logo = club ? CLUB_LOGOS[club.club] : null;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)' }}>
+      {logo ? <img src={logo} alt={club?.club} style={{ width: 26, height: 26, objectFit: 'contain' }} /> : <div style={{ width: 26, height: 26, borderRadius: '50%', background: club?.colors?.p || '#333' }} />}
+      <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{club?.club || '?'}</span>
+      <span style={{ fontSize: 14 }}>{move === 'promoted' ? '↑' : '↓'}</span>
+    </div>
+  );
+}
+
+function PlayerRow({ p }) {
+  const c = posColor(p.pos?.[0]);
+  const oc = ovrColor(p.ovr);
+  const isGk = p.pos?.[0] === 'GOL';
+  const delta = p.delta;
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', borderLeft: `3px solid ${c}` }}>
+      <span style={{
+        width: 32, flexShrink: 0, textAlign: 'center', fontSize: 9.5, fontWeight: 800, letterSpacing: 0.3,
+        fontFamily: "'Space Mono', monospace", padding: '3px 0', borderRadius: 6, color: c, background: `${c}22`,
+      }}>{p.pos?.[0]}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+        <div style={{ fontSize: 10.5, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>
+          {p.stats.matches}j · {p.stats.goals}g · {p.stats.assists}a{isGk ? ` · ${p.stats.cleanSheets} sg` : ''} · 🟨{p.stats.yellows} 🟥{p.stats.reds}
+        </div>
+      </div>
+      <span style={{
+        width: 30, height: 30, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 11.5, fontWeight: 800, fontFamily: "'Space Mono', monospace", color: oc, background: `${oc}18`, border: `1.5px solid ${oc}`,
+      }}>{p.ovr}</span>
+      {delta && delta.afterOvr != null && delta.afterOvr !== delta.beforeOvr && (
+        <span style={{ fontSize: 11, fontWeight: 700, fontFamily: "'Space Mono', monospace", color: delta.afterOvr > delta.beforeOvr ? '#7fd99a' : '#e05050', width: 34, textAlign: 'right' }}>
+          {delta.afterOvr > delta.beforeOvr ? '▲' : '▼'}{Math.abs(delta.afterOvr - delta.beforeOvr)}
+        </span>
+      )}
+    </div>
+  );
+}
+
+export function CareerSeasonReportScreen({ report, onAdvance, onBack }) {
+  const [tab, setTab] = useState('team');
+  if (!report) return null;
+  const { teamStats, playerRows, retired, divisionMoves, teamLabel, season } = report;
+  const promoted = divisionMoves.filter(m => m.move === 'promoted');
+  const relegated = divisionMoves.filter(m => m.move === 'relegated');
+
+  return (
+    <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
+      {onBack && <button onClick={onBack} style={backButtonStyle}>← Voltar</button>}
+      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, marginBottom: 2 }}>Fim da Temporada {season}</h2>
+      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 16 }}>{teamLabel} — como foi a temporada</p>
+
+      <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            style={{
+              flex: 1, padding: '9px 6px', borderRadius: 9, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+              border: tab === t.id ? '1px solid rgba(212,162,60,0.6)' : '1px solid rgba(255,255,255,0.1)',
+              background: tab === t.id ? 'rgba(212,162,60,0.15)' : 'rgba(255,255,255,0.03)',
+              color: tab === t.id ? '#d4a23c' : 'rgba(244,241,234,0.75)',
+            }}
+          >{t.label}</button>
+        ))}
+      </div>
+
+      {tab === 'team' && teamStats && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+          <StatCard label="Jogos" value={teamStats.played} />
+          <StatCard label="Aproveitamento" value={`${teamStats.played ? Math.round((teamStats.wins * 3 + teamStats.draws) / (teamStats.played * 3) * 100) : 0}%`} accent="#d4a23c" />
+          <StatCard label="Vitórias" value={teamStats.wins} accent="#7fd99a" />
+          <StatCard label="Empates" value={teamStats.draws} />
+          <StatCard label="Derrotas" value={teamStats.losses} accent="#e05050" />
+          <StatCard label="Jogos sem sofrer gol" value={teamStats.cleanSheets} />
+          <StatCard label="Gols feitos" value={teamStats.goalsFor} sub={`média ${(teamStats.goalsFor / (teamStats.played || 1)).toFixed(2)}/jogo`} />
+          <StatCard label="Gols sofridos" value={teamStats.goalsAgainst} sub={`média ${(teamStats.goalsAgainst / (teamStats.played || 1)).toFixed(2)}/jogo`} />
+        </div>
+      )}
+
+      {tab === 'squad' && (
+        <div style={{ display: 'grid', gap: 6 }}>
+          {playerRows.map(p => <PlayerRow key={p.name} p={p} />)}
+          {retired.length > 0 && (
+            <>
+              <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10, marginBottom: 2 }}>Se aposentaram</div>
+              {retired.map(d => (
+                <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(224,80,80,0.08)' }}>
+                  <span style={{ fontSize: 13, flex: 1 }}>{d.name}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#e05050' }}>Aposentou</span>
+                </div>
+              ))}
+            </>
+          )}
+        </div>
+      )}
+
+      {tab === 'moves' && (
+        <div style={{ display: 'grid', gap: 16 }}>
+          <div>
+            <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>Subiram pra Série A</div>
+            <div style={{ display: 'grid', gap: 5 }}>
+              {promoted.length ? promoted.map(m => <ClubRow key={m.clubId} club={m.club} move={m.move} />) : <div style={{ fontSize: 12, opacity: 0.5 }}>Nenhum.</div>}
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>Caíram pra Série B</div>
+            <div style={{ display: 'grid', gap: 5 }}>
+              {relegated.length ? relegated.map(m => <ClubRow key={m.clubId} club={m.club} move={m.move} />) : <div style={{ fontSize: 12, opacity: 0.5 }}>Nenhum.</div>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <button onClick={onAdvance} style={{ ...primaryBtnStyle, marginTop: 20 }}>▶ Avançar pra Temporada {season + 1}</button>
+    </div>
+  );
+}

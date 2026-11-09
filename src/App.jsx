@@ -7369,9 +7369,9 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
         <div style={styles.introMarqueeWrap}>
           <div style={styles.introMarqueeTrack} className="marquee-track">
             {carouselTeams.map((t, i) => (
-              <div key={`${t.id}-${i}`} style={styles.introTeamChip}>
+              <div key={`${t.id}-${i}`} style={styles.introTeamChip} className="intro-marquee-chip">
                 {CLUB_LOGOS[t.club] && (
-                  <img src={CLUB_LOGOS[t.club]} alt="" style={styles.introTeamChipCrest} onError={e => { e.currentTarget.style.display = 'none'; }} />
+                  <img src={CLUB_LOGOS[t.club]} alt="" style={styles.introTeamChipCrest} className="intro-marquee-chip-crest" onError={e => { e.currentTarget.style.display = 'none'; }} />
                 )}
                 {t.label}
               </div>
@@ -14401,6 +14401,16 @@ const globalCss = `
     .match-summary-cols { flex-direction: column !important; }
     .match-summary-header-team { font-size: 13px !important; }
     .tab-bar-scroll button { font-size: 11px !important; padding: 8px 4px 10px !important; gap: 3px !important; }
+  }
+  /* Faixa "N times lendários no elenco" rolando na home: em telas bem
+     estreitas (iPhone SE/Android pequeno) o chip no tamanho normal mal
+     cabe inteiro, então quase sempre só aparece metade de um chip cortado
+     em cada ponta — fica com cara de quebrado. Encolhe o chip pra caber
+     mais de um por vez. */
+  @media (max-width: 420px) {
+    .marquee-track { gap: 6px !important; }
+    .intro-marquee-chip { font-size: 9.5px !important; padding: 4px 9px 4px 5px !important; gap: 4px !important; }
+    .intro-marquee-chip-crest { width: 13px !important; height: 13px !important; }
   }
   input::placeholder { color: rgba(255,255,255,0.2); }
   input:focus { border-color: rgba(212,162,60,0.5) !important; outline: none; }

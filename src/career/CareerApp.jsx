@@ -13,6 +13,7 @@ import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
 import { CareerMatchDayScreen } from './screens/CareerMatchDayScreen.jsx';
 import { CareerTwoLegScreen } from './screens/CareerTwoLegScreen.jsx';
 import { CareerCopaLegScreen } from './screens/CareerCopaLegScreen.jsx';
+import { CareerSeasonReportScreen } from './screens/CareerSeasonReportScreen.jsx';
 import { CareerFormationScreen } from './screens/CareerFormationScreen.jsx';
 import { CareerTableScreen } from './screens/CareerTableScreen.jsx';
 import { CareerCalendarScreen } from './screens/CareerCalendarScreen.jsx';
@@ -24,7 +25,7 @@ import {
   createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie,
   simulateUserCopaTieLeg1, simulateUserCopaTieLeg2, finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2,
   resolveCopaFinalUserMatch, simulateRestOfSeason, respondToOffer, counterOffer, toggleTransferList,
-  resolveUserMatch,
+  resolveUserMatch, advanceToNextSeason,
 } from './engine/seasonEngine.js';
 import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
 import { proposeTransfer, promoteYouthPlayer } from './engine/rosterStore.js';
@@ -197,6 +198,15 @@ export function CareerApp({ onExit, onHudChange }) {
     setSave(prev => prev && resolveUserMatch(prev));
   }, []);
 
+  // Botão único do relatório de fim de temporada — só agora a temporada
+  // nova é de fato montada (ver seasonEngine.js: endOfSeason/
+  // finalizeSeasonAfterUserTie já pararam em `screen:'season-report'` e
+  // deixaram o relatório pronto em `save.lastSeasonReport`).
+  const handleAdvanceSeason = useCallback(() => {
+    setSave(prev => prev && advanceToNextSeason(prev));
+    setScreen('hub');
+  }, []);
+
   if (!save || screen === 'picker') {
     return <ClubPickerScreen onPick={handlePick} onBack={onExit} />;
   }
@@ -226,6 +236,10 @@ export function CareerApp({ onExit, onHudChange }) {
         onDone={() => setAdvancing(null)}
       />
     );
+  }
+
+  if (screen === 'season-report' && save.lastSeasonReport) {
+    return <CareerSeasonReportScreen report={save.lastSeasonReport} onAdvance={handleAdvanceSeason} />;
   }
 
   if (save.pendingUserMatch) {
