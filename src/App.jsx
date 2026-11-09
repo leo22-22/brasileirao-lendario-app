@@ -243,7 +243,7 @@ const WEEKLY_TEAMS = [
     players: [
       { teamId: 'saopaulo2026', name: 'Rafael', posLabel: 'Goleiro' },
       { teamId: 'palmeiras2026', name: 'Khellven', posLabel: 'Lateral-Direito' },
-      { teamId: 'chapecoense2026', name: 'Kauan', posLabel: 'Zagueiro' },
+      { teamId: 'chapecoense2026', name: 'Kauan Faria', posLabel: 'Zagueiro' },
       { teamId: 'cruzeiro2026', name: 'Lucas Romero', posLabel: 'Zagueiro' },
       { teamId: 'mirassol2026', name: 'Reinaldo', posLabel: 'Lateral-Esquerdo' },
       { teamId: 'internacional2026', name: 'Thiago Maia', posLabel: 'Volante' },
