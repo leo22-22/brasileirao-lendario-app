@@ -51,14 +51,18 @@ function buildDivision(teamIds, rand) {
 
 // Save inicial de uma carreira nova — clona os 40 elencos a partir de
 // TEAMS (nunca mais lê TEAMS pra mutar nada depois disso) e sorteia o
-// calendário das duas divisões. `customBudget` (opcional) sobrescreve só
-// o orçamento inicial do PRÓPRIO clube do usuário — os outros 39 sempre
-// usam o padrão por tier, pra não desequilibrar a economia da IA.
+// calendário das duas divisões. `customBudget` (opcional, `null`/`undefined`
+// = "use o padrão do tier") sobrescreve só o orçamento inicial do PRÓPRIO
+// clube do usuário — os outros 39 sempre usam o padrão por tier, pra não
+// desequilibrar a economia da IA. `0` é um valor válido de propósito
+// (pedido explícito do usuário 2026-11-09: começar sem orçamento nenhum é
+// uma escolha real, não "esqueceu de preencher") — por isso o teste é
+// `!= null`, não `> 0`.
 export function createCareerSave(myClubId, customBudget, seedOverride) {
   const seed = seedOverride || `career-${Date.now()}-${Math.floor(Math.random() * 1e9)}`;
   const rand = makePrng(hashSeed(`${seed}|setup`));
   const clubs = cloneAllRosters();
-  if (customBudget > 0) {
+  if (customBudget != null) {
     clubs[myClubId] = { ...clubs[myClubId], budget: customBudget };
   }
   const seasonCalendar = buildSeasonCalendar(38);

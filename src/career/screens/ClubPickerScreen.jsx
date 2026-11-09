@@ -16,9 +16,12 @@ import { backButtonStyle } from '../components/styles.js';
 const TIER_LABEL = { elite: 'Elite', grande: 'Grande', medio: 'Médio', pequeno: 'Pequeno' };
 const TIER_COLOR = { elite: '#d4a23c', grande: '#7fd99a', medio: '#9fb3a8', pequeno: '#8a8a8a' };
 
-// Teto do orçamento personalizado — "até 1 bilhão", pedido do usuário.
+// Teto do orçamento personalizado — "até 1 bilhão", pedido do usuário. Sem
+// piso: o usuário pode começar com R$0 de propósito (pedido explícito
+// 2026-11-09: "deixe colocar 0 mesmo se o cara quiser tudo realista") —
+// um desafio real de começar sem dinheiro nenhum, não um valor mínimo
+// imposto pelo jogo.
 const MAX_CUSTOM_BUDGET = 1_000_000_000;
-const MIN_CUSTOM_BUDGET = 100_000;
 
 function normalize(s) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
@@ -64,8 +67,13 @@ export function ClubPickerScreen({ onPick, onBack }) {
   const q = normalize(query.trim());
   const filteredIds = ids.filter(id => !q || normalize(TEAMS.find(t => t.id === id).club).includes(q));
 
-  const rawBudget = budgetInput ? parseInt(budgetInput, 10) : 0;
-  const customBudget = rawBudget > 0 ? Math.min(MAX_CUSTOM_BUDGET, Math.max(MIN_CUSTOM_BUDGET, rawBudget)) : 0;
+  // Campo vazio = "sem orçamento personalizado" (cai no padrão do tier do
+  // clube) — diferente de digitar "0" de propósito, que precisa chegar em
+  // createCareerSave como 0 mesmo, não ser tratado como "não informado".
+  // `null` (não 0) é o sinal de "use o padrão" passado adiante.
+  const hasCustomBudget = budgetInput !== '';
+  const rawBudget = hasCustomBudget ? parseInt(budgetInput, 10) : 0;
+  const customBudget = hasCustomBudget ? Math.min(MAX_CUSTOM_BUDGET, rawBudget) : null;
   const budgetClamped = rawBudget > MAX_CUSTOM_BUDGET;
 
   const selectedTeam = selectedClubId ? TEAMS.find(t => t.id === selectedClubId) : null;
@@ -117,7 +125,7 @@ export function ClubPickerScreen({ onPick, onBack }) {
           </div>
 
           <label style={{ display: 'block', fontSize: 11, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 6 }}>
-            Orçamento inicial (até R$ 1.000.000.000)
+            Orçamento inicial (de R$ 0 até R$ 1.000.000.000)
           </label>
           <input
             value={budgetInput ? Number(budgetInput).toLocaleString('pt-BR') : ''}
@@ -133,7 +141,7 @@ export function ClubPickerScreen({ onPick, onBack }) {
           <div style={{ fontSize: 11, marginBottom: 14, color: budgetClamped ? '#e05050' : 'rgba(244,241,234,0.5)' }}>
             {budgetClamped
               ? `Limitado a R$ ${MAX_CUSTOM_BUDGET.toLocaleString('pt-BR')}.`
-              : budgetInput
+              : hasCustomBudget
                 ? `Vai começar com R$ ${customBudget.toLocaleString('pt-BR')}.`
                 : 'Deixe vazio pra usar o orçamento padrão do clube.'}
           </div>
