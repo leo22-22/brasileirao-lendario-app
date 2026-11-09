@@ -21,8 +21,8 @@ import { generateClubYouthBatch } from './youth.js';
 import { applySeasonAging } from './aging.js';
 import { decideAiListings, decideAiOffers } from './aiTransfers.js';
 import { buildSeasonCalendar, isTransferWindowOpen } from './calendar.js';
-import { teamForSim, resolveTwoLegTieAuto, prepareTwoLegTieForUser } from './simHelpers.js';
-import { drawCopaBracket, playCopaRound, finalizeCopaUserTie } from './copaEngine.js';
+import { teamForSim, resolveTwoLegTieAuto, prepareTwoLegTieForUser, legPackage } from './simHelpers.js';
+import { drawCopaBracket, playCopaRoundIda, playCopaRoundVolta, finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2, copaCurrentDay, COPA_ROUND_LABELS } from './copaEngine.js';
 import { returnDueLoans, returnSeasonLoans } from './loans.js';
 
 export { isTransferWindowOpen } from './calendar.js';
@@ -269,17 +269,27 @@ export function advanceDay(save) {
       if (myMatch) events.push({ type: 'match', day, ...myMatch });
       return { save: { ...played, calendarDay: day, lastDayEvents: events }, event: 'match', roundIdx: nextRoundIdx };
     }
-    if (current.copa?.phase !== 'done' && day === current.copa?.calendar[current.copa.round]) {
-      const copaRand = makePrng(hashSeed(`${current.seed}|copa-round|${day}`));
-      const result = playCopaRound(current, copaRand);
+    if (current.copa?.phase !== 'done' && day === copaCurrentDay(current.copa)) {
+      const copaRand = makePrng(hashSeed(`${current.seed}|copa-round|${day}|${current.copa.leg}`));
+      // A Final nunca tem `leg:'volta'` (jogo único, ver copaEngine.js) —
+      // só as fases de ida+volta alternam entre as duas funções.
+      const isFinal = current.copa.round === COPA_ROUND_LABELS.length - 1;
+      const result = (current.copa.leg === 'volta' && !isFinal) ? playCopaRoundVolta(current, copaRand) : playCopaRoundIda(current, copaRand);
       if (result.pendingUserCopaTie) {
         return {
           save: { ...result.save, calendarDay: day, pendingUserCopaTie: result.pendingUserCopaTie, lastDayEvents: events },
           event: 'copa-tie',
         };
       }
-      events.push({ type: 'copa-round', day, roundLabel: result.roundLabel });
-      return { save: { ...result.save, calendarDay: day, lastDayEvents: events }, event: 'copa-round' };
+      if (result.event === 'copa-round') {
+        events.push({ type: 'copa-round', day, roundLabel: result.roundLabel });
+        return { save: { ...result.save, calendarDay: day, lastDayEvents: events }, event: 'copa-round' };
+      }
+      // Ida silenciosa (sem confronto do usuário nessa fase) — so guardou
+      // leg1Results e virou pra 'volta', a fase continua aberta. Nao para o
+      // avanco do calendario: segue o loop normal pros outros gatilhos do
+      // dia (ou pro dia seguinte).
+      current = result.save;
     }
     if (isTransferWindowOpen(day)) {
       // Dois rolamentos INDEPENDENTES: o geral (qualquer jogador do
@@ -385,18 +395,29 @@ export function simulateUserTie(save) {
   return prepareTwoLegTieForUser(save, tie.leg1Match.homeId, tie.leg1Match.awayId, myId, rand);
 }
 
-// Mesma mecânica de simulateUserTie, pro confronto do PRÓPRIO usuário na
-// Copa do Brasil (ver copaEngine.js) — devolve os dados pra tela jogar
-// antes de chamar finalizeCopaUserTie (reexportada abaixo).
-export function simulateUserCopaTie(save) {
+// Confronto do PRÓPRIO usuário na Copa do Brasil (ver copaEngine.js) — AGORA
+// perna por perna, em dias de calendário diferentes (nunca mais ida+volta
+// na mesma visita, ver copaEngine.js/COPA_DAYS): `simulateUserCopaTieLeg1`
+// monta só a ida (chamada quando `pendingUserCopaTie.leg==='ida'`),
+// `simulateUserCopaTieLeg2` monta só a volta (quando `leg==='volta'`) —
+// devolvem o pacote de UMA perna (mesmo formato de `legPackage`, igual o
+// jogo comum do Brasileirão) pra tela jogar antes de chamar
+// finalizeCopaUserTieLeg1/Leg2 (reexportadas abaixo).
+export function simulateUserCopaTieLeg1(save) {
   const tie = save.pendingUserCopaTie;
-  if (!tie) return null;
-  const rand = makePrng(hashSeed(`${save.seed}|copa-user-tie|${save.season}|${save.copa.round}`));
-  const myId = tie.aId === save.myClubId ? tie.aId : tie.bId;
-  return prepareTwoLegTieForUser(save, tie.leg1Match.homeId, tie.leg1Match.awayId, myId, rand);
+  if (!tie || tie.leg !== 'ida') return null;
+  const rand = makePrng(hashSeed(`${save.seed}|copa-user-tie-ida|${save.season}|${save.copa.round}`));
+  return legPackage(save, tie.leg1Match.homeId, tie.leg1Match.awayId, rand);
 }
 
-export { finalizeCopaUserTie } from './copaEngine.js';
+export function simulateUserCopaTieLeg2(save) {
+  const tie = save.pendingUserCopaTie;
+  if (!tie || tie.leg !== 'volta') return null;
+  const rand = makePrng(hashSeed(`${save.seed}|copa-user-tie-volta|${save.season}|${save.copa.round}`));
+  return legPackage(save, tie.leg2Match.homeId, tie.leg2Match.awayId, rand);
+}
+
+export { finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2 } from './copaEngine.js';
 
 // Fim de temporada: prêmios, categoria de base e janela de transferências
 // da IA sempre acontecem (não dependem de nenhum mata-mata). Acesso/queda

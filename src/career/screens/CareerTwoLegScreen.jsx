@@ -15,7 +15,7 @@ import {
 // comum do Brasileirão (CareerMatchDayScreen), só trocando o rótulo do
 // topo e o texto do botão final. `key` no uso abaixo garante que o estado
 // (minuto/eventos/fase) reseta sozinho ao trocar de perna.
-function LegMatch({ leg, legLabel, continueLabel, onDone }) {
+export function LegMatch({ leg, legLabel, continueLabel, onDone }) {
   const { homeTeam, awayTeam, sim } = leg;
   const { phase, minute, homeGoals, awayGoals, shownEvents, startPlaying, skipToEnd, motm } = useLiveMatchPlayer(sim, homeTeam, awayTeam);
 

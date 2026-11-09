@@ -12,6 +12,7 @@ import { CareerAdvanceModal } from './components/CareerAdvanceModal.jsx';
 import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
 import { CareerMatchDayScreen } from './screens/CareerMatchDayScreen.jsx';
 import { CareerTwoLegScreen } from './screens/CareerTwoLegScreen.jsx';
+import { CareerCopaLegScreen } from './screens/CareerCopaLegScreen.jsx';
 import { CareerFormationScreen } from './screens/CareerFormationScreen.jsx';
 import { CareerTableScreen } from './screens/CareerTableScreen.jsx';
 import { CareerCalendarScreen } from './screens/CareerCalendarScreen.jsx';
@@ -21,7 +22,8 @@ import { CareerTransferMarket } from './screens/CareerTransferMarket.jsx';
 import { loadCareerSave, saveCareerSave, clearCareerSave } from './state/careerStorage.js';
 import {
   createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie,
-  simulateUserCopaTie, finalizeCopaUserTie, resolveCopaFinalUserMatch, simulateRestOfSeason, respondToOffer, counterOffer, toggleTransferList,
+  simulateUserCopaTieLeg1, simulateUserCopaTieLeg2, finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2,
+  resolveCopaFinalUserMatch, simulateRestOfSeason, respondToOffer, counterOffer, toggleTransferList,
   resolveUserMatch,
 } from './engine/seasonEngine.js';
 import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
@@ -115,12 +117,16 @@ export function CareerApp({ onExit, onHudChange }) {
     });
   }, []);
 
-  const handleResolveCopaTie = useCallback((result) => {
-    setSave(prev => {
-      if (!prev?.pendingUserCopaTie || !result) return prev;
-      const iWon = result.myAggGoals !== result.oppAggGoals ? result.myAggGoals > result.oppAggGoals : !!result.penaltyWinnerIsMe;
-      return finalizeCopaUserTie(prev, iWon, result);
-    });
+  // Ida e volta da Copa do Brasil do próprio usuário agora são dois eventos
+  // de calendário separados (ver copaEngine.js/CareerCopaLegScreen.jsx) —
+  // cada handler só termina a perna que acabou de ser jogada; a fase só é
+  // decidida de fato em handleResolveCopaTieLeg2.
+  const handleResolveCopaTieLeg1 = useCallback((legResult) => {
+    setSave(prev => (prev?.pendingUserCopaTie ? finalizeCopaUserTieLeg1(prev, legResult) : prev));
+  }, []);
+
+  const handleResolveCopaTieLeg2 = useCallback((legResult) => {
+    setSave(prev => (prev?.pendingUserCopaTie ? finalizeCopaUserTieLeg2(prev, legResult) : prev));
   }, []);
 
   // Final da Copa do Brasil — jogo único (ver resolveCopaFinalUserMatch):
@@ -249,16 +255,26 @@ export function CareerApp({ onExit, onHudChange }) {
     if (tie.isFinal) {
       return <CareerMatchDayScreen save={save} pending={tie.finalMatch} competitionLabel="🏆 Copa do Brasil — Final" onFinish={handleFinishCopaFinal} />;
     }
-    const oppTeam = TEAMS.find(t => t.id === (tie.aId === save.myClubId ? tie.bId : tie.aId));
     const roundLabel = COPA_ROUND_LABELS[save.copa.round];
+    const title = `Copa do Brasil — ${roundLabel}`;
+    if (tie.leg === 'ida') {
+      return (
+        <CareerCopaLegScreen
+          title={title}
+          leg="ida"
+          prepare={() => simulateUserCopaTieLeg1(save)}
+          onDoneIda={handleResolveCopaTieLeg1}
+        />
+      );
+    }
+    const myTieIdx = save.copa.ties.findIndex(t => t.aId === tie.aId && t.bId === tie.bId);
     return (
-      <CareerTwoLegScreen
-        title={`Copa do Brasil — ${roundLabel}`}
-        subtitle={`Ida e volta contra ${oppTeam?.club} — quem passar avança de fase.`}
-        winLabel="🏆 Avançou de fase!"
-        loseLabel="Eliminado da Copa do Brasil"
-        prepare={() => simulateUserCopaTie(save)}
-        onContinue={handleResolveCopaTie}
+      <CareerCopaLegScreen
+        title={title}
+        leg="volta"
+        leg1Result={save.copa.leg1Results[myTieIdx]}
+        prepare={() => simulateUserCopaTieLeg2(save)}
+        onDoneVolta={handleResolveCopaTieLeg2}
       />
     );
   }

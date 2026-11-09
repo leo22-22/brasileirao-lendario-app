@@ -3,7 +3,7 @@
 // já usada no projeto. Nunca lida por nenhum outro modo; nunca escreve em
 // `brl_save`.
 import { buildSeasonCalendar } from '../engine/calendar.js';
-import { drawCopaBracket } from '../engine/copaEngine.js';
+import { drawCopaBracket, COPA_DAYS } from '../engine/copaEngine.js';
 import { makePrng, hashSeed } from '../../App.jsx';
 import { TEAMS } from '../../data/teams.js';
 
@@ -45,6 +45,25 @@ function backfillAges(save) {
   return { ...save, clubs };
 }
 
+// Save salvo antes da Copa do Brasil separar ida/volta em dias diferentes
+// (2026-11-09) tem `copa.calendar` como array de 6 números (um dia por
+// fase, resolvia ida+volta juntas) — troca pro novo formato de pares
+// (COPA_DAYS, ver copaEngine.js) e preenche `leg`/`leg1Results` que não
+// existiam. Um `pendingUserCopaTie` em andamento nesse save antigo (só
+// pode estar parado na ida, já que o formato antigo nunca pausava no meio
+// de duas pernas) já tem exatamente o formato `{aId,bId,leg1Match}` que o
+// novo fluxo de ida espera — só ganha `leg:'ida'` pra cair na tela nova
+// certa; a volta dele passa a ser pedida no dia certo, dias depois, não
+// mais na mesma sessão.
+function backfillCopaLegs(save) {
+  if (!save.copa || typeof save.copa.calendar?.[0] !== 'number') return save;
+  const copa = { ...save.copa, calendar: COPA_DAYS, leg: save.copa.leg ?? 'ida', leg1Results: save.copa.leg1Results ?? null };
+  const pendingUserCopaTie = save.pendingUserCopaTie && !save.pendingUserCopaTie.isFinal && !save.pendingUserCopaTie.leg
+    ? { ...save.pendingUserCopaTie, leg: 'ida' }
+    : save.pendingUserCopaTie;
+  return { ...save, copa, pendingUserCopaTie };
+}
+
 // Preenche campos que saves antigos (de antes do calendário dia a dia, da
 // lista de transferências, ou da Copa do Brasil) não tinham — evita
 // quebrar um save salvo numa versão anterior do Modo Carreira em vez de
@@ -67,6 +86,7 @@ function backfill(save) {
     next = { ...next, copa: drawCopaBracket(next, rand, next.seasonCalendar), pendingUserCopaTie: next.pendingUserCopaTie ?? null };
   }
   next = backfillAges(next);
+  next = backfillCopaLegs(next);
   return next;
 }
 

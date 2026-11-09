@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { formatCalendarDay } from '../engine/calendar.js';
-import { COPA_ROUND_LABELS } from '../engine/copaEngine.js';
+import { COPA_ROUND_LABELS, copaCurrentDay } from '../engine/copaEngine.js';
 import { backButtonStyle } from '../components/styles.js';
 import { CupBracketModal } from '../../App.jsx';
 
@@ -69,7 +69,7 @@ export function CareerCopaScreen({ save, onBack }) {
       {bracket}
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
       <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Copa do Brasil</h2>
-      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 16 }}>{roundLabel} · {formatCalendarDay(copa.calendar[copa.round])}</p>
+      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 16 }}>{roundLabel} · {formatCalendarDay(copaCurrentDay(copa))}</p>
 
       {hasBracket && (
         <button onClick={() => setShowBracket(true)} style={{ width: '100%', marginBottom: 14, padding: '10px 0', borderRadius: 10, border: '1px solid rgba(212,162,60,0.4)', background: 'rgba(212,162,60,0.1)', color: '#d4a23c', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
