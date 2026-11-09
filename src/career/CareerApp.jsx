@@ -29,7 +29,7 @@ import {
 } from './engine/seasonEngine.js';
 import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
 import { proposeTransfer, promoteYouthPlayer } from './engine/rosterStore.js';
-import { loanPlayerOut, requestLoanIn } from './engine/loans.js';
+import { toggleLoanList, requestLoanIn } from './engine/loans.js';
 
 export function CareerApp({ onExit, onHudChange }) {
   const [save, setSave] = useState(() => loadCareerSave());
@@ -223,17 +223,17 @@ export function CareerApp({ onExit, onHudChange }) {
     setSave(prev => prev && promoteYouthPlayer(prev, prev.myClubId, playerName));
   }, []);
 
-  // Empréstimo — nas duas direções quem decide é o clube dono do jogador
-  // na hora do pedido (ver loans.js); lê `save` direto (não via updater)
-  // pelo mesmo motivo de handleProposeTransfer: quem chama precisa do
-  // resultado (aceito/recusado) na hora, pra tela mostrar.
-  const handleLoanOut = useCallback((targetClubId, playerName, kind) => {
-    if (!save) return { accepted: false };
-    const result = loanPlayerOut(save, save.myClubId, targetClubId, playerName, kind);
-    setSave(result.save);
-    return result;
-  }, [save]);
+  // Emprestar um jogador MEU pra outro clube funciona igual a lista de
+  // transferências (ver loans.js) — só liga/desliga na lista, não decide
+  // nada na hora; uma proposta de empréstimo pode ou não chegar depois.
+  const handleToggleLoanList = useCallback((playerName) => {
+    setSave(prev => prev && toggleLoanList(prev, playerName));
+  }, []);
 
+  // Pedir emprestado continua sendo ação direta: escolhe o jogador de
+  // outro clube, o dono decide na hora (ver loans.js); lê `save` direto
+  // (não via updater) pelo mesmo motivo de handleProposeTransfer: quem
+  // chama precisa do resultado (aceito/recusado) na hora, pra tela mostrar.
   const handleRequestLoan = useCallback((ownerClubId, playerName, kind) => {
     if (!save) return { accepted: false };
     const result = requestLoanIn(save, save.myClubId, ownerClubId, playerName, kind);
@@ -349,7 +349,7 @@ export function CareerApp({ onExit, onHudChange }) {
   if (screen === 'calendar') return <CareerCalendarScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'copa') return <CareerCopaScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'youth') return <CareerYouthScreen save={save} onPromote={handlePromoteYouth} onBack={() => setScreen('hub')} />;
-  if (screen === 'market') return <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onLoanOut={handleLoanOut} onRequestLoan={handleRequestLoan} onBack={() => setScreen('hub')} />;
+  if (screen === 'market') return <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onRequestLoan={handleRequestLoan} onBack={() => setScreen('hub')} />;
 
   return <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onSimulateSeason={handleSimulateSeason} onExit={onExit} />;
 }

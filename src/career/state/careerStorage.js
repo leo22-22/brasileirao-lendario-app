@@ -78,6 +78,10 @@ function backfill(save) {
   // calendário — saves que já tinham calendário mas não essa lista caíam
   // no `return save` acima antes desse campo existir.
   if (!next.transferList) next = { ...next, transferList: [] };
+  // `loanList` (lista de empréstimo) é mais recente ainda — empréstimo
+  // existia antes, mas era uma ação direta (sem lista); save de quando
+  // isso mudou (2026-11-09) ainda não tem o campo.
+  if (!next.loanList) next = { ...next, loanList: [] };
   // Copa do Brasil é mais recente ainda — save antigo sem ela ganha uma
   // Copa nova sorteada na hora, a partir do elenco atual (o calendário
   // dela usa `next.seasonCalendar`, que já existe nesse ponto).

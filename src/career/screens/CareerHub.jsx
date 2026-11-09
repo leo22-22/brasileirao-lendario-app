@@ -53,7 +53,9 @@ export function eventLine(ev, myClubId) {
     return `🔄 ${from?.club} comprou ${ev.playerName} do ${to?.club} por ${formatMoney(ev.amount)}`;
   }
   if (ev.type === 'offer') {
-    return `📨 Proposta recebida pelo ${ev.playerName}`;
+    return ev.offerKind === 'loan'
+      ? `🔁 Proposta de empréstimo recebida pelo ${ev.playerName}`
+      : `📨 Proposta recebida pelo ${ev.playerName}`;
   }
   if (ev.type === 'copa-round') {
     return `🏆 Copa do Brasil — ${ev.roundLabel} resolvida`;

@@ -25,7 +25,7 @@ import { teamForSim, resolveTwoLegTieAuto, prepareTwoLegTieForUser, legPackage }
 import { drawCopaBracket, playCopaRoundIda, playCopaRoundVolta, finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2, copaCurrentDay, COPA_ROUND_LABELS } from './copaEngine.js';
 import { accumulateMatchStats } from './seasonStats.js';
 import { buildSeasonReport } from './seasonReport.js';
-import { returnDueLoans, returnSeasonLoans } from './loans.js';
+import { returnDueLoans, returnSeasonLoans, generateUserLoanOffer, acceptLoanOffer, LOAN_OFFER_CHANCE } from './loans.js';
 
 export { isTransferWindowOpen } from './calendar.js';
 export { teamForSim } from './simHelpers.js';
@@ -77,6 +77,11 @@ export function createCareerSave(myClubId, customBudget, seedOverride) {
     // — aumenta a chance de vir proposta por eles especificamente, sem
     // impedir que um jogador fora da lista receba uma sondagem rara.
     transferList: [],
+    // Jogadores que o usuário colocou na lista de empréstimo (ver
+    // toggleLoanList em loans.js) — mesma ideia da lista de transferências,
+    // só que pra empréstimo: não empresta nada sozinho, só sinaliza que
+    // pode vir proposta de empréstimo por eles (ver LOAN_OFFER_CHANCE).
+    loanList: [],
     // Histórico de TODA transferência da carreira (os 40 clubes, não só o
     // do usuário) — nunca resetado entre temporadas (ver appendTransferLog
     // em rosterStore.js). Alimenta o painel "Top Transferências" da home e
@@ -328,8 +333,24 @@ export function advanceDay(save) {
           if (offer && !dayOffers.some(o => o.playerName === offer.playerName)) dayOffers.push(offer);
         }
       }
+      // Propostas de empréstimo (ver loans.js) — rolamento INDEPENDENTE,
+      // igual a lista de transferências: só pra quem está na lista de
+      // empréstimo (nunca pro elenco inteiro, diferente da compra).
+      if (current.loanList?.length) {
+        const loanRand = makePrng(hashSeed(`${current.seed}|offer-check-loan|${day}`));
+        if (loanRand() < LOAN_OFFER_CHANCE) {
+          const recentPlusToday = [...(current.recentOfferNames || []), ...dayOffers.map(o => o.playerName)];
+          const offer = generateUserLoanOffer(current, loanRand, recentPlusToday);
+          if (offer && !dayOffers.some(o => o.playerName === offer.playerName)) dayOffers.push(offer);
+        }
+      }
       if (dayOffers.length > 0) {
-        events.push(...dayOffers.map(offer => ({ type: 'offer', day, ...offer })));
+        // `type: 'offer'` por último de propósito: `offer.type` já carrega
+        // 'loan' pra proposta de empréstimo (ver loans.js) e, se viesse
+        // antes do spread, seria sobrescrito — o evento do feed sempre
+        // precisa ser 'offer' (é o que eventLine reconhece), a distinção
+        // buy/loan vai em `offerKind`.
+        events.push(...dayOffers.map(offer => ({ day, ...offer, type: 'offer', offerKind: offer.type || 'buy' })));
         let recentOfferNames = current.recentOfferNames || [];
         for (const offer of dayOffers) recentOfferNames = [...recentOfferNames, offer.playerName].slice(-OFFER_COOLDOWN_SIZE);
         return {
@@ -615,6 +636,7 @@ export function respondToOffer(save, offerIndex, accept) {
   if (!offer) return save;
   const remaining = save.pendingOffers.filter((_, i) => i !== offerIndex);
   if (!accept) return { ...save, pendingOffers: remaining };
+  if (offer.type === 'loan') return acceptLoanOffer(save, offer, remaining);
 
   const seller = save.clubs[offer.toClubId];
   const buyer = save.clubs[offer.fromClubId];
@@ -650,7 +672,7 @@ const COUNTER_ACCEPT_CEILING = 1.15;
 // `{ save, accepted }` pra UI poder avisar o resultado.
 export function counterOffer(save, offerIndex, counterAmount) {
   const offer = save.pendingOffers[offerIndex];
-  if (!offer) return { save, accepted: false };
+  if (!offer || offer.type === 'loan') return { save, accepted: false }; // empréstimo não tem valor, não dá pra contrapropor
   const remaining = save.pendingOffers.filter((_, i) => i !== offerIndex);
 
   const seller = save.clubs[offer.toClubId];
