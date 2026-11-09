@@ -79,11 +79,18 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
     return myTie.winnerId === save.myClubId ? 'V' : 'D';
   }
 
+  const [stopped, setStopped] = useState(false);
+
   // Cursor anda de fromDay até toDay UM DIA DE CADA VEZ, sempre — nunca
-  // pula/interpola (pedido explícito do usuário) — trocando de mês sozinho
-  // quando cruza a fronteira.
+  // pula/interpola sozinho (pedido explícito do usuário) — trocando de mês
+  // sozinho quando cruza a fronteira. O botão "Parar" é a única forma de
+  // pular: os dias já foram TODOS calculados de antemão (ver comentário no
+  // topo do arquivo), então parar só revela o resultado final na hora em
+  // vez de esperar a animação terminar sozinha — não muda nada do que já
+  // foi decidido, só poupa tempo em pulos longos (ex.: "Simular temporada
+  // até o fim" com muitos dias pela frente).
   useEffect(() => {
-    if (toDay <= fromDay) {
+    if (toDay <= fromDay || stopped) {
       setCursorDay(toDay);
       setViewMonth(dayOfYearToMonthDay(toDay).month);
       setEventsVisible(true);
@@ -101,7 +108,7 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
     }, STEP_MS);
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fromDay, toDay]);
+  }, [fromDay, toDay, stopped]);
 
   useEffect(() => {
     if (!eventsVisible) return;
@@ -113,7 +120,19 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,10,8,0.9)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
-        <div style={{ fontSize: 11, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 10 }}>📅 Calendário avançando</div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10 }}>
+          <div style={{ fontSize: 11, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>📅 Calendário avançando</div>
+          {!eventsVisible && (
+            <button
+              onClick={() => setStopped(true)}
+              style={{
+                fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
+                padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)',
+                background: 'rgba(255,255,255,0.06)', color: '#F4F1EA', cursor: 'pointer',
+              }}
+            >⏹ Parar</button>
+          )}
+        </div>
 
         <div style={{ padding: '14px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
@@ -143,9 +162,14 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone })
               // anterior vira CINZA (não só "sem destaque" — visivelmente
               // marcado como já percorrido).
               const isPast = dayOfYear < cursorDay;
-              const played = hasRound && round < division.round;
+              // Os dias já foram TODOS calculados de antemão (ver comentário
+              // no topo do arquivo) — sem isso, qualquer resultado futuro já
+              // decidido vazaria no calendário antes do cursor chegar nele.
+              // Resultado só aparece quando o cursor alcançou aquele dia.
+              const reached = dayOfYear <= cursorDay;
+              const played = hasRound && reached;
               const result = played ? userRoundResult(division.results?.[round]) : null;
-              const copaResult = hasCopa ? copaUserResult(copaRound) : null;
+              const copaResult = hasCopa && reached ? copaUserResult(copaRound) : null;
               const opponent = hasRound ? roundOpponent[round] : null;
               return (
                 <div
