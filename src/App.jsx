@@ -2378,7 +2378,11 @@ const MAX_SKIPS = 3;
 // deixar o modo incompleto visível pros jogadores. Reverter pra `false`
 // quando a Fase 7 estiver pronta — não precisa de mais nenhuma mudança
 // além disso (os 3 pontos de entrada já checam essa flag via openCareer).
-const CAREER_MODE_LOCKED = true;
+// Liberado pra produção em 2026-11-09, depois de um teste completo e ao
+// vivo de uma temporada inteira (Brasileirão + Copa do Brasil até a final)
+// sem erros, com todos os 40 clubes (Série A e B) já com elenco 100% real
+// e atualizado do Transfermarkt (ver `teams.js`/`market-values.js`).
+const CAREER_MODE_LOCKED = false;
 
 export default function App() {
   // ── Modo Carreira ──────────────────────────────────────────
@@ -7300,6 +7304,18 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
   const [showWeeklyTeam, setShowWeeklyTeam] = useState(false);
   const [pendingMode, setPendingMode] = useState(null); // modo clicado aguardando escolha de dificuldade no modal
   const weeklyCraque = WEEKLY_TEAM_OF_THE_WEEK.players.find(p => p.craque);
+  // Banner de lançamento do Modo Carreira — pedido explícito do usuário ao
+  // liberar o modo pra produção (2026-11-09: "notificação muito chamativa"
+  // sobre o modo liberado + elencos 100% atualizados). Dispensa igual o
+  // banner de instalar o PWA: um "×" e lembra via localStorage, não volta a
+  // incomodar depois de fechado uma vez.
+  const [careerLaunchDismissed, setCareerLaunchDismissed] = useState(() => {
+    try { return localStorage.getItem('brl_career_launch_dismissed') === '1'; } catch { return false; }
+  });
+  const dismissCareerLaunch = () => {
+    setCareerLaunchDismissed(true);
+    try { localStorage.setItem('brl_career_launch_dismissed', '1'); } catch { /* ignora */ }
+  };
 
   return (
     <>
@@ -7315,6 +7331,44 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
           Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
           e dispute uma liga completa com cronômetro ao vivo.
         </p>
+
+        {/* Banner de lançamento do Modo Carreira — primeira coisa clicável
+            da home (antes até da Seleção da Semana), com glow pulsante
+            (card-glow-pulse) pra chamar atenção de verdade. Some pra sempre
+            assim que o usuário fechar ou clicar (ver estado acima). */}
+        {!CAREER_MODE_LOCKED && !careerLaunchDismissed && (
+          <div
+            className="career-launch-banner card-glow-pulse"
+            style={{
+              position: 'relative', width: '100%', marginBottom: 20,
+              display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px',
+              borderRadius: 14, border: '2px solid rgba(212,162,60,0.65)',
+              background: 'linear-gradient(135deg, rgba(212,162,60,0.24), rgba(255,215,0,0.08))',
+            }}
+          >
+            <span style={{
+              position: 'absolute', top: -10, left: 14, fontSize: 9.5, fontWeight: 800, letterSpacing: 0.5,
+              padding: '3px 9px', borderRadius: 999, background: '#d4a23c', color: '#0B1A12',
+            }}>🎉 NO AR AGORA</span>
+            <button
+              onClick={dismissCareerLaunch}
+              aria-label="Fechar aviso"
+              style={{ position: 'absolute', top: 6, right: 8, background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', fontSize: 18, lineHeight: 1, cursor: 'pointer', padding: 4 }}
+            >×</button>
+            <span style={{ fontSize: 32, flexShrink: 0 }}>💼</span>
+            <button
+              onClick={onOpenCareer}
+              className="mode-card-hover"
+              style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              <div style={{ fontWeight: 800, fontSize: 14.5, color: '#d4a23c', marginBottom: 2 }}>Modo Carreira está no ar!</div>
+              <div style={{ fontSize: 11.5, opacity: 0.8, color: '#F4F1EA', lineHeight: 1.4 }}>
+                Elencos 100% reais e atualizados dos 40 clubes da Série A e B — orçamento, transferências, Copa do Brasil e categoria de base.
+              </div>
+            </button>
+            <span style={{ fontSize: 18, opacity: 0.6, color: '#F4F1EA', flexShrink: 0 }}>→</span>
+          </div>
+        )}
 
         {/* Seleção da Semana — upgrade real (notas Sofascore) pros craques da
             rodada mais recente do Brasileirão 2026 de verdade. Fica logo
@@ -7459,7 +7513,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
               <div style={{ fontSize: 11, opacity: 0.65, color: '#F4F1EA' }}>
                 {CAREER_MODE_LOCKED
                   ? 'Em manutenção — voltando em breve com mais melhorias. Sua carreira salva não foi perdida.'
-                  : 'Orçamento, transferências e categoria de base · 40 clubes reais da Série A e B'}
+                  : 'Orçamento, transferências e categoria de base · 40 clubes 100% reais e atualizados (Série A e B)'}
               </div>
             </div>
             {!CAREER_MODE_LOCKED && <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>}
@@ -11567,6 +11621,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-carreira-liberado',
+    date: 'Novembro de 2026',
+    title: 'Modo Carreira liberado pra todo mundo + elencos 100% atualizados',
+    desc: 'O Modo Carreira saiu da manutenção e já está disponível pra qualquer jogador. Os 40 clubes (Série A e B) tiveram o elenco inteiro substituído por dados reais e atualizados do Transfermarkt — nome, posição, idade, overall e valor de mercado de cada um dos mais de 1.300 jogadores. A Copa do Brasil também ficou mais realista: ida e volta agora acontecem em dias de calendário separados, igual no futebol de verdade, em vez de resolver os dois jogos juntos. E no fim de cada temporada tem um relatório completo — estatísticas do time, de cada jogador (jogos, gols, assistências, cartões) e quem subiu/caiu de divisão — antes de avançar pra próxima.',
+  },
   {
     id: '2026-11-copa-do-brasil-carreira',
     date: 'Novembro de 2026',
