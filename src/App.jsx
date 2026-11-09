@@ -241,7 +241,7 @@ const WEEKLY_TEAMS = [
     label: '34ª Rodada',
     sourceLabel: 'Notas Sofascore',
     players: [
-      { teamId: 'saopaulo2026', name: 'Rafael', posLabel: 'Goleiro' },
+      { teamId: 'saopaulo2026', name: 'Rafael Pires', posLabel: 'Goleiro' },
       { teamId: 'palmeiras2026', name: 'Khellven', posLabel: 'Lateral-Direito' },
       { teamId: 'chapecoense2026', name: 'Kauan Faria', posLabel: 'Zagueiro' },
       { teamId: 'cruzeiro2026', name: 'Lucas Romero', posLabel: 'Zagueiro' },

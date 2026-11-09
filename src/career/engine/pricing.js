@@ -24,12 +24,12 @@ export function computeFatorOverall(ovr) {
   return Math.pow(ovr / 75, 3.5);
 }
 
-// Jogador real do elenco-base (os ~400 de teams.js) não tem idade
-// conhecida — nenhum tem o campo `age`. Decisão deliberada: tratar como se
-// estivesse na faixa 22-28 (fator 1.2), em vez de reescanear idade real de
-// centenas de jogadores no Transfermarkt (fora de escopo). Só os jovens
-// gerados pela categoria de base (src/career/engine/youth.js) carregam
-// `age` de verdade e usam a fórmula completa abaixo.
+// Boa parte do elenco-base (os ~400 de teams.js) já tem idade real (`age`)
+// preenchida clube a clube pelo usuário. Clubes ainda sem essa atualização
+// continuam sem o campo `age` — pra esses, trata como se estivesse na faixa
+// 22-28 (fator 1.2) em vez de usar uma idade inventada. Jovens gerados pela
+// categoria de base (src/career/engine/youth.js) sempre carregam `age` de
+// verdade e usam a fórmula completa abaixo.
 export const LEGACY_PLAYER_DEFAULT_FATOR_IDADE = 1.2;
 
 export function computeFatorIdade(age) {
