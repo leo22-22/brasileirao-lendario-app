@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { TEAMS } from '../data/teams.js';
 import { ClubPickerScreen } from './screens/ClubPickerScreen.jsx';
 import { CareerStartScreen } from './screens/CareerStartScreen.jsx';
+import { CareerLoadScreen } from './screens/CareerLoadScreen.jsx';
 import { CareerHub, eventLine } from './screens/CareerHub.jsx';
 import { CareerAdvanceModal } from './components/CareerAdvanceModal.jsx';
 import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
@@ -20,7 +21,7 @@ import { CareerCalendarScreen } from './screens/CareerCalendarScreen.jsx';
 import { CareerCopaScreen } from './screens/CareerCopaScreen.jsx';
 import { CareerYouthScreen } from './screens/CareerYouthScreen.jsx';
 import { CareerTransferMarket } from './screens/CareerTransferMarket.jsx';
-import { loadCareerSave, saveCareerSave, clearCareerSave } from './state/careerStorage.js';
+import { loadCareerSave, saveCareerSave, listCareerSaves, loadCareerSaveBySeed, setActiveCareerSeed, deleteCareerSave } from './state/careerStorage.js';
 import {
   createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie,
   simulateUserCopaTieLeg1, simulateUserCopaTieLeg2, finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2,
@@ -52,6 +53,12 @@ export function CareerApp({ onExit, onHudChange }) {
   // termina (handleAdvanceDone) ou é interrompida (handleAdvanceStop) — ver
   // esses handlers pra entender por quê.
   const [advancing, setAdvancing] = useState(null);
+  // Lista de carreiras salvas pra tela de "Carregar carreira" — estado
+  // próprio (não um `listCareerSaves()` direto no render) porque apagar
+  // uma carreira que NÃO é a ativa não muda `save` (bailout do setState
+  // com o mesmo valor não re-renderiza), e sem isso a linha apagada
+  // continuava aparecendo na lista até alguma outra coisa forçar redraw.
+  const [savesList, setSavesList] = useState([]);
 
   useEffect(() => {
     if (save) saveCareerSave(save);
@@ -73,12 +80,43 @@ export function CareerApp({ onExit, onHudChange }) {
     setScreen('hub');
   }, []);
 
-  // "Nova carreira" na tela de entrada — apaga o save salvo pra sempre e
-  // manda pra escolha de clube, igual quem nunca jogou antes.
+  // "Nova carreira" na tela de entrada — NUNCA MAIS apaga a carreira atual
+  // (pedido explícito do usuário 2026-11-12: "permita criar mais de uma
+  // carreira também"), só manda pra escolha de clube; a carreira que
+  // estava ativa continua salva no próprio slot dela, intacta, e volta a
+  // aparecer na tela de "Carregar carreira" depois.
   const handleNewCareer = useCallback(() => {
-    clearCareerSave();
-    setSave(null);
     setScreen('picker');
+  }, []);
+
+  // "Carregar carreira" — lista todas as carreiras salvas (ver
+  // CareerLoadScreen) pra trocar de uma pra outra sem apagar nenhuma.
+  const handleOpenLoad = useCallback(() => {
+    setSavesList(listCareerSaves());
+    setScreen('load');
+  }, []);
+
+  const handleLoadCareer = useCallback((seed) => {
+    const loaded = loadCareerSaveBySeed(seed);
+    if (!loaded) return;
+    setActiveCareerSeed(seed);
+    setSave(loaded);
+    setScreen(loaded.screen || 'hub');
+  }, []);
+
+  // Apagar uma carreira é uma ação própria e explícita agora (antes era
+  // uma consequência escondida de "começar carreira nova") — se for a
+  // ativa, cai pra tela de escolha de clube (nenhuma carreira restando)
+  // ou assume a próxima mais recente como ativa (ainda existe alguma).
+  const handleDeleteCareer = useCallback((seed) => {
+    const nextActiveSeed = deleteCareerSave(seed);
+    setSavesList(listCareerSaves());
+    setSave(prev => {
+      if (!prev || prev.seed !== seed) return prev;
+      const next = nextActiveSeed ? loadCareerSaveBySeed(nextActiveSeed) : null;
+      setScreen(next ? 'start' : 'picker');
+      return next;
+    });
   }, []);
 
   // Resolve só 1 rodada a partir de `prev` — mesma função usada tanto pro
@@ -274,7 +312,11 @@ export function CareerApp({ onExit, onHudChange }) {
   }, []);
 
   if (!save || screen === 'picker') {
-    return <ClubPickerScreen onPick={handlePick} onBack={onExit} />;
+    // Voltar da escolha de clube: se já existe alguma carreira (chegou
+    // aqui via "Nova carreira"), volta pra tela de entrada dela em vez de
+    // sair do Modo Carreira inteiro — só sai de vez quando é a primeira
+    // carreira (nunca existiu nenhuma save ainda).
+    return <ClubPickerScreen onPick={handlePick} onBack={save ? () => setScreen('start') : onExit} />;
   }
 
   if (screen === 'start') {
@@ -283,7 +325,20 @@ export function CareerApp({ onExit, onHudChange }) {
         save={save}
         onContinue={() => setScreen(save.screen || 'hub')}
         onNewCareer={handleNewCareer}
+        onOpenLoad={handleOpenLoad}
         onBack={onExit}
+      />
+    );
+  }
+
+  if (screen === 'load') {
+    return (
+      <CareerLoadScreen
+        saves={savesList}
+        activeSeed={save?.seed}
+        onLoad={handleLoadCareer}
+        onDelete={handleDeleteCareer}
+        onBack={() => setScreen(save ? 'start' : 'picker')}
       />
     );
   }

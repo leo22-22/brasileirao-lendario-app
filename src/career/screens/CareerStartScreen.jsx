@@ -1,9 +1,11 @@
-// Tela de entrada do Modo Carreira quando já existe uma carreira salva —
-// "Continuar" (resume exatamente de onde parou) ou "Nova carreira" (apaga
-// a atual pra sempre e manda pra escolha de clube). Sem essa tela, não
-// tinha nenhum jeito de recomeçar: toda entrada no Modo Carreira (card da
-// home, pill do cabeçalho) carregava direto a carreira salva, sem opção.
-import { useState } from 'react';
+// Tela de entrada do Modo Carreira quando já existe uma carreira ativa —
+// "Continuar" (resume exatamente de onde parou), "Nova carreira" (cria
+// mais uma carreira do zero, num slot próprio — pedido explícito do
+// usuário 2026-11-12: "permita criar mais de uma carreira", NUNCA MAIS
+// apaga a atual) ou "Carregar outra carreira" (troca pra qualquer uma já
+// salva, ver CareerLoadScreen.jsx). Sem essa tela, não tinha nenhum jeito
+// de recomeçar: toda entrada no Modo Carreira (card da home, pill do
+// cabeçalho) carregava direto a carreira ativa, sem opção.
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { backButtonStyle } from '../components/styles.js';
@@ -12,8 +14,7 @@ function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
 }
 
-export function CareerStartScreen({ save, onContinue, onNewCareer, onBack }) {
-  const [confirmingNew, setConfirmingNew] = useState(false);
+export function CareerStartScreen({ save, onContinue, onNewCareer, onOpenLoad, onBack }) {
   const team = TEAMS.find(t => t.id === save.myClubId);
   const logo = CLUB_LOGOS[team.club];
   const club = save.clubs[save.myClubId];
@@ -35,26 +36,19 @@ export function CareerStartScreen({ save, onContinue, onNewCareer, onBack }) {
         ▶ Continuar carreira
       </button>
 
-      {!confirmingNew ? (
-        <button
-          onClick={() => setConfirmingNew(true)}
-          style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(244,241,234,0.7)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}
-        >
-          🆕 Começar uma carreira nova
-        </button>
-      ) : (
-        <div style={{ padding: '12px 14px', borderRadius: 10, background: 'rgba(224,80,80,0.08)', border: '1px solid rgba(224,80,80,0.3)' }}>
-          <p style={{ fontSize: 12.5, marginBottom: 10 }}>Isso apaga a carreira do {team.club} pra sempre. Tem certeza?</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={onNewCareer} style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: 'none', background: '#e05050', color: '#fff', fontWeight: 700, fontSize: 12.5, cursor: 'pointer' }}>
-              Sim, apagar e recomeçar
-            </button>
-            <button onClick={() => setConfirmingNew(false)} style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12.5, cursor: 'pointer' }}>
-              Cancelar
-            </button>
-          </div>
-        </div>
-      )}
+      <button
+        onClick={onOpenLoad}
+        style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: '1px solid rgba(111,184,224,0.35)', background: 'rgba(111,184,224,0.08)', color: '#6fb8e0', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', marginBottom: 10 }}
+      >
+        📂 Carregar outra carreira
+      </button>
+
+      <button
+        onClick={onNewCareer}
+        style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(244,241,234,0.7)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}
+      >
+        🆕 Começar uma carreira nova
+      </button>
     </div>
   );
 }

@@ -1,13 +1,70 @@
-// Persistência do Modo Carreira — chave PRÓPRIA e separada de `brl_save`
+// Persistência do Modo Carreira — chaves PRÓPRIAS e separadas de `brl_save`
 // (a do modo clássico/Atual 2026/Copa), seguindo a convenção `brl_<feature>`
 // já usada no projeto. Nunca lida por nenhum outro modo; nunca escreve em
 // `brl_save`.
+//
+// Multi-carreira (pedido explícito do usuário 2026-11-12: "permita criar
+// mais de uma carreira também e depois só clicar em carregar carreira") —
+// cada carreira vira um slot próprio (`brl_career_save_<seed>`, chaveado
+// pelo `save.seed` que toda carreira já tem desde sempre, nunca muda e é
+// único por construção — não precisou de nenhum campo novo no save pra
+// isso). Um índice (`brl_career_saves_index`) guarda a lista de seeds
+// existentes, e `brl_career_active_seed` guarda qual delas é "a atual"
+// (a que abre direto ao entrar no Modo Carreira, a mesma que já era
+// resumida antes dessa mudança). "Nova carreira" NUNCA mais apaga nada —
+// só cria mais um slot e marca ele como ativo; apagar uma carreira de
+// verdade agora é uma ação própria e explícita (ver deleteCareerSave),
+// disponível na tela de carregar carreira.
+//
+// Save de antes dessa mudança (chave única `brl_career_save`) é migrado
+// automaticamente na primeira leitura (ver migrateLegacyIfNeeded) — vira o
+// primeiro (e, até criar outra, único) slot do esquema novo, sem o jogador
+// perceber nada.
 import { buildSeasonCalendar } from '../engine/calendar.js';
 import { drawCopaBracket, COPA_DAYS } from '../engine/copaEngine.js';
 import { makePrng, hashSeed } from '../../App.jsx';
 import { TEAMS } from '../../data/teams.js';
 
-const KEY = 'brl_career_save';
+const LEGACY_KEY = 'brl_career_save';
+const INDEX_KEY = 'brl_career_saves_index';
+const ACTIVE_KEY = 'brl_career_active_seed';
+const slotKey = (seed) => `brl_career_save_${seed}`;
+
+function readIndex() {
+  try {
+    const raw = localStorage.getItem(INDEX_KEY);
+    const ids = raw ? JSON.parse(raw) : [];
+    return Array.isArray(ids) ? ids : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeIndex(ids) {
+  try {
+    localStorage.setItem(INDEX_KEY, JSON.stringify(ids));
+  } catch {
+    // ignora
+  }
+}
+
+function migrateLegacyIfNeeded() {
+  try {
+    const legacyRaw = localStorage.getItem(LEGACY_KEY);
+    if (!legacyRaw) return;
+    if (readIndex().length === 0) {
+      const legacy = JSON.parse(legacyRaw);
+      if (legacy?.seed) {
+        localStorage.setItem(slotKey(legacy.seed), legacyRaw);
+        writeIndex([legacy.seed]);
+        localStorage.setItem(ACTIVE_KEY, legacy.seed);
+      }
+    }
+    localStorage.removeItem(LEGACY_KEY);
+  } catch {
+    // ignora
+  }
+}
 
 // Idade real (`age`) foi preenchida em teams.js depois que varios saves já
 // existiam — o roster de um save é um clone tirado na criação da carreira
@@ -94,36 +151,96 @@ function backfill(save) {
   return next;
 }
 
-export function loadCareerSave() {
+function readSlot(seed) {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = localStorage.getItem(slotKey(seed));
     return raw ? backfill(JSON.parse(raw)) : null;
   } catch {
     return null;
   }
 }
 
+// Todas as carreiras salvas, mais recente jogada primeiro — pra tela de
+// "Carregar carreira" listar. Carrega o save inteiro de cada uma (não só
+// metadado) porque o motor não guarda um resumo separado; aceitável pelo
+// número baixo de carreiras que um jogador tende a ter por vez.
+export function listCareerSaves() {
+  migrateLegacyIfNeeded();
+  const ids = readIndex();
+  return ids
+    .map(readSlot)
+    .filter(Boolean)
+    .sort((a, b) => (b.calendarDay + b.season * 1000) - (a.calendarDay + a.season * 1000));
+}
+
+export function getActiveCareerSeed() {
+  migrateLegacyIfNeeded();
+  try {
+    return localStorage.getItem(ACTIVE_KEY);
+  } catch {
+    return null;
+  }
+}
+
+export function setActiveCareerSeed(seed) {
+  try {
+    localStorage.setItem(ACTIVE_KEY, seed);
+  } catch {
+    // ignora
+  }
+}
+
+// Carrega a carreira ativa (a que abre direto ao entrar no Modo Carreira,
+// igual sempre foi) — null se nunca existiu nenhuma.
+export function loadCareerSave() {
+  migrateLegacyIfNeeded();
+  const seed = getActiveCareerSeed();
+  return seed ? readSlot(seed) : null;
+}
+
+export function loadCareerSaveBySeed(seed) {
+  return readSlot(seed);
+}
+
+// Salva no PRÓPRIO slot da carreira (chaveado por `save.seed`) e marca ela
+// como a ativa — chamado a cada mudança de estado durante o jogo (ver
+// CareerApp.jsx), então "qual carreira é a atual" sempre acompanha a que
+// está sendo jogada agora mesmo.
 export function saveCareerSave(save) {
   try {
-    localStorage.setItem(KEY, JSON.stringify(save));
+    localStorage.setItem(slotKey(save.seed), JSON.stringify(save));
+    const ids = readIndex();
+    if (!ids.includes(save.seed)) writeIndex([...ids, save.seed]);
+    setActiveCareerSeed(save.seed);
   } catch {
     // localStorage indisponível/cheio — ignora, igual ao padrão já usado
     // pelo resto do app (brl_save, brl_difficulty etc.).
   }
 }
 
-export function clearCareerSave() {
+// Apaga uma carreira específica de vez (pedido explícito do usuário: ação
+// própria, separada de "começar carreira nova", que agora NUNCA apaga
+// nada sozinha) — se era a ativa, a próxima mais recente (se houver)
+// assume o lugar; devolve o seed que ficou ativo (ou null, sem nenhuma
+// carreira restante) pra quem chamou decidir a tela.
+export function deleteCareerSave(seed) {
   try {
-    localStorage.removeItem(KEY);
+    localStorage.removeItem(slotKey(seed));
+    const remaining = readIndex().filter(id => id !== seed);
+    writeIndex(remaining);
+    if (getActiveCareerSeed() === seed) {
+      const nextActive = remaining[remaining.length - 1] || null;
+      if (nextActive) setActiveCareerSeed(nextActive);
+      else localStorage.removeItem(ACTIVE_KEY);
+      return nextActive;
+    }
+    return getActiveCareerSeed();
   } catch {
-    // ignora
+    return null;
   }
 }
 
 export function hasCareerSave() {
-  try {
-    return !!localStorage.getItem(KEY);
-  } catch {
-    return false;
-  }
+  migrateLegacyIfNeeded();
+  return readIndex().length > 0;
 }
