@@ -66,15 +66,25 @@ function emptyTableRow(t) {
   return { id: t.id, label: t.label, club: t.club, clubLogo: t.clubLogo, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 };
 }
 
+// Seed aleatória por rodada de simulação — antes era fixa ('simulador-2026'),
+// o que fazia "recomeçar"/um save novo sempre produzir exatamente os mesmos
+// 41 resultados (pedido do usuário 2026-11-13: "ta dando apenas um resultado
+// sempre"). A seed fica salva no `save`, então dentro da MESMA rodada de
+// simulação o resultado de cada jogo continua determinístico (ver
+// `prepareMatch`), só varia entre uma rodada de simulação e outra.
+function randomSeed() {
+  return `sim2026-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
 // Estado inicial: tabela já com os 339 placares reais das rodadas 1-34
 // aplicados (mesma applyRoundToTable que qualquer jogo simulado usa, pra
 // nunca divergir do motor por um número copiado à mão) — o jogo adiado da
 // rodada 21 ainda NÃO entra aqui: ele é o primeiro item de
 // REMAINING_MATCHES, resolvido só quando o usuário jogar ele de verdade.
-function buildInitialState(teams) {
+function buildInitialState(teams, seed = randomSeed()) {
   const zeroedTable = teams.map(emptyTableRow);
   const table = applyRoundToTable(zeroedTable, REAL_RESULTS_2026_THROUGH_R34);
-  return { seed: 'simulador-2026', matchIdx: 0, table, log: [] };
+  return { seed, matchIdx: 0, table, log: [] };
 }
 
 function loadSave() {
@@ -105,10 +115,9 @@ function TeamCrest({ team, size = 22 }) {
 }
 
 // Monta o pacote de UMA partida (placar + timeline minuto a minuto já
-// prontos, mesmo formato que `legPackage`/CareerMatchDayScreen usam) — o
-// placar sai da MESMA seed determinística (matchPrng) que "Até o fim" usa
-// pra esse jogo, então assistir ao vivo ou pular pro resultado final nunca
-// diverge.
+// prontos) — o placar sai de uma seed determinística (matchPrng) derivada
+// da seed da rodada de simulação (`save.seed`), então assistir ao vivo ou
+// pular pro resultado final desse jogo nunca diverge.
 function prepareMatch(seed, teamById, m) {
   const homeTeam = teamById[m.homeId];
   const awayTeam = teamById[m.awayId];
@@ -373,20 +382,10 @@ export function Simulator2026App({ onExit }) {
     setPendingMatch(null);
   };
 
-  // "Até o fim" continua instantâneo (sem animação) — jogar os 41 jogos um
-  // por um ao vivo seria muito repetitivo pra quem só quer ver a tabela
-  // final, mesmo padrão do Modo Carreira ("Simular temporada até o fim").
-  const handleSimulateToEnd = () => setSave(prev => {
-    let next = prev;
-    while (next.matchIdx < totalMatches) {
-      const m = REMAINING_MATCHES[next.matchIdx];
-      const { result } = prepareMatch(next.seed, teamById, m);
-      next = applyResult(next, result);
-    }
-    return next;
-  });
-
-  const handleReset = () => {
+  // Reseta pra rodada 34 com uma seed NOVA (aleatória) — sem isso, recomeçar
+  // sempre dava os mesmos 41 resultados (seed fixa). Disponível a qualquer
+  // momento, não só quando a temporada termina.
+  const handleSimulateAgain = () => {
     setPendingMatch(null);
     setSave(buildInitialState(teams));
   };
@@ -428,23 +427,15 @@ export function Simulator2026App({ onExit }) {
       )}
 
       {!seasonOver && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-          <button
-            onClick={handlePlayMatch}
-            style={{ flex: 1, padding: '13px 0', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}
-          >▶ Jogar este jogo</button>
-          <button
-            onClick={handleSimulateToEnd}
-            style={{ padding: '13px 16px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}
-          >⏩ Até o fim</button>
-        </div>
-      )}
-      {seasonOver && (
         <button
-          onClick={handleReset}
-          style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 18 }}
-        >↺ Recomeçar simulação (volta pra rodada 34)</button>
+          onClick={handlePlayMatch}
+          style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}
+        >▶ Jogar este jogo</button>
       )}
+      <button
+        onClick={handleSimulateAgain}
+        style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 18 }}
+      >🔁 Simular tudo novamente{seasonOver ? '' : ' (recomeça da rodada 34)'}</button>
 
       {lastResults.length > 0 && (
         <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 18 }}>
