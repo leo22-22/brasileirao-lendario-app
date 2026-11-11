@@ -144,3 +144,29 @@ export function buildPitchSlots(formationKey) {
 
   return slots;
 }
+
+// Escala os 11 titulares a partir de um "pool" preferido (em ordem) pras
+// vagas de um esquema — 1ª passada tenta bater a posição PRIMÁRIA exata
+// de cada vaga; 2ª passada preenche o que sobrar com o melhor jogador
+// disponível, seja qual for a posição dele (garante sempre 11/11
+// preenchidos). Compartilhada entre a Formação do usuário
+// (CareerFormationScreen.jsx) e a escalação automática dos 39 clubes de
+// IA (teamForSim, simHelpers.js) — extraída pra cá depois de um bug real
+// (2026-11-12): a IA escalava só "top 11 por OVR" sem olhar posição
+// nenhuma, então dois goleiros bons podiam entrar titulares juntos (e um
+// lado do campo ficar sem ninguém) — qualquer seleção de time precisa
+// passar por uma vaga de cada posição de verdade, não só OVR bruto.
+export function autoFillFromPool(pool, slots) {
+  const used = new Set();
+  const starters = {};
+  for (const slot of slots) {
+    const match = pool.find(p => !used.has(p.name) && p.pos[0] === slot.realPos);
+    if (match) { starters[slot.key] = match.name; used.add(match.name); }
+  }
+  for (const slot of slots) {
+    if (starters[slot.key]) continue;
+    const any = pool.find(p => !used.has(p.name));
+    if (any) { starters[slot.key] = any.name; used.add(any.name); }
+  }
+  return starters;
+}

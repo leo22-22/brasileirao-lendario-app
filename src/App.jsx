@@ -1725,6 +1725,38 @@ export function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   };
 }
 
+function poissonPmf(k, lambda) {
+  let p = Math.exp(-lambda);
+  for (let i = 1; i <= k; i++) p *= lambda / i;
+  return p;
+}
+
+// Chance de vitória/empate/derrota ANTES da partida rolar — mesma fórmula
+// exata de `simAiMatch` (diff*0.042, vantagem de casa, rivalidade), só que
+// somando a distribuição de Poisson dos dois times (gols 0-10 cada) pra
+// cada resultado possível, em vez de sortear UMA amostra. Só pra exibir
+// uma prévia informativa (ex. Modo Carreira) — a simulação de verdade
+// continua usando poissonSample normalmente, isso nunca decide nada.
+export function matchOutcomeProbabilities(homeTeam, awayTeam) {
+  const diff = homeTeam.ovr - awayTeam.ovr;
+  let homeExp = Math.max(0.2, 1.3 + diff * 0.042) * HOME_ADVANTAGE;
+  let awayExp = Math.max(0.2, 1.3 - diff * 0.042);
+  if (isRivalryMatch(homeTeam.club, awayTeam.club)) { homeExp *= RIVALRY_BOOST; awayExp *= RIVALRY_BOOST; }
+  const MAX_GOALS = 10;
+  let homeWin = 0, draw = 0, awayWin = 0;
+  for (let h = 0; h <= MAX_GOALS; h++) {
+    const ph = poissonPmf(h, homeExp);
+    for (let a = 0; a <= MAX_GOALS; a++) {
+      const p = ph * poissonPmf(a, awayExp);
+      if (h > a) homeWin += p;
+      else if (h === a) draw += p;
+      else awayWin += p;
+    }
+  }
+  const total = homeWin + draw + awayWin;
+  return { homeWin: homeWin / total, draw: draw / total, awayWin: awayWin / total };
+}
+
 // Funde os gols de simAiMatch (jogos simulados em segundo plano, sem
 // minuto a minuto) nos rankings de artilheiros/assistências — sem isso esses
 // rankings só contavam os gols do próprio jogo do usuário, ficando vazios

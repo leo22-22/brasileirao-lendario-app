@@ -9,6 +9,16 @@ import { TEAMS } from '../../data/teams.js';
 import { simAiMatch, teamStrength, buildLiveMatchEvents, makePrng, hashSeed } from '../../App.jsx';
 import { playerSeasonStats } from './seasonStats.js';
 import { POS_ORDER } from '../../lib/format.js';
+import { buildPitchSlots, autoFillFromPool } from './formations.js';
+
+// Esquema usado só pra garantir uma escalação de verdade pra IA (1 de cada
+// posição, nunca 2 goleiros titulares) — bug real reportado 2026-11-12:
+// "top 11 por OVR" sem olhar posição podia escalar 2 goleiros juntos (e
+// deixar um lado do campo vazio). Mesmo esquema padrão que uma carreira
+// nova começa pro PRÓPRIO usuário (DEFAULT_FORMATION, CareerFormationScreen.jsx)
+// — um só pra todos os 39 clubes de IA, sem modelar tática por clube (fora
+// do escopo: o motor não escolhe "estilo de jogo" nenhum).
+const AI_FORMATION_KEY = '4-3-3-misto';
 
 const OUTFIELD_POS = POS_ORDER.filter(p => p !== 'GOL');
 // Os 40 elencos reais de 2026 (Série A+B) têm um spread de OVR bem mais
@@ -134,8 +144,11 @@ export function teamForSim(save, clubId) {
       .filter(p => p && !starterSet.has(p.name));
   } else {
     const sorted = [...roster].sort((a, b) => b.ovr - a.ovr);
-    starters = sorted.slice(0, 11);
-    bench = sorted.slice(11, 11 + BENCH_SIZE);
+    const slots = buildPitchSlots(AI_FORMATION_KEY);
+    const assignment = autoFillFromPool(sorted, slots);
+    const starterNames = new Set(Object.values(assignment));
+    starters = sorted.filter(p => starterNames.has(p.name));
+    bench = sorted.filter(p => !starterNames.has(p.name)).slice(0, BENCH_SIZE);
     if (!isMine) {
       const rand = makePrng(hashSeed(`${save.seed}|rotation|${clubId}|${save.calendarDay}`));
       ({ starters, bench } = rotateLineup(starters, bench, save, clubId, rand));

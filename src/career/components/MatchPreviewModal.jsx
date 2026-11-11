@@ -9,6 +9,7 @@ import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { posColor, ovrColor, posOrderIndex } from '../../lib/format.js';
 import { teamForSim, clubForm } from '../engine/simHelpers.js';
+import { matchOutcomeProbabilities } from '../../App.jsx';
 
 // Cópia local de TeamCrest/FormDots (CareerHub.jsx) — evita import
 // circular entre a tela e este modal (o hub é quem abre o modal).
@@ -61,8 +62,10 @@ export function MatchPreviewModal({ save, division, homeId, awayId, onClose }) {
   const awayTeam = TEAMS.find(t => t.id === awayId);
   const homeSim = teamForSim(save, homeId);
   const awaySim = teamForSim(save, awayId);
-  const total = homeSim.ovr + awaySim.ovr;
-  const homePct = total > 0 ? Math.round((homeSim.ovr / total) * 100) : 50;
+  const odds = matchOutcomeProbabilities(homeSim, awaySim);
+  const homeWinPct = Math.round(odds.homeWin * 100);
+  const drawPct = Math.round(odds.draw * 100);
+  const awayWinPct = Math.max(0, 100 - homeWinPct - drawPct);
   const homeForm = clubForm(division, homeId, 5);
   const awayForm = clubForm(division, awayId, 5);
   const homePos = division.table.findIndex(r => r.id === homeId) + 1;
@@ -108,15 +111,17 @@ export function MatchPreviewModal({ save, division, homeId, awayId, onClose }) {
         </div>
 
         <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 18 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, fontWeight: 600, opacity: 0.7, marginBottom: 6 }}>
-            <span>Força ({homePct}%){homeSim.ovr > awaySim.ovr * 1.001 ? ' 📈' : ''}</span>
-            <span>Força ({100 - homePct}%){awaySim.ovr > homeSim.ovr * 1.001 ? ' 📈' : ''}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, fontWeight: 600, opacity: 0.85, marginBottom: 6 }}>
+            <span style={{ color: 'rgba(244,241,234,0.9)' }}>Vitória {homeTeam.club} {homeWinPct}%</span>
+            <span style={{ opacity: 0.6 }}>Empate {drawPct}%</span>
+            <span style={{ color: '#d4a23c' }}>Vitória {awayTeam.club} {awayWinPct}%</span>
           </div>
           <div style={{ width: '100%', height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', display: 'flex' }}>
-            <div style={{ width: `${homePct}%`, background: 'rgba(255,255,255,0.35)' }} />
-            <div style={{ width: `${100 - homePct}%`, background: 'linear-gradient(90deg, #d4a23c, #f0c868)' }} />
+            <div style={{ width: `${homeWinPct}%`, background: 'rgba(255,255,255,0.4)' }} />
+            <div style={{ width: `${drawPct}%`, background: 'rgba(255,255,255,0.15)' }} />
+            <div style={{ width: `${awayWinPct}%`, background: 'linear-gradient(90deg, #d4a23c, #f0c868)' }} />
           </div>
-          <div style={{ fontSize: 10, opacity: 0.4, marginTop: 6, textAlign: 'center' }}>Força de elenco já considera a fase recente de cada time (sequência de resultados).</div>
+          <div style={{ fontSize: 10, opacity: 0.4, marginTop: 6, textAlign: 'center' }}>Chance calculada a partir da força de cada elenco (já considera a fase recente/moral) e do fator casa.</div>
         </div>
 
         <div style={{ display: 'flex', gap: 20 }}>

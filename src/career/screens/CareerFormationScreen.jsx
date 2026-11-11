@@ -17,30 +17,10 @@
 // qualquer edição aqui).
 import { useMemo, useState } from 'react';
 import { ovrColor, posColor, posOrderIndex } from '../../lib/format.js';
-import { FORMATIONS, buildPitchSlots } from '../engine/formations.js';
+import { FORMATIONS, buildPitchSlots, autoFillFromPool } from '../engine/formations.js';
 import { backButtonStyle } from '../components/styles.js';
 
 const DEFAULT_FORMATION = '4-3-3-misto';
-
-// Escala os 11 titulares a partir de um "pool" preferido (em ordem) pras
-// vagas do esquema atual — 1ª passada tenta bater a posição exata de cada
-// vaga; 2ª passada preenche o que sobrar com o melhor jogador disponível,
-// seja qual for a posição dele (garante sempre 11/11 preenchidos de
-// largada, pro usuário editar a partir daí em vez de começar do zero).
-function autoFillFromPool(pool, slots) {
-  const used = new Set();
-  const starters = {};
-  for (const slot of slots) {
-    const match = pool.find(p => !used.has(p.name) && p.pos[0] === slot.realPos);
-    if (match) { starters[slot.key] = match.name; used.add(match.name); }
-  }
-  for (const slot of slots) {
-    if (starters[slot.key]) continue;
-    const any = pool.find(p => !used.has(p.name));
-    if (any) { starters[slot.key] = any.name; used.add(any.name); }
-  }
-  return starters;
-}
 
 // Reconstrói o titular de cada vaga ao abrir a tela. Se o esquema salvo
 // bate com o atual, reaproveita a vaga EXATA de cada titular — mesma
