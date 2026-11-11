@@ -8,6 +8,7 @@
 // número aqui vem de algo que o save realmente guarda (força de elenco por
 // OVR médio, valor de mercado somado, retrospecto real das últimas 3
 // rodadas, etc.).
+import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { formatCalendarDay } from '../engine/calendar.js';
@@ -17,6 +18,7 @@ import { clubForm } from '../engine/simHelpers.js';
 import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
 import { isTransferWindowOpen } from '../engine/calendar.js';
 import { backButtonStyle } from '../components/styles.js';
+import { MatchPreviewModal } from '../components/MatchPreviewModal.jsx';
 
 function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
@@ -159,13 +161,25 @@ function FormDots({ form }) {
   );
 }
 
-function NextMatchCard({ save, division, seasonOver, nextMatch }) {
+function NextMatchCard({ save, division, seasonOver, nextMatch, onOpenPreview }) {
   const homePower = nextMatch ? squadPower(save, nextMatch.homeId) : 0;
   const awayPower = nextMatch ? squadPower(save, nextMatch.awayId) : 0;
   const homePct = nextMatch ? Math.round((homePower / (homePower + awayPower)) * 100) : 50;
+  // Clicável (pedido explícito do usuário 2026-11-12) — abre a prévia do
+  // confronto (MatchPreviewModal): força de cada lado já com moral, time
+  // titular previsto, posição na tabela e últimos 5 jogos.
+  const clickable = !seasonOver && !!nextMatch;
   return (
-    <div className="career-hub-card" style={{ ...cardStyle, position: 'relative', overflow: 'hidden', borderLeft: '3px solid #d4a23c' }}>
-      <div style={{ ...cardLabelStyle, textAlign: 'center', marginBottom: 12, color: '#d4a23c', opacity: 0.85 }}>⚽ Próximo jogo</div>
+    <div
+      className="career-hub-card"
+      onClick={clickable ? () => onOpenPreview(nextMatch) : undefined}
+      title={clickable ? 'Ver prévia do confronto' : undefined}
+      style={{ ...cardStyle, position: 'relative', overflow: 'hidden', borderLeft: '3px solid #d4a23c', cursor: clickable ? 'pointer' : 'default' }}
+    >
+      <div style={{ ...cardLabelStyle, textAlign: 'center', marginBottom: 12, color: '#d4a23c', opacity: 0.85, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        ⚽ Próximo jogo
+        {clickable && <span style={{ fontSize: 9, opacity: 0.6, textTransform: 'none', fontWeight: 600, letterSpacing: 0 }}>· toque pra ver prévia</span>}
+      </div>
       {seasonOver ? (
         <div style={{ fontSize: 12.5, opacity: 0.7, textAlign: 'center', padding: '10px 0' }}>Temporada {save.season} terminada.</div>
       ) : nextMatch ? (
@@ -399,6 +413,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
   const suspendedStarters = noFormation ? [] : save.myStarters.filter(name => (save.suspensions?.[name] || 0) > 0);
   const hasSuspendedStarter = suspendedStarters.length > 0;
   const advanceBlocked = offerCount > 0 || noFormation || hasSuspendedStarter;
+  const [preview, setPreview] = useState(null); // null | { homeId, awayId }
   const dayEventsRich = (save.lastDayEvents || [])
     .map(ev => ({ type: ev.type, day: ev.day, text: eventLine(ev, save.myClubId) }))
     .filter(e => e.text);
@@ -447,10 +462,14 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
       `}</style>
 
       <div className="career-hub-col">
-        <NextMatchCard save={save} division={division} seasonOver={seasonOver} nextMatch={nextMatch} />
+        <NextMatchCard save={save} division={division} seasonOver={seasonOver} nextMatch={nextMatch} onOpenPreview={setPreview} />
         <LastGameCard save={save} division={division} />
         <MoneyMeter save={save} />
       </div>
+
+      {preview && (
+        <MatchPreviewModal save={save} division={division} homeId={preview.homeId} awayId={preview.awayId} onClose={() => setPreview(null)} />
+      )}
 
       <div className="career-hub-col">
         <button onClick={onExit} style={backButtonStyle}>← Sair da carreira</button>
