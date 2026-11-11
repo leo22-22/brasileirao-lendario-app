@@ -131,29 +131,30 @@ function resolveFinalMatchAuto(save, aId, bId, rand) {
   return { result: { aId, bId, winnerId, onPens, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals }, statsMatch: statsMatch(sim, aId, bId) };
 }
 
-// Dias (dia-do-ano, 1-365) de cada fase da Copa — espalhados mês sim, mês
-// não ao longo da temporada inteira (pedido do usuário, 2026-11-06: "copa
-// do brasil geralmente acontece mes sim e mes nao"), em vez de amontoados
-// nas primeiras semanas como antes. Fixos (não derivados de
-// `seasonCalendar`) porque a estrutura do calendário da temporada já é
-// sempre a mesma (38 rodadas semanais a partir de 1º de fevereiro, pulando
-// julho-agosto) independente do sorteio — só os CONFRONTOS de cada rodada
-// mudam, nunca os dias.
+// Dias (dia-do-ano, 1-365) de cada fase da Copa — recalculados pra bater
+// com o mês de cada fase no calendário real que o usuário colou
+// (2026-11-11): Primeira Fase em janeiro, 16avos ("5ª Fase", estreia dos
+// clubes da Série A) em fevereiro, Oitavas em abril, Quartas em setembro,
+// Semifinal em outubro, Final (jogo único) em dezembro — depois que
+// `buildSeasonCalendar` (calendar.js) passou a usar as datas reais da
+// Série A 2026 (18 rodadas até 31/mai, pausa pra Copa do Mundo, 20
+// rodadas de 22/jul a 2/dez). Fixos (não derivados de `seasonCalendar`)
+// porque a estrutura da temporada já é sempre a mesma independente do
+// sorteio — só os CONFRONTOS de cada rodada mudam, nunca os dias.
 //
-// Cada fase de mata-mata (todas menos a Final) agora tem DOIS dias — ida e
-// volta, ~1 semana de calendário apart — em vez de resolver as duas pernas
-// no mesmo dia (pedido explícito do usuário, 2026-11-09: "ta simulando os
-// dois um seguinte do outro e nao e assim na pratica"). A Final continua
-// jogo único, um dia só. Conferido um a um (todos os 11 dias) pra nenhum
-// cair em cima de uma rodada do Brasileirão nem de outro dia da Copa —
-// `advanceDay` só trata UM evento por dia.
+// Cada fase de mata-mata (todas menos a Final) tem DOIS dias — ida e
+// volta, ~1 semana de calendário apart — em vez de resolver as duas
+// pernas no mesmo dia (pedido explícito do usuário, 2026-11-09). A Final
+// continua jogo único, um dia só. Conferido um a um (todos os 11 dias)
+// pra nenhum cair em cima de uma rodada do Brasileirão nem de outro dia
+// da Copa — `advanceDay` só trata UM evento por dia.
 export const COPA_DAYS = [
-  [40, 47], // Primeira Fase
-  [100, 107], // 16avos de Final
-  [160, 167], // Oitavas de Final
-  [220, 227], // Quartas de Final (dentro do buraco jul-ago, sem Brasileirão)
-  [280, 287], // Semifinal
-  [340], // Final — jogo único, sem volta
+  [14, 21], // Primeira Fase (janeiro)
+  [38, 45], // 16avos de Final (fevereiro — estreia dos clubes da Série A)
+  [95, 102], // Oitavas de Final (abril)
+  [248, 255], // Quartas de Final (setembro)
+  [290, 297], // Semifinal (outubro)
+  [349], // Final — jogo único, sem volta (dezembro, depois da última rodada do Brasileirão em 2/dez)
 ];
 
 // Dia-do-ano em que a fase ATUAL da Copa deve ser resolvida — ida ou volta,

@@ -23,7 +23,7 @@ import { decideAiListings, decideAiOffers } from './aiTransfers.js';
 import { buildSeasonCalendar, isTransferWindowOpen } from './calendar.js';
 import { teamForSim, resolveTwoLegTieAuto, prepareTwoLegTieForUser, legPackage } from './simHelpers.js';
 import { drawCopaBracket, playCopaRoundIda, playCopaRoundVolta, finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2, copaCurrentDay, COPA_ROUND_LABELS } from './copaEngine.js';
-import { accumulateMatchStats } from './seasonStats.js';
+import { accumulateMatchStats, playerSeasonStats } from './seasonStats.js';
 import { buildSeasonReport } from './seasonReport.js';
 import { returnDueLoans, returnSeasonLoans, generateUserLoanOffer, acceptLoanOffer, LOAN_OFFER_CHANCE } from './loans.js';
 
@@ -156,19 +156,22 @@ export function playRound(save, roundIdx, userMatch) {
 // Chance BASE de surgir uma sondagem por um jogador do usuário em cada
 // dia dentro de uma janela aberta — vale pro elenco inteiro (inclusive
 // jogador fora da lista de transferências, que ainda pode ser sondado,
-// só que mais raro). Baixa o bastante pra não virar uma proposta por
-// dia, alta o bastante pra aparecer algumas vezes em 31+62 dias de
-// janela por temporada.
-const DAILY_OFFER_CHANCE = 0.08;
+// só que mais raro). Subida de 0.08 pra 0.14 (pedido explícito do usuário
+// 2026-11-11: "ta chegando muito pouca proposta") — o valor antigo
+// deixava a janela inteira (31+21 dias de verdade, depois do calendário
+// real da Fase 7) quase sempre sem nenhuma oferta.
+const DAILY_OFFER_CHANCE = 0.14;
 
 // Chance EXTRA, só pra quem está na lista de transferências (ver
 // toggleTransferList) — soma com a chance base só pra esse grupo, então
-// um jogador listado tem 0.08+0.04 = 0.12 de chance total, exatamente
-// 50% mais alta que um jogador fora da lista. É um rolamento
-// INDEPENDENTE do geral (ver advanceDay), não um multiplicador — assim
-// dá pra sair proposta tanto pelo rolamento geral quanto por este no
-// mesmo dia, inclusive por jogadores diferentes.
-const LISTED_OFFER_BONUS_CHANCE = 0.04;
+// um jogador listado tem 0.14+0.08 = 0.22 de chance total por dia de
+// janela aberta. É um rolamento INDEPENDENTE do geral (ver advanceDay),
+// não um multiplicador — assim dá pra sair proposta tanto pelo
+// rolamento geral quanto por este no mesmo dia, inclusive por
+// jogadores diferentes. Subida de 0.04 pra 0.08 junto com a chance base
+// acima (mesmo pedido) — listar continua valendo bem mais a pena
+// (quase o dobro da chance total de quem não tá listado).
+const LISTED_OFFER_BONUS_CHANCE = 0.08;
 
 // Quantas das últimas propostas recentes (pelo jogador do usuário) ficam
 // em "cooldown" — mesmo quando um jogador é consistentemente o candidato
@@ -502,7 +505,8 @@ export function endOfSeason(save) {
     const survivors = [];
     const retiredNames = [];
     for (const p of roster) {
-      const aged = applySeasonAging(p, agingRand);
+      const stats = playerSeasonStats(next.seasonPlayerStats, clubId, p.name);
+      const aged = applySeasonAging(p, agingRand, stats);
       const isMine = clubId === next.myClubId;
       if (!aged) {
         if (p.age != null) retiredNames.push(p.name);

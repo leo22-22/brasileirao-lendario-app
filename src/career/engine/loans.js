@@ -88,8 +88,11 @@ export function toggleLoanList(save, playerName) {
 // empréstimo (ver toggleLoanList) num dia dentro de uma janela aberta —
 // só pra quem está listado (diferente da compra, que também sonda fora da
 // lista): empréstimo sem lista nunca gera proposta, por ser uma saída
-// deliberada do usuário, não uma sondagem geral de mercado.
-export const LOAN_OFFER_CHANCE = 0.06;
+// deliberada do usuário, não uma sondagem geral de mercado. Subida de
+// 0.06 pra 0.10 (pedido explícito do usuário 2026-11-11: "ta chegando
+// muito pouca proposta... principalmente pra aqueles que sao
+// adicionados a lista").
+export const LOAN_OFFER_CHANCE = 0.10;
 
 // Sonda se algum clube de IA quer pegar emprestado um jogador da lista de
 // empréstimo do usuário hoje. Sorteia 1 jogador listado + 1 clube entre os

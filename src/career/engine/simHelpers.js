@@ -8,6 +8,44 @@
 import { TEAMS } from '../../data/teams.js';
 import { simAiMatch, teamStrength, buildLiveMatchEvents } from '../../App.jsx';
 
+// Retrospecto real das últimas N rodadas JÁ JOGADAS de um clube (mais
+// recente primeiro) — movido pra cá (antes vivia só em CareerHub.jsx,
+// pra alimentar os indicadores V/E/D do card de próximo jogo) porque
+// `clubMoraleBonus` (motor) precisa da mesma sequência; um lugar só evita
+// duas implementações da mesma busca em division.results.
+export function clubForm(division, clubId, count = 3) {
+  const form = [];
+  for (let r = division.round - 1; r >= 0 && form.length < count; r--) {
+    const m = (division.results?.[r] || []).find(x => x.homeId === clubId || x.awayId === clubId);
+    if (!m) continue;
+    const isHome = m.homeId === clubId;
+    const gf = isHome ? m.homeGoals : m.awayGoals;
+    const ga = isHome ? m.awayGoals : m.homeGoals;
+    form.push(gf > ga ? 'V' : gf < ga ? 'D' : 'E');
+  }
+  return form;
+}
+
+// Bônus/penalidade de moral na força do time, pela sequência de resultados
+// do Brasileirão (não conta jogo de Copa do Brasil, que fica num histórico
+// separado) — pedido explícito do usuário (2026-11-11): time embalado joga
+// um pouco acima do seu nível de elenco, time afundado um pouco abaixo,
+// sem contar mais que a força de elenco em si (ainda o fator principal).
+// Regras checadas nessa ordem, a primeira que bater vale (não acumula):
+// invicto nos últimos 10 (V/E, nenhum D) = +10%; últimos 2 as duas vitórias
+// = +4%; últimos 5 sem nenhuma vitória = -5%; senão 0%.
+export function clubMoraleBonus(save, clubId) {
+  const divisionKey = save.clubs[clubId].division === 'A' ? 'divisionA' : 'divisionB';
+  const division = save[divisionKey];
+  const last10 = clubForm(division, clubId, 10);
+  if (last10.length === 10 && last10.every(r => r !== 'D')) return 0.10;
+  const last2 = clubForm(division, clubId, 2);
+  if (last2.length === 2 && last2.every(r => r === 'V')) return 0.04;
+  const last5 = clubForm(division, clubId, 5);
+  if (last5.length === 5 && last5.every(r => r !== 'V')) return -0.05;
+  return 0;
+}
+
 // Monta o "time pra simular" de um clube a partir do save — nunca lê
 // team.players de TEAMS, só save.clubs[id].roster (a cópia mutável).
 // Titulares = os 11 de maior OVR (sem se preocupar com formação/posição) —
@@ -31,12 +69,13 @@ export function teamForSim(save, clubId) {
     ordered = [...roster].sort((a, b) => b.ovr - a.ovr);
   }
   const players = ordered.map((p, i) => ({ ...p, club: base.club, isBench: i >= 11 }));
+  const baseOvr = teamStrength(Object.fromEntries(players.map((p, i) => [i, p])));
   return {
     id: clubId,
     label: base.label,
     club: base.club,
     color: base.colors?.p,
-    ovr: teamStrength(Object.fromEntries(players.map((p, i) => [i, p]))),
+    ovr: Math.round(baseOvr * (1 + clubMoraleBonus(save, clubId)) * 10) / 10,
     players,
   };
 }

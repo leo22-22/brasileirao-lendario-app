@@ -13,6 +13,7 @@ import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { formatCalendarDay } from '../engine/calendar.js';
 import { computePlayerValue } from '../engine/pricing.js';
 import { COPA_ROUND_LABELS } from '../engine/copaEngine.js';
+import { clubForm } from '../engine/simHelpers.js';
 import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
 import { isTransferWindowOpen } from '../engine/calendar.js';
 import { backButtonStyle } from '../components/styles.js';
@@ -85,23 +86,6 @@ function lastMatchResult(save, division) {
   const myGoals = isHome ? m.homeGoals : m.awayGoals;
   const oppGoals = isHome ? m.awayGoals : m.homeGoals;
   return { oppId, myGoals, oppGoals, isHome, res: myGoals > oppGoals ? 'V' : myGoals < oppGoals ? 'D' : 'E' };
-}
-
-// Retrospecto real das últimas N rodadas JÁ JOGADAS de um clube (mais
-// recente primeiro) — usado pros indicadores V/E/D do card de próximo
-// jogo, igual o mockup pedia, mas com o histórico de verdade em vez de
-// inventado.
-function clubForm(division, clubId, count = 3) {
-  const form = [];
-  for (let r = division.round - 1; r >= 0 && form.length < count; r--) {
-    const m = (division.results?.[r] || []).find(x => x.homeId === clubId || x.awayId === clubId);
-    if (!m) continue;
-    const isHome = m.homeId === clubId;
-    const gf = isHome ? m.homeGoals : m.awayGoals;
-    const ga = isHome ? m.awayGoals : m.homeGoals;
-    form.push(gf > ga ? 'V' : gf < ga ? 'D' : 'E');
-  }
-  return form;
 }
 
 // Força aproximada do elenco (média de OVR dos 11 melhores, fora da
