@@ -7534,8 +7534,8 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
               Livre com roxo (customização livre). */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }} className="mode-cards-grid">
             {[
-              { id: 'serieab', icon: '🏆', color: mc, title: 'Brasileirão', sub: '40 times · Série A e B', onConfirm: () => { onSetGameMode('serieab'); onClearLivre(); onStart(); } },
-              { id: 'copa', icon: '⚔️', color: '#5dade2', title: 'Copa do Brasil', sub: '32 times · Mata-mata', onConfirm: () => { onSetGameMode('copa'); onClearLivre(); onStart(); } },
+              { id: 'serieab', icon: '🏆', color: mc, title: 'Brasileirão Lendário', sub: '40 times · Série A e B', onConfirm: () => { onSetGameMode('serieab'); onClearLivre(); onStart(); } },
+              { id: 'copa', icon: '⚔️', color: '#5dade2', title: 'Copa do Brasil Lendária', sub: '32 times · Mata-mata', onConfirm: () => { onSetGameMode('copa'); onClearLivre(); onStart(); } },
               { id: 'atual2026', icon: '📅', color: '#e8a33d', title: 'Brasileirão Atual', sub: '20 times reais · 2026', onConfirm: () => onOpenSerieAtual() },
               // Sem seletor de dificuldade e sem escolher clube (pedido
               // explícito do usuário 2026-11-12: "simular literalmente
@@ -7580,7 +7580,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
           <span style={{ fontSize: 28 }}>👥</span>
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>Jogar com Amigos</div>
-            <div style={{ fontSize: 11, opacity: 0.6 }}>Brasileirão (até 20) · Copa do Brasil (até 32) · Sala por código</div>
+            <div style={{ fontSize: 11, opacity: 0.6 }}>Brasileirão (até 20) · Copa do Brasil (até 32) · Brasileirão Atual (até 20) · Sala por código</div>
           </div>
           <span style={{ marginLeft: 'auto', fontSize: 18, opacity: 0.5 }}>→</span>
         </button>
