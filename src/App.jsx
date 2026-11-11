@@ -7298,9 +7298,22 @@ const ACHIEVEMENTS_PREVIEW_LIMIT = 11;
 // acima) nos dois lugares em que a home e o ranking mostravam esse tipo de
 // número de cara.
 function GameStatsBar({ style }) {
+  const items = [
+    ['🏟️', GAME_STATS.clubs, 'clubes'],
+    ['📚', GAME_STATS.squads, 'elencos históricos'],
+    ['⚽', GAME_STATS.players.toLocaleString('pt-BR'), 'jogadores'],
+  ];
   return (
     <div style={style}>
-      <b>{GAME_STATS.clubs}</b> clubes · <b>{GAME_STATS.squads}</b> elencos históricos · <b>{GAME_STATS.players.toLocaleString('pt-BR')}</b> jogadores
+      {items.map(([icon, n, label], i) => (
+        <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px 0' }}>
+          {i > 0 && <span style={styles.gameStatsDivider} />}
+          <span style={styles.gameStatsPill}>
+            <span style={{ fontSize: 12, opacity: 0.85 }}>{icon}</span>
+            <b style={{ color: '#F4F1EA' }}>{n}</b> {label}
+          </span>
+        </span>
+      ))}
     </div>
   );
 }
@@ -7330,12 +7343,14 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
     <>
       <div style={styles.introCard} className="intro-card-mob">
         <div style={{ ...styles.introTopBar, background: `linear-gradient(90deg, transparent, ${mc}, transparent)` }} />
+        <div style={styles.introGlow} />
         {/* "Continuar"/"Desafio do Dia" moraram aqui antes — foram pro
             cabeçalho (só aparecem na home) pra não competir com o título de
             marketing logo abaixo, deixando esse topo só com o selo do jogo. */}
+        <div style={{ position: 'relative', zIndex: 1 }}>
         <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2024</div>
         <GameStatsBar style={styles.gameStatsBar} />
-        <h1 style={styles.introTitle} className="intro-title-h">Monte o time lendário dos seus sonhos.</h1>
+        <h1 style={styles.introTitle} className="intro-title-h">Monte o time <span style={styles.introTitleAccent}>lendário</span> dos seus sonhos.</h1>
         <p style={styles.introLead}>
           Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
           e dispute uma liga completa com cronômetro ao vivo.
@@ -7351,7 +7366,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
             style={{
               position: 'relative', width: '100%', marginBottom: 20,
               display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px',
-              borderRadius: 14, border: '2px solid rgba(212,162,60,0.65)',
+              borderRadius: 16, border: '2px solid rgba(212,162,60,0.65)',
               background: 'linear-gradient(135deg, rgba(212,162,60,0.24), rgba(255,215,0,0.08))',
             }}
           >
@@ -7364,7 +7379,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
               aria-label="Fechar aviso"
               style={{ position: 'absolute', top: 6, right: 8, background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', fontSize: 18, lineHeight: 1, cursor: 'pointer', padding: 4 }}
             >×</button>
-            <span style={{ fontSize: 32, flexShrink: 0 }}>💼</span>
+            <span style={{ ...styles.modeIconBadge, width: 48, height: 48, fontSize: 24, background: 'rgba(212,162,60,0.18)', border: '1px solid rgba(212,162,60,0.4)' }}>💼</span>
             <button
               onClick={onOpenCareer}
               className="mode-card-hover"
@@ -7375,7 +7390,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
                 Elencos 100% reais e atualizados dos 40 clubes da Série A e B — orçamento, transferências, Copa do Brasil e categoria de base.
               </div>
             </button>
-            <span style={{ fontSize: 18, opacity: 0.6, color: '#F4F1EA', flexShrink: 0 }}>→</span>
+            <span style={{ ...styles.modeCardArrow, opacity: 0.6, color: '#F4F1EA' }}>→</span>
           </div>
         )}
 
@@ -7389,11 +7404,11 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
           style={{
             width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 24,
             display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
-            borderRadius: 12, border: '2px solid rgba(255,215,0,0.4)',
+            borderRadius: 16, border: '2px solid rgba(255,215,0,0.4)',
             background: 'linear-gradient(135deg, rgba(255,215,0,0.14), rgba(212,162,60,0.05))',
           }}
         >
-          <span style={{ fontSize: 30, flexShrink: 0 }}>🌟</span>
+          <span style={{ ...styles.modeIconBadge, width: 48, height: 48, fontSize: 24, background: 'rgba(255,215,0,0.16)', border: '1px solid rgba(255,215,0,0.35)' }}>🌟</span>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontWeight: 700, fontSize: 13.5, color: '#ffd700' }}>Seleção da {WEEKLY_TEAM_OF_THE_WEEK.label}</div>
             <div style={{ fontSize: 11.5, opacity: 0.75, color: '#F4F1EA', lineHeight: 1.4 }}>
@@ -7401,7 +7416,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
               os 11 melhores da rodada real do Brasileirão 2026 entram no draft com o card dourado
             </div>
           </div>
-          <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>
+          <span className="mode-card-arrow-el" style={{ ...styles.modeCardArrow, color: '#F4F1EA' }}>→</span>
         </button>
 
         {/* Cada passo com uma cor própria (azul → âmbar → dourado) em vez
@@ -7428,7 +7443,11 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
           ))}
         </div>
 
-        <div style={styles.introSectionLabel}>{TEAMS.length} times lendários no elenco</div>
+        <div style={styles.introSectionLabel}>
+          <span style={styles.introSectionLabelLine} />
+          {TEAMS.length} times lendários no elenco
+          <span style={styles.introSectionLabelLineR} />
+        </div>
         <div style={styles.introMarqueeWrap}>
           <div style={styles.introMarqueeTrack} className="marquee-track">
             {carouselTeams.map((t, i) => (
@@ -7451,13 +7470,13 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
               className="mode-card-hover"
               style={{
                 width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
-                padding: '14px 16px', marginBottom: 14, borderRadius: 12, color: '#F4F1EA',
+                padding: '14px 16px', marginBottom: 14, borderRadius: 16, color: '#F4F1EA',
                 border: `2px solid ${hexToRgba(mc, 0.4)}`, background: hexToRgba(mc, 0.08), cursor: 'pointer',
               }}
             >
               {myTeamLogo
-                ? <img src={myTeamLogo} alt="" style={{ width: 44, height: 44, borderRadius: 10, objectFit: 'cover', flexShrink: 0 }} />
-                : <span style={{ fontSize: 32, flexShrink: 0 }}>{myTeamBadge || '⭐'}</span>
+                ? <img src={myTeamLogo} alt="" style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }} />
+                : <span style={{ ...styles.modeIconBadge, width: 48, height: 48, fontSize: 24, background: hexToRgba(mc, 0.16), border: `1px solid ${hexToRgba(mc, 0.35)}` }}>{myTeamBadge || '⭐'}</span>
               }
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 700, fontSize: 14, color: mc }}>Ver meu Clube</div>
@@ -7465,11 +7484,11 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
                   {(currentUser.titles_brasileirao || 0) + (currentUser.titles_copa || 0)} títulos · {currentUser.seasons_played || 0} temporadas · histórico completo
                 </div>
               </div>
-              <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA' }}>→</span>
+              <span className="mode-card-arrow-el" style={{ ...styles.modeCardArrow, color: '#F4F1EA' }}>→</span>
             </button>
 
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={styles.homeSectionTitle}>Conquistas em destaque</div>
+              <div style={styles.homeSectionTitle}><span style={styles.homeSectionTitleBar} />Conquistas em destaque</div>
               <button onClick={() => setShowAchievements(true)} style={{ background: 'none', border: 'none', color: mc, fontSize: 11, cursor: 'pointer', padding: 0 }}>
                 Ver todas ({Object.keys(ACHIEVEMENT_CATALOG).length}) →
               </button>
@@ -7482,7 +7501,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
           </div>
         ) : (
           <div style={{
-            marginBottom: 28, padding: '14px 16px', borderRadius: 12,
+            marginBottom: 28, padding: '14px 16px', borderRadius: 16,
             border: '1px dashed rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.02)',
             fontSize: 12, opacity: 0.6, textAlign: 'center',
           }}>
@@ -7498,14 +7517,14 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
             ModeDifficultyModal, que já escolhe a dificuldade E entra no modo
             num só passo. */}
         <div style={{ marginBottom: 18 }}>
-          <div style={styles.homeSectionTitle}>Escolha o modo</div>
+          <div style={styles.homeSectionTitle}><span style={styles.homeSectionTitleBar} />Escolha o modo</div>
           <button
             onClick={() => onOpenCareer()}
             className={CAREER_MODE_LOCKED ? 'anim-rise' : 'mode-card-hover card-glow-pulse anim-rise'}
             style={{
               width: '100%', textAlign: 'left', cursor: CAREER_MODE_LOCKED ? 'default' : 'pointer', marginBottom: 10, position: 'relative',
-              display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
-              borderRadius: 12, border: `2px solid ${CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.15)' : 'rgba(212,162,60,0.4)'}`,
+              display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px',
+              borderRadius: 16, border: `2px solid ${CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.15)' : 'rgba(212,162,60,0.4)'}`,
               background: CAREER_MODE_LOCKED ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg, rgba(212,162,60,0.14), rgba(212,162,60,0.04))',
               opacity: CAREER_MODE_LOCKED ? 0.7 : 1,
             }}
@@ -7516,23 +7535,23 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
               background: CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.25)' : '#d4a23c',
               color: CAREER_MODE_LOCKED ? '#F4F1EA' : '#0B1A12',
             }}>{CAREER_MODE_LOCKED ? 'EM MANUTENÇÃO' : 'NOVO'}</span>
-            <span style={{ fontSize: 28, flexShrink: 0 }}>{CAREER_MODE_LOCKED ? '🔒' : '💼'}</span>
+            <span style={{ ...styles.modeIconBadge, width: 48, height: 48, fontSize: 24, background: CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.08)' : 'rgba(212,162,60,0.18)', border: `1px solid ${CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.15)' : 'rgba(212,162,60,0.4)'}` }}>{CAREER_MODE_LOCKED ? '🔒' : '💼'}</span>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2, color: CAREER_MODE_LOCKED ? '#F4F1EA' : '#d4a23c' }}>Modo Carreira</div>
+              <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 2, color: CAREER_MODE_LOCKED ? '#F4F1EA' : '#d4a23c' }}>Modo Carreira</div>
               <div style={{ fontSize: 11, opacity: 0.65, color: '#F4F1EA' }}>
                 {CAREER_MODE_LOCKED
                   ? 'Em manutenção — voltando em breve com mais melhorias. Sua carreira salva não foi perdida.'
                   : 'Orçamento, transferências e categoria de base · 40 clubes 100% reais e atualizados (Série A e B)'}
               </div>
             </div>
-            {!CAREER_MODE_LOCKED && <span style={{ fontSize: 18, opacity: 0.5, color: '#F4F1EA', flexShrink: 0 }}>→</span>}
+            {!CAREER_MODE_LOCKED && <span className="mode-card-arrow-el" style={{ ...styles.modeCardArrow, color: '#F4F1EA' }}>→</span>}
           </button>
           {/* Cada modo com uma cor própria (em vez dos 4 cards idênticos de
               antes, só diferenciados por ícone/texto) — Brasileirão fica
               com o dourado principal (é o modo "padrão"), Copa com azul
               (mata-mata), Atual com âmbar (calendário real/"ao vivo") e
               Livre com roxo (customização livre). */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }} className="mode-cards-grid">
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }} className="mode-cards-grid">
             {[
               { id: 'serieab', icon: '🏆', color: mc, title: 'Brasileirão Lendário', sub: '40 times · Série A e B', onConfirm: () => { onSetGameMode('serieab'); onClearLivre(); onStart(); } },
               { id: 'copa', icon: '⚔️', color: '#5dade2', title: 'Copa do Brasil Lendária', sub: '32 times · Mata-mata', onConfirm: () => { onSetGameMode('copa'); onClearLivre(); onStart(); } },
@@ -7552,11 +7571,11 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
                 className="mode-card-hover anim-rise"
                 style={{
                   '--rise-delay': `${80 + i * 70}ms`,
-                  textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10,
-                  padding: '12px 14px', borderRadius: 12, border: `2px solid ${hexToRgba(m.color, 0.3)}`, background: hexToRgba(m.color, 0.06),
+                  textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12,
+                  padding: '14px 14px', borderRadius: 16, border: `2px solid ${hexToRgba(m.color, 0.3)}`, background: hexToRgba(m.color, 0.06),
                 }}
               >
-                <span style={{ fontSize: 22, flexShrink: 0 }}>{m.icon}</span>
+                <span style={{ ...styles.modeIconBadge, background: hexToRgba(m.color, 0.18), border: `1px solid ${hexToRgba(m.color, 0.4)}` }}>{m.icon}</span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 1, color: m.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</div>
                   <div style={{ fontSize: 10.5, opacity: 0.6, color: '#F4F1EA', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.sub}</div>
@@ -7569,26 +7588,27 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
         {/* Jogar com Amigos */}
         <button
           onClick={onMultiPlayer}
+          className="mode-card-hover"
           style={{
             width: '100%', marginBottom: 20, padding: '14px 16px',
-            borderRadius: 12, border: '2px solid rgba(127,217,154,0.35)',
+            borderRadius: 16, border: '2px solid rgba(127,217,154,0.35)',
             background: 'rgba(127,217,154,0.06)', color: '#7fd99a',
-            cursor: 'pointer', textAlign: 'left', transition: 'all 0.15s',
+            cursor: 'pointer', textAlign: 'left',
             display: 'flex', alignItems: 'center', gap: 14,
           }}
         >
-          <span style={{ fontSize: 28 }}>👥</span>
+          <span style={{ ...styles.modeIconBadge, background: 'rgba(127,217,154,0.16)', border: '1px solid rgba(127,217,154,0.35)' }}>👥</span>
           <div>
             <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>Jogar com Amigos</div>
             <div style={{ fontSize: 11, opacity: 0.6 }}>Brasileirão (até 20) · Copa do Brasil (até 32) · Brasileirão Atual (até 20) · Sala por código</div>
           </div>
-          <span style={{ marginLeft: 'auto', fontSize: 18, opacity: 0.5 }}>→</span>
+          <span className="mode-card-arrow-el" style={{ ...styles.modeCardArrow, marginLeft: 'auto', color: '#7fd99a' }}>→</span>
         </button>
 
         {/* Rodapé institucional */}
         <div style={{
           display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap',
-          marginTop: 28, paddingTop: 18, borderTop: '1px solid rgba(255,255,255,0.08)',
+          marginTop: 32, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)',
         }}>
           {[['como-jogar', 'Como Jogar'], ['termos', 'Termos de Uso'], ['privacidade', 'Política de Privacidade'], ['contato', 'Contato']].map(([id, label]) => (
             <button key={id} onClick={() => onNavigateInfo(id)} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: '6px 2px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
@@ -7598,6 +7618,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
           <button onClick={onNavigateTeams} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: '6px 2px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
             Elencos
           </button>
+        </div>
         </div>
       </div>
 
@@ -14503,6 +14524,10 @@ const globalCss = `
   .formation-card:active { transform: translateY(0); }
   .mode-card-hover:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
   .mode-card-hover:active { transform: translateY(0); }
+  /* Setinha dos cards da home desliza levemente e acende ao passar o mouse
+     — reforça o "isso é clicável" sem precisar de mais nenhum elemento. */
+  .mode-card-arrow-el { display: inline-block; }
+  .mode-card-hover:hover .mode-card-arrow-el { transform: translateX(3px); opacity: 0.9 !important; }
 `;
 
 const styles = {
@@ -14666,38 +14691,71 @@ const styles = {
   // herdado ficava quase ilegível em cima de um fundo claro.
   selectOption: { background: '#14261a', color: '#F4F1EA' },
   gameStatsBar: {
-    fontSize: 11.5, opacity: 0.7,
-    marginBottom: 16, marginTop: -8,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap',
+    gap: '6px 0', fontSize: 11.5, marginBottom: 22,
   },
+  gameStatsPill: {
+    display: 'inline-flex', alignItems: 'center', gap: 5,
+    padding: '4px 12px', color: 'rgba(244,241,234,0.75)',
+  },
+  gameStatsDivider: { width: 3, height: 3, borderRadius: '50%', background: 'rgba(212,162,60,0.4)', flexShrink: 0 },
 
   // Intro screen
-  introCard: { textAlign: 'center', padding: '40px 28px 36px', position: 'relative', overflow: 'hidden' },
+  introCard: { textAlign: 'center', padding: '44px 28px 36px', position: 'relative', overflow: 'hidden' },
+  introGlow: {
+    position: 'absolute', top: '-18%', left: '50%', transform: 'translateX(-50%)',
+    width: 560, height: 360, borderRadius: '50%', pointerEvents: 'none', zIndex: 0,
+    background: 'radial-gradient(circle, rgba(212,162,60,0.16), rgba(212,162,60,0) 70%)',
+  },
   introTopBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-  introBadge: { display: 'inline-block', fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: '#d4a23c', background: 'rgba(212,162,60,0.12)', border: '1px solid rgba(212,162,60,0.35)', borderRadius: 999, padding: '5px 14px', marginBottom: 20 },
-  introTitle: { fontFamily: "'Fraunces', Georgia, serif", fontSize: 38, fontWeight: 700, lineHeight: 1.1, margin: '0 0 16px' },
-  introLead: { fontSize: 16, lineHeight: 1.65, opacity: 0.75, maxWidth: 460, margin: '0 auto 36px' },
-  featGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 32 },
-  featCard: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '20px 14px', position: 'relative', transition: 'border-color 0.15s, transform 0.15s' },
-  featIconWrap: { width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', fontSize: 20 },
-  featIndex: { position: 'absolute', top: 10, right: 12, fontFamily: "'Space Mono', monospace", fontSize: 10, opacity: 0.25, fontWeight: 700 },
+  introBadge: { display: 'inline-block', fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: '#d4a23c', background: 'rgba(212,162,60,0.12)', border: '1px solid rgba(212,162,60,0.35)', borderRadius: 999, padding: '5px 14px', marginBottom: 22 },
+  introTitle: { fontFamily: "'Fraunces', Georgia, serif", fontSize: 42, fontWeight: 700, lineHeight: 1.12, letterSpacing: '-0.01em', margin: '0 0 16px' },
+  introTitleAccent: {
+    background: 'linear-gradient(135deg, #f0c868, #d4a23c 60%, #a87a28)',
+    WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
+  },
+  introLead: { fontSize: 16, lineHeight: 1.65, opacity: 0.72, maxWidth: 480, margin: '0 auto 36px' },
+  featGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 36 },
+  featCard: { background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 16, padding: '24px 16px 20px', position: 'relative', transition: 'border-color 0.15s, transform 0.15s, background 0.15s' },
+  featIconWrap: { width: 52, height: 52, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: 23 },
+  featIndex: { position: 'absolute', top: 12, right: 14, fontFamily: "'Space Mono', monospace", fontSize: 10, opacity: 0.3, fontWeight: 700 },
   featIcon: { fontSize: 24, marginBottom: 8 },
-  featTitle: { fontWeight: 700, fontSize: 13, marginBottom: 6 },
-  featDesc: { fontSize: 12, opacity: 0.6, lineHeight: 1.5 },
-  introSectionLabel: { fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 18, letterSpacing: 0.3, textTransform: 'uppercase', opacity: 0.85, marginBottom: 14, textAlign: 'center', color: '#F4F1EA' },
+  featTitle: { fontWeight: 700, fontSize: 13.5, marginBottom: 7, letterSpacing: 0.1 },
+  featDesc: { fontSize: 11.5, opacity: 0.58, lineHeight: 1.55 },
+  // Rótulo de seção "— TEXTO —" com linhas finas dos dois lados, em vez de
+  // texto solto centralizado: dá uma separação visual mais elegante entre
+  // os blocos da home sem precisar de uma borda/divisória cheia.
+  introSectionLabel: {
+    display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'center',
+    fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 11, letterSpacing: 2,
+    textTransform: 'uppercase', opacity: 0.55, marginBottom: 16, color: '#F4F1EA',
+  },
+  introSectionLabelLine: { flex: '0 1 48px', height: 1, background: 'linear-gradient(90deg, transparent, rgba(212,162,60,0.4))' },
+  introSectionLabelLineR: { flex: '0 1 48px', height: 1, background: 'linear-gradient(90deg, rgba(212,162,60,0.4), transparent)' },
   // Título de seção da home (Conquistas em destaque, Escolha o modo) — bem
   // maior/mais chamativo que teamEditLabel (que é um rótulo de campo
   // pequeno, usado em formulário/dificuldade/etc e não pode crescer senão
-  // quebra essas outras telas). Pedido do usuário: títulos de seção
-  // "iguais ao do exemplo" que ele mandou (referência com headers grandes).
-  homeSectionTitle: { display: 'block', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 18, letterSpacing: 0.2, opacity: 0.95, marginBottom: 12, color: '#F4F1EA' },
+  // quebra essas outras telas). Barrinha dourada à esquerda marca o início
+  // de cada seção (pedido: layout mais moderno/limpo pra home).
+  homeSectionTitle: {
+    display: 'flex', alignItems: 'center', gap: 10,
+    fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 18, letterSpacing: 0.2,
+    opacity: 0.95, marginBottom: 14, color: '#F4F1EA',
+  },
+  homeSectionTitleBar: { width: 4, height: 18, borderRadius: 2, background: '#d4a23c', flexShrink: 0 },
   introMarqueeWrap: {
-    overflow: 'hidden', marginBottom: 32,
+    overflow: 'hidden', marginBottom: 36,
     maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
     WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
   },
   introMarqueeTrack: { display: 'flex', gap: 10, width: 'max-content' },
   introTeamChip: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap', opacity: 0.75, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, padding: '5px 14px 5px 8px' },
   introTeamChipCrest: { width: 16, height: 16, objectFit: 'contain', borderRadius: '50%', flexShrink: 0 },
+  // Card base reusada por todo mode-card/spotlight/social da home — ícone
+  // num badge quadrado arredondado (em vez do emoji solto flutuando), pra
+  // ler como um sistema de cards único em vez de botões com estilos soltos.
+  modeIconBadge: { width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, flexShrink: 0 },
+  modeCardArrow: { fontSize: 16, opacity: 0.4, flexShrink: 0, transition: 'transform 0.15s, opacity 0.15s' },
   btnIntro: { background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 12, padding: '16px 40px', fontSize: 17, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3 },
 
   // Draft side-by-side layout
