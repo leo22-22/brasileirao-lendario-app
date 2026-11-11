@@ -9,7 +9,7 @@
 // jogadores. "Continuar" chama `onFinish`, que resolve o que tiver que
 // resolver (a rodada inteira, ou a Copa) e aplica no save de verdade.
 import {
-  eventIcon, eventText, TeamBadge, RatingsList, useLiveMatchPlayer,
+  eventIcon, eventText, TeamBadge, RatingsList, useLiveMatchPlayer, MatchSpeedPicker,
   wrapStyle, cardStyle, labelStyle, primaryBtnStyle, secondaryBtnStyle,
 } from '../components/liveMatchUI.jsx';
 
@@ -24,7 +24,7 @@ export function CareerMatchDayScreen({ save, onFinish, pending: pendingOverride,
   const { homeTeam, awayTeam, sim } = pending || EMPTY_PENDING;
   const division = save.clubs[save.myClubId].division;
   const competitionLabel = labelOverride || `Campeonato Brasileiro · Série ${division}`;
-  const { phase, minute, homeGoals, awayGoals, shownEvents, startPlaying, skipToEnd, motm } = useLiveMatchPlayer(sim, homeTeam, awayTeam);
+  const { phase, minute, homeGoals, awayGoals, shownEvents, startPlaying, skipToEnd, motm, speedKey, changeSpeed } = useLiveMatchPlayer(sim, homeTeam, awayTeam);
   if (!pending) return null;
 
   if (phase === 'intro') {
@@ -52,8 +52,11 @@ export function CareerMatchDayScreen({ save, onFinish, pending: pendingOverride,
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700 }}>{homeGoals} - {awayGoals}</div>
           <TeamBadge team={awayTeam} />
         </div>
-        <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>
-          {phase === 'playing' ? `${minute}'` : 'Fim de jogo'}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>
+            {phase === 'playing' ? `${minute}'` : 'Fim de jogo'}
+          </div>
+          {phase === 'playing' && <MatchSpeedPicker speedKey={speedKey} onChange={changeSpeed} />}
         </div>
       </div>
 

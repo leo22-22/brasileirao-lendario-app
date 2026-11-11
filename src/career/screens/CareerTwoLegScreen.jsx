@@ -7,7 +7,7 @@
 // (ao vivo) → resumo com agregado/pênaltis.
 import { useState } from 'react';
 import {
-  eventIcon, eventText, TeamBadge, RatingsList, useLiveMatchPlayer,
+  eventIcon, eventText, TeamBadge, RatingsList, useLiveMatchPlayer, MatchSpeedPicker,
   wrapStyle, cardStyle, labelStyle, primaryBtnStyle, secondaryBtnStyle,
 } from '../components/liveMatchUI.jsx';
 
@@ -17,7 +17,7 @@ import {
 // (minuto/eventos/fase) reseta sozinho ao trocar de perna.
 export function LegMatch({ leg, legLabel, continueLabel, onDone }) {
   const { homeTeam, awayTeam, sim } = leg;
-  const { phase, minute, homeGoals, awayGoals, shownEvents, startPlaying, skipToEnd, motm } = useLiveMatchPlayer(sim, homeTeam, awayTeam);
+  const { phase, minute, homeGoals, awayGoals, shownEvents, startPlaying, skipToEnd, motm, speedKey, changeSpeed } = useLiveMatchPlayer(sim, homeTeam, awayTeam);
 
   if (phase === 'intro') {
     return (
@@ -44,8 +44,11 @@ export function LegMatch({ leg, legLabel, continueLabel, onDone }) {
           <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700 }}>{homeGoals} - {awayGoals}</div>
           <TeamBadge team={awayTeam} />
         </div>
-        <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>
-          {phase === 'playing' ? `${minute}'` : 'Fim de jogo'}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
+          <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>
+            {phase === 'playing' ? `${minute}'` : 'Fim de jogo'}
+          </div>
+          {phase === 'playing' && <MatchSpeedPicker speedKey={speedKey} onChange={changeSpeed} />}
         </div>
       </div>
 

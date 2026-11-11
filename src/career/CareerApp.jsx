@@ -186,9 +186,26 @@ export function CareerApp({ onExit, onHudChange }) {
     setSave(prev => prev && resolveCopaFinalUserMatch(prev));
   }, []);
 
-  const handleConfirmFormation = useCallback(({ myStarters, myFormationLabel, myFormationKey }) => {
-    setSave(prev => prev && { ...prev, myStarters, myFormationLabel, myFormationKey });
+  const handleConfirmFormation = useCallback(({ myStarters, myBench, myFormationLabel, myFormationKey }) => {
+    setSave(prev => prev && { ...prev, myStarters, myBench, myFormationLabel, myFormationKey });
     setScreen('hub');
+  }, []);
+
+  // Criar/Carregar formação (pedido explícito do usuário 2026-11-11) —
+  // `save.savedFormations` guarda presets nomeados, independente da
+  // escalação ATIVA (myStarters/myBench) — "carregar" só troca o que está
+  // sendo editado na tela, nunca aplica direto sem passar por "Confirmar
+  // escalação".
+  const handleSaveFormationPreset = useCallback((preset) => {
+    setSave(prev => {
+      if (!prev) return prev;
+      const id = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
+      return { ...prev, savedFormations: [...(prev.savedFormations || []), { id, ...preset }] };
+    });
+  }, []);
+
+  const handleDeleteFormationPreset = useCallback((id) => {
+    setSave(prev => prev && { ...prev, savedFormations: (prev.savedFormations || []).filter(p => p.id !== id) });
   }, []);
 
   // Proposta do usuário por um jogador de outro clube — diferente de uma
@@ -344,7 +361,7 @@ export function CareerApp({ onExit, onHudChange }) {
   }
 
   if (screen === 'squad') return <CareerSquadScreen save={save} onToggleListed={handleToggleListed} onBack={() => setScreen('hub')} />;
-  if (screen === 'formation') return <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onBack={() => setScreen('hub')} />;
+  if (screen === 'formation') return <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onSaveFormationPreset={handleSaveFormationPreset} onDeleteFormationPreset={handleDeleteFormationPreset} onBack={() => setScreen('hub')} />;
   if (screen === 'table') return <CareerTableScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'calendar') return <CareerCalendarScreen save={save} onBack={() => setScreen('hub')} />;
   if (screen === 'copa') return <CareerCopaScreen save={save} onBack={() => setScreen('hub')} />;

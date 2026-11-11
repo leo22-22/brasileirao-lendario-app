@@ -4,11 +4,17 @@
 // ocupada pra tirar o jogador de lá. Sem arrastar (clique só, de
 // propósito — mais simples e funciona igual em touch/mouse). Editável
 // quantas vezes quiser durante a temporada, reaberto a qualquer momento
-// pelo hub. A escalação confirmada (save.myStarters) passa a valer de
-// verdade nas partidas simuladas (ver teamForSim em seasonEngine.js) — só
-// os 11 titulares importam pro motor; o banco é sempre "o resto do
-// elenco, por overall", automático, sem precisar gerenciar vaga de banco
-// aqui.
+// pelo hub. A escalação confirmada (save.myStarters/save.myBench) passa a
+// valer de verdade nas partidas simuladas (ver teamForSim em
+// simHelpers.js) — titular(11) + banco(até 12, escolhido aqui na tela)
+// é todo mundo que entra em campo; quem sobra é "reserva dos reservas",
+// nem repositor de lesão (pedido explícito do usuário 2026-11-11).
+//
+// Criar/Carregar formação (mesmo pedido): `save.savedFormations` guarda
+// presets nomeados (esquema+titulares+banco) — "Criar" salva a escalação
+// atual da tela com um nome; "Carregar" troca a tela inteira por um
+// preset salvo, mas ainda precisa confirmar pra valer de verdade (igual
+// qualquer edição aqui).
 import { useMemo, useState } from 'react';
 import { ovrColor, posColor, posOrderIndex } from '../../lib/format.js';
 import { FORMATIONS, buildPitchSlots } from '../engine/formations.js';
@@ -71,6 +77,15 @@ function initialStarters(roster, save, slots, formationKey) {
     Object.assign(starters, autoFillFromPool([...preferred, ...rest], emptySlots));
   }
   return starters;
+}
+
+// Reconstrói a seleção de banco (até 12) ao abrir a tela — mesma ideia de
+// `initialStarters`: reaproveita `save.myBench` filtrando quem já saiu do
+// elenco (vendido/aposentado) ou virou titular nessa reabertura.
+function initialBench(roster, save, starterNames) {
+  const rosterNames = new Set(roster.map(p => p.name));
+  const starterSet = new Set(starterNames);
+  return (save.myBench || []).filter(n => rosterNames.has(n) && !starterSet.has(n)).slice(0, 12);
 }
 
 function PitchSlotCircle({ slot, player, pending, onClick }) {
@@ -176,31 +191,97 @@ function PlayerPoolPicker({ pos, pool, onPick, onCancel }) {
 // lista de pílulas de texto anterior. Ordenado por posição, então as
 // bolinhas da mesma cor já ficam naturalmente agrupadas lado a lado
 // (visual pedido pelo usuário: "separadas pela cor e por posição").
-function BenchBubble({ p }) {
+// Clicável agora (pedido explícito do usuário 2026-11-11: banco de até
+// 12 — o resto do elenco é "reserva dos reservas", nem joga como
+// repositor de lesão) — selecionado = vai pro banco de verdade; o resto
+// só fica visível pra trocar, sem nenhuma ação própria além de clicar.
+function BenchBubble({ p, selected, disabled, onClick }) {
   const c = posColor(p.pos[0]);
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0, width: 60, scrollSnapAlign: 'start' }}>
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      title={selected ? 'No banco — clique pra tirar' : disabled ? 'Banco já tem 12 — tire alguém antes' : 'Clique pra colocar no banco'}
+      style={{
+        display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0, width: 60, scrollSnapAlign: 'start',
+        background: 'none', border: 'none', padding: 0, cursor: disabled ? 'default' : 'pointer',
+        opacity: selected ? 1 : disabled ? 0.35 : 0.55,
+      }}
+    >
       <div style={{
         width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
         fontSize: 12, fontWeight: 800, fontFamily: "'Space Mono', monospace",
-        background: c, color: '#0B1A12', border: '2px solid rgba(255,255,255,0.5)', boxShadow: '0 3px 7px rgba(0,0,0,0.4)',
+        background: selected ? c : 'rgba(255,255,255,0.08)', color: selected ? '#0B1A12' : `${c}cc`,
+        border: selected ? '2px solid rgba(255,255,255,0.65)' : `1.5px dashed ${c}88`,
+        boxShadow: selected ? '0 3px 7px rgba(0,0,0,0.4)' : 'none',
       }}>{p.ovr}</div>
       <div style={{ fontSize: 9, fontWeight: 700, color: c, fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</div>
       <div style={{ fontSize: 9, fontWeight: 600, textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.85 }}>{p.name}</div>
+    </button>
+  );
+}
+
+// Painel pra nomear e salvar a escalação atual (titulares+banco+esquema)
+// como um preset novo em `save.savedFormations` — mesmo padrão visual
+// inline dos outros painéis desta tela (ex. PlayerPoolPicker).
+function SavePresetPanel({ onSave, onCancel }) {
+  const [name, setName] = useState('');
+  return (
+    <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)' }}>
+      <input
+        value={name}
+        onChange={e => setName(e.target.value.slice(0, 40))}
+        placeholder="Nome da formação (ex.: Time reserva)"
+        style={{
+          width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, marginBottom: 8,
+          border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 12.5, outline: 'none',
+        }}
+      />
+      <div style={{ display: 'flex', gap: 6 }}>
+        <button
+          onClick={() => name.trim() && onSave(name.trim())}
+          disabled={!name.trim()}
+          style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', background: name.trim() ? '#d4a23c' : 'rgba(212,162,60,0.3)', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: name.trim() ? 'pointer' : 'default' }}
+        >Salvar</button>
+        <button onClick={onCancel} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+      </div>
     </div>
   );
 }
 
-function BenchCarousel({ players }) {
+// Lista de presets salvos pra escolher um e carregar na tela (ainda
+// precisa confirmar escalação depois, igual qualquer edição) ou apagar.
+function LoadPresetPanel({ presets, onLoad, onDelete, onCancel }) {
+  return (
+    <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: 'rgba(111,184,224,0.06)', border: '1px solid rgba(111,184,224,0.2)' }}>
+      {presets.length === 0 && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>Nenhuma formação salva ainda — use "Criar formação" pra guardar a de agora.</p>}
+      {presets.map(preset => (
+        <div key={preset.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6, marginBottom: 4, background: 'rgba(255,255,255,0.03)' }}>
+          <button onClick={() => onLoad(preset)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', color: '#F4F1EA', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {preset.name} <span style={{ opacity: 0.5, fontWeight: 400 }}>({FORMATIONS[preset.formationKey]?.label || preset.formationKey})</span>
+          </button>
+          <button onClick={() => onDelete(preset.id)} title="Apagar formação" style={{ background: 'none', border: 'none', color: 'rgba(224,80,80,0.75)', fontSize: 15, cursor: 'pointer', padding: '0 4px', flexShrink: 0 }}>×</button>
+        </div>
+      ))}
+      <button onClick={onCancel} style={{ marginTop: 2, background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>Fechar</button>
+    </div>
+  );
+}
+
+function BenchCarousel({ players, benchSet, onToggle }) {
   const sorted = [...players].sort((a, b) => posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]) || b.ovr - a.ovr);
+  const full = benchSet.size >= 12;
   return (
     <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 6, scrollSnapType: 'x proximity' }}>
-      {sorted.map(p => <BenchBubble key={p.name} p={p} />)}
+      {sorted.map(p => {
+        const selected = benchSet.has(p.name);
+        return <BenchBubble key={p.name} p={p} selected={selected} disabled={!selected && full} onClick={() => onToggle(p.name)} />;
+      })}
     </div>
   );
 }
 
-export function CareerFormationScreen({ save, onConfirm, onBack }) {
+export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, onDeleteFormationPreset, onBack }) {
   // Jogador da categoria de base não pode ser escalado até ser promovido
   // ou completar 20 anos (ver CareerYouthScreen.jsx).
   const roster = save.clubs[save.myClubId].roster.filter(p => !p.inAcademy);
@@ -208,6 +289,12 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
   const slots = useMemo(() => buildPitchSlots(formationKey), [formationKey]);
   const [starters, setStarters] = useState(() => initialStarters(roster, save, slots, formationKey));
   const [pendingSlotKey, setPendingSlotKey] = useState(null);
+  // Banco de verdade (até 12, pedido explícito do usuário 2026-11-11) —
+  // quem não for titular NEM estiver aqui vira "reserva dos reservas":
+  // visível na lista pra trocar, mas não entra em campo nenhuma (ver
+  // teamForSim em simHelpers.js).
+  const [benchSelected, setBenchSelected] = useState(() => initialBench(roster, save, Object.values(starters)));
+  const [presetPanel, setPresetPanel] = useState(null); // null | 'save' | 'load'
 
   const byName = useMemo(() => Object.fromEntries(roster.map(p => [p.name, p])), [roster]);
   const placedNames = new Set(Object.values(starters).filter(Boolean));
@@ -227,7 +314,17 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
   const handlePick = (playerName) => {
     if (!pendingSlotKey) return;
     setStarters(prev => ({ ...prev, [pendingSlotKey]: playerName }));
+    // Quem vira titular sai do banco — não dá pra ser as duas coisas.
+    setBenchSelected(prev => prev.filter(n => n !== playerName));
     setPendingSlotKey(null);
+  };
+
+  const handleToggleBench = (playerName) => {
+    setBenchSelected(prev => {
+      if (prev.includes(playerName)) return prev.filter(n => n !== playerName);
+      if (prev.length >= 12) return prev;
+      return [...prev, playerName];
+    });
   };
 
   const handleFormationChange = (nextKey) => {
@@ -236,25 +333,62 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
     // por bater a posição na vaga nova); quem não encaixa volta pro banco.
     const currentNames = slots.map(s => starters[s.key]).filter(Boolean);
     const pool = [...currentNames.map(n => byName[n]), ...roster.filter(p => !currentNames.includes(p.name))];
+    const nextStarters = autoFillFromPool(pool, nextSlots);
     setFormationKey(nextKey);
-    setStarters(autoFillFromPool(pool, nextSlots));
+    setStarters(nextStarters);
+    const nextStarterSet = new Set(Object.values(nextStarters));
+    setBenchSelected(prev => prev.filter(n => !nextStarterSet.has(n)));
     setPendingSlotKey(null);
   };
 
   const handleSuggest = () => {
-    setStarters(autoFillFromPool([...roster].sort((a, b) => b.ovr - a.ovr), slots));
+    const sorted = [...roster].sort((a, b) => b.ovr - a.ovr);
+    const nextStarters = autoFillFromPool(sorted, slots);
+    setStarters(nextStarters);
+    // Sugere também o banco: os 12 melhores que sobraram, pra não deixar o
+    // usuário tendo que montar o banco inteiro na mão toda vez.
+    const nextStarterSet = new Set(Object.values(nextStarters).filter(Boolean));
+    setBenchSelected(sorted.filter(p => !nextStarterSet.has(p.name)).slice(0, 12).map(p => p.name));
     setPendingSlotKey(null);
   };
 
   const handleClear = () => {
     setStarters({});
+    setBenchSelected([]);
     setPendingSlotKey(null);
+  };
+
+  // Criar/Carregar formação (pedido explícito do usuário 2026-11-11) —
+  // "Criar" salva o esquema+titulares+banco ATUAIS da tela como um preset
+  // novo; "Carregar" troca a tela inteira por um preset salvo (ainda
+  // precisa clicar "Confirmar escalação" pra valer de verdade, igual
+  // qualquer edição aqui).
+  const handleSavePreset = (name) => {
+    const myStarters = slots.map(s => starters[s.key]).filter(Boolean);
+    onSaveFormationPreset({ name, formationKey, starters: myStarters, bench: benchSelected });
+    setPresetPanel(null);
+  };
+
+  const handleLoadPreset = (preset) => {
+    const nextSlots = buildPitchSlots(preset.formationKey);
+    const rosterNames = new Set(roster.map(p => p.name));
+    const nextStarters = {};
+    nextSlots.forEach((slot, i) => {
+      const name = preset.starters[i];
+      if (name && rosterNames.has(name)) nextStarters[slot.key] = name;
+    });
+    const nextStarterNames = new Set(Object.values(nextStarters));
+    setFormationKey(preset.formationKey);
+    setStarters(nextStarters);
+    setBenchSelected((preset.bench || []).filter(n => rosterNames.has(n) && !nextStarterNames.has(n)).slice(0, 12));
+    setPendingSlotKey(null);
+    setPresetPanel(null);
   };
 
   const canConfirm = filledCount === 11;
   const handleConfirm = () => {
     const myStarters = slots.map(s => starters[s.key]).filter(Boolean);
-    onConfirm({ myStarters, myFormationLabel: FORMATIONS[formationKey].label, myFormationKey: formationKey });
+    onConfirm({ myStarters, myBench: benchSelected, myFormationLabel: FORMATIONS[formationKey].label, myFormationKey: formationKey });
   };
 
   const pendingPos = pendingSlotKey ? slots.find(s => s.key === pendingSlotKey)?.realPos : null;
@@ -263,7 +397,7 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
       <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Formação</h2>
-      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 12 }}>Clique numa vaga do campinho pra escalar ou tirar um jogador — edite quantas vezes quiser durante a temporada. OVR titular médio {avgOvr}.</p>
+      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 12 }}>Clique numa vaga do campinho pra escalar ou tirar um jogador — edite quantas vezes quiser durante a temporada. OVR titular médio {avgOvr}. Escolha também até 12 reservas no banco mais abaixo — quem não for titular nem estiver no banco não entra em campo.</p>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <select
@@ -286,6 +420,21 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
         </button>
       </div>
 
+      <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+        <button
+          onClick={() => setPresetPanel(prev => (prev === 'save' ? null : 'save'))}
+          style={{ flex: 1, background: 'none', border: `1px solid ${presetPanel === 'save' ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.15)'}`, borderRadius: 8, padding: '8px 0', fontSize: 11.5, fontWeight: 700, color: presetPanel === 'save' ? '#d4a23c' : 'rgba(244,241,234,0.7)', cursor: 'pointer' }}
+        >💾 Criar formação</button>
+        <button
+          onClick={() => setPresetPanel(prev => (prev === 'load' ? null : 'load'))}
+          style={{ flex: 1, background: 'none', border: `1px solid ${presetPanel === 'load' ? 'rgba(111,184,224,0.5)' : 'rgba(255,255,255,0.15)'}`, borderRadius: 8, padding: '8px 0', fontSize: 11.5, fontWeight: 700, color: presetPanel === 'load' ? '#6fb8e0' : 'rgba(244,241,234,0.7)', cursor: 'pointer' }}
+        >📂 Carregar formação</button>
+      </div>
+      {presetPanel === 'save' && <SavePresetPanel onSave={handleSavePreset} onCancel={() => setPresetPanel(null)} />}
+      {presetPanel === 'load' && (
+        <LoadPresetPanel presets={save.savedFormations || []} onLoad={handleLoadPreset} onDelete={onDeleteFormationPreset} onCancel={() => setPresetPanel(null)} />
+      )}
+
       <div style={{ fontSize: 13, fontWeight: 700, color: filledCount === 11 ? '#7fd99a' : '#d4a23c', marginBottom: 8 }}>Titulares: {filledCount}/11</div>
 
       <PitchField slots={slots} starters={starters} roster={roster} pendingSlotKey={pendingSlotKey} onSlotClick={handleSlotClick} />
@@ -294,9 +443,11 @@ export function CareerFormationScreen({ save, onConfirm, onBack }) {
         <PlayerPoolPicker pos={pendingPos} pool={bench} onPick={handlePick} onCancel={() => setPendingSlotKey(null)} />
       )}
 
-      <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>Banco ({bench.length})</div>
+      <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+        Banco: <span style={{ color: benchSelected.length === 12 ? '#7fd99a' : '#d4a23c' }}>{benchSelected.length}/12</span> · reserva dos reservas: {Math.max(0, bench.length - benchSelected.length)}
+      </div>
       <div style={{ marginBottom: 16 }}>
-        <BenchCarousel players={bench} />
+        <BenchCarousel players={bench} benchSet={new Set(benchSelected)} onToggle={handleToggleBench} />
       </div>
 
       <button onClick={handleConfirm} disabled={!canConfirm} style={{

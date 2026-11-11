@@ -6,7 +6,16 @@
 // Carreira, e repeti-la em cada motor seria a mesma causa de bug duas
 // vezes se um dia precisar mudar).
 import { TEAMS } from '../../data/teams.js';
-import { simAiMatch, teamStrength, buildLiveMatchEvents } from '../../App.jsx';
+import { simAiMatch, teamStrength, buildLiveMatchEvents, makePrng, hashSeed } from '../../App.jsx';
+import { playerSeasonStats } from './seasonStats.js';
+import { POS_ORDER } from '../../lib/format.js';
+
+const OUTFIELD_POS = POS_ORDER.filter(p => p !== 'GOL');
+// Tamanho do banco pra QUALQUER clube (meu ou de IA) — titular(11) +
+// banco(12) = 23 no elenco de jogo; o resto do elenco é "reserva dos
+// reservas", nem entra como repositor de lesão (pedido explícito do
+// usuário 2026-11-11).
+const BENCH_SIZE = 12;
 
 // Retrospecto real das últimas N rodadas JÁ JOGADAS de um clube (mais
 // recente primeiro) — movido pra cá (antes vivia só em CareerHub.jsx,
@@ -46,11 +55,52 @@ export function clubMoraleBonus(save, clubId) {
   return 0;
 }
 
+// Rotação de titulares dos clubes de IA — dá minuto pra quem joga pouco
+// ao longo da temporada (pedido explícito do usuário 2026-11-11: "fazer a
+// simulação substituir jogadores automaticamente... no final da
+// temporada jogadores reservas terem partidas também", citando o caso de
+// tirar um titular fixo e colocar o reserva que nunca jogou). Só pra IA —
+// o MEU time usa exatamente a escalação+banco que o usuário confirmou na
+// Formação, sem interferência nenhuma (ele decide quando/se rotaciona).
+// Cada tentativa troca 1 titular por 1 do banco NA MESMA posição
+// primária, sempre tirando quem já jogou MAIS partidas na temporada e
+// colocando quem jogou MENOS — nunca mexe no goleiro (convenção: time
+// real raramente roda o gol). Se não achar um par na mesma posição pra
+// aquela tentativa, pula ela (não força troca de posição diferente).
+const ROTATION_CHANCE = 0.3;
+const MAX_ROTATIONS = 3;
+
+function rotateLineup(starters, bench, save, clubId, rand) {
+  if (rand() >= ROTATION_CHANCE) return { starters, bench };
+  const matchesOf = (p) => playerSeasonStats(save.seasonPlayerStats, clubId, p.name).matches || 0;
+  let nextStarters = starters;
+  let nextBench = bench;
+  const attempts = 1 + Math.floor(rand() * MAX_ROTATIONS);
+  for (let i = 0; i < attempts; i++) {
+    const posGroup = OUTFIELD_POS[Math.floor(rand() * OUTFIELD_POS.length)];
+    const starterIdx = nextStarters.reduce((best, p, idx) => (
+      p.pos[0] === posGroup && (best === -1 || matchesOf(p) > matchesOf(nextStarters[best])) ? idx : best
+    ), -1);
+    const benchIdx = nextBench.reduce((best, p, idx) => (
+      p.pos[0] === posGroup && (best === -1 || matchesOf(p) < matchesOf(nextBench[best])) ? idx : best
+    ), -1);
+    if (starterIdx === -1 || benchIdx === -1) continue;
+    const outPlayer = nextStarters[starterIdx];
+    const inPlayer = nextBench[benchIdx];
+    nextStarters = nextStarters.map((p, idx) => (idx === starterIdx ? inPlayer : p));
+    nextBench = nextBench.map((p, idx) => (idx === benchIdx ? outPlayer : p));
+  }
+  return { starters: nextStarters, bench: nextBench };
+}
+
 // Monta o "time pra simular" de um clube a partir do save — nunca lê
 // team.players de TEAMS, só save.clubs[id].roster (a cópia mutável).
-// Titulares = os 11 de maior OVR (sem se preocupar com formação/posição) —
-// EXCETO pro próprio clube do usuário, que usa a escalação de verdade
-// escolhida na tela de Formação (save.myStarters).
+// Titular(11) + banco(até 12) = elenco de jogo; o resto do elenco não
+// entra nem como repositor de lesão ("reserva dos reservas"). Pro
+// PRÓPRIO clube do usuário, titulares E banco são exatamente o que foi
+// confirmado na tela de Formação (save.myStarters/save.myBench); pros
+// outros 39, titular/banco são os melhores por OVR, com rotação (ver
+// `rotateLineup`) só pra eles.
 export function teamForSim(save, clubId) {
   const base = TEAMS.find(t => t.id === clubId);
   // Jogador da categoria de base nunca entra em campo (nem como reserva) —
@@ -59,16 +109,26 @@ export function teamForSim(save, clubId) {
   // oferece esses jogadores pra escalar, isso aqui cobre qualquer save
   // antigo ou caminho que não passe por lá.
   const roster = save.clubs[clubId].roster.filter(p => !p.inAcademy);
-  let ordered;
-  if (clubId === save.myClubId && save.myStarters?.length) {
+  const isMine = clubId === save.myClubId;
+
+  let starters, bench;
+  if (isMine && save.myStarters?.length) {
     const starterSet = new Set(save.myStarters);
-    const starters = save.myStarters.map(name => roster.find(p => p.name === name)).filter(Boolean);
-    const rest = roster.filter(p => !starterSet.has(p.name)).sort((a, b) => b.ovr - a.ovr);
-    ordered = [...starters, ...rest];
+    starters = save.myStarters.map(name => roster.find(p => p.name === name)).filter(Boolean);
+    bench = (save.myBench || [])
+      .map(name => roster.find(p => p.name === name))
+      .filter(p => p && !starterSet.has(p.name));
   } else {
-    ordered = [...roster].sort((a, b) => b.ovr - a.ovr);
+    const sorted = [...roster].sort((a, b) => b.ovr - a.ovr);
+    starters = sorted.slice(0, 11);
+    bench = sorted.slice(11, 11 + BENCH_SIZE);
+    if (!isMine) {
+      const rand = makePrng(hashSeed(`${save.seed}|rotation|${clubId}|${save.calendarDay}`));
+      ({ starters, bench } = rotateLineup(starters, bench, save, clubId, rand));
+    }
   }
-  const players = ordered.map((p, i) => ({ ...p, club: base.club, isBench: i >= 11 }));
+
+  const players = [...starters, ...bench].map((p, i) => ({ ...p, club: base.club, isBench: i >= starters.length }));
   const baseOvr = teamStrength(Object.fromEntries(players.map((p, i) => [i, p])));
   return {
     id: clubId,
