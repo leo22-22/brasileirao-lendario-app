@@ -11,6 +11,19 @@ import { POS_ORDER } from '../../lib/format.js';
 // está fraca pros padrões do clube (não é um alvo de contratação real).
 const TIER_EXPECTED_OVR = { elite: 82, grande: 76, medio: 70, pequeno: 64 };
 
+// Quanto um clube de IA topa esticar o orçamento ATUAL pra fechar um
+// reforço que preenche uma carência real — sem isso, quase nenhuma
+// proposta saía de verdade (bug real reportado 2026-11-12: "não está
+// chegando proposta"): preço de jogador vem do valor real do Transfermarkt
+// (ver pricing.js, dezenas de milhões em R$ já convertido) enquanto o
+// orçamento por tier é bem mais modesto (R$5M-60M, ver economy.js) — exigir
+// o preço INTEIRO à vista deixava `candidates` vazio quase sempre, pra
+// quase todo clube. 3x simula o clube recorrendo a parcelamento/aval da
+// diretoria pra um alvo prioritário (comum no mercado real), sem fingir
+// que o dinheiro de fato existe — a conta final ainda fica limitada ao
+// orçamento de verdade (ver respondToOffer/counterOffer, seasonEngine.js).
+export const AI_BUDGET_STRETCH = 3;
+
 function bestOvrByPosition(roster) {
   const best = {};
   for (const p of roster) {
@@ -70,7 +83,7 @@ export function decideAiOffers(clubs, listingsByClub, rand = Math.random) {
         if (player.pos[0] !== weakPos) continue;
         if (!listedNames.includes(player.name)) continue;
         const price = computePlayerValue(player, sellerId);
-        if (price > buyer.budget) continue;
+        if (price > buyer.budget * AI_BUDGET_STRETCH) continue;
         candidates.push({ sellerId, player, price });
       }
     }

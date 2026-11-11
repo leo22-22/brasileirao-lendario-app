@@ -88,32 +88,35 @@ function initialBench(roster, save, starterNames) {
   return (save.myBench || []).filter(n => rosterNames.has(n) && !starterSet.has(n)).slice(0, 12);
 }
 
-function PitchSlotCircle({ slot, player, pending, onClick }) {
+function PitchSlotCircle({ slot, player, pending, suspended, onClick }) {
   const c = posColor(slot.realPos);
   const filled = !!player;
   return (
     <div
       onClick={onClick}
-      title={player ? `${player.name} — clique pra tirar do time titular` : `Vazio (${slot.label}) — clique pra escolher quem joga aqui`}
+      title={player ? `${player.name}${suspended ? ' — SUSPENSO, não pode jogar essa rodada' : ''} — clique pra tirar do time titular` : `Vazio (${slot.label}) — clique pra escolher quem joga aqui`}
       style={{
         position: 'absolute', left: `${slot.x}%`, top: `${slot.y}%`, transform: 'translate(-50%,-50%)',
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, cursor: 'pointer', zIndex: filled ? 2 : 1,
         width: 56,
       }}
     >
-      <div style={{
-        width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 11, fontWeight: 800, fontFamily: "'Space Mono', monospace",
-        background: pending ? 'rgba(212,162,60,0.35)' : filled ? c : 'rgba(255,255,255,0.08)',
-        border: pending ? '2.5px solid #d4a23c' : filled ? '2px solid rgba(255,255,255,0.65)' : `1.5px dashed ${c}88`,
-        color: filled ? '#0B1A12' : pending ? '#d4a23c' : `${c}cc`,
-        boxShadow: pending ? '0 0 14px rgba(212,162,60,0.5)' : filled ? '0 3px 8px rgba(0,0,0,0.5)' : 'none',
-      }}>
-        {filled ? player.ovr : slot.label}
+      <div style={{ position: 'relative' }}>
+        <div style={{
+          width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 11, fontWeight: 800, fontFamily: "'Space Mono', monospace",
+          background: pending ? 'rgba(212,162,60,0.35)' : filled ? c : 'rgba(255,255,255,0.08)',
+          border: suspended ? '2.5px solid #e05050' : pending ? '2.5px solid #d4a23c' : filled ? '2px solid rgba(255,255,255,0.65)' : `1.5px dashed ${c}88`,
+          color: filled ? '#0B1A12' : pending ? '#d4a23c' : `${c}cc`,
+          boxShadow: suspended ? '0 0 14px rgba(224,80,80,0.6)' : pending ? '0 0 14px rgba(212,162,60,0.5)' : filled ? '0 3px 8px rgba(0,0,0,0.5)' : 'none',
+        }}>
+          {filled ? player.ovr : slot.label}
+        </div>
+        {suspended && <span style={{ position: 'absolute', top: -4, right: -4, fontSize: 12 }}>🟥</span>}
       </div>
       {filled && (
         <div style={{
-          fontSize: 9.5, fontWeight: 600, color: '#F4F1EA', textAlign: 'center', lineHeight: 1.1,
+          fontSize: 9.5, fontWeight: 600, color: suspended ? '#e05050' : '#F4F1EA', textAlign: 'center', lineHeight: 1.1,
           textShadow: '0 1px 3px rgba(0,0,0,0.9)', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>{player.name}</div>
       )}
@@ -121,7 +124,7 @@ function PitchSlotCircle({ slot, player, pending, onClick }) {
   );
 }
 
-function PitchField({ slots, starters, roster, pendingSlotKey, onSlotClick }) {
+function PitchField({ slots, starters, roster, pendingSlotKey, suspendedSet, onSlotClick }) {
   const byName = useMemo(() => Object.fromEntries(roster.map(p => [p.name, p])), [roster]);
   return (
     <div style={{
@@ -140,6 +143,7 @@ function PitchField({ slots, starters, roster, pendingSlotKey, onSlotClick }) {
           slot={slot}
           player={starters[slot.key] ? byName[starters[slot.key]] : null}
           pending={pendingSlotKey === slot.key}
+          suspended={!!starters[slot.key] && suspendedSet.has(starters[slot.key])}
           onClick={() => onSlotClick(slot.key)}
         />
       ))}
@@ -147,7 +151,7 @@ function PitchField({ slots, starters, roster, pendingSlotKey, onSlotClick }) {
   );
 }
 
-function PlayerPoolPicker({ pos, pool, onPick, onCancel }) {
+function PlayerPoolPicker({ pos, pool, suspendedSet, onPick, onCancel }) {
   // Filtra de verdade pela posição clicada (antes só ordenava, deixando o
   // elenco inteiro visível — incluindo goleiro/zagueiro numa vaga de
   // ponta, bug real reportado pelo usuário). `p.pos` pode ter mais de uma
@@ -166,21 +170,28 @@ function PlayerPoolPicker({ pos, pool, onPick, onCancel }) {
       {sorted.length === 0 && <p style={{ fontSize: 12, opacity: 0.5 }}>Todo mundo já tá escalado em outra vaga.</p>}
       {usingFallback && <p style={{ fontSize: 11, opacity: 0.55, marginBottom: 6 }}>Ninguém do banco joga de {pos} — mostrando o banco inteiro.</p>}
       <div style={{ display: 'grid', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
-        {sorted.map(p => (
-          <button
-            key={p.name}
-            onClick={() => onPick(p.name)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
-              background: p.pos.includes(pos) ? 'rgba(127,217,154,0.1)' : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${p.pos.includes(pos) ? 'rgba(127,217,154,0.3)' : 'rgba(255,255,255,0.08)'}`, color: '#F4F1EA',
-            }}
-          >
-            <span style={{ width: 28, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</span>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 12.5 }}>{p.ovr}</span>
-          </button>
-        ))}
+        {sorted.map(p => {
+          const suspended = suspendedSet.has(p.name);
+          return (
+            <button
+              key={p.name}
+              onClick={() => !suspended && onPick(p.name)}
+              disabled={suspended}
+              title={suspended ? 'Suspenso — não pode ser escalado essa rodada' : undefined}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, textAlign: 'left',
+                cursor: suspended ? 'default' : 'pointer', opacity: suspended ? 0.5 : 1,
+                background: suspended ? 'rgba(224,80,80,0.06)' : p.pos.includes(pos) ? 'rgba(127,217,154,0.1)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${suspended ? 'rgba(224,80,80,0.3)' : p.pos.includes(pos) ? 'rgba(127,217,154,0.3)' : 'rgba(255,255,255,0.08)'}`, color: '#F4F1EA',
+              }}
+            >
+              <span style={{ width: 28, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+              {suspended && <span style={{ fontSize: 10, fontWeight: 700, color: '#e05050' }}>🟥 suspenso</span>}
+              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 12.5 }}>{p.ovr}</span>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -216,7 +227,7 @@ function BenchBubble({ p, selected, disabled, onClick }) {
         boxShadow: selected ? '0 3px 7px rgba(0,0,0,0.4)' : 'none',
       }}>{p.ovr}</div>
       <div style={{ fontSize: 9, fontWeight: 700, color: c, fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</div>
-      <div style={{ fontSize: 9, fontWeight: 600, textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', opacity: 0.85 }}>{p.name}</div>
+      <div style={{ fontSize: 9, fontWeight: 600, textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#F4F1EA', opacity: 0.85 }}>{p.name}</div>
     </button>
   );
 }
@@ -295,6 +306,12 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
   // teamForSim em simHelpers.js).
   const [benchSelected, setBenchSelected] = useState(() => initialBench(roster, save, Object.values(starters)));
   const [presetPanel, setPresetPanel] = useState(null); // null | 'save' | 'load'
+
+  // Jogador suspenso (3 amarelos ou vermelho na rodada passada, ver
+  // applyUserDiscipline em seasonEngine.js) não pode ser confirmado como
+  // titular essa rodada (pedido explícito do usuário 2026-11-12).
+  const suspendedSet = useMemo(() => new Set(Object.entries(save.suspensions || {}).filter(([, left]) => left > 0).map(([name]) => name)), [save.suspensions]);
+  const hasSuspendedStarter = Object.values(starters).some(name => suspendedSet.has(name));
 
   const byName = useMemo(() => Object.fromEntries(roster.map(p => [p.name, p])), [roster]);
   const placedNames = new Set(Object.values(starters).filter(Boolean));
@@ -385,7 +402,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
     setPresetPanel(null);
   };
 
-  const canConfirm = filledCount === 11;
+  const canConfirm = filledCount === 11 && !hasSuspendedStarter;
   const handleConfirm = () => {
     const myStarters = slots.map(s => starters[s.key]).filter(Boolean);
     onConfirm({ myStarters, myBench: benchSelected, myFormationLabel: FORMATIONS[formationKey].label, myFormationKey: formationKey });
@@ -437,10 +454,13 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
 
       <div style={{ fontSize: 13, fontWeight: 700, color: filledCount === 11 ? '#7fd99a' : '#d4a23c', marginBottom: 8 }}>Titulares: {filledCount}/11</div>
 
-      <PitchField slots={slots} starters={starters} roster={roster} pendingSlotKey={pendingSlotKey} onSlotClick={handleSlotClick} />
+      <PitchField slots={slots} starters={starters} roster={roster} pendingSlotKey={pendingSlotKey} suspendedSet={suspendedSet} onSlotClick={handleSlotClick} />
 
       {pendingSlotKey && (
-        <PlayerPoolPicker pos={pendingPos} pool={bench} onPick={handlePick} onCancel={() => setPendingSlotKey(null)} />
+        <PlayerPoolPicker pos={pendingPos} pool={bench} suspendedSet={suspendedSet} onPick={handlePick} onCancel={() => setPendingSlotKey(null)} />
+      )}
+      {hasSuspendedStarter && (
+        <p style={{ fontSize: 11.5, color: '#e05050', marginBottom: 10 }}>🟥 Tem jogador suspenso na escalação — tire ele antes de confirmar.</p>
       )}
 
       <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
@@ -454,7 +474,11 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
         width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', cursor: canConfirm ? 'pointer' : 'default',
         background: canConfirm ? '#d4a23c' : 'rgba(212,162,60,0.3)', color: '#0B1A12', fontSize: 15, fontWeight: 700,
       }}>
-        {canConfirm ? 'Confirmar escalação →' : `Escolha mais ${11 - filledCount} titular${11 - filledCount > 1 ? 'es' : ''}`}
+        {canConfirm
+          ? 'Confirmar escalação →'
+          : filledCount < 11
+            ? `Escolha mais ${11 - filledCount} titular${11 - filledCount > 1 ? 'es' : ''}`
+            : 'Tire o suspenso da escalação'}
       </button>
     </div>
   );

@@ -19,7 +19,7 @@ import { cloneAllRosters, addPlayersToClub, creditBudget, buyPlayer, replaceRost
 import { computePrizeMoney } from './economy.js';
 import { generateClubYouthBatch } from './youth.js';
 import { applySeasonAging } from './aging.js';
-import { decideAiListings, decideAiOffers } from './aiTransfers.js';
+import { decideAiListings, decideAiOffers, AI_BUDGET_STRETCH } from './aiTransfers.js';
 import { buildSeasonCalendar, isTransferWindowOpen } from './calendar.js';
 import { teamForSim, resolveTwoLegTieAuto, prepareTwoLegTieForUser, legPackage } from './simHelpers.js';
 import { drawCopaBracket, playCopaRoundIda, playCopaRoundVolta, finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2, copaCurrentDay, COPA_ROUND_LABELS } from './copaEngine.js';
@@ -385,6 +385,36 @@ export function advanceDay(save) {
   return { save: { ...current, calendarDay: 365, lastDayEvents: events }, event: 'season-end' };
 }
 
+// Suspensão do PRÓPRIO clube do usuário (pedido explícito do usuário
+// 2026-11-12: "não deixe iniciar uma partida se... tiver um jogador
+// suspenso") — só o meu time, nunca os outros 39 (ninguém vê a escalação
+// deles, não tem UI nenhuma que precise bloquear por causa disso). 3
+// amarelos acumulados = 1 rodada de suspensão (zera a contagem depois);
+// vermelho = 1 rodada de suspensão na hora, sem precisar de 3. Cartão de
+// Copa do Brasil não entra aqui de propósito (cartão não atravessa
+// competição diferente no futebol de verdade) — só as rodadas do
+// Brasileirão, daí só precisa rodar isso dentro de `resolveUserMatch`
+// (o único lugar onde o jogo do usuário no Brasileirão de fato decide).
+const YELLOWS_FOR_SUSPENSION = 3;
+const RED_SUSPENSION_ROUNDS = 1;
+
+function applyUserDiscipline(save, events) {
+  const suspensions = {};
+  Object.entries(save.suspensions || {}).forEach(([name, left]) => { if (left - 1 > 0) suspensions[name] = left - 1; });
+  const cardTally = { ...(save.cardTally || {}) };
+  for (const ev of events || []) {
+    if (ev.teamId !== save.myClubId) continue;
+    if (ev.type === 'yellow') {
+      const next = (cardTally[ev.player] || 0) + 1;
+      if (next >= YELLOWS_FOR_SUSPENSION) { suspensions[ev.player] = Math.max(suspensions[ev.player] || 0, RED_SUSPENSION_ROUNDS); cardTally[ev.player] = 0; }
+      else cardTally[ev.player] = next;
+    } else if (ev.type === 'red') {
+      suspensions[ev.player] = Math.max(suspensions[ev.player] || 0, RED_SUSPENSION_ROUNDS);
+    }
+  }
+  return { ...save, suspensions, cardTally };
+}
+
 // Chamada pela tela de partida ao vivo (CareerMatchDayScreen) depois que o
 // usuário termina de assistir/pular o próprio jogo — só agora a rodada
 // INTEIRA (o jogo do usuário, já decidido, + os outros 9 de cada divisão,
@@ -396,7 +426,7 @@ export function resolveUserMatch(save) {
     homeId: pending.homeId, awayId: pending.awayId, homeGoals: pending.sim.homeGoals, awayGoals: pending.sim.awayGoals,
     events: pending.sim.events, ratings: pending.sim.ratings, homeGkName: pending.sim.homeGkName, awayGkName: pending.sim.awayGkName,
   };
-  const played = playRound(save, pending.roundIdx, userMatch);
+  const played = applyUserDiscipline(playRound(save, pending.roundIdx, userMatch), pending.sim.events);
   const myMatch = findMyMatchResult(played, pending.roundIdx);
   return {
     ...played,
@@ -658,7 +688,14 @@ export function respondToOffer(save, offerIndex, accept) {
   if (!seller || !buyer) return { ...save, pendingOffers: remaining };
   if (!canSell(seller.roster)) return { ...save, pendingOffers: remaining };
   const player = seller.roster.find(p => p.name === offer.playerName);
-  if (!player || buyer.budget < offer.amount) return { ...save, pendingOffers: remaining };
+  // `decideAiOffers` já gerou essa proposta sabendo que o comprador ia
+  // esticar o orçamento ATUAL até AI_BUDGET_STRETCH (ver aiTransfers.js) —
+  // bloquear aceitação exigindo o valor inteiro já no caixa fazia a
+  // proposta "chegar" mas sumir sem efeito nenhum ao aceitar, mesmo bug na
+  // prática ("não está chegando proposta"). O orçamento final do comprador
+  // fica em 0 (nunca negativo), nunca o preço inteiro — o "esticado" é
+  // financiamento, não dinheiro que não existe.
+  if (!player || offer.amount > buyer.budget * AI_BUDGET_STRETCH) return { ...save, pendingOffers: remaining };
 
   return {
     ...save,
@@ -666,7 +703,7 @@ export function respondToOffer(save, offerIndex, accept) {
     clubs: {
       ...save.clubs,
       [offer.toClubId]: { ...seller, roster: seller.roster.filter(p => p.name !== offer.playerName), budget: seller.budget + offer.amount },
-      [offer.fromClubId]: { ...buyer, roster: [...buyer.roster, player], budget: buyer.budget - offer.amount },
+      [offer.fromClubId]: { ...buyer, roster: [...buyer.roster, player], budget: Math.max(0, buyer.budget - offer.amount) },
     },
     transferLog: appendTransferLog(save, { type: 'user-sell', playerName: offer.playerName, fromClubId: offer.toClubId, toClubId: offer.fromClubId, amount: offer.amount }),
   };
@@ -695,7 +732,7 @@ export function counterOffer(save, offerIndex, counterAmount) {
   const player = seller?.roster.find(p => p.name === offer.playerName);
   const willingCeiling = offer.amount * COUNTER_ACCEPT_CEILING;
   const buyerWalksAway = !seller || !buyer || !player || !canSell(seller.roster)
-    || counterAmount > willingCeiling || counterAmount > buyer.budget;
+    || counterAmount > willingCeiling || counterAmount > buyer.budget * AI_BUDGET_STRETCH;
   if (buyerWalksAway) return { save: { ...save, pendingOffers: remaining }, accepted: false };
 
   return {
@@ -705,7 +742,7 @@ export function counterOffer(save, offerIndex, counterAmount) {
       clubs: {
         ...save.clubs,
         [offer.toClubId]: { ...seller, roster: seller.roster.filter(p => p.name !== offer.playerName), budget: seller.budget + counterAmount },
-        [offer.fromClubId]: { ...buyer, roster: [...buyer.roster, player], budget: buyer.budget - counterAmount },
+        [offer.fromClubId]: { ...buyer, roster: [...buyer.roster, player], budget: Math.max(0, buyer.budget - counterAmount) },
       },
       transferLog: appendTransferLog(save, { type: 'user-sell', playerName: offer.playerName, fromClubId: offer.toClubId, toClubId: offer.fromClubId, amount: counterAmount }),
     },

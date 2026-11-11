@@ -391,6 +391,14 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
   const nextMatch = nextMatches.find(m => m.homeId === save.myClubId || m.awayId === save.myClubId);
   const seasonOver = division.round >= division.fixtures.length;
   const offerCount = save.pendingOffers?.length || 0;
+  // Pedido explícito do usuário (2026-11-12): não deixar iniciar uma
+  // partida sem formação definida, nem com jogador suspenso na escalação
+  // (ver applyUserDiscipline em seasonEngine.js) — bloqueia os dois
+  // botões de avanço, igual já acontecia com proposta pendente.
+  const noFormation = !save.myStarters?.length;
+  const suspendedStarters = noFormation ? [] : save.myStarters.filter(name => (save.suspensions?.[name] || 0) > 0);
+  const hasSuspendedStarter = suspendedStarters.length > 0;
+  const advanceBlocked = offerCount > 0 || noFormation || hasSuspendedStarter;
   const dayEventsRich = (save.lastDayEvents || [])
     .map(ev => ({ type: ev.type, day: ev.day, text: eventLine(ev, save.myClubId) }))
     .filter(e => e.text);
@@ -484,6 +492,16 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
             📨 {offerCount} proposta{offerCount > 1 ? 's' : ''} esperando resposta — toque pra ver
           </div>
         )}
+        {offerCount === 0 && noFormation && (
+          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(224,80,80,0.1)', border: '1px solid rgba(224,80,80,0.3)', fontSize: 12, color: '#e08080', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('formation')}>
+            🧩 Defina sua formação antes de jogar — toque pra escalar
+          </div>
+        )}
+        {offerCount === 0 && !noFormation && hasSuspendedStarter && (
+          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(224,80,80,0.1)', border: '1px solid rgba(224,80,80,0.3)', fontSize: 12, color: '#e08080', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('formation')}>
+            🟥 {suspendedStarters.join(', ')} suspenso{suspendedStarters.length > 1 ? 's' : ''} — ajuste a formação antes de jogar
+          </div>
+        )}
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
           <NavButton icon="👕" label="Elenco" sub={`${rosterCount} jogadores`} onClick={() => onNavigate('squad')} />
@@ -505,18 +523,18 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
         </button>
 
         <div style={{ paddingTop: 4 }}>
-          <button className="career-advance-btn" onClick={onAdvanceDay} disabled={offerCount > 0} style={{
-            width: '100%', padding: '18px 0', borderRadius: 14, border: offerCount > 0 ? 'none' : '2px solid rgba(240,200,104,0.5)', cursor: offerCount > 0 ? 'default' : 'pointer',
-            background: offerCount > 0 ? 'rgba(212,162,60,0.3)' : 'linear-gradient(135deg, #f0c868, #d4a23c, #f0c868)',
+          <button className="career-advance-btn" onClick={onAdvanceDay} disabled={advanceBlocked} style={{
+            width: '100%', padding: '18px 0', borderRadius: 14, border: advanceBlocked ? 'none' : '2px solid rgba(240,200,104,0.5)', cursor: advanceBlocked ? 'default' : 'pointer',
+            background: advanceBlocked ? 'rgba(212,162,60,0.3)' : 'linear-gradient(135deg, #f0c868, #d4a23c, #f0c868)',
             color: '#0B1A12', fontSize: 17, fontWeight: 800, letterSpacing: 0.4,
           }}>
-            {offerCount > 0 ? 'Responda as propostas primeiro' : seasonOver ? 'Encerrar temporada →' : '▶ Avançar rodada'}
+            {offerCount > 0 ? 'Responda as propostas primeiro' : noFormation ? 'Defina a formação primeiro' : hasSuspendedStarter ? 'Tire o suspenso da escalação' : seasonOver ? 'Encerrar temporada →' : '▶ Avançar rodada'}
           </button>
         </div>
         {!seasonOver && (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <button className="career-simulate-btn" onClick={onSimulateSeason} disabled={offerCount > 0} style={{
-              padding: '9px 20px', borderRadius: 999, cursor: offerCount > 0 ? 'default' : 'pointer',
+            <button className="career-simulate-btn" onClick={onSimulateSeason} disabled={advanceBlocked} style={{
+              padding: '9px 20px', borderRadius: 999, cursor: advanceBlocked ? 'default' : 'pointer',
               border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.03)', color: 'rgba(244,241,234,0.7)', fontSize: 12, fontWeight: 600,
             }}>
               ⏩ Simular temporada até o fim
