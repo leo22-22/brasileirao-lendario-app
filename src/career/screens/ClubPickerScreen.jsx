@@ -63,7 +63,11 @@ export function ClubPickerScreen({ onPick, onBack }) {
   const [query, setQuery] = useState('');
   const [budgetInput, setBudgetInput] = useState('');
   const [selectedClubId, setSelectedClubId] = useState(null);
-  const ids = division === 'A' ? SERIE_A_2026_TEAM_IDS : SERIE_B_2026_TEAM_IDS;
+  // Ordem alfabética pelo nome do clube (pedido explícito do usuário
+  // 2026-11-11: "deixe tudo por ordem alfabetica") — SERIE_A/B_2026_TEAM_IDS
+  // vêm ordenados por tier (Elite→Pequeno), só pra outros usos internos.
+  const ids = [...(division === 'A' ? SERIE_A_2026_TEAM_IDS : SERIE_B_2026_TEAM_IDS)]
+    .sort((a, b) => TEAMS.find(t => t.id === a).club.localeCompare(TEAMS.find(t => t.id === b).club));
   const q = normalize(query.trim());
   const filteredIds = ids.filter(id => !q || normalize(TEAMS.find(t => t.id === id).club).includes(q));
 

@@ -38,9 +38,16 @@ function emptyTableRow(clubId) {
 
 function buildDivision(teamIds, rand) {
   const shuffled = [...teamIds].sort(() => rand() - 0.5);
+  // A tabela em si (diferente do sorteio de confrontos em `shuffled`) abre
+  // em ordem alfabética — pedido explícito do usuário 2026-11-11: "nas
+  // tabelas no início colocar por ordem alfabetica". `applyRoundToTable`
+  // (App.jsx) também desempata por nome, então isso só importa de verdade
+  // na rodada 0 (todo mundo 0 a 0) — dali em diante quem decide é o jogo.
+  const alphabetical = [...teamIds].sort((a, b) =>
+    TEAMS.find(t => t.id === a).club.localeCompare(TEAMS.find(t => t.id === b).club));
   return {
     teamIdsInOrder: shuffled,
-    table: shuffled.map(emptyTableRow),
+    table: alphabetical.map(emptyTableRow),
     fixtures: generateDoubleRoundRobin(shuffled),
     round: 0,
     // results[roundIdx] = placares daquela rodada — guardado pra tela de

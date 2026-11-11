@@ -1048,7 +1048,7 @@ export function applyRoundToTable(table, results) {
     else if (res.homeGoals < res.awayGoals) { a.v++; a.pts += 3; h.d++; }
     else { h.e++; h.pts++; a.e++; a.pts++; }
   });
-  return [...tbl].sort((a, b) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp);
+  return [...tbl].sort((a, b) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp || a.label.localeCompare(b.label));
 }
 
 // Quantos times sobem/descem por temporada na Série A/B — 1º e 2º da Série B
