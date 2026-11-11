@@ -155,7 +155,20 @@ export function teamForSim(save, clubId) {
     }
   }
 
-  const players = [...starters, ...bench].map((p, i) => ({ ...p, club: base.club, isBench: i >= starters.length }));
+  // Capitão (+2 OVR) e cobrador de pênalti (pedido explícito do usuário
+  // 2026-11-13) — só pro MEU clube, escolhidos na Formação
+  // (CareerFormationScreen.jsx, obrigatórios pra confirmar escalação) e
+  // sempre titulares. Aplica ANTES de `teamStrength` pra o bônus do
+  // capitão valer de verdade na força do time, igual `pitchWithCaptain` já
+  // faz no Brasileirão clássico (App.jsx). `isPenaltyTaker` é lido por
+  // `simAiMatch` (App.jsx) na hora de sortear quem bate um pênalti durante
+  // o jogo — aditivo, não existe em nenhum outro modo.
+  const players = [...starters, ...bench].map((p, i) => {
+    const next = { ...p, club: base.club, isBench: i >= starters.length };
+    if (isMine && p.name === save.myCaptain) { next.ovr = p.ovr + 2; next.isCaptain = true; }
+    if (isMine && p.name === save.myPenaltyTaker) next.isPenaltyTaker = true;
+    return next;
+  });
   const baseOvr = teamStrength(Object.fromEntries(players.map((p, i) => [i, p])));
   const stretchedOvr = LEAGUE_AVG_STRENGTH + (baseOvr - LEAGUE_AVG_STRENGTH) * STRENGTH_SPREAD_STRETCH;
   return {
@@ -186,6 +199,37 @@ export function resolveTwoLegTieAuto(save, homeId1, awayId1, rand) {
     winnerId = decider.homeGoals >= decider.awayGoals ? homeId1 : awayId1;
   }
   return { winnerId, loserId: winnerId === homeId1 ? awayId1 : homeId1, leg1, leg2 };
+}
+
+// Aplica no save uma troca feita DURANTE a partida ao vivo do próprio
+// usuário (pedido explícito do usuário 2026-11-13: "aquelas substituições
+// durante a partida não estão acontecendo... coloque comigo se eu quiser
+// trocar eu pauso o jogo e faço as substituições seja de formação ou de
+// jogador") — igual o Brasileirão clássico (App.jsx: applyLiveSub/
+// moveLiveLineupSlot), a troca NUNCA muda o placar/eventos já sorteados
+// da partida em andamento (isso já saiu pronto de `legPackage` antes da
+// tela abrir) — só vale de verdade a partir da PRÓXIMA partida do
+// usuário, via `myStarters`/`myBench` persistidos aqui. `slots` é
+// `buildPitchSlots(save.myFormationKey)` — mesma ordem de índice que
+// `save.myStarters` (ver handleConfirm em CareerFormationScreen.jsx).
+export function applyCareerLineupChange(save, change) {
+  const slots = buildPitchSlots(save.myFormationKey);
+  if (change.type === 'sub') {
+    const idx = slots.findIndex(s => s.key === change.slotKey);
+    if (idx === -1 || !save.myStarters) return save;
+    const myStarters = save.myStarters.map((n, i) => (i === idx ? change.inName : n));
+    const myBench = (save.myBench || []).map(n => (n === change.inName ? change.outName : n));
+    return { ...save, myStarters, myBench };
+  }
+  if (change.type === 'reposition') {
+    const srcIdx = slots.findIndex(s => s.key === change.sourceKey);
+    const tgtIdx = slots.findIndex(s => s.key === change.targetKey);
+    if (srcIdx === -1 || tgtIdx === -1 || !save.myStarters) return save;
+    const myStarters = [...save.myStarters];
+    [myStarters[srcIdx], myStarters[tgtIdx]] = [myStarters[tgtIdx], myStarters[srcIdx]];
+    return { ...save, myStarters };
+  }
+  return save;
 }
 
 // Monta UMA perna (ida ou volta) com o timeline minuto a minuto pronto pra

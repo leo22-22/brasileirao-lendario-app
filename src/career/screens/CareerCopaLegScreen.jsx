@@ -9,7 +9,7 @@ import { useState } from 'react';
 import { LegMatch } from './CareerTwoLegScreen.jsx';
 import { wrapStyle, primaryBtnStyle } from '../components/liveMatchUI.jsx';
 
-export function CareerCopaLegScreen({ title, leg, leg1Result, prepare, onDoneIda, onDoneVolta }) {
+export function CareerCopaLegScreen({ title, leg, leg1Result, prepare, onDoneIda, onDoneVolta, save, onApplyLineupChange }) {
   const [legData] = useState(prepare);
   const [showSummary, setShowSummary] = useState(false);
 
@@ -21,6 +21,7 @@ export function CareerCopaLegScreen({ title, leg, leg1Result, prepare, onDoneIda
         legLabel={`${title} · Jogo de Ida`}
         continueLabel="Voltar ao clube →"
         onDone={() => onDoneIda(legData)}
+        save={save} onApplyLineupChange={onApplyLineupChange}
       />
     );
   }
@@ -36,6 +37,7 @@ export function CareerCopaLegScreen({ title, leg, leg1Result, prepare, onDoneIda
         legLabel={`${title} · Jogo de Volta`}
         continueLabel="Ver resultado do confronto →"
         onDone={() => setShowSummary(true)}
+        save={save} onApplyLineupChange={onApplyLineupChange}
       />
     );
   }

@@ -31,6 +31,7 @@ import {
 import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
 import { proposeTransfer, promoteYouthPlayer } from './engine/rosterStore.js';
 import { toggleLoanList, requestLoanIn } from './engine/loans.js';
+import { applyCareerLineupChange } from './engine/simHelpers.js';
 
 export function CareerApp({ onExit, onHudChange }) {
   const [save, setSave] = useState(() => loadCareerSave());
@@ -224,8 +225,8 @@ export function CareerApp({ onExit, onHudChange }) {
     setSave(prev => prev && resolveCopaFinalUserMatch(prev));
   }, []);
 
-  const handleConfirmFormation = useCallback(({ myStarters, myBench, myFormationLabel, myFormationKey }) => {
-    setSave(prev => prev && { ...prev, myStarters, myBench, myFormationLabel, myFormationKey });
+  const handleConfirmFormation = useCallback(({ myStarters, myBench, myFormationLabel, myFormationKey, myCaptain, myPenaltyTaker }) => {
+    setSave(prev => prev && { ...prev, myStarters, myBench, myFormationLabel, myFormationKey, myCaptain, myPenaltyTaker });
     setScreen('hub');
   }, []);
 
@@ -302,6 +303,14 @@ export function CareerApp({ onExit, onHudChange }) {
     setSave(prev => prev && resolveUserMatch(prev));
   }, []);
 
+  // Troca feita DURANTE a partida ao vivo (pausa → substituição ou
+  // reposicionamento tático, ver LiveMatchScreen/liveMatchUI.jsx) — nunca
+  // muda o placar da partida em andamento, só persiste myStarters/myBench
+  // pra valer de verdade a partir da PRÓXIMA partida do usuário.
+  const handleApplyLiveLineupChange = useCallback((change) => {
+    setSave(prev => prev && applyCareerLineupChange(prev, change));
+  }, []);
+
   // Botão único do relatório de fim de temporada — só agora a temporada
   // nova é de fato montada (ver seasonEngine.js: endOfSeason/
   // finalizeSeasonAfterUserTie já pararam em `screen:'season-report'` e
@@ -365,7 +374,7 @@ export function CareerApp({ onExit, onHudChange }) {
   }
 
   if (save.pendingUserMatch) {
-    return <CareerMatchDayScreen save={save} onFinish={handleFinishUserMatch} />;
+    return <CareerMatchDayScreen save={save} onFinish={handleFinishUserMatch} onApplyLineupChange={handleApplyLiveLineupChange} />;
   }
 
   if (save.pendingUserTie) {
@@ -379,6 +388,7 @@ export function CareerApp({ onExit, onHudChange }) {
         loseLabel="Eliminado — segue na Série B"
         prepare={() => simulateUserTie(save)}
         onContinue={handleResolvePlayoffTie}
+        save={save} onApplyLineupChange={handleApplyLiveLineupChange}
       />
     );
   }
@@ -389,7 +399,7 @@ export function CareerApp({ onExit, onHudChange }) {
     // Brasileirão (CareerMatchDayScreen), só passando o jogo e o rótulo da
     // Copa por fora. As outras fases continuam ida+volta de verdade.
     if (tie.isFinal) {
-      return <CareerMatchDayScreen save={save} pending={tie.finalMatch} competitionLabel="🏆 Copa do Brasil — Final" onFinish={handleFinishCopaFinal} />;
+      return <CareerMatchDayScreen save={save} pending={tie.finalMatch} competitionLabel="🏆 Copa do Brasil — Final" onFinish={handleFinishCopaFinal} onApplyLineupChange={handleApplyLiveLineupChange} />;
     }
     const roundLabel = COPA_ROUND_LABELS[save.copa.round];
     const title = `Copa do Brasil — ${roundLabel}`;
@@ -400,6 +410,7 @@ export function CareerApp({ onExit, onHudChange }) {
           leg="ida"
           prepare={() => simulateUserCopaTieLeg1(save)}
           onDoneIda={handleResolveCopaTieLeg1}
+          save={save} onApplyLineupChange={handleApplyLiveLineupChange}
         />
       );
     }
@@ -411,6 +422,7 @@ export function CareerApp({ onExit, onHudChange }) {
         leg1Result={save.copa.leg1Results[myTieIdx]}
         prepare={() => simulateUserCopaTieLeg2(save)}
         onDoneVolta={handleResolveCopaTieLeg2}
+        save={save} onApplyLineupChange={handleApplyLiveLineupChange}
       />
     );
   }

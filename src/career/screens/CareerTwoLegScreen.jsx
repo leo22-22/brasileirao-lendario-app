@@ -6,86 +6,25 @@
 // resolvia tudo de uma vez — agora: tela da Ida (ao vivo) → tela da Volta
 // (ao vivo) → resumo com agregado/pênaltis.
 import { useState } from 'react';
-import {
-  eventIcon, eventText, TeamBadge, RatingsList, useLiveMatchPlayer, MatchSpeedPicker,
-  wrapStyle, cardStyle, labelStyle, primaryBtnStyle, secondaryBtnStyle,
-} from '../components/liveMatchUI.jsx';
+import { LiveMatchScreen, wrapStyle, primaryBtnStyle } from '../components/liveMatchUI.jsx';
 
-// Uma perna (ida OU volta) — reaproveita o mesmo motor/visual do jogo
-// comum do Brasileirão (CareerMatchDayScreen), só trocando o rótulo do
-// topo e o texto do botão final. `key` no uso abaixo garante que o estado
+// Uma perna (ida OU volta) — reaproveita a mesma tela centralizada de
+// partida ao vivo (LiveMatchScreen, com pausa+troca) do jogo comum do
+// Brasileirão (CareerMatchDayScreen), só trocando o rótulo do topo e o
+// texto do botão final. `key` no uso abaixo garante que o estado
 // (minuto/eventos/fase) reseta sozinho ao trocar de perna.
-export function LegMatch({ leg, legLabel, continueLabel, onDone }) {
+export function LegMatch({ leg, legLabel, continueLabel, onDone, save, onApplyLineupChange }) {
   const { homeTeam, awayTeam, sim } = leg;
-  const { phase, minute, homeGoals, awayGoals, shownEvents, startPlaying, skipToEnd, motm, speedKey, changeSpeed } = useLiveMatchPlayer(sim, homeTeam, awayTeam);
-
-  if (phase === 'intro') {
-    return (
-      <div style={wrapStyle}>
-        <div style={cardStyle}>
-          <div style={labelStyle}>{legLabel}</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 0 24px' }}>
-            <TeamBadge team={homeTeam} />
-            <div style={{ fontSize: 13, opacity: 0.4, fontWeight: 700 }}>x</div>
-            <TeamBadge team={awayTeam} />
-          </div>
-        </div>
-        <button onClick={startPlaying} style={primaryBtnStyle}>▶ Jogar partida</button>
-      </div>
-    );
-  }
-
   return (
-    <div style={wrapStyle}>
-      <div style={{ ...cardStyle, marginBottom: 16 }}>
-        <div style={labelStyle}>{legLabel}</div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, margin: '8px 0 4px' }}>
-          <TeamBadge team={homeTeam} />
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700 }}>{homeGoals} - {awayGoals}</div>
-          <TeamBadge team={awayTeam} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>
-            {phase === 'playing' ? `${minute}'` : 'Fim de jogo'}
-          </div>
-          {phase === 'playing' && <MatchSpeedPicker speedKey={speedKey} onChange={changeSpeed} />}
-        </div>
-      </div>
-
-      <div style={{ minHeight: 140, marginBottom: 16, display: 'grid', gap: 6, padding: 10, borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        {shownEvents.length === 0 && phase === 'playing' && (
-          <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.4, padding: '20px 0' }}>Bola rolando...</div>
-        )}
-        {[...shownEvents].reverse().map((ev, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, padding: '5px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.03)' }}>
-            <span style={{ width: 28, opacity: 0.5, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{ev.minute}'</span>
-            <span>{eventIcon(ev)}</span>
-            <span style={{ flex: 1 }}>{eventText(ev)}</span>
-          </div>
-        ))}
-      </div>
-
-      {phase === 'playing' && (
-        <button onClick={skipToEnd} style={secondaryBtnStyle}>⏭ Pular pro resultado</button>
-      )}
-
-      {phase === 'done' && (
-        <>
-          {motm && (
-            <div style={{ textAlign: 'center', background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
-              🌟 Craque da partida: <b style={{ color: '#d4a23c' }}>{motm.name}</b>{' '}
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
-            </div>
-          )}
-          <RatingsList ratings={sim.ratings} homeTeam={homeTeam} awayTeam={awayTeam} />
-          <button onClick={onDone} style={{ ...primaryBtnStyle, marginTop: 4 }}>{continueLabel}</button>
-        </>
-      )}
-    </div>
+    <LiveMatchScreen
+      sim={sim} homeTeam={homeTeam} awayTeam={awayTeam}
+      label={legLabel} continueLabel={continueLabel} onFinish={onDone}
+      save={save} onApplyLineupChange={onApplyLineupChange}
+    />
   );
 }
 
-export function CareerTwoLegScreen({ title, subtitle, winLabel, loseLabel, prepare, onContinue }) {
+export function CareerTwoLegScreen({ title, subtitle, winLabel, loseLabel, prepare, onContinue, save, onApplyLineupChange }) {
   const [tieData] = useState(prepare);
   const [legIndex, setLegIndex] = useState(0); // 0 = ida, 1 = volta, 2 = resumo
 
@@ -97,6 +36,7 @@ export function CareerTwoLegScreen({ title, subtitle, winLabel, loseLabel, prepa
         legLabel={`${title} · Jogo de Ida`}
         continueLabel="Continuar pro jogo de volta →"
         onDone={() => setLegIndex(1)}
+        save={save} onApplyLineupChange={onApplyLineupChange}
       />
     );
   }
@@ -108,6 +48,7 @@ export function CareerTwoLegScreen({ title, subtitle, winLabel, loseLabel, prepa
         legLabel={`${title} · Jogo de Volta`}
         continueLabel="Ver resultado do confronto →"
         onDone={() => setLegIndex(2)}
+        save={save} onApplyLineupChange={onApplyLineupChange}
       />
     );
   }

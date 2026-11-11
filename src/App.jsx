@@ -1675,7 +1675,11 @@ export function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   [[homeTeam, homeGoalXI, true], [awayTeam, awayGoalXI, false]].forEach(([team, xi, isHome]) => {
     if (xi.length === 0 || rand() >= PENALTY_AWARD_CHANCE_PER_TEAM) return;
     if (rand() >= penaltyScoreRate(team.ovr)) return;
-    const taker = pickGoalScorer(xi, rand);
+    // Cobrador de pênalti designado (Modo Carreira, ver `isPenaltyTaker` em
+    // teamForSim/simHelpers.js) tem prioridade quando ele ainda está em
+    // campo (xi já exclui quem foi expulso) — ninguém mais seta essa flag,
+    // então todo outro modo cai sempre no sorteio de sempre.
+    const taker = xi.find(p => p.isPenaltyTaker)?.name ?? pickGoalScorer(xi, rand);
     if (isHome) homeGoals++; else awayGoals++;
     goals.push({ teamId: team.id, teamLabel: team.label, scorer: taker, isOwnGoal: false, isPenalty: true, assist: null });
   });

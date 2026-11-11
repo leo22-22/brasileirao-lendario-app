@@ -131,6 +131,55 @@ function PitchField({ slots, starters, roster, pendingSlotKey, suspendedSet, onS
   );
 }
 
+// Lista dos titulares atuais com dois selos por linha pra marcar "funções"
+// (pedido explícito do usuário 2026-11-13): capitão (+2 OVR, igual já
+// existe no Brasileirão clássico/Atual, ver `captainSlot`/App.jsx) e
+// cobrador de pênalti (recurso novo, só aqui no Modo Carreira por enquanto
+// — ver `isPenaltyTaker` em teamForSim/simHelpers.js e simAiMatch/App.jsx).
+// Só um titular pode ser capitão e só um pode ser cobrador (podem ser a
+// mesma pessoa). Clicar de novo no selo já ativo desmarca.
+function StartersFunctionsList({ slots, starters, roster, captainName, penaltyTakerName, onToggleCaptain, onTogglePenalty }) {
+  const byName = useMemo(() => Object.fromEntries(roster.map(p => [p.name, p])), [roster]);
+  const list = slots
+    .map(slot => ({ slot, name: starters[slot.key] }))
+    .filter(x => x.name && byName[x.name])
+    .sort((a, b) => posOrderIndex(byName[a.name].pos[0]) - posOrderIndex(byName[b.name].pos[0]));
+  return (
+    <div style={{ display: 'grid', gap: 4, marginBottom: 12 }}>
+      {list.map(({ name }) => {
+        const p = byName[name];
+        const isCap = captainName === name;
+        const isPen = penaltyTakerName === name;
+        return (
+          <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: (isCap || isPen) ? 'rgba(212,162,60,0.08)' : 'rgba(255,255,255,0.03)' }}>
+            <span style={{ width: 26, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
+            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 11.5, color: ovrColor(p.ovr), flexShrink: 0 }}>{p.ovr}</span>
+            <button
+              onClick={() => onToggleCaptain(name)}
+              title={isCap ? 'Capitão — clique pra tirar' : 'Definir como capitão (+2 OVR)'}
+              style={{
+                flexShrink: 0, width: 26, height: 26, borderRadius: 7, fontSize: 10.5, fontWeight: 800, cursor: 'pointer',
+                border: `1px solid ${isCap ? 'rgba(212,162,60,0.6)' : 'rgba(255,255,255,0.15)'}`,
+                background: isCap ? '#d4a23c' : 'transparent', color: isCap ? '#0B1A12' : 'rgba(244,241,234,0.5)',
+              }}
+            >C</button>
+            <button
+              onClick={() => onTogglePenalty(name)}
+              title={isPen ? 'Cobrador de pênalti — clique pra tirar' : 'Definir como cobrador de pênalti'}
+              style={{
+                flexShrink: 0, width: 26, height: 26, borderRadius: 7, fontSize: 10.5, fontWeight: 800, cursor: 'pointer',
+                border: `1px solid ${isPen ? 'rgba(111,184,224,0.6)' : 'rgba(255,255,255,0.15)'}`,
+                background: isPen ? '#6fb8e0' : 'transparent', color: isPen ? '#0B1A12' : 'rgba(244,241,234,0.5)',
+              }}
+            >P</button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function PlayerPoolPicker({ pos, pool, suspendedSet, onPick, onCancel }) {
   // Filtra de verdade pela posição clicada (antes só ordenava, deixando o
   // elenco inteiro visível — incluindo goleiro/zagueiro numa vaga de
@@ -186,28 +235,35 @@ function PlayerPoolPicker({ pos, pool, suspendedSet, onPick, onCancel }) {
 // 12 — o resto do elenco é "reserva dos reservas", nem joga como
 // repositor de lesão) — selecionado = vai pro banco de verdade; o resto
 // só fica visível pra trocar, sem nenhuma ação própria além de clicar.
-function BenchBubble({ p, selected, disabled, onClick }) {
+// Suspenso (bug reportado 2026-11-13: "hoje é possível deixar ele como
+// reserva") não pode nem ENTRAR no banco — mesma regra que já bloqueia
+// titular, mas faltava aqui (PlayerPoolPicker já bloqueava titular).
+function BenchBubble({ p, selected, disabled, suspended, onClick }) {
   const c = posColor(p.pos[0]);
+  const blocked = disabled || suspended;
   return (
     <button
       onClick={onClick}
-      disabled={disabled}
-      title={selected ? 'No banco — clique pra tirar' : disabled ? 'Banco já tem 12 — tire alguém antes' : 'Clique pra colocar no banco'}
+      disabled={blocked}
+      title={suspended ? 'Suspenso — não pode nem ficar no banco essa rodada' : selected ? 'No banco — clique pra tirar' : disabled ? 'Banco já tem 12 — tire alguém antes' : 'Clique pra colocar no banco'}
       style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3, flexShrink: 0, width: 60, scrollSnapAlign: 'start',
-        background: 'none', border: 'none', padding: 0, cursor: disabled ? 'default' : 'pointer',
-        opacity: selected ? 1 : disabled ? 0.35 : 0.55,
+        background: 'none', border: 'none', padding: 0, cursor: blocked ? 'default' : 'pointer',
+        opacity: suspended ? 0.4 : selected ? 1 : disabled ? 0.35 : 0.55,
       }}
     >
-      <div style={{
-        width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 12, fontWeight: 800, fontFamily: "'Space Mono', monospace",
-        background: selected ? c : 'rgba(255,255,255,0.08)', color: selected ? '#0B1A12' : `${c}cc`,
-        border: selected ? '2px solid rgba(255,255,255,0.65)' : `1.5px dashed ${c}88`,
-        boxShadow: selected ? '0 3px 7px rgba(0,0,0,0.4)' : 'none',
-      }}>{p.ovr}</div>
-      <div style={{ fontSize: 9, fontWeight: 700, color: c, fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</div>
-      <div style={{ fontSize: 9, fontWeight: 600, textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#F4F1EA', opacity: 0.85 }}>{p.name}</div>
+      <div style={{ position: 'relative' }}>
+        <div style={{
+          width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, fontWeight: 800, fontFamily: "'Space Mono', monospace",
+          background: selected ? c : 'rgba(255,255,255,0.08)', color: selected ? '#0B1A12' : `${c}cc`,
+          border: suspended ? '2px solid #e05050' : selected ? '2px solid rgba(255,255,255,0.65)' : `1.5px dashed ${c}88`,
+          boxShadow: suspended ? '0 0 10px rgba(224,80,80,0.5)' : selected ? '0 3px 7px rgba(0,0,0,0.4)' : 'none',
+        }}>{p.ovr}</div>
+        {suspended && <span style={{ position: 'absolute', top: -4, right: -4, fontSize: 11 }}>🟥</span>}
+      </div>
+      <div style={{ fontSize: 9, fontWeight: 700, color: suspended ? '#e05050' : c, fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</div>
+      <div style={{ fontSize: 9, fontWeight: 600, textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: suspended ? '#e05050' : '#F4F1EA', opacity: 0.85 }}>{p.name}</div>
     </button>
   );
 }
@@ -259,14 +315,15 @@ function LoadPresetPanel({ presets, onLoad, onDelete, onCancel }) {
   );
 }
 
-function BenchCarousel({ players, benchSet, onToggle }) {
+function BenchCarousel({ players, benchSet, suspendedSet, onToggle }) {
   const sorted = [...players].sort((a, b) => posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]) || b.ovr - a.ovr);
   const full = benchSet.size >= 12;
   return (
     <div style={{ display: 'flex', gap: 12, overflowX: 'auto', paddingBottom: 6, scrollSnapType: 'x proximity' }}>
       {sorted.map(p => {
         const selected = benchSet.has(p.name);
-        return <BenchBubble key={p.name} p={p} selected={selected} disabled={!selected && full} onClick={() => onToggle(p.name)} />;
+        const suspended = suspendedSet.has(p.name);
+        return <BenchBubble key={p.name} p={p} selected={selected} disabled={!selected && full} suspended={suspended} onClick={() => !suspended && onToggle(p.name)} />;
       })}
     </div>
   );
@@ -286,18 +343,40 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
   // teamForSim em simHelpers.js).
   const [benchSelected, setBenchSelected] = useState(() => initialBench(roster, save, Object.values(starters)));
   const [presetPanel, setPresetPanel] = useState(null); // null | 'save' | 'load'
+  // Funções do titular (pedido explícito do usuário 2026-11-13: "adicionar
+  // capitão ganha mais 2 de overall e cobrador de pênalti também") — só
+  // existem aqui no Modo Carreira por enquanto (ver plano). Reaproveita o
+  // que já estava salvo SE ainda for um titular válido nessa reabertura.
+  const [captainName, setCaptainName] = useState(() => {
+    const names = new Set(Object.values(starters));
+    return save.myCaptain && names.has(save.myCaptain) ? save.myCaptain : null;
+  });
+  const [penaltyTakerName, setPenaltyTakerName] = useState(() => {
+    const names = new Set(Object.values(starters));
+    return save.myPenaltyTaker && names.has(save.myPenaltyTaker) ? save.myPenaltyTaker : null;
+  });
 
   // Jogador suspenso (3 amarelos ou vermelho na rodada passada, ver
   // applyUserDiscipline em seasonEngine.js) não pode ser confirmado como
-  // titular essa rodada (pedido explícito do usuário 2026-11-12).
+  // titular essa rodada (pedido explícito do usuário 2026-11-12) NEM ficar
+  // no banco de reservas (bug real reportado 2026-11-13: "hoje é possível
+  // deixar ele como reserva" — suspenso não pode nem estar relacionado).
   const suspendedSet = useMemo(() => new Set(Object.entries(save.suspensions || {}).filter(([, left]) => left > 0).map(([name]) => name)), [save.suspensions]);
   const hasSuspendedStarter = Object.values(starters).some(name => suspendedSet.has(name));
+  const hasSuspendedBench = benchSelected.some(name => suspendedSet.has(name));
 
   const byName = useMemo(() => Object.fromEntries(roster.map(p => [p.name, p])), [roster]);
   const placedNames = new Set(Object.values(starters).filter(Boolean));
   const bench = [...roster].filter(p => !placedNames.has(p.name)).sort((a, b) => b.ovr - a.ovr);
   const filledCount = Object.values(starters).filter(Boolean).length;
   const avgOvr = filledCount ? Math.round(Object.values(starters).filter(Boolean).reduce((s, n) => s + (byName[n]?.ovr || 0), 0) / filledCount) : 0;
+  // Capitão/cobrador só valem se ainda forem titulares de verdade agora —
+  // trocar de esquema/sugerir/limpar pode ter tirado quem tava marcado,
+  // nesse caso pede pra escolher de novo (não carrega um nome inválido).
+  const validCaptain = captainName && placedNames.has(captainName) ? captainName : null;
+  const validPenaltyTaker = penaltyTakerName && placedNames.has(penaltyTakerName) ? penaltyTakerName : null;
+  const handleToggleCaptain = (name) => setCaptainName(prev => (prev === name ? null : name));
+  const handleTogglePenalty = (name) => setPenaltyTakerName(prev => (prev === name ? null : name));
 
   const handleSlotClick = (slotKey) => {
     if (starters[slotKey]) {
@@ -382,10 +461,13 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
     setPresetPanel(null);
   };
 
-  const canConfirm = filledCount === 11 && !hasSuspendedStarter;
+  const canConfirm = filledCount === 11 && !hasSuspendedStarter && !hasSuspendedBench && !!validCaptain && !!validPenaltyTaker;
   const handleConfirm = () => {
     const myStarters = slots.map(s => starters[s.key]).filter(Boolean);
-    onConfirm({ myStarters, myBench: benchSelected, myFormationLabel: FORMATIONS[formationKey].label, myFormationKey: formationKey });
+    onConfirm({
+      myStarters, myBench: benchSelected, myFormationLabel: FORMATIONS[formationKey].label, myFormationKey: formationKey,
+      myCaptain: validCaptain, myPenaltyTaker: validPenaltyTaker,
+    });
   };
 
   const pendingPos = pendingSlotKey ? slots.find(s => s.key === pendingSlotKey)?.realPos : null;
@@ -443,11 +525,34 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
         <p style={{ fontSize: 11.5, color: '#e05050', marginBottom: 10 }}>🟥 Tem jogador suspenso na escalação — tire ele antes de confirmar.</p>
       )}
 
+      {filledCount === 11 && (
+        <>
+          <div style={{
+            textAlign: 'center', fontSize: 11.5, padding: '8px 12px', marginBottom: 10, borderRadius: 8,
+            background: (validCaptain && validPenaltyTaker) ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${(validCaptain && validPenaltyTaker) ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.08)'}`,
+            color: (validCaptain && validPenaltyTaker) ? '#d4a23c' : 'rgba(255,255,255,0.5)',
+          }}>
+            {validCaptain && validPenaltyTaker
+              ? `Capitão: ${validCaptain} (+2 OVR) · Cobrador de pênalti: ${validPenaltyTaker}`
+              : 'Toque em "C" pra definir o capitão (+2 OVR) e em "P" pra definir o cobrador de pênalti — os dois são obrigatórios.'}
+          </div>
+          <StartersFunctionsList
+            slots={slots} starters={starters} roster={roster}
+            captainName={validCaptain} penaltyTakerName={validPenaltyTaker}
+            onToggleCaptain={handleToggleCaptain} onTogglePenalty={handleTogglePenalty}
+          />
+        </>
+      )}
+
       <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
         Banco: <span style={{ color: benchSelected.length === 12 ? '#7fd99a' : '#d4a23c' }}>{benchSelected.length}/12</span> · reserva dos reservas: {Math.max(0, bench.length - benchSelected.length)}
       </div>
+      {hasSuspendedBench && (
+        <p style={{ fontSize: 11.5, color: '#e05050', marginBottom: 10 }}>🟥 Tem suspenso no banco — tire ele antes de confirmar (suspenso não pode nem ficar relacionado).</p>
+      )}
       <div style={{ marginBottom: 16 }}>
-        <BenchCarousel players={bench} benchSet={new Set(benchSelected)} onToggle={handleToggleBench} />
+        <BenchCarousel players={bench} benchSet={new Set(benchSelected)} suspendedSet={suspendedSet} onToggle={handleToggleBench} />
       </div>
 
       <button onClick={handleConfirm} disabled={!canConfirm} style={{
@@ -458,7 +563,13 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
           ? 'Confirmar escalação →'
           : filledCount < 11
             ? `Escolha mais ${11 - filledCount} titular${11 - filledCount > 1 ? 'es' : ''}`
-            : 'Tire o suspenso da escalação'}
+            : hasSuspendedStarter
+              ? 'Tire o suspenso da escalação'
+              : hasSuspendedBench
+                ? 'Tire o suspenso do banco'
+                : !validCaptain
+                  ? 'Escolha um capitão'
+                  : 'Escolha um cobrador de pênalti'}
       </button>
     </div>
   );

@@ -47,10 +47,48 @@ const GROWTH_CHANCE = {
   jovem: { baixo: 0.10, medio: 0.30, alto: 0.55 }, // ≤23
   adulto: { baixo: 0, medio: 0.08, alto: 0.18 }, // 24-29
 };
-// Dentro da chance "alto" de um jovem, fração que vira +2 em vez de +1 —
-// só pra jovem jogando muito, o caso que o usuário pediu pra "evoluir
-// mais" de verdade.
-const YOUNG_HIGH_DOUBLE_CHANCE = 0.15;
+// Tamanho do ganho de overall quando o jogador cresce — antes sempre +1
+// (só jovem+alto tinha 15% de virar +2). Pedido explícito do usuário
+// (2026-11-13): "o jogador pode subir 2 3 4 de overall dependendo da
+// temporada/idade" — cada tier agora tem uma distribuição de pesos pro
+// tamanho do salto; saltos de +3/+4 continuam raros, praticamente só pra
+// jovem que foi titular absoluto (tier "alto").
+const GROWTH_GAIN_WEIGHTS = {
+  jovem: {
+    baixo: [[1, 1]],
+    medio: [[1, 0.8], [2, 0.2]],
+    alto: [[1, 0.45], [2, 0.33], [3, 0.17], [4, 0.05]],
+  },
+  adulto: {
+    baixo: [[1, 1]], // nunca entra aqui de verdade (chance 0 em GROWTH_CHANCE.adulto.baixo), mantido defensivo
+    medio: [[1, 1]],
+    alto: [[1, 0.7], [2, 0.3]],
+  },
+};
+
+function pickGain(weights, rand) {
+  const total = weights.reduce((s, [, w]) => s + w, 0);
+  let roll = rand() * total;
+  for (const [gain, w] of weights) {
+    roll -= w;
+    if (roll <= 0) return gain;
+  }
+  return weights[weights.length - 1][0];
+}
+
+// Queda de overall ao envelhecer — antes só olhava a idade, ignorando
+// quanto o jogador jogou. Pedido explícito do usuário: "se ele jogou
+// muito mas é mais velho não faz sentido descer tanto o overall dele" —
+// agora quem foi titular de verdade (tier "alto") numa idade avançada cai
+// MENOS (em chance e em tamanho) que quem mal jogou (tier "baixo", que
+// mantém exatamente o mesmo comportamento de antes — pior cenário/sem
+// dado de uso real é o fallback mais seguro).
+const DECLINE_34_BY_TIER = {
+  alto: { chance2: 0.15, chance1: 0.30 },
+  medio: { chance2: 0.30, chance1: 0.30 },
+  baixo: { chance2: 0.50, chance1: 0.30 },
+};
+const DECLINE_30_CHANCE_BY_TIER = { alto: 0.10, medio: 0.20, baixo: 0.30 };
 
 // Devolve o jogador já envelhecido (+1 ano, overall ajustado) OU `null` se
 // ele se aposentou nesta temporada — quem chama deve filtrar os `null`s
@@ -71,17 +109,17 @@ export function applySeasonAging(player, rand, stats) {
     ovr = Math.min(player.potential, ovr + player.growthPerSeason);
   } else if (age <= 23) {
     if (rand() < GROWTH_CHANCE.jovem[tier]) {
-      const gain = (tier === 'alto' && rand() < YOUNG_HIGH_DOUBLE_CHANCE) ? 2 : 1;
-      ovr = Math.min(94, ovr + gain);
+      ovr = Math.min(94, ovr + pickGain(GROWTH_GAIN_WEIGHTS.jovem[tier], rand));
     }
   } else if (age >= 34) {
+    const d = DECLINE_34_BY_TIER[tier];
     const roll = rand();
-    if (roll < 0.5) ovr -= 2;
-    else if (roll < 0.8) ovr -= 1;
+    if (roll < d.chance2) ovr -= 2;
+    else if (roll < d.chance2 + d.chance1) ovr -= 1;
   } else if (age >= 30) {
-    if (rand() < 0.3) ovr -= 1;
+    if (rand() < DECLINE_30_CHANCE_BY_TIER[tier]) ovr -= 1;
   } else if (rand() < GROWTH_CHANCE.adulto[tier]) {
-    ovr = Math.min(94, ovr + 1);
+    ovr = Math.min(94, ovr + pickGain(GROWTH_GAIN_WEIGHTS.adulto[tier], rand));
   }
   ovr = Math.max(40, ovr);
 
