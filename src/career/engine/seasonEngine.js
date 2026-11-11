@@ -203,7 +203,16 @@ function generateUserOffer(save, rand, recentNames, restrictTo) {
   const listingsByClub = {};
   for (const clubId of CAREER_CLUB_IDS) {
     clubsForOffers[clubId] = { roster: save.clubs[clubId].roster, budget: save.clubs[clubId].budget, tier: careerClubTier(clubId) };
-    listingsByClub[clubId] = clubId === save.myClubId ? candidateNames : decideAiListings(save.clubs[clubId].roster);
+    // SÓ o usuário é vendedor elegível nessa checagem (bug real medido
+    // 2026-11-12: "passei janeiro inteiro e não teve nenhuma movimentação").
+    // Com os outros 39 clubes também listando os próprios jogadores aqui,
+    // um comprador com posição fraca podia "roubar" a vaga de um vendedor
+    // de IA em vez de mim mesmo quando eu tinha candidato pra aquela
+    // posição — medido em 2000 simulações: só 17% das checagens geravam
+    // proposta pra mim, contra 100% quando só eu posso ser o vendedor. O
+    // mercado de IA-pra-IA continua rolando à parte (tryAiToAiTransfer,
+    // mais abaixo, onde o inverso já acontecia: `[]` pro meu clube).
+    listingsByClub[clubId] = clubId === save.myClubId ? candidateNames : [];
   }
   const offers = decideAiOffers(clubsForOffers, listingsByClub, rand);
   // Pega TODAS as propostas pro usuário e sorteia uma — usar sempre a

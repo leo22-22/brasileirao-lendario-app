@@ -11,6 +11,20 @@ import { playerSeasonStats } from './seasonStats.js';
 import { POS_ORDER } from '../../lib/format.js';
 
 const OUTFIELD_POS = POS_ORDER.filter(p => p !== 'GOL');
+// Os 40 elencos reais de 2026 (Série A+B) têm um spread de OVR bem mais
+// estreito (~65-83, medido 2026-11-12: o clube mais forte da carreira
+// inteira contra o mais fraco só dá 18 pontos de diferença) do que as
+// seleções lendárias do modo clássico, que podem chegar a 40+. Jogado
+// direto na fórmula de gols de `simAiMatch` (diff*0.042, App.jsx), isso
+// deixava força de elenco quase sem efeito pra maioria dos confrontos —
+// medido: Elite (diff 8 com um Médio) só ganhava ~53% das vezes, quase
+// um cara-ou-coroa (pedido explícito do usuário: "a força do elenco não
+// está favorecendo"). Amplia a distância de cada clube até a média real
+// da liga ANTES de entrar na simulação — só aqui no Modo Carreira, sem
+// tocar em teamStrength/simAiMatch (compartilhados com o modo clássico,
+// que já tem seu próprio spread bem mais largo e não deveria mudar).
+const LEAGUE_AVG_STRENGTH = 75;
+const STRENGTH_SPREAD_STRETCH = 1.7;
 // Tamanho do banco pra QUALQUER clube (meu ou de IA) — titular(11) +
 // banco(12) = 23 no elenco de jogo; o resto do elenco é "reserva dos
 // reservas", nem entra como repositor de lesão (pedido explícito do
@@ -130,12 +144,13 @@ export function teamForSim(save, clubId) {
 
   const players = [...starters, ...bench].map((p, i) => ({ ...p, club: base.club, isBench: i >= starters.length }));
   const baseOvr = teamStrength(Object.fromEntries(players.map((p, i) => [i, p])));
+  const stretchedOvr = LEAGUE_AVG_STRENGTH + (baseOvr - LEAGUE_AVG_STRENGTH) * STRENGTH_SPREAD_STRETCH;
   return {
     id: clubId,
     label: base.label,
     club: base.club,
     color: base.colors?.p,
-    ovr: Math.round(baseOvr * (1 + clubMoraleBonus(save, clubId)) * 10) / 10,
+    ovr: Math.round(stretchedOvr * (1 + clubMoraleBonus(save, clubId)) * 10) / 10,
     players,
   };
 }
