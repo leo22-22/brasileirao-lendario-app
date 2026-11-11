@@ -2,6 +2,7 @@
 import Peer from 'peerjs';
 import * as api from './api.js';
 import { TEAMS } from './data/teams.js';
+import { REAL_RESULTS_2026_THROUGH_R34 } from './data/brasileirao-2026-real-results.js';
 // Times de 2026 (elenco real, Brasileirão Atual) não são "lendários" — só
 // aparecem no modo Brasileirão Atual 2026 (que lê TEAMS/SERIE_A_2026_TEAM_IDS
 // direto). Todo pool do modo clássico (sorteio padrão, Modo Livre, "já sei
@@ -1048,7 +1049,13 @@ export function applyRoundToTable(table, results) {
     else if (res.homeGoals < res.awayGoals) { a.v++; a.pts += 3; h.d++; }
     else { h.e++; h.pts++; a.e++; a.pts++; }
   });
-  return [...tbl].sort((a, b) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp || a.label.localeCompare(b.label));
+  // Desempate oficial da CBF: pontos → vitórias → saldo de gols → gols
+  // marcados (conferido contra a planilha real do Brasileirão 2026 que o
+  // usuário passou, aba "Cálculo") — faltava "vitórias" como 2º critério
+  // (ia direto pro saldo), corrigido 2026-11-12. Nome por último é só
+  // desempate nosso (nunca acontece na vida real, mas evita ordem
+  // instável se alguém empatar em tudo).
+  return [...tbl].sort((a, b) => b.pts - a.pts || b.v - a.v || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp || a.label.localeCompare(b.label));
 }
 
 // Quantos times sobem/descem por temporada na Série A/B — 1º e 2º da Série B
@@ -2471,6 +2478,12 @@ export default function App() {
   const [isSerieAtual, setIsSerieAtual] = useState(_sv?.isSerieAtual ?? false);
   const [serieAtualTeamId, setSerieAtualTeamId] = useState(_sv?.serieAtualTeamId ?? null);
   const [showSerieAtualPicker, setShowSerieAtualPicker] = useState(false);
+  // Simulador do Brasileirão 2026 (pedido explícito do usuário 2026-11-12):
+  // mesmo fluxo do Brasileirão Atual (isSerieAtual true, mesmo
+  // confirmSerieAtual), só que com essa flag extra marcando "começa com os
+  // resultados reais da rodada 1-34, não do zero" — ver confirmSerieAtual.
+  const [isRealTimeAtual, setIsRealTimeAtual] = useState(_sv?.isRealTimeAtual ?? false);
+  const [showRealTimeAtualPicker, setShowRealTimeAtualPicker] = useState(false);
   // Modo Livre: restringe o pool do draft aos times escolhidos pelo próprio
   // usuário (em vez do sorteio rolar entre os 200) — null = sem restrição
   // (comportamento padrão, sorteia entre todos). Não é um `gameMode` à
@@ -3222,6 +3235,37 @@ export default function App() {
     setPhase('formation');
   };
 
+  // Simulador do Brasileirão 2026 — pedido explícito do usuário
+  // (2026-11-12: "só entra e começa a simular, não precisa montar time nem
+  // nada"): escolheu o clube, pula a tela de formação inteira — o XI sai
+  // pronto de autoFillSquadFromTeam (mesma função que já existe pro atalho
+  // "Já sei qual time eu quero" em outros modos: testa todas as formações
+  // prontas e fica com a que rende o maior OVR titular pra esse elenco
+  // específico) e cai direto jogando, via buildSerieAtualSave (extraído de
+  // confirmSerieAtual logo abaixo).
+  const startRealTimeAtual = (team) => {
+    const fullTeam = TEAMS.find(t => t.id === team.id);
+    const built = autoFillSquadFromTeam(fullTeam, { fullBench: true });
+    if (!built) return; // não deveria acontecer com os 20 elencos reais da Série A
+    const userOvr = teamStrength(built.pitch);
+    const userPlayers = partitionStartersFirst(Object.values(built.pitch));
+    setFormationKey(null);
+    setPitchSlots([]);
+    setPitch({});
+    setUsedTeamIds([]);
+    setSkipsLeft(MAX_SKIPS);
+    setLog([]);
+    setSelectedPlayer(null);
+    setRepositioningSlot(null);
+    setCaptainSlot(null);
+    setRolledTeam(null);
+    setIsSerieAtual(true);
+    setIsRealTimeAtual(true);
+    setSerieAtualTeamId(team.id);
+    setShowRealTimeAtualPicker(false);
+    buildSerieAtualSave(team.id, userOvr, userPlayers, true);
+  };
+
   // Supercopa do Brasil: escolheu enfrentar o time lendário de hoje — vai
   // pro fluxo normal de formação/sorteio (igual começar uma carreira do
   // zero), só guardando quem é o adversário pra montar o confronto quando a
@@ -3303,29 +3347,29 @@ export default function App() {
     setPhase('playing');
   };
 
-  // onConfirm da tela de Squad quando isSerieAtual — monta os outros 19
-  // times da Série A 2026 (cada um com o PRÓPRIO elenco real, sem sorteio e
-  // sem escala de dificuldade — a força de cada time É a força real) e usa
-  // o calendário oficial de 38 rodadas da CBF, só trocando o id do time
-  // escolhido pelo MY_TEAM_ID nos confrontos dele.
-  const confirmSerieAtual = () => {
-    const pitchWithCaptain = captainSlot && pitch[captainSlot]
-      ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
-      : pitch;
-    const userOvr = teamStrength(pitchWithCaptain);
-    const userPlayers = partitionStartersFirst(Object.values(pitchWithCaptain));
+  // Monta o save do "Brasileirão Atual"/"Simulador do Brasileirão 2026" a
+  // partir de um XI já pronto (userOvr/userPlayers) — extraído de
+  // confirmSerieAtual (que lia pitch/captainSlot direto do estado) pra
+  // também poder ser chamado pelo Simulador 2026 com um XI montado
+  // automaticamente (ver startRealTimeAtual logo abaixo), sem precisar
+  // passar pela tela de formação manual. Recebe `teamId`/`realTime` como
+  // parâmetro (não lê serieAtualTeamId/isRealTimeAtual do estado) porque
+  // quem chama pode precisar montar tudo no mesmo clique que ainda está
+  // setando esse estado (setState é assíncrono — o valor só fica "atual"
+  // no próximo render).
+  const buildSerieAtualSave = (teamId, userOvr, userPlayers, realTime) => {
     // Em campo você usa o escudo e o nome do clube real escolhido (não o
     // emblema/nome pessoal da conta) — só pra esse modo, já que a graça é
     // acompanhar aquele time específico. Os pontos de ranking continuam indo
     // pra sua conta normalmente (submitSeasonResult não depende disso).
-    const myTeam = TEAMS.find(t => t.id === serieAtualTeamId);
+    const myTeam = TEAMS.find(t => t.id === teamId);
     const myTeamObj = {
       id: MY_TEAM_ID, label: myTeam.label, badge: myTeamBadge, color: myTeamColor,
       logo: CLUB_LOGOS[myTeam.club] || myTeamLogo, clubLogo: CLUB_LOGOS[myTeam.club] || null,
       club: myTeam.club, ovr: userOvr, players: userPlayers,
     };
 
-    const opps = SERIE_A_2026_TEAM_IDS.filter(id => id !== serieAtualTeamId).map(id => {
+    const opps = SERIE_A_2026_TEAM_IDS.filter(id => id !== teamId).map(id => {
       const t = TEAMS.find(tm => tm.id === id);
       const playersWithMeta = t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' }));
       return {
@@ -3337,10 +3381,62 @@ export default function App() {
     const allTeams = [myTeamObj, ...opps];
 
     const fixtures = SERIE_A_2026_FIXTURES.map(round => round.map(m => ({
-      homeId: m.homeId === serieAtualTeamId ? MY_TEAM_ID : m.homeId,
-      awayId: m.awayId === serieAtualTeamId ? MY_TEAM_ID : m.awayId,
+      homeId: m.homeId === teamId ? MY_TEAM_ID : m.homeId,
+      awayId: m.awayId === teamId ? MY_TEAM_ID : m.awayId,
     })));
-    const table = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
+
+    // Simulador do Brasileirão 2026 (realTime) — pedido explícito do
+    // usuário (2026-11-12: "começa nessa 34 rodada"): em vez de tabela
+    // zerada na rodada 0, aplica os 339 placares REAIS das rodadas 1-34
+    // (src/data/brasileirao-2026-real-results.js, extraídos da planilha que
+    // o usuário passou) + o jogo adiado da rodada 21 (Chapecoense x Vasco,
+    // sem placar real até a planilha ser gerada — resolvido aqui pela
+    // simulação normal, igual combinado: "junto da rodada 35"). Daí em
+    // diante (currentRound=34 → próxima é a rodada 35) é a simulação de
+    // sempre. Tabela calculada com a MESMA applyRoundToTable que qualquer
+    // rodada simulada usa, pra nunca divergir do motor por um número
+    // copiado à mão.
+    const remapId = id => (id === teamId ? MY_TEAM_ID : id);
+    let table;
+    let matchHistorySeed = [];
+    let roundHistorySeed = {};
+    if (realTime) {
+      const postponedFixture = SERIE_A_2026_FIXTURES[20].find(m => m.homeId === 'chapecoense2026' && m.awayId === 'vasco2026');
+      const postponedHome = allTeams.find(t => t.id === remapId(postponedFixture.homeId));
+      const postponedAway = allTeams.find(t => t.id === remapId(postponedFixture.awayId));
+      const postponedRand = matchPrng(teamId, 'postponed-chapecoense-vasco-r21', 'chapecoense2026', 'vasco2026');
+      const postponedSim = simAiMatch(postponedHome, postponedAway, postponedRand);
+      const postponedResult = { round: 21, homeId: 'chapecoense2026', homeGoals: postponedSim.homeGoals, awayId: 'vasco2026', awayGoals: postponedSim.awayGoals };
+
+      const allRealResults = [...REAL_RESULTS_2026_THROUGH_R34, postponedResult];
+      const remappedResults = allRealResults.map(r => ({
+        round: r.round, homeId: remapId(r.homeId), awayId: remapId(r.awayId), homeGoals: r.homeGoals, awayGoals: r.awayGoals,
+      }));
+      const zeroedTable = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
+      table = applyRoundToTable(zeroedTable, remappedResults);
+
+      // `matchHistory` só guarda os jogos do PRÓPRIO clube escolhido (é
+      // assim que a tela de "últimos jogos" já lê esse estado — ver
+      // consumidor em App.jsx, compara homeLabel/awayLabel com o meu time).
+      matchHistorySeed = allRealResults
+        .filter(r => r.homeId === teamId || r.awayId === teamId)
+        .map(r => ({
+          round: r.round,
+          homeLabel: r.homeId === teamId ? myTeam.label : TEAMS.find(t => t.id === r.homeId)?.label,
+          awayLabel: r.awayId === teamId ? myTeam.label : TEAMS.find(t => t.id === r.awayId)?.label,
+          hg: r.homeGoals, ag: r.awayGoals, isUser: true, gameMode: 'brasileirao',
+        }));
+
+      // `roundHistory` alimenta o calendário (selo V/D/E por dia) — uma
+      // entrada por rodada já jogada, no mesmo formato que o avanço normal
+      // de rodada grava.
+      for (let rd = 1; rd <= 34; rd++) {
+        const gamesThisRound = remappedResults.filter(r => r.round === rd).map(({ homeId, awayId, homeGoals, awayGoals }) => ({ homeId, awayId, homeGoals, awayGoals }));
+        if (gamesThisRound.length) roundHistorySeed[rd - 1] = gamesThisRound;
+      }
+    } else {
+      table = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
+    }
 
     setLeagueTeams(allTeams);
     setClockMinute(0);
@@ -3349,8 +3445,8 @@ export default function App() {
     setLiveScore({ home: 0, away: 0 });
     setRoundResults(null);
     setActiveUserMatch(null);
-    setMatchHistory([]);
-    setRoundHistory({});
+    setMatchHistory(matchHistorySeed);
+    setRoundHistory(roundHistorySeed);
     setCalendarCursor(null);
     calendarCursorRef.current = null;
     setScorers({});
@@ -3373,13 +3469,24 @@ export default function App() {
     setGameMode('brasileirao');
     setFixtures(fixtures);
     setLeagueTable(table);
-    setCurrentRound(0);
+    setCurrentRound(realTime ? 34 : 0);
     setCupRounds([]);
     setCupRoundIdx(0);
     setCupLeg(1);
     setUserInCup(true);
     setCupWinnerId(null);
     setPhase('playing');
+  };
+
+  // onConfirm da tela de Squad quando isSerieAtual (Brasileirão Atual) — o
+  // XI vem do que a pessoa montou na mão (pitch/captainSlot).
+  const confirmSerieAtual = () => {
+    const pitchWithCaptain = captainSlot && pitch[captainSlot]
+      ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
+      : pitch;
+    const userOvr = teamStrength(pitchWithCaptain);
+    const userPlayers = partitionStartersFirst(Object.values(pitchWithCaptain));
+    buildSerieAtualSave(serieAtualTeamId, userOvr, userPlayers, isRealTimeAtual);
   };
 
   // Brasileirão Atual: trocar titular/reserva ENTRE rodadas (não durante uma
@@ -5243,7 +5350,7 @@ export default function App() {
         // fixtures/leagueTeams restauravam certo, mas a tela perdia o botão
         // "Escalação" e qualquer coisa que dependa de isSerieAtual, dando a
         // impressão de ter caído de volta no Brasileirão normal.
-        isSerieAtual, serieAtualTeamId,
+        isSerieAtual, serieAtualTeamId, isRealTimeAtual,
         // Sem persistir isso, um reload no meio de um "Mercado de
         // transferências" (phase='squad', isTransferSeason=true só em
         // memória) voltava com a flag em false — o confirm do Squad então
@@ -5254,7 +5361,7 @@ export default function App() {
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isSerieAtual, serieAtualTeamId, isTransferSeason, seasonYear, formationKey, customFormation]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isSerieAtual, serieAtualTeamId, isRealTimeAtual, isTransferSeason, seasonYear, formationKey, customFormation]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -6534,6 +6641,14 @@ export default function App() {
           onPick={startSerieAtual}
         />
       )}
+      {showRealTimeAtualPicker && (
+        <TeamPickerModal
+          onClose={() => setShowRealTimeAtualPicker(false)}
+          onlyIds={SERIE_A_2026_TEAM_IDS}
+          title="Simulador do Brasileirão 2026 — escolha seu time"
+          onPick={startRealTimeAtual}
+        />
+      )}
       {showLivrePicker && (
         <LivreTeamPickerModal
           initialSelected={livreTeamIds || []}
@@ -6658,6 +6773,7 @@ export default function App() {
             dailyChallengeAlreadyPlayed={dailyChallengeAlreadyPlayed}
             onOpenDailyChallenge={() => setShowDailyChallenge(true)}
             onOpenSerieAtual={() => setShowSerieAtualPicker(true)}
+            onOpenRealTimeAtual={() => setShowRealTimeAtualPicker(true)}
             livreTeamIds={livreTeamIds}
             onClearLivre={() => setLivreTeamIds(null)}
             onOpenLivrePicker={() => setShowLivrePicker(true)}
@@ -7328,7 +7444,7 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer }) {
+function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, onOpenRealTimeAtual, livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer }) {
   const mc = myTeamColor || '#d4a23c';
   const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
@@ -7560,11 +7676,18 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
               { id: 'serieab', icon: '🏆', color: mc, title: 'Brasileirão', sub: '40 times · Série A e B', onConfirm: () => { onSetGameMode('serieab'); onClearLivre(); onStart(); } },
               { id: 'copa', icon: '⚔️', color: '#5dade2', title: 'Copa do Brasil', sub: '32 times · Mata-mata', onConfirm: () => { onSetGameMode('copa'); onClearLivre(); onStart(); } },
               { id: 'atual2026', icon: '📅', color: '#e8a33d', title: 'Brasileirão Atual', sub: '20 times reais · 2026', onConfirm: () => onOpenSerieAtual() },
+              // Sem seletor de dificuldade (pedido explícito do usuário
+              // 2026-11-12: "só entra e começa a simular") — nesse modo a
+              // dificuldade nunca fez efeito mesmo (times de IA usam o OVR
+              // real, sem ajuste nenhum, igual o Brasileirão Atual), então
+              // pular a etapa direto pro escolha de clube é só remover um
+              // passo que não fazia nada.
+              { id: 'atual2026-rt', icon: '📡', color: '#e05050', title: 'Simulador do Brasileirão 2026', sub: 'Rodada 35 em diante · dados reais', skipDifficulty: true, onConfirm: () => onOpenRealTimeAtual() },
               { id: 'livre', icon: '🎯', color: '#b48ce0', title: 'Modo Livre', sub: livreTeamIds ? `${livreTeamIds.length} times escolhidos` : 'Escolha 16 times', onConfirm: () => onOpenLivrePicker() },
             ].map((m, i) => (
               <button
                 key={m.id}
-                onClick={() => setPendingMode(m)}
+                onClick={() => (m.skipDifficulty ? m.onConfirm() : setPendingMode(m))}
                 className="mode-card-hover anim-rise"
                 style={{
                   '--rise-delay': `${80 + i * 70}ms`,
