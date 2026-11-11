@@ -5,15 +5,17 @@
 // diferente do Brasileirão Atual (que segue a perspectiva de UM clube
 // escolhido): aqui não tem clube nenhum, é a liga inteira, JOGO POR JOGO
 // (não rodada por rodada), cada um pela MESMA simulação ao vivo minuto a
-// minuto do resto do jogo ("simula o jogo como nossa simulação padrão") —
-// reaproveita `useLiveMatchPlayer`/`MatchSpeedPicker`/etc. do Modo Carreira
-// (liveMatchUI.jsx), que já são 100% genéricos (só precisam de
-// sim/homeTeam/awayTeam, nada de save de carreira). Começa EXATAMENTE de
-// onde o Brasileirão real está agora: primeiro jogo é o adiado da rodada 21
-// (Chapecoense x Vasco, nunca saiu placar real até a planilha que o usuário
-// passou ser gerada — ver src/data/brasileirao-2026-real-results.js), depois
-// a rodada 35 inteira, jogo a jogo, até a 38.
-import { useState } from 'react';
+// minuto do resto do jogo ("simula o jogo como nossa simulação padrão"). O
+// motor/visual é o "tradicional" (o mesmo placar/feed de eventos ao vivo e
+// o MatchSummaryModal do Brasileirão clássico/Atual) — NÃO o reconstruído
+// pro Modo Carreira (liveMatchUI.jsx), que o usuário rejeitou explicitamente
+// ("não dá pra colocar a simulação tradicional sem ser a do modo carreira").
+// Começa EXATAMENTE de onde o Brasileirão real está agora: primeiro jogo é
+// o adiado da rodada 21 (Chapecoense x Vasco, nunca saiu placar real até a
+// planilha que o usuário passou ser gerada — ver
+// src/data/brasileirao-2026-real-results.js), depois a rodada 35 inteira,
+// jogo a jogo, até a 38.
+import { useEffect, useRef, useState } from 'react';
 import { TEAMS } from '../data/teams.js';
 import { CLUB_LOGOS } from '../data/club-logos.js';
 // SERIE_A_2026_TEAM_IDS existe tanto aqui (career-clubs.js, ordem diferente
@@ -25,11 +27,8 @@ import { CLUB_LOGOS } from '../data/club-logos.js';
 import { SERIE_A_2026_TEAM_IDS } from '../data/career-clubs.js';
 import { SERIE_A_2026_FIXTURES } from '../data/serie-a-2026-fixtures.js';
 import { REAL_RESULTS_2026_THROUGH_R34 } from '../data/brasileirao-2026-real-results.js';
-import { teamStrength, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents } from '../App.jsx';
-import {
-  eventIcon, eventText, TeamBadge, RatingsList, useLiveMatchPlayer, MatchSpeedPicker,
-  wrapStyle, cardStyle, labelStyle, primaryBtnStyle, secondaryBtnStyle,
-} from '../career/components/liveMatchUI.jsx';
+import { teamStrength, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents, MatchSummaryModal } from '../App.jsx';
+import { traditionalMatchStyles as ts } from './traditionalMatchStyles.js';
 
 const SAVE_KEY = 'brl_simulator2026_save';
 // Índice 0-based da rodada 35 em SERIE_A_2026_FIXTURES (rodada 1 = índice 0).
@@ -125,74 +124,221 @@ function prepareMatch(seed, teamById, m) {
   };
 }
 
-// Tela de partida ao vivo — mesmíssimo visual/motor do Modo Carreira
-// (CareerMatchDayScreen), só que sem perspectiva de clube nenhuma (os dois
-// lados são só "o time da casa" e "o time de fora").
-function LiveMatchScreen({ pending, roundLabel, onFinish }) {
-  const { homeTeam, awayTeam, sim } = pending;
-  const { phase, minute, homeGoals, awayGoals, shownEvents, startPlaying, skipToEnd, motm, speedKey, changeSpeed } = useLiveMatchPlayer(sim, homeTeam, awayTeam);
+const SPEED_MS = { 1: 250, 1.5: 125, 2: 55 };
 
-  if (phase === 'intro') {
-    return (
-      <div style={wrapStyle}>
-        <div style={cardStyle}>
-          <div style={labelStyle}>{roundLabel}</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 0 24px' }}>
-            <TeamBadge team={homeTeam} />
-            <div style={{ fontSize: 13, opacity: 0.4, fontWeight: 700 }}>x</div>
-            <TeamBadge team={awayTeam} />
-          </div>
-        </div>
-        <button onClick={startPlaying} style={primaryBtnStyle}>▶ Jogar partida</button>
-      </div>
-    );
+// Ícone/texto de um evento do feed — cópia literal do mapeamento usado pelo
+// LiveMatchBox (App.jsx) pra render idêntico ao do Brasileirão clássico/Atual.
+function eventIcon(ev) {
+  return ev.type === 'yellow' ? '🟨'
+    : ev.type === 'red' ? (ev.secondYellow ? '🟨🟥' : '🟥')
+    : ev.type === 'injury' ? '🩹'
+    : ev.type === 'substitution' ? '🔄'
+    : ev.type === 'penalty_miss' ? '❌'
+    : (ev.isOwnGoal ? '⚽🔴' : '⚽');
+}
+function eventMainText(ev) {
+  return ev.type === 'goal' ? `${ev.scorer}${ev.isOwnGoal ? ' (contra)' : ev.isPenalty ? ' (pênalti)' : ''}`
+    : ev.type === 'substitution' ? `Entrando: ${ev.playerIn}`
+    : ev.type === 'penalty_miss' ? ev.player
+    : ev.player;
+}
+function eventSubText(ev) {
+  return ev.type === 'goal'
+    ? (ev.isOwnGoal ? `contra, ${ev.ownGoalTeamLabel}` : ev.isPenalty ? `pênalti convertido · ${ev.teamLabel}` : ev.assist ? `assist: ${ev.assist}` : ev.teamLabel)
+    : ev.type === 'yellow' ? `cartão amarelo · ${ev.teamLabel}`
+    : ev.type === 'red' ? (ev.secondYellow ? `segundo amarelo, expulso · ${ev.teamLabel}` : `expulso · ${ev.teamLabel}`)
+    : ev.type === 'substitution' ? `Saindo: ${ev.playerOut} · ${ev.teamLabel}`
+    : ev.type === 'penalty_miss' ? `pênalti perdido, defendido por ${ev.gkName || 'goleiro'} · ${ev.teamLabel}`
+    : `lesionado, sai de campo · ${ev.teamLabel}`;
+}
+
+// Processa todo evento cujo minuto já passou, acumulando placar/feed em `st`
+// (mutável) — mesma lógica do `tick()` do LiveMatchBox (App.jsx): cartão/
+// lesão entram no feed sem mexer no placar; lesão com substituto automático
+// também gera uma entrada cosmética de substituição (sem afetar o resultado,
+// que já saiu pronto do `sim`); gol soma no lado certo.
+function advanceEvents(st, events, homeId) {
+  while (st.evIdx < events.length && events[st.evIdx].minute <= st.minute) {
+    const ev = events[st.evIdx];
+    st.evIdx++;
+    if (ev.type !== 'goal') {
+      st.shown.push({ ...ev, homeScore: st.hs, awayScore: st.as });
+      if (ev.type === 'injury' && ev.replacementName) {
+        st.shown.push({ type: 'substitution', minute: ev.minute, teamId: ev.teamId, teamLabel: ev.teamLabel, playerOut: ev.player, playerIn: ev.replacementName, homeScore: st.hs, awayScore: st.as });
+      }
+      continue;
+    }
+    if (ev.teamId === homeId) st.hs++; else st.as++;
+    st.shown.push({ ...ev, homeScore: st.hs, awayScore: st.as });
   }
+}
+
+// Motor de partida ao vivo "tradicional" — mesmo ritmo minuto a minuto
+// (SPEED_MS) do LiveMatchBox do Brasileirão clássico/Atual, só que
+// autocontido (sem o resto do estado de rodada/substituição/tática do jogo
+// principal, que não existe aqui — não tem "meu time" nem escalação).
+function useTraditionalLiveMatch(pending) {
+  const [phase, setPhase] = useState('intro');
+  const [minute, setMinute] = useState(0);
+  const [score, setScore] = useState({ home: 0, away: 0 });
+  const [shownEvents, setShownEvents] = useState([]);
+  const [speed, setSpeed] = useState(1);
+  const speedRef = useRef(1);
+  const timerRef = useRef(null);
+  const stateRef = useRef({ minute: 0, evIdx: 0, hs: 0, as: 0, shown: [] });
+
+  useEffect(() => { speedRef.current = speed; }, [speed]);
+
+  useEffect(() => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    stateRef.current = { minute: 0, evIdx: 0, hs: 0, as: 0, shown: [] };
+    setPhase('intro');
+    setMinute(0);
+    setScore({ home: 0, away: 0 });
+    setShownEvents([]);
+    setSpeed(1);
+    return () => { if (timerRef.current) clearTimeout(timerRef.current); };
+  }, [pending?.key]);
+
+  if (!pending) return { phase: 'intro', minute: 0, score, shownEvents, speed, setSpeed, start: () => {}, skipToEnd: () => {} };
+
+  const homeId = pending.homeTeam.id;
+  const events = pending.sim.events;
+
+  const tick = () => {
+    const st = stateRef.current;
+    st.minute++;
+    advanceEvents(st, events, homeId);
+    setMinute(st.minute);
+    setScore({ home: st.hs, away: st.as });
+    if (st.shown.length > 0) setShownEvents([...st.shown]);
+    if (st.minute >= 90) {
+      setScore({ home: pending.sim.homeGoals, away: pending.sim.awayGoals });
+      setPhase('done');
+      return;
+    }
+    timerRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
+  };
+
+  const start = () => {
+    setPhase('playing');
+    timerRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
+  };
+
+  const skipToEnd = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    const st = stateRef.current;
+    st.minute = 1000;
+    advanceEvents(st, events, homeId);
+    st.minute = 90;
+    setMinute(90);
+    setShownEvents([...st.shown]);
+    setScore({ home: pending.sim.homeGoals, away: pending.sim.awayGoals });
+    setPhase('done');
+  };
+
+  return { phase, minute, score, shownEvents, speed, setSpeed, start, skipToEnd };
+}
+
+// Tela de partida ao vivo — mesmo placar/feed de eventos ao vivo e o mesmo
+// MatchSummaryModal (placar + notas + craque da partida) do Brasileirão
+// clássico/Atual ("nossa simulação padrão"), sem perspectiva de clube (os
+// dois lados são só "o time da casa" e "o time de fora").
+function LiveMatchScreen({ pending, roundLabel, onFinish }) {
+  const { homeTeam, awayTeam } = pending;
+  const { phase, minute, score, shownEvents, speed, setSpeed, start, skipToEnd } = useTraditionalLiveMatch(pending);
+  const hColor = homeTeam.color || '#3a85d9';
+  const aColor = awayTeam.color || '#c94040';
 
   return (
-    <div style={wrapStyle}>
-      <div style={{ ...cardStyle, marginBottom: 16 }}>
-        <div style={labelStyle}>{roundLabel}</div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, margin: '8px 0 4px' }}>
-          <TeamBadge team={homeTeam} />
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700 }}>{homeGoals} - {awayGoals}</div>
-          <TeamBadge team={awayTeam} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>
-            {phase === 'playing' ? `${minute}'` : 'Fim de jogo'}
+    <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px', fontFamily: "'Inter', sans-serif", color: '#F4F1EA' }}>
+      <div style={{ fontSize: 10.5, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 10 }}>{roundLabel}</div>
+      <div style={ts.liveMatchBox}>
+        <div style={ts.liveTeamsRow}>
+          <div style={{ ...ts.liveTeamName, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0 }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeam.label}</span>
+            <TeamCrest team={homeTeam} size={28} />
           </div>
-          {phase === 'playing' && <MatchSpeedPicker speedKey={speedKey} onChange={changeSpeed} />}
+          <div style={ts.liveScoreBlock}>
+            <span style={ts.liveScoreNum}>{phase === 'intro' ? '–' : score.home}</span>
+            <span style={ts.liveScoreDash}>–</span>
+            <span style={ts.liveScoreNum}>{phase === 'intro' ? '–' : score.away}</span>
+          </div>
+          <div style={{ ...ts.liveTeamName, textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6, minWidth: 0 }}>
+            <TeamCrest team={awayTeam} size={28} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeam.label}</span>
+          </div>
         </div>
-      </div>
 
-      <div style={{ minHeight: 140, marginBottom: 16, display: 'grid', gap: 6, padding: 10, borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
-        {shownEvents.length === 0 && phase === 'playing' && (
-          <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.4, padding: '20px 0' }}>Bola rolando...</div>
+        {phase !== 'intro' && (
+          <div style={ts.clockRow}>
+            <div style={{ ...ts.clock, color: phase === 'playing' ? '#7fd99a' : '#F4F1EA' }}>{minute}'</div>
+            {phase === 'playing' && <div style={ts.clockPulse} />}
+            {phase === 'playing' && (
+              <div style={{ display: 'flex', gap: 4, marginLeft: 6 }}>
+                {[1, 1.5, 2].map(sp => (
+                  <button key={sp} onClick={() => setSpeed(sp)} style={{
+                    fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: speed === sp ? 700 : 400,
+                    padding: '3px 8px', borderRadius: 6, border: '1px solid', cursor: 'pointer',
+                    borderColor: speed === sp ? '#d4a23c' : 'rgba(255,255,255,0.2)',
+                    background: speed === sp ? 'rgba(212,162,60,0.15)' : 'transparent',
+                    color: speed === sp ? '#d4a23c' : 'rgba(255,255,255,0.6)',
+                  }}>{sp}x</button>
+                ))}
+              </div>
+            )}
+            {phase === 'done' && <div style={ts.clockFull}>Tempo encerrado</div>}
+          </div>
         )}
-        {[...shownEvents].reverse().map((ev, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, padding: '5px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.03)' }}>
-            <span style={{ width: 28, opacity: 0.5, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{ev.minute}'</span>
-            <span>{eventIcon(ev)}</span>
-            <span style={{ flex: 1 }}>{eventText(ev)}</span>
+
+        {shownEvents.length > 0 && (
+          <div style={ts.matchCenter}>
+            {shownEvents.map((ev, i) => {
+              const isHomeSide = ev.teamId === homeTeam.id;
+              const sideColor = isHomeSide ? hColor : aColor;
+              const content = (
+                <div style={{ ...ts.matchCenterCard, borderColor: `${sideColor}55`, background: `${sideColor}14`, flexDirection: isHomeSide ? 'row' : 'row-reverse' }}>
+                  <span style={{ fontSize: 15 }}>{eventIcon(ev)}</span>
+                  <div style={{ ...ts.matchCenterInfo, textAlign: isHomeSide ? 'left' : 'right' }}>
+                    <span style={ts.goalScorer}>{eventMainText(ev)}</span>
+                    <span style={ts.goalTeam}>{eventSubText(ev)}</span>
+                  </div>
+                </div>
+              );
+              return (
+                <div key={i} style={ts.matchCenterRow}>
+                  <div style={{ ...ts.matchCenterSide, justifyContent: 'flex-end' }}>{isHomeSide && content}</div>
+                  <div style={ts.matchCenterMinuteCol}>
+                    <span style={ts.goalMinute}>{ev.minute}'</span>
+                    <span style={ts.goalScore}>{ev.homeScore}–{ev.awayScore}</span>
+                  </div>
+                  <div style={{ ...ts.matchCenterSide, justifyContent: 'flex-start' }}>{!isHomeSide && content}</div>
+                </div>
+              );
+            })}
           </div>
-        ))}
+        )}
+        {shownEvents.length === 0 && phase === 'done' && <div style={ts.noGoalsMsg}>Sem gols — 0 × 0</div>}
       </div>
 
+      {phase === 'intro' && (
+        <button onClick={start} style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>▶ Jogar partida</button>
+      )}
       {phase === 'playing' && (
-        <button onClick={skipToEnd} style={secondaryBtnStyle}>⏭ Pular pro resultado</button>
+        <button onClick={skipToEnd} style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>⏭ Pular pro resultado</button>
       )}
 
       {phase === 'done' && (
-        <>
-          {motm && (
-            <div style={{ textAlign: 'center', background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
-              🌟 Craque da partida: <b style={{ color: '#d4a23c' }}>{motm.name}</b>{' '}
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
-            </div>
-          )}
-          <RatingsList ratings={sim.ratings} homeTeam={homeTeam} awayTeam={awayTeam} />
-          <button onClick={onFinish} style={{ ...primaryBtnStyle, marginTop: 4 }}>Continuar →</button>
-        </>
+        <MatchSummaryModal
+          ratings={pending.sim.ratings}
+          match={{ homeId: homeTeam.id, awayId: awayTeam.id }}
+          score={{ homeGoals: score.home, awayGoals: score.away }}
+          homeTeam={homeTeam}
+          awayTeam={awayTeam}
+          myTeamId={null}
+          myTeamColor="#d4a23c"
+          onDismiss={onFinish}
+        />
       )}
     </div>
   );

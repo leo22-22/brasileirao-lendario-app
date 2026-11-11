@@ -10911,7 +10911,7 @@ function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
 // o jogo do usuário termina, em vez de ficar escondido atrás de um link lá
 // embaixo depois de toda a tabela/estatísticas da liga.
 // ============================================================
-function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, myTeamId, myTeamColor, onDismiss }) {
+export function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, myTeamId, myTeamColor, onDismiss }) {
   const mc = myTeamColor || '#d4a23c';
   if (!ratings?.length || !match) return null;
   const homeRatings = [...ratings].filter(r => r.teamId === match.homeId).sort((a, b) => b.rating - a.rating);
