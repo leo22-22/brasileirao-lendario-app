@@ -146,7 +146,7 @@ function MyRosterTab({ save, onToggleListed, onToggleLoanList, windowOpen }) {
   const filtered = filterPlayers(roster, query, pos);
   return (
     <div>
-      {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — pode listar jogadores agora, mas as propostas só chegam quando ela abrir (janeiro, ou julho-agosto).</p>}
+      {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — pode listar jogadores agora, mas as propostas só chegam quando ela abrir (janeiro, ou julho).</p>}
       {roster.length <= MIN_SQUAD_SIZE && <p style={{ fontSize: 12, color: '#e0a33d', marginBottom: 10 }}>Elenco no mínimo de {MIN_SQUAD_SIZE} jogadores — mesmo que venha proposta, não vai dar pra vender/emprestar até o elenco crescer.</p>}
       <p style={{ fontSize: 11.5, opacity: 0.55, marginBottom: 10, lineHeight: 1.4 }}>📋 Não dá pra vender direto — coloque o jogador na lista de transferências (aumenta em 50% a chance de vir proposta por ele) e aguarde alguém se interessar. 🔁 Empréstimo funciona igual: colocar na lista de empréstimo não empresta ninguém sozinho, só sinaliza que o jogador tá disponível — uma proposta de empréstimo (com a duração que o clube propôs) pode ou não aparecer depois. Aceite ou rejeite as duas na aba Propostas.</p>
       <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} />
@@ -495,7 +495,7 @@ function OffersTab({ save, onRespond, onCounterOffer }) {
             }}>{msg.text}</div>
           );
         })()}
-        <p style={{ fontSize: 13, opacity: 0.6 }}>Nenhuma proposta por enquanto — elas podem surgir durante uma janela de transferências aberta (janeiro, ou julho-agosto), quando um clube de IA se interessa por algum jogador seu (pra comprar ou pra pegar emprestado). Colocar o jogador na lista de transferências ou na lista de empréstimo (aba "Meu elenco") aumenta a chance.</p>
+        <p style={{ fontSize: 13, opacity: 0.6 }}>Nenhuma proposta por enquanto — elas podem surgir durante uma janela de transferências aberta (janeiro, ou julho), quando um clube de IA se interessa por algum jogador seu (pra comprar ou pra pegar emprestado). Colocar o jogador na lista de transferências ou na lista de empréstimo (aba "Meu elenco") aumenta a chance.</p>
       </div>
     );
   }
