@@ -2797,8 +2797,8 @@ export default function App() {
       title = `${INFO_TABS.find(t => t.id === infoPage)?.label} — Brasileirão Lendário`;
       path = canonicalPathFor(infoPage);
     } else if (teamsPage === 'index') {
-      title = 'Times Históricos do Brasileirão — Brasileirão Lendário';
-      description = `Os ${TEAMS.length} times históricos disponíveis pra montar no Brasileirão Lendário, com elenco completo de cada um.`;
+      title = 'Elencos do Brasileirão — Brasileirão Lendário';
+      description = `Os ${TEAMS.length} elencos reais disponíveis pra montar no Brasileirão Lendário, cada um com o time completo da época.`;
       path = '/times';
     } else if (teamsPage) {
       const team = TEAMS.find(t => t.id === teamsPage);
@@ -7580,7 +7580,7 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
             </button>
           ))}
           <button onClick={onNavigateTeams} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: '6px 2px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
-            Times Históricos
+            Elencos
           </button>
         </div>
       </div>

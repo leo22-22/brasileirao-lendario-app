@@ -134,20 +134,38 @@ export function InfoPage({ tab, onNavigate, onClose, myTeamColor }) {
   );
 }
 
-// Índice + detalhe dos times históricos — conteúdo indexável de verdade
-// (URL própria por time), gerado só a partir do que já existe em TEAMS
-// (clube, ano, técnico, conquista, elenco real) — nenhum fato novo é
-// inventado. Mesmo visual/estrutura do InfoPage (overlay + botão "Voltar
-// pro app" fixo), pra manter consistência.
+// Ordens de exibição do índice de elencos — padrão alfabético crescente
+// (pedido explícito do usuário 2026-11-11: "deixe tudo por ordem
+// alfabetica"), com botões pra trocar pra Z-A ou por ano. Ordena pelo
+// nome BASE do clube (sem o ano/conquista no fim, via parseTeamLabel) —
+// senão "Flamengo 1981" e "Flamengo 1992" não ficariam vizinhos.
+const SORT_MODES = [
+  { id: 'az', label: 'A-Z' },
+  { id: 'za', label: 'Z-A' },
+  { id: 'ano', label: 'Ano' },
+];
+function sortTeams(teams, mode) {
+  const withBaseName = teams.map(t => ({ t, base: parseTeamLabel(t.label).baseName }));
+  if (mode === 'za') withBaseName.sort((a, b) => b.base.localeCompare(a.base) || b.t.year - a.t.year);
+  else if (mode === 'ano') withBaseName.sort((a, b) => a.t.year - b.t.year || a.base.localeCompare(b.base));
+  else withBaseName.sort((a, b) => a.base.localeCompare(b.base) || a.t.year - b.t.year);
+  return withBaseName.map(x => x.t);
+}
+
+// Índice + detalhe dos elencos (ex-"Times Históricos") — conteúdo
+// indexável de verdade (URL própria por time), gerado só a partir do que
+// já existe em TEAMS (clube, ano, técnico, conquista, elenco real) —
+// nenhum fato novo é inventado. Mesmo visual/estrutura do InfoPage
+// (overlay + botão "Voltar pro app" fixo), pra manter consistência.
 export function TeamsIndexPage({ onBack, onOpenTeam, myTeamColor }) {
   const mc = myTeamColor || '#d4a23c';
-  const sorted = useMemo(() => [...TEAMS].sort((a, b) => a.year - b.year), []);
   const [query, setQuery] = useState('');
+  const [sortMode, setSortMode] = useState('az');
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return sorted;
-    return sorted.filter(t => t.label.toLowerCase().includes(q) || String(t.year).includes(q));
-  }, [sorted, query]);
+    const base = q ? TEAMS.filter(t => t.label.toLowerCase().includes(q) || String(t.year).includes(q)) : TEAMS;
+    return sortTeams(base, sortMode);
+  }, [query, sortMode]);
   return (
     <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
       <button
@@ -164,7 +182,7 @@ export function TeamsIndexPage({ onBack, onOpenTeam, myTeamColor }) {
         ← Voltar pro app
       </button>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, margin: '0 auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
-        <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 6 }}>Times Históricos</h1>
+        <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 6 }}>Elencos</h1>
         <p style={{ fontSize: 13, opacity: 0.6, lineHeight: 1.6, marginBottom: 14 }}>
           Os {TEAMS.length} times que você pode sortear no draft do Brasileirão Lendário, cada um com o elenco real da época.
         </p>
@@ -172,8 +190,24 @@ export function TeamsIndexPage({ onBack, onOpenTeam, myTeamColor }) {
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Buscar time por nome ou ano..."
-          style={{ ...inputStyle, marginBottom: 14 }}
+          style={{ ...inputStyle, marginBottom: 10 }}
         />
+        <div style={{ display: 'flex', gap: 6, marginBottom: 14 }}>
+          {SORT_MODES.map(m => (
+            <button
+              key={m.id}
+              onClick={() => setSortMode(m.id)}
+              style={{
+                flex: 1, padding: '7px 0', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                border: `1px solid ${sortMode === m.id ? mc : 'rgba(255,255,255,0.12)'}`,
+                background: sortMode === m.id ? hexToRgba(mc, 0.15) : 'rgba(255,255,255,0.03)',
+                color: sortMode === m.id ? mc : 'rgba(244,241,234,0.7)',
+              }}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
         <div style={{ display: 'grid', gap: 8 }}>
           {filtered.length === 0 && (
             <div style={{ fontSize: 12, opacity: 0.5, textAlign: 'center', padding: 16 }}>Nenhum time encontrado.</div>
@@ -232,7 +266,7 @@ export function TeamDetailPage({ team, onBack, onOpenIndex, myTeamColor, onPlayW
       </button>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 560, margin: '0 auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
         <button onClick={onOpenIndex} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 11.5, cursor: 'pointer', padding: 0, marginBottom: 14 }}>
-          ← Ver todos os times
+          ← Ver todos os elencos
         </button>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
           {CLUB_LOGOS[team.club]
