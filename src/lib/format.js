@@ -53,3 +53,16 @@ export function parseTeamLabel(label) {
   const m = label.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
   return m ? { baseName: m[1], achievement: m[2] } : { baseName: label, achievement: null };
 }
+
+// Setor de cada posição (mesmos grupos do POS_COLOR acima): goleiro,
+// defesa, meio-campo (inclui o meia ofensivo) e ataque. Usado pra força
+// por setor na Formação do Modo Carreira.
+export const POS_SECTOR = {
+  GOL: 'gk',
+  ZAG: 'df', LD: 'df', LE: 'df',
+  VOL: 'md', MC: 'md', MD: 'md', ME: 'md', MEI: 'md',
+  PD: 'at', PE: 'at', ATA: 'at',
+};
+export function posSector(pos) {
+  return POS_SECTOR[pos] || 'md';
+}

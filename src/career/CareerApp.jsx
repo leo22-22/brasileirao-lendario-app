@@ -38,6 +38,11 @@ import { CareerShell } from './components/CareerShell.jsx';
 import { CareerInboxScreen } from './screens/CareerInboxScreen.jsx';
 import { CareerFinanceScreen } from './screens/CareerFinanceScreen.jsx';
 
+const SECTION_LABELS = {
+  squad: 'Elenco', formation: 'Formação', market: 'Mercado', table: 'Tabela', calendar: 'Calendário',
+  copa: 'Copa do Brasil', youth: 'Base', finance: 'Finanças', inbox: 'Caixa de entrada',
+};
+
 export function CareerApp({ onExit, onHudChange }) {
   const [save, setSave] = useState(() => loadCareerSave());
   // Com carreira salva, SEMPRE para na tela de "Continuar ou nova carreira"
@@ -79,12 +84,12 @@ export function CareerApp({ onExit, onHudChange }) {
     if (!onHudChange) return;
     if (save) {
       const team = TEAMS.find(t => t.id === save.myClubId);
-      onHudChange({ active: true, balance: save.clubs[save.myClubId].budget, clubLabel: displayName(team.club), clubColor: team.colors?.p, season: save.season });
+      onHudChange({ active: true, balance: save.clubs[save.myClubId].budget, clubLabel: displayName(team.club), clubColor: team.colors?.p, season: save.season, section: SECTION_LABELS[screen] || null });
     } else {
       onHudChange(null);
     }
-    return () => onHudChange(null);
-  }, [save, onHudChange]);
+  }, [save, screen, onHudChange]);
+  useEffect(() => () => onHudChange?.(null), [onHudChange]);
 
   const handlePick = useCallback((clubId, customBudget) => {
     setSave(createCareerSave(clubId, customBudget));
@@ -251,6 +256,12 @@ export function CareerApp({ onExit, onHudChange }) {
       const id = `${Date.now()}-${Math.floor(Math.random() * 1e6)}`;
       return { ...prev, savedFormations: [...(prev.savedFormations || []), { id, ...preset }] };
     });
+  }, []);
+
+  // Renomear preset (Formação → Presets → Gerenciar) — só troca `name`,
+  // mesmo formato de save.savedFormations.
+  const handleRenameFormationPreset = useCallback((id, name) => {
+    setSave(prev => prev && { ...prev, savedFormations: (prev.savedFormations || []).map(p => (p.id === id ? { ...p, name } : p)) });
   }, []);
 
   const handleDeleteFormationPreset = useCallback((id) => {
@@ -444,7 +455,7 @@ export function CareerApp({ onExit, onHudChange }) {
   const back = () => setScreen('hub');
   let body;
   if (screen === 'squad') body = <CareerSquadScreen save={save} onToggleListed={handleToggleListed} onBack={back} />;
-  else if (screen === 'formation') body = <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onSaveFormationPreset={handleSaveFormationPreset} onDeleteFormationPreset={handleDeleteFormationPreset} onBack={back} />;
+  else if (screen === 'formation') body = <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onSaveFormationPreset={handleSaveFormationPreset} onDeleteFormationPreset={handleDeleteFormationPreset} onRenameFormationPreset={handleRenameFormationPreset} onBack={back} />;
   else if (screen === 'table') body = <CareerTableScreen save={save} onBack={back} />;
   else if (screen === 'calendar') body = <CareerCalendarScreen save={save} onBack={back} />;
   else if (screen === 'copa') body = <CareerCopaScreen save={save} onBack={back} />;

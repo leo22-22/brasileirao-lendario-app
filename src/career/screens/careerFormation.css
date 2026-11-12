@@ -1,0 +1,156 @@
+/* Formação do Modo Carreira — valores do modo-carreira-formacao-mockup.html */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+
+.cf-main { max-width: 1480px; }
+.cf-ph { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+.cf-ph > div:first-child { flex: 1 1 420px; }
+.cf-acts { flex-shrink: 0; }
+.cf-ph h1 { font-family: var(--font-serif); font-weight: 400; font-size: 40px; letter-spacing: -.03em; line-height: 1; margin: 8px 0 0; }
+.cf-ph p { color: var(--muted); margin: 8px 0 0; }
+.cf-acts { display: flex; gap: 10px; flex-wrap: wrap; }
+.cf-confirm-wrap { display: inline-flex; }
+
+/* Barra de ferramentas */
+.cf-tool { display: flex; align-items: center; gap: 8px; padding: 12px 14px; flex-wrap: wrap; }
+.cf-select { position: relative; height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 14px; border: 1px solid var(--line-strong); border-radius: 12px; background: var(--bg); min-width: 230px; cursor: pointer; }
+.cf-select select { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; font-size: 16px; }
+.cf-select:focus-within { outline: 2px solid var(--gold); outline-offset: 2px; }
+.cf-select-face b { font-weight: 600; }
+.cf-select-face small { color: var(--muted); font-size: 13px; }
+.cf-seg { display: flex; background: var(--surface-2); border-radius: 12px; padding: 3px; gap: 2px; }
+.cf-seg button { min-height: 38px; padding: 0 14px; border: none; background: none; border-radius: 9px; font-size: 13px; color: var(--ink-2); font-weight: 500; cursor: pointer; font-family: var(--font-body); white-space: nowrap; }
+.cf-seg button.cf-on { background: var(--surface); color: var(--ink); box-shadow: 0 2px 6px -2px rgba(15,31,23,.2); }
+.cf-vsep { width: 1px; height: 26px; background: var(--line); margin: 0 4px; }
+.cf-push { margin-left: auto; }
+
+/* Layout */
+.cf-grid { display: grid; grid-template-columns: 540px minmax(0, 1fr); gap: 20px; align-items: start; }
+.cf-pitchwrap { padding: 16px; position: sticky; top: 16px; }
+.cf-right { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
+
+/* Campo */
+.cf-pitch { position: relative; width: 100%; aspect-ratio: 528 / 720; border-radius: 16px; overflow: hidden; background: repeating-linear-gradient(180deg, #124A35 0 8.33%, #11452F 8.33% 16.66%); }
+.cf-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
+.cf-pl {
+  position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 5px; width: 104px;
+  background: none; border: none; padding: 0; cursor: pointer; color: #fff; font-family: var(--font-body); z-index: 2;
+}
+.cf-pl:focus-visible { outline: none; }
+.cf-pl:focus-visible .cf-c { outline: 3px solid var(--gold); outline-offset: 3px; }
+.cf-c {
+  width: 54px; height: 54px; border-radius: 50%; background: #FBF9F4; display: grid; place-items: center;
+  font-family: var(--font-serif); font-size: 19px; color: #0F1F17; box-shadow: 0 8px 16px -6px rgba(0,0,0,.45);
+  position: relative; border: 3px solid var(--ring, #C29A45); transition: transform .12s ease;
+}
+.cf-pl:hover .cf-c { transform: scale(1.05); }
+.cf-pl.cf-sel .cf-c { outline: 3px solid #fff; outline-offset: 3px; }
+.cf-pl.cf-empty .cf-c { background: rgba(255,255,255,.06); border: 2px dashed rgba(255,255,255,.55); color: #DCE7E0; font-family: var(--font-mono); font-size: 11px; box-shadow: none; }
+.cf-n { background: rgba(8,26,18,.55); color: #fff; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; max-width: 104px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-p { font-family: var(--font-mono); font-size: 10px; color: #B6CBBF; letter-spacing: .06em; white-space: nowrap; }
+.cf-bdg { position: absolute; width: 20px; height: 20px; border-radius: 50%; font-size: 10.5px; font-weight: 700; display: grid; place-items: center; font-family: var(--font-body); font-style: normal; border: 2px solid #124A35; }
+.cf-cap { top: -4px; right: -6px; background: var(--gold); color: #fff; }
+.cf-pen { bottom: -4px; right: -6px; background: #fff; color: #0F1F17; }
+.cf-warn { top: -4px; left: -6px; background: var(--warning); color: #fff; }
+.cf-warn.cf-red { background: var(--danger); }
+.cf-legend { display: flex; gap: 6px 16px; justify-content: center; padding: 12px 0 4px; font-size: 12.5px; color: var(--muted); flex-wrap: wrap; }
+.cf-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+
+/* Lista de jogadores da vaga */
+.cf-picker { background: var(--surface); border: 1.5px solid var(--green); border-radius: 22px; overflow: hidden; box-shadow: var(--shadow); }
+.cf-occupant { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 8px 18px 10px; font-size: 13px; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+.cf-pick-list { max-height: 340px; overflow-y: auto; padding: 4px 10px 12px; display: grid; gap: 4px; }
+.cf-pick-h { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 10px 8px 4px; }
+.cf-pick {
+  display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 6px 10px; border-radius: 12px;
+  border: 1px solid transparent; background: none; text-align: left; cursor: pointer; color: var(--ink); font-family: var(--font-body);
+}
+.cf-pick:hover:not(:disabled) { background: var(--bg); border-color: var(--line); }
+.cf-pick:disabled { opacity: .55; cursor: not-allowed; }
+.cf-pick b { font-weight: 600; font-size: 14px; display: block; }
+.cf-pick small { display: block; color: var(--muted); font-size: 12px; font-family: var(--font-mono); }
+.cf-o { font-family: var(--font-serif); font-size: 20px; min-width: 30px; }
+.cf-ell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; min-width: 0; }
+.cf-sheet-bg { display: none; }
+
+/* Resumo */
+.cf-sum { display: grid; grid-template-columns: 200px minmax(0, 1fr); }
+.cf-big { padding: 22px; border-right: 1px solid var(--line); }
+.cf-big b { font-family: var(--font-serif); font-weight: 400; font-size: 56px; letter-spacing: -.03em; line-height: 1; display: block; margin: 10px 0 6px; }
+.cf-sectors { padding: 20px 22px; display: flex; flex-direction: column; gap: 14px; }
+.cf-vsopp { display: flex; align-items: center; gap: 14px; padding: 14px 22px; border-top: 1px solid var(--line); background: var(--bg); border-radius: 0 0 22px 22px; font-size: 13.5px; flex-wrap: wrap; }
+
+/* Alertas */
+.cf-hint { display: flex; gap: 10px; align-items: center; padding: 12px 16px; border-radius: 14px; font-size: 13px; line-height: 1.45; flex-wrap: wrap; }
+.cf-hint .ch-link { white-space: nowrap; margin-left: auto; text-decoration: underline; text-underline-offset: 3px; }
+.cf-h-warning { background: #FBEFD8; color: #7A5410; }
+.cf-h-danger { background: var(--danger-soft); color: var(--danger); }
+.cf-h-info { background: var(--info-soft); color: var(--info); }
+
+/* Funções / presets */
+.cf-two { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); gap: 20px; }
+.cf-role { display: flex; align-items: center; gap: 12px; padding: 12px 22px; border-top: 1px solid var(--line); }
+.cf-role b { font-weight: 600; }
+.cf-role small { display: block; color: var(--muted); font-size: 12px; }
+.cf-k { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 12px; flex-shrink: 0; }
+.cf-preset-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg); }
+.ch-link:disabled { color: var(--muted); cursor: not-allowed; }
+
+/* Banco */
+.cf-bench { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; padding: 4px 22px 20px; }
+.cf-bs { border: 1px solid var(--line); border-radius: 14px; padding: 10px 6px; text-align: center; background: var(--bg); min-width: 0; cursor: pointer; font-family: var(--font-body); color: var(--ink); min-height: 76px; }
+.cf-bs:hover { border-color: var(--line-strong); }
+.cf-bs b { display: block; font-family: var(--font-serif); font-weight: 500; font-size: 18px; }
+.cf-bs span { display: block; min-width: 0; font-size: 11.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cf-bs small { font-family: var(--font-mono); font-size: 10px; }
+.cf-bs-empty { border-style: dashed; color: var(--muted); display: grid; place-items: center; font-size: 20px; }
+.cf-bs-susp { background: var(--danger-soft); border-color: rgba(178,59,59,.35); }
+
+/* Fora da lista */
+.cf-pr { display: grid; grid-template-columns: 40px minmax(0,1fr) 54px 70px 96px; align-items: center; gap: 10px; padding: 10px 22px; border-top: 1px solid var(--line); font-size: 13.5px; min-height: 48px; }
+.cf-pr.cf-dim { opacity: .6; }
+.cf-pos { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); }
+
+/* Toast e rodapé mobile */
+.cf-toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 999px; font-size: 13.5px; z-index: 1200; box-shadow: var(--shadow); max-width: calc(100vw - 32px); }
+.cf-mobile-confirm { display: none; }
+
+@media (max-width: 1200px) {
+  .cf-grid { grid-template-columns: 1fr; }
+  .cf-pitchwrap { position: static; max-width: 560px; width: 100%; margin: 0 auto; }
+  .cf-right { display: grid; grid-template-columns: minmax(0,1fr) minmax(0,1fr); align-items: start; }
+  .cf-right > .cf-picker, .cf-right > .cf-hint { grid-column: 1 / -1; }
+  .cf-two { grid-column: 1 / -1; }
+}
+@media (max-width: 900px) {
+  .cf-right { grid-template-columns: 1fr; }
+}
+@media (max-width: 768px) {
+  .cf-ph h1 { font-size: 32px; }
+  .cf-acts .ui-btn-dark, .cf-confirm-wrap { display: none; }
+  .cf-tool { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -14px; border-radius: 0; border-left: none; border-right: none; }
+  .cf-tool::-webkit-scrollbar { display: none; }
+  .cf-tool > * { flex-shrink: 0; }
+  .cf-select { min-width: 200px; }
+  .cf-push { margin-left: 0; }
+  .cf-pitchwrap { padding: 8px; border-radius: 18px; }
+  .cf-pl { width: 76px; gap: 3px; }
+  .cf-c { width: 40px; height: 40px; font-size: 15px; border-width: 2.5px; }
+  .cf-n { font-size: 10px; padding: 2px 6px; max-width: 76px; }
+  .cf-p { font-size: 8.5px; }
+  .cf-bdg { width: 16px; height: 16px; font-size: 9px; }
+  .cf-sum { grid-template-columns: 1fr; }
+  .cf-big { border-right: none; border-bottom: 1px solid var(--line); }
+  .cf-two { grid-template-columns: 1fr; }
+  .cf-bench { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px 16px 16px; }
+  .cf-pr { grid-template-columns: 34px minmax(0,1fr) 40px 80px; padding: 10px 16px; }
+  .cf-pr .cf-pos + .ch-small { display: none; }
+  .cf-mobile-confirm { display: block; position: fixed; left: 0; right: 0; bottom: calc(68px + env(safe-area-inset-bottom)); padding: 10px 14px; background: linear-gradient(0deg, var(--bg) 70%, transparent); z-index: 880; }
+  .cf-main { padding-bottom: 96px; }
+  .cf-hint > span { flex: 1 1 calc(100% - 30px) !important; }
+  .cf-hint .ch-link { margin-left: 28px; white-space: normal; text-align: left; }
+  .cf-toast { bottom: 150px; }
+  /* Lista da vaga vira bottom sheet */
+  .cf-sheet-bg { display: block; position: fixed; inset: 0; background: var(--overlay); z-index: 1000; }
+  .cf-picker { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1001; border-radius: 20px 20px 0 0; max-height: 78vh; display: flex; flex-direction: column; border: none; }
+  .cf-pick-list { max-height: none; flex: 1; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
+}

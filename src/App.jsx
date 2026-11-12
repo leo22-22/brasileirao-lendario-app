@@ -6347,7 +6347,7 @@ export default function App() {
             <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
               <span>Modo Carreira</span>
               <Icon name="chevronRight" size={14} />
-              <b>{careerHud.clubLabel} · Temporada {careerHud.season}</b>
+              <b>{careerHud.section || `${careerHud.clubLabel} · Temporada ${careerHud.season}`}</b>
             </nav>
           )}
           <div className="ui-header-actions">
@@ -11387,6 +11387,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-carreira-formacao',
+    date: 'Novembro de 2026',
+    title: 'Formação do Modo Carreira redesenhada',
+    desc: 'A tela de Formação ganhou campo grande com anel por setor, filtro de esquemas por linha de defesa, força por setor comparada com o próximo adversário (com a chance de vitória), alertas com troca em 1 clique (suspenso, pendurado, fora de posição, banco sem goleiro), "Poupar pendurados", banco de 12 com preenchimento automático, lista de quem está fora do jogo e presets que dá pra renomear. Ao trocar de esquema, quem sobra vai pro banco.',
+  },
   {
     id: '2026-11-carreira-visao-geral',
     date: 'Novembro de 2026',
