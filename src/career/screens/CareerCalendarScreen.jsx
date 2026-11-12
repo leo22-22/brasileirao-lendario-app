@@ -35,9 +35,16 @@ export function CareerCalendarScreen({ save, onBack }) {
     return map;
   }, [save.seasonCalendar]);
 
+  // `copa.calendar` é o COPA_DAYS do copaEngine.js: um PAR [ida, volta] de
+  // dia-do-ano por fase (a Final tem só 1 dia) — precisa abrir cada par
+  // pra mapear dia->fase, senão só a Final (par de 1 item só) batia por
+  // coincidência de stringificação e as outras fases sumiam do calendário
+  // (bug reportado pelo usuário: "hoje só aparece a final no calendario").
   const dayToCopaRound = useMemo(() => {
     const map = {};
-    (copa?.calendar || []).forEach((day, idx) => { map[day] = idx; });
+    (copa?.calendar || []).forEach((days, idx) => {
+      (Array.isArray(days) ? days : [days]).forEach(day => { map[day] = idx; });
+    });
     return map;
   }, [copa]);
 
@@ -88,13 +95,13 @@ export function CareerCalendarScreen({ save, onBack }) {
     const round = dayToRound[dayOfYear];
     if (round !== undefined) { setSelected({ type: 'round', idx: round }); return; }
     const copaRound = dayToCopaRound[dayOfYear];
-    if (copaRound !== undefined) setSelected({ type: 'copa', idx: copaRound });
+    if (copaRound !== undefined) setSelected({ type: 'copa', idx: copaRound, day: dayOfYear });
   };
 
   const selectedMatches = selected.type === 'round' ? (division.fixtures[selected.idx] || []) : [];
   const selectedResults = selected.type === 'round' ? (division.results?.[selected.idx] || null) : null;
   const selectedCopa = selected.type === 'copa' ? copaRoundInfo(selected.idx) : null;
-  const selectedDay = selected.type === 'round' ? save.seasonCalendar[selected.idx] : copa?.calendar?.[selected.idx];
+  const selectedDay = selected.type === 'round' ? save.seasonCalendar[selected.idx] : selected.day;
 
   return (
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
