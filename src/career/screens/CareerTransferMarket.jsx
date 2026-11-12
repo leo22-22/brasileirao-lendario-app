@@ -11,7 +11,7 @@
 import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
-import { SERIE_A_2026_TEAM_IDS, SERIE_B_2026_TEAM_IDS } from '../../data/career-clubs.js';
+import { CAREER_CLUB_IDS } from '../../data/career-clubs.js';
 import { computePlayerValue } from '../engine/pricing.js';
 import { MIN_SQUAD_SIZE } from '../engine/rosterStore.js';
 import { isTransferWindowOpen } from '../engine/calendar.js';
@@ -36,14 +36,31 @@ function normalize(s) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
 
-function filterPlayers(roster, query, pos) {
+// `adv` (opcional) = busca avançada (pedido explícito do usuário
+// 2026-11-13: "filtrar de tal idade a tal idade, de tal valor a tal
+// valor") — { ageMin, ageMax, valueMin, valueMax, getValue }. Jogador sem
+// idade conhecida (elenco histórico/legado sem backfill, ver pricing.js)
+// nunca bate um filtro de idade — mostrar ele dentro de qualquer faixa
+// seria inventar um dado que não existe.
+function filterPlayers(roster, query, pos, adv) {
   const q = normalize(query.trim());
-  // Filtra pela posição PRINCIPAL (pos[0], a mesma que aparece no badge da
-  // linha) — não por "p.pos.includes(pos)", que mostraria um jogador
-  // versátil (ex.: cadastrado como ['MEI','ATA']) com o badge "MEI" dentro
-  // do filtro "ATA", o que pareceria um resultado errado pra quem filtrou.
   return roster
+    // Filtra pela posição PRINCIPAL (pos[0], a mesma que aparece no badge
+    // da linha) — não por "p.pos.includes(pos)", que mostraria um jogador
+    // versátil (ex.: cadastrado como ['MEI','ATA']) com o badge "MEI"
+    // dentro do filtro "ATA", o que pareceria um resultado errado.
     .filter(p => (!q || normalize(p.name).includes(q)) && (!pos || p.pos[0] === pos))
+    .filter(p => {
+      if (!adv) return true;
+      if (adv.ageMin != null && (p.age == null || p.age < adv.ageMin)) return false;
+      if (adv.ageMax != null && (p.age == null || p.age > adv.ageMax)) return false;
+      if (adv.valueMin != null || adv.valueMax != null) {
+        const v = adv.getValue(p);
+        if (adv.valueMin != null && v < adv.valueMin) return false;
+        if (adv.valueMax != null && v > adv.valueMax) return false;
+      }
+      return true;
+    })
     .sort((a, b) => posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]) || b.ovr - a.ovr);
 }
 
@@ -63,7 +80,55 @@ function PosBadge({ pos }) {
   );
 }
 
-function PlayerSearchBar({ query, setQuery, pos, setPos, resultCount }) {
+const EMPTY_ADV = { ageMin: '', ageMax: '', valueMin: '', valueMax: '' };
+
+// Busca avançada (pedido explícito do usuário 2026-11-13: "tipo busca
+// avançada aí lá dá pra filtrar de tal idade a tal idade, de tal valor a
+// tal valor etc") — painel recolhível abaixo da busca normal, só com
+// idade e valor de mercado (os dois únicos atributos numéricos que fazem
+// sentido pra faixa aqui; posição já tem o seletor dedicado ao lado).
+function AdvancedFilters({ adv, setAdv }) {
+  const [open, setOpen] = useState(false);
+  const active = !!(adv.ageMin || adv.ageMax || adv.valueMin || adv.valueMax);
+  const update = (key, val) => setAdv(prev => ({ ...prev, [key]: val }));
+  return (
+    <div style={{ marginTop: 6 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ background: 'none', border: 'none', padding: 0, color: active ? '#d4a23c' : 'rgba(244,241,234,0.5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+      >🔎 Busca avançada{active ? ' (ativa)' : ''} {open ? '▲' : '▼'}</button>
+      {open && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div>
+            <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Idade</div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input value={adv.ageMin} onChange={e => update('ageMin', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
+              <span style={{ opacity: 0.4, fontSize: 11, flexShrink: 0 }}>até</span>
+              <input value={adv.ageMax} onChange={e => update('ageMax', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Valor de mercado (R$)</div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input value={adv.valueMin ? Number(adv.valueMin).toLocaleString('pt-BR') : ''} onChange={e => update('valueMin', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
+              <span style={{ opacity: 0.4, fontSize: 11, flexShrink: 0 }}>até</span>
+              <input value={adv.valueMax ? Number(adv.valueMax).toLocaleString('pt-BR') : ''} onChange={e => update('valueMax', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+          {active && (
+            <button
+              onClick={() => setAdv(EMPTY_ADV)}
+              style={{ gridColumn: '1 / -1', background: 'none', border: '1px solid rgba(224,80,80,0.35)', borderRadius: 8, padding: '6px 0', color: '#e08080', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+            >Limpar busca avançada</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PlayerSearchBar({ query, setQuery, pos, setPos, resultCount, adv, setAdv }) {
+  const advActive = !!(adv?.ageMin || adv?.ageMax || adv?.valueMin || adv?.valueMax);
   return (
     <div style={{ marginBottom: 10 }}>
       <div style={{ display: 'flex', gap: 6 }}>
@@ -73,7 +138,8 @@ function PlayerSearchBar({ query, setQuery, pos, setPos, resultCount }) {
           {POSITIONS.map(p => <option key={p} value={p} style={{ background: '#13241a', color: '#F4F1EA' }}>{p}</option>)}
         </select>
       </div>
-      {(query || pos) && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 5 }}>{resultCount} jogador{resultCount === 1 ? '' : 'es'} encontrado{resultCount === 1 ? '' : 's'}</div>}
+      {adv && setAdv && <AdvancedFilters adv={adv} setAdv={setAdv} />}
+      {(query || pos || advActive) && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 5 }}>{resultCount} jogador{resultCount === 1 ? '' : 'es'} encontrado{resultCount === 1 ? '' : 's'}</div>}
     </div>
   );
 }
@@ -140,16 +206,24 @@ function DurationPicker({ kind, setKind }) {
 function MyRosterTab({ save, onToggleListed, onToggleLoanList, windowOpen }) {
   const [query, setQuery] = useState('');
   const [pos, setPos] = useState('');
+  const [adv, setAdv] = useState(EMPTY_ADV);
   const roster = save.clubs[save.myClubId].roster.filter(p => !p.inAcademy);
   const transferList = save.transferList || [];
   const loanList = save.loanList || [];
-  const filtered = filterPlayers(roster, query, pos);
+  const advParsed = {
+    ageMin: adv.ageMin ? Number(adv.ageMin) : null,
+    ageMax: adv.ageMax ? Number(adv.ageMax) : null,
+    valueMin: adv.valueMin ? Number(adv.valueMin) : null,
+    valueMax: adv.valueMax ? Number(adv.valueMax) : null,
+    getValue: p => computePlayerValue(p, save.myClubId),
+  };
+  const filtered = filterPlayers(roster, query, pos, advParsed);
   return (
     <div>
       {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — pode listar jogadores agora, mas as propostas só chegam quando ela abrir (janeiro, ou julho).</p>}
       {roster.length <= MIN_SQUAD_SIZE && <p style={{ fontSize: 12, color: '#e0a33d', marginBottom: 10 }}>Elenco no mínimo de {MIN_SQUAD_SIZE} jogadores — mesmo que venha proposta, não vai dar pra vender/emprestar até o elenco crescer.</p>}
       <p style={{ fontSize: 11.5, opacity: 0.55, marginBottom: 10, lineHeight: 1.4 }}>📋 Não dá pra vender direto — coloque o jogador na lista de transferências (aumenta em 50% a chance de vir proposta por ele) e aguarde alguém se interessar. 🔁 Empréstimo funciona igual: colocar na lista de empréstimo não empresta ninguém sozinho, só sinaliza que o jogador tá disponível — uma proposta de empréstimo (com a duração que o clube propôs) pode ou não aparecer depois. Aceite ou rejeite as duas na aba Propostas.</p>
-      <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} />
+      <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} adv={adv} setAdv={setAdv} />
       {filtered.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
       {filtered.map(p => {
         const value = computePlayerValue(p, save.myClubId);
@@ -299,13 +373,21 @@ function ProposeRow({ player, price, enabled, disabledReason, onPropose, onReque
 function ClubRosterList({ save, clubId, onPropose, onRequestLoan, windowOpen }) {
   const [query, setQuery] = useState('');
   const [pos, setPos] = useState('');
+  const [adv, setAdv] = useState(EMPTY_ADV);
   const [lastResult, setLastResult] = useState(null); // { playerName, accepted, reason, price }
   const team = TEAMS.find(t => t.id === clubId);
   const logo = CLUB_LOGOS[team.club];
   const roster = save.clubs[clubId].roster.filter(p => !p.inAcademy);
   const myBudget = save.clubs[save.myClubId].budget;
   const sellerCanSell = roster.length > MIN_SQUAD_SIZE;
-  const filtered = filterPlayers(roster, query, pos);
+  const advParsed = {
+    ageMin: adv.ageMin ? Number(adv.ageMin) : null,
+    ageMax: adv.ageMax ? Number(adv.ageMax) : null,
+    valueMin: adv.valueMin ? Number(adv.valueMin) : null,
+    valueMax: adv.valueMax ? Number(adv.valueMax) : null,
+    getValue: p => computePlayerValue(p, clubId),
+  };
+  const filtered = filterPlayers(roster, query, pos, advParsed);
 
   const handlePropose = (playerName, amount) => {
     const res = onPropose(clubId, playerName, amount);
@@ -334,7 +416,7 @@ function ClubRosterList({ save, clubId, onPropose, onRequestLoan, windowOpen }) 
               : `❌ Proposta por ${lastResult.playerName} recusada — tente um valor mais perto do de mercado.`}
         </div>
       )}
-      <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} />
+      <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} adv={adv} setAdv={setAdv} />
       {filtered.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
       {filtered.map(p => {
         const price = computePlayerValue(p, clubId);
@@ -363,7 +445,12 @@ function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
     );
   }
 
-  const idsForDivision = division === 'A' ? SERIE_A_2026_TEAM_IDS : SERIE_B_2026_TEAM_IDS;
+  // Divisão ATUAL de cada clube (save.clubs[id].division, atualizada de
+  // verdade a cada acesso/queda no fim de temporada — ver seasonEngine.js)
+  // em vez da lista estática SERIE_A/B_2026_TEAM_IDS (a composição real de
+  // 2026): bug reportado pelo usuário 2026-11-13 — um clube rebaixado pra
+  // Série B continuava aparecendo em "Série A" aqui pra sempre.
+  const idsForDivision = CAREER_CLUB_IDS.filter(id => save.clubs[id].division === division);
   const q = normalize(clubQuery.trim());
   const filteredIds = idsForDivision
     .filter(id => id !== save.myClubId)
