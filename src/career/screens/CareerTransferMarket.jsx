@@ -431,10 +431,75 @@ function ClubRosterList({ save, clubId, onPropose, onRequestLoan, windowOpen }) 
   );
 }
 
+// Força aproximada do elenco (média de OVR, fora da categoria de base) —
+// só pra filtro/comparação nesta lista de clubes, não é a mesma conta que
+// a simulação usa (teamForSim pesa moral/capitão só pro MEU clube).
+function clubSquadStrength(save, clubId) {
+  const roster = save.clubs[clubId]?.roster.filter(p => !p.inAcademy) || [];
+  if (!roster.length) return 0;
+  return Math.round(roster.reduce((s, p) => s + p.ovr, 0) / roster.length);
+}
+
+// Valor de mercado total do elenco (mesma fonte de preço que o resto do
+// Mercado usa) — mesma conta que squadValueTotal em CareerHub.jsx, mas
+// local aqui (arquivos diferentes, sem import circular à toa por uma
+// função de 2 linhas).
+function clubSquadValue(save, clubId) {
+  return save.clubs[clubId].roster.filter(p => !p.inAcademy).reduce((s, p) => s + computePlayerValue(p, clubId), 0);
+}
+
+const EMPTY_CLUB_ADV = { strengthMin: '', strengthMax: '', valueMin: '', valueMax: '' };
+
+// Busca avançada na lista de clubes (pedido explícito do usuário
+// 2026-11-13: "eu quero que tenha uma busca avançada aqui tbm", na aba
+// "Outros clubes") — mesmo painel recolhível da busca avançada de
+// jogador, só que filtrando força do elenco e valor total em vez de
+// idade/valor individual.
+function ClubAdvancedFilters({ adv, setAdv }) {
+  const [open, setOpen] = useState(false);
+  const active = !!(adv.strengthMin || adv.strengthMax || adv.valueMin || adv.valueMax);
+  const update = (key, val) => setAdv(prev => ({ ...prev, [key]: val }));
+  return (
+    <div style={{ marginBottom: 10 }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{ background: 'none', border: 'none', padding: 0, color: active ? '#d4a23c' : 'rgba(244,241,234,0.5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+      >🔎 Busca avançada{active ? ' (ativa)' : ''} {open ? '▲' : '▼'}</button>
+      {open && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+          <div>
+            <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Força do elenco (OVR)</div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input value={adv.strengthMin} onChange={e => update('strengthMin', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
+              <span style={{ opacity: 0.4, fontSize: 11, flexShrink: 0 }}>até</span>
+              <input value={adv.strengthMax} onChange={e => update('strengthMax', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Valor total do elenco (R$)</div>
+            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+              <input value={adv.valueMin ? Number(adv.valueMin).toLocaleString('pt-BR') : ''} onChange={e => update('valueMin', e.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
+              <span style={{ opacity: 0.4, fontSize: 11, flexShrink: 0 }}>até</span>
+              <input value={adv.valueMax ? Number(adv.valueMax).toLocaleString('pt-BR') : ''} onChange={e => update('valueMax', e.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
+            </div>
+          </div>
+          {active && (
+            <button
+              onClick={() => setAdv(EMPTY_CLUB_ADV)}
+              style={{ gridColumn: '1 / -1', background: 'none', border: '1px solid rgba(224,80,80,0.35)', borderRadius: 8, padding: '6px 0', color: '#e08080', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+            >Limpar busca avançada</button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
   const [clubId, setClubId] = useState(null);
   const [clubQuery, setClubQuery] = useState('');
   const [division, setDivision] = useState('A');
+  const [clubAdv, setClubAdv] = useState(EMPTY_CLUB_ADV);
 
   if (clubId) {
     return (
@@ -452,9 +517,27 @@ function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
   // Série B continuava aparecendo em "Série A" aqui pra sempre.
   const idsForDivision = CAREER_CLUB_IDS.filter(id => save.clubs[id].division === division);
   const q = normalize(clubQuery.trim());
+  const strengthMin = clubAdv.strengthMin ? Number(clubAdv.strengthMin) : null;
+  const strengthMax = clubAdv.strengthMax ? Number(clubAdv.strengthMax) : null;
+  const valueMin = clubAdv.valueMin ? Number(clubAdv.valueMin) : null;
+  const valueMax = clubAdv.valueMax ? Number(clubAdv.valueMax) : null;
   const filteredIds = idsForDivision
     .filter(id => id !== save.myClubId)
-    .filter(id => !q || normalize(TEAMS.find(t => t.id === id).club).includes(q));
+    .filter(id => !q || normalize(TEAMS.find(t => t.id === id).club).includes(q))
+    .filter(id => {
+      if (strengthMin == null && strengthMax == null) return true;
+      const str = clubSquadStrength(save, id);
+      if (strengthMin != null && str < strengthMin) return false;
+      if (strengthMax != null && str > strengthMax) return false;
+      return true;
+    })
+    .filter(id => {
+      if (valueMin == null && valueMax == null) return true;
+      const val = clubSquadValue(save, id);
+      if (valueMin != null && val < valueMin) return false;
+      if (valueMax != null && val > valueMax) return false;
+      return true;
+    });
 
   return (
     <div>
@@ -473,7 +556,8 @@ function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
           >Série {d}</button>
         ))}
       </div>
-      {filteredIds.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum clube encontrado com esse nome.</p>}
+      <ClubAdvancedFilters adv={clubAdv} setAdv={setClubAdv} />
+      {filteredIds.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum clube encontrado com esse filtro.</p>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {filteredIds.map(id => {
           const team = TEAMS.find(t => t.id === id);
