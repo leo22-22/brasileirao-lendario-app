@@ -2397,6 +2397,21 @@ const MAX_SKIPS = 3;
 const CAREER_MODE_LOCKED = false;
 
 
+// Saldo curto pro cabeçalho ("R$ 168,8M").
+function formatMoneyCompact(n) {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '−' : '';
+  if (abs >= 1_000_000_000) return `${sign}R$ ${(abs / 1_000_000_000).toFixed(1).replace('.', ',')}B`;
+  if (abs >= 1_000_000) return `${sign}R$ ${(abs / 1_000_000).toFixed(1).replace('.', ',')}M`;
+  if (abs >= 1_000) return `${sign}R$ ${Math.round(abs / 1_000)}K`;
+  return `${sign}R$ ${abs}`;
+}
+function initialsOf(name = '') {
+  const parts = String(name).trim().split(/[\s._-]+/).filter(Boolean);
+  const ini = parts.length >= 2 ? parts[0][0] + parts[1][0] : String(name).slice(0, 2);
+  return ini.toUpperCase();
+}
+
 // Menu do cabeçalho no celular — junta as ações secundárias pra o
 // cabeçalho caber numa linha só (marca + ação principal + conta + menu).
 function HeaderMenu({ items, badge }) {
@@ -6320,21 +6335,26 @@ export default function App() {
         />
       )}
       <header className="ui-header">
-        <div className="ui-header-inner">
-          <button type="button" className="ui-brand" onClick={requestGoHome} title="Voltar ao menu inicial">
+        <div className="ui-header-inner" style={careerOpen ? { maxWidth: 'none', padding: '12px 28px' } : undefined}>
+          <button type="button" className="ui-brand" onClick={requestGoHome} title="Voltar ao menu inicial" aria-label="Brasileirão Lendário — voltar ao menu inicial">
             <BrandMark />
             <span style={{ minWidth: 0 }}>
               <span className="ui-brand-name">Brasileirão Lendário</span>
-              <span className="ui-brand-sub">monte · escale · seja campeão</span>
+              {!careerOpen && <span className="ui-brand-sub">monte · escale · seja campeão</span>}
             </span>
           </button>
+          {careerOpen && careerHud?.active && (
+            <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
+              <span>Modo Carreira</span>
+              <Icon name="chevronRight" size={14} />
+              <b>{careerHud.clubLabel} · Temporada {careerHud.season}</b>
+            </nav>
+          )}
           <div className="ui-header-actions">
-            {/* Ações de sessão (só na home): Continuar carreira / Continuar
-                partida / Supercopa. No celular fica só a mais importante à
-                vista e o resto vai pro menu, pra caber numa linha. */}
-            {phase === 'intro' && !multiPhase && (
+            {/* "Continuar" (partida salva) só fora da carreira. */}
+            {phase === 'intro' && !multiPhase && !careerOpen && (
               <>
-                {hasCareerSaveFlag && !careerOpen && !CAREER_MODE_LOCKED && (
+                {hasCareerSaveFlag && !CAREER_MODE_LOCKED && (
                   <button type="button" onClick={openCareer} className="ui-hbtn ui-hbtn-gold ui-hide-mobile" title="Voltar pra sua carreira salva">
                     <Icon name="money" size={16} /> Continuar carreira
                   </button>
@@ -6344,22 +6364,6 @@ export default function App() {
                     <Icon name="play" size={14} /> Continuar
                   </button>
                 )}
-                {dailyChallenge && (
-                  <button
-                    type="button"
-                    onClick={() => !dailyChallengeAlreadyPlayed && setShowDailyChallenge(true)}
-                    disabled={dailyChallengeAlreadyPlayed}
-                    className="ui-hbtn ui-hide-mobile"
-                    style={dailyChallengeAlreadyPlayed ? { color: 'var(--muted)', cursor: 'default' } : { color: 'var(--gold-ink)', borderColor: 'rgba(194,154,69,0.55)' }}
-                    title={dailyChallengeAlreadyPlayed
-                      ? 'Você já jogou a Supercopa do Brasil de hoje — volta amanhã pra outro time lendário.'
-                      : `Monte um time pra enfrentar o ${parseTeamLabel(dailyChallenge.opponent.label).baseName} · vencer dá +50 pontos no ranking`}
-                  >
-                    <Icon name={dailyChallengeAlreadyPlayed ? 'check' : 'star'} size={15} />
-                    {dailyChallengeAlreadyPlayed ? 'Supercopa feita' : 'Supercopa do dia'}
-                  </button>
-                )}
-                <span className="ui-hsep ui-hide-mobile" />
               </>
             )}
             {careerHud?.active && (
@@ -6367,47 +6371,56 @@ export default function App() {
                 type="button"
                 onClick={openCareer}
                 title={`Orçamento do ${careerHud.clubLabel} no Modo Carreira`}
-                className="ui-hbtn ui-hbtn-gold"
-                style={{ fontFamily: 'var(--font-mono)', fontSize: 12 }}
+                aria-label={`Orçamento: R$ ${careerHud.balance.toLocaleString('pt-BR')}`}
+                className="ui-hbtn ui-hbtn-money ui-hide-xs"
               >
-                <Icon name="money" size={15} /> R$ {careerHud.balance.toLocaleString('pt-BR')}
+                <Icon name="money" size={15} /> {formatMoneyCompact(careerHud.balance)}
               </button>
             )}
-            <button type="button" onClick={shareApp} title="Compartilhar o jogo com amigos" className="ui-hbtn ui-hide-mobile" style={appShareCopied ? { color: 'var(--success)' } : undefined}>
-              <Icon name={appShareCopied ? 'check' : 'share'} size={16} /><span className="ui-hlabel">{appShareCopied ? 'Link copiado' : 'Compartilhar'}</span>
+            {dailyChallenge && (
+              <button
+                type="button"
+                onClick={() => { if (dailyChallengeAlreadyPlayed) return; if (careerOpen) setCareerOpen(false); setShowDailyChallenge(true); }}
+                disabled={dailyChallengeAlreadyPlayed}
+                className="ui-hbtn ui-hide-mobile"
+                style={dailyChallengeAlreadyPlayed ? { cursor: 'default' } : { color: 'var(--gold-ink)', borderColor: 'rgba(194,154,69,0.55)' }}
+                title={dailyChallengeAlreadyPlayed
+                  ? 'Você já jogou a Supercopa do Brasil de hoje — volta amanhã pra outro time lendário.'
+                  : `Monte um time pra enfrentar o ${parseTeamLabel(dailyChallenge.opponent.label).baseName} · vencer dá +50 pontos no ranking`}
+              >
+                <Icon name={dailyChallengeAlreadyPlayed ? 'check' : 'trophy'} size={15} />
+                {dailyChallengeAlreadyPlayed ? 'Supercopa feita' : 'Supercopa do dia'}
+              </button>
+            )}
+            <button type="button" onClick={shareApp} title={appShareCopied ? 'Link copiado' : 'Compartilhar o jogo com amigos'} aria-label={appShareCopied ? 'Link copiado' : 'Compartilhar o jogo'} className="ui-hbtn ui-hbtn-icon ui-hide-mobile" style={appShareCopied ? { color: 'var(--success)' } : undefined}>
+              <Icon name={appShareCopied ? 'check' : 'share'} size={17} />
             </button>
-            <button type="button" onClick={toggleGoalAudioMuted} title={goalAudioMuted ? 'Áudio de gol desativado — clique pra reativar' : 'Desativar áudio de gol'} className="ui-hbtn ui-hide-mobile" aria-pressed={!goalAudioMuted}>
-              <Icon name={goalAudioMuted ? 'mute' : 'sound'} size={16} /><span className="ui-hlabel">Áudio</span>
+            <button type="button" onClick={toggleGoalAudioMuted} title={goalAudioMuted ? 'Áudio de gol desativado — clique pra reativar' : 'Desativar áudio de gol'} aria-label={goalAudioMuted ? 'Ativar áudio de gol' : 'Desativar áudio de gol'} className="ui-hbtn ui-hbtn-icon ui-hide-mobile" aria-pressed={!goalAudioMuted}>
+              <Icon name={goalAudioMuted ? 'mute' : 'sound'} size={17} />
             </button>
-            <button type="button" onClick={navigateToRanking} title="Ranking global" className="ui-hbtn ui-hide-mobile">
-              <Icon name="ranking" size={16} /><span className="ui-hlabel">Ranking</span>
+            <button type="button" onClick={navigateToRanking} title="Ranking global" aria-label="Ranking global" className="ui-hbtn ui-hbtn-icon ui-hide-mobile">
+              <Icon name="ranking" size={17} />
             </button>
-            <button
-              type="button"
-              onClick={openNews}
-              title="Novidades"
-              className="ui-hbtn ui-hide-mobile"
-            >
-              <Icon name="news" size={16} /><span className="ui-hlabel">Novidades</span>
-              {unseenNewsCount > 0 && <span className="ui-dot">{unseenNewsCount > 9 ? '9+' : unseenNewsCount}</span>}
+            <button type="button" onClick={openNews} title={unseenNewsCount > 0 ? `Novidades (${unseenNewsCount} não lida${unseenNewsCount > 1 ? 's' : ''})` : 'Novidades'} aria-label={unseenNewsCount > 0 ? `Novidades, ${unseenNewsCount} não lidas` : 'Novidades'} className="ui-hbtn ui-hbtn-icon ui-hide-mobile">
+              <Icon name="bell" size={17} />
+              {unseenNewsCount > 0 && <span className="ui-unread-dot" aria-hidden="true" />}
             </button>
             {currentUser ? (
-              <button type="button" onClick={() => setShowAccountPanel(true)} className="ui-hbtn" title="Minha Conta" style={{ maxWidth: 170 }}>
-                <Icon name="user" size={16} />
-                <span className="ui-hide-mobile" style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{currentUser.username}</span>
+              <button type="button" onClick={() => setShowAccountPanel(true)} className="ui-avatar" title={`Minha conta · ${currentUser.username}`} aria-label={`Minha conta (${currentUser.username})`}>
+                {initialsOf(currentUser.username)}
               </button>
             ) : (
-              <button type="button" onClick={() => setShowAccountModal(true)} className="ui-hbtn ui-hbtn-dark" title="Entrar / Criar conta">
+              <button type="button" onClick={() => setShowAccountModal(true)} className="ui-hbtn ui-hbtn-dark" title="Entrar / Criar conta" aria-label="Entrar ou criar conta">
                 <span className="ui-only-mobile"><Icon name="user" size={16} /></span>
-                <span className="ui-hide-mobile">Entrar / Criar conta</span>
+                <span className="ui-hide-mobile">Entrar</span>
               </button>
             )}
             <HeaderMenu
               items={[
-                ...(phase === 'intro' && !multiPhase && hasCareerSaveFlag && !careerOpen && !CAREER_MODE_LOCKED ? [{ icon: 'money', label: 'Continuar carreira', onClick: openCareer }] : []),
-                ...(phase === 'intro' && !multiPhase && dailyChallenge && !dailyChallengeAlreadyPlayed ? [{ icon: 'star', label: 'Supercopa do dia', onClick: () => setShowDailyChallenge(true) }] : []),
+                ...(phase === 'intro' && !multiPhase && !careerOpen && hasCareerSaveFlag && !CAREER_MODE_LOCKED ? [{ icon: 'money', label: 'Continuar carreira', onClick: openCareer }] : []),
+                ...(dailyChallenge && !dailyChallengeAlreadyPlayed ? [{ icon: 'trophy', label: 'Supercopa do dia', onClick: () => { if (careerOpen) setCareerOpen(false); setShowDailyChallenge(true); } }] : []),
                 { icon: 'ranking', label: 'Ranking', onClick: navigateToRanking },
-                { icon: 'news', label: unseenNewsCount > 0 ? `Novidades (${unseenNewsCount > 9 ? '9+' : unseenNewsCount})` : 'Novidades', onClick: openNews },
+                { icon: 'bell', label: unseenNewsCount > 0 ? `Novidades (${unseenNewsCount > 9 ? '9+' : unseenNewsCount})` : 'Novidades', onClick: openNews },
                 { icon: goalAudioMuted ? 'mute' : 'sound', label: goalAudioMuted ? 'Ativar áudio de gol' : 'Desativar áudio de gol', onClick: toggleGoalAudioMuted },
                 { icon: appShareCopied ? 'check' : 'share', label: appShareCopied ? 'Link copiado' : 'Compartilhar o jogo', onClick: shareApp },
               ]}
@@ -11374,6 +11387,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-carreira-visao-geral',
+    date: 'Novembro de 2026',
+    title: 'Modo Carreira com Visão geral nova',
+    desc: 'O Modo Carreira ganhou um menu lateral fixo (vira barra inferior no celular) e uma Visão geral redesenhada: objetivo da diretoria com confiança, moral do elenco, próximo jogo com leitura do auxiliar e probabilidades, agenda com a dificuldade de cada jogo, recorte da tabela, avisos do elenco (suspensos, pendurados, base, listas) e uma Caixa de entrada com resultados, mercado e recados da diretoria. Também entrou a tela de Finanças com a evolução do saldo.',
+  },
   {
     id: '2026-11-tema-claro-app-inteiro',
     date: 'Novembro de 2026',

@@ -1,47 +1,41 @@
-// Painel principal do Modo Carreira — pedido explícito do usuário
-// (2026-11-06): layout de 3 colunas estilo Football Manager/EA FC, seguindo
-// um mockup HTML/Tailwind completo que o usuário colou como referência.
-// Reproduzido aqui com o mesmo padrão inline-style/<style> que o resto do
-// Modo Carreira já usa (sem Tailwind — não existe em nenhum outro lugar do
-// app) e, principalmente, só com dados REAIS: nada de clima/estádio/folha
-// salarial do mockup (o motor não tem nenhum desses conceitos) — qualquer
-// número aqui vem de algo que o save realmente guarda (força de elenco por
-// OVR médio, valor de mercado somado, retrospecto real das últimas 3
-// rodadas, etc.).
-import { Icon, Alert } from '../../ui/index.jsx';
+// Visão geral do Modo Carreira — redesenho de 2026-11-13 seguindo o mockup
+// modo-carreira-hub-mockup.html (fonte da verdade de espaçamento/cores).
+// A navegação (Elenco, Formação, Mercado...) saiu do meio da tela e virou o
+// menu lateral (components/CareerShell.jsx). Tudo aqui é DERIVADO do save
+// (ver engine/careerMeta.js) — nada de dado inventado.
 import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
-import { formatCalendarDay } from '../engine/calendar.js';
+import { CLUB_STADIUMS } from '../../data/info-content.js';
+import { careerClubTier } from '../../data/career-clubs.js';
 import { computePlayerValue } from '../engine/pricing.js';
-import { COPA_ROUND_LABELS } from '../engine/copaEngine.js';
 import { clubForm, teamForSim } from '../engine/simHelpers.js';
 import { matchOutcomeProbabilities } from '../../App.jsx';
-import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
-import { isTransferWindowOpen } from '../engine/calendar.js';
-import { backButtonStyle } from '../components/styles.js';
 import { MatchPreviewModal } from '../components/MatchPreviewModal.jsx';
 import { displayName } from '../../lib/displayName.js';
+import { readableOn } from '../../lib/color.js';
+import { Icon, TeamBadge } from '../../ui/index.jsx';
+import {
+  myDivision, computeBoard, moraleFrom, upcomingFixtures, assistantInsight, squadAlerts,
+  tableSlice, transferWindowText, dayParts,
+} from '../engine/careerMeta.js';
+import '../components/careerShell.css';
 
 function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
 }
 
-// Versão curta pro medidor de orçamento (pouco espaço) — "R$ 69,2M" em vez
-// de "R$ 69.200.000".
-function formatMoneyShort(n) {
+export function formatMoneyShort(n) {
   const abs = Math.abs(n);
-  if (abs >= 1_000_000_000) return `R$ ${(n / 1_000_000_000).toFixed(1).replace('.', ',')}B`;
-  if (abs >= 1_000_000) return `R$ ${(n / 1_000_000).toFixed(1).replace('.', ',')}M`;
-  if (abs >= 1_000) return `R$ ${(n / 1_000).toFixed(0)}K`;
-  return `R$ ${n}`;
+  const sign = n < 0 ? '−' : '';
+  if (abs >= 1_000_000_000) return `${sign}R$ ${(abs / 1_000_000_000).toFixed(1).replace('.', ',')}B`;
+  if (abs >= 1_000_000) return `${sign}R$ ${(abs / 1_000_000).toFixed(1).replace('.', ',')}M`;
+  if (abs >= 1_000) return `${sign}R$ ${(abs / 1_000).toFixed(0)}K`;
+  return `${sign}R$ ${abs}`;
 }
 
-function myDivisionData(save) {
-  const division = save.clubs[save.myClubId].division;
-  return { key: division, data: division === 'A' ? save.divisionA : save.divisionB };
-}
-
+// Linha de texto de um evento do dia — usada pela animação de avanço do
+// calendário (CareerAdvanceModal, via CareerApp).
 export function eventLine(ev, myClubId) {
   if (ev.type === 'match') {
     const isHome = ev.homeId === myClubId;
@@ -51,7 +45,7 @@ export function eventLine(ev, myClubId) {
     const myGoals = isHome ? ev.homeGoals : ev.awayGoals;
     const oppGoals = isHome ? ev.awayGoals : ev.homeGoals;
     const result = myGoals > oppGoals ? '🟢' : myGoals < oppGoals ? '🔴' : '🟡';
-    return `${result} ${myTeam?.club || ''} ${myGoals} x ${oppGoals} ${oppTeam?.club || ''}`;
+    return `${result} ${displayName(myTeam?.club || '')} ${myGoals} x ${oppGoals} ${displayName(oppTeam?.club || '')}`;
   }
   if (ev.type === 'transfer-ai') {
     const from = TEAMS.find(t => t.id === ev.fromClubId);
@@ -69,509 +63,424 @@ export function eventLine(ev, myClubId) {
   return null;
 }
 
-// Tag curta por tipo de evento, pro card de notícias da direita (mesma
-// ideia do mockup — "Mercado"/"Bastidores" — só que derivada do tipo real
-// do evento, não inventada).
-const EVENT_TAG = {
-  match: { text: 'Partida', color: 'var(--success)' },
-  'transfer-ai': { text: 'Mercado', color: 'var(--gold-ink)' },
-  offer: { text: 'Proposta', color: 'var(--info)' },
-  'copa-round': { text: 'Copa do Brasil', color: 'var(--gold-ink)' },
-};
+const clubOf = (id) => TEAMS.find(t => t.id === id);
+const TIER_TEXT = { elite: 'Clube de elite', grande: 'Clube grande', medio: 'Clube médio', pequeno: 'Clube pequeno' };
+const WEEKDAYS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sábado'];
+const MONTHS_FULL = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
 
-// Último resultado do usuário já jogado (não o próximo) — procura na
-// última rodada resolvida da divisão dele.
-function lastMatchResult(save, division) {
-  if (division.round <= 0) return null;
-  const results = division.results?.[division.round - 1] || [];
-  const m = results.find(r => r.homeId === save.myClubId || r.awayId === save.myClubId);
-  if (!m) return null;
-  const isHome = m.homeId === save.myClubId;
-  const oppId = isHome ? m.awayId : m.homeId;
-  const myGoals = isHome ? m.homeGoals : m.awayGoals;
-  const oppGoals = isHome ? m.awayGoals : m.homeGoals;
-  return { oppId, myGoals, oppGoals, isHome, res: myGoals > oppGoals ? 'V' : myGoals < oppGoals ? 'D' : 'E' };
+// O calendário do motor é o de 2026 (temporada 1); cada temporada nova
+// recomeça em 1º de janeiro do ano seguinte.
+function weekdayOf(season, day) {
+  const d = new Date(Date.UTC(2025 + season, 0, 1));
+  d.setUTCDate(d.getUTCDate() + day - 1);
+  return WEEKDAYS[d.getUTCDay()];
+}
+function longDate(season, day) {
+  const { d } = dayParts(day);
+  let r = day; let m = 0;
+  const L = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  while (m < 11 && r > L[m]) { r -= L[m]; m++; }
+  return `${weekdayOf(season, day)}, ${d} de ${MONTHS_FULL[m]}`;
 }
 
-// Valor de mercado somado do elenco profissional (fora da base) — mesma
-// fonte de preço que o Mercado usa (computePlayerValue).
-function squadValueTotal(save, clubId) {
-  return save.clubs[clubId].roster.filter(p => !p.inAcademy).reduce((s, p) => s + computePlayerValue(p, clubId), 0);
+function Crest({ clubId, size = 40, ring = false }) {
+  const team = clubOf(clubId);
+  const badge = <TeamBadge src={CLUB_LOGOS[team?.club]} name={team?.club || ''} color={team?.colors?.p || '#0D3A29'} size={ring ? Math.round(size * 0.66) : size} radius={ring ? 6 : Math.round(size / 2)} />;
+  if (!ring) return badge;
+  return <span className="ch-crest-ring" style={{ width: size, height: size }}>{badge}</span>;
+}
+
+function FormBadges({ form }) {
+  if (!form.length) return <span style={{ fontSize: 12, color: '#B6CBBF' }}>sem jogos</span>;
+  return (
+    <div className="ch-form" aria-label={`Últimos resultados: ${form.join(' ')}`}>
+      {[...form].reverse().map((r, i) => <i key={i} className={r === 'V' ? 'ch-fv' : r === 'D' ? 'ch-fd' : 'ch-fe'}>{r}</i>)}
+    </div>
+  );
+}
+
+function Sparkline({ points, color = 'var(--success)', height = 28 }) {
+  if (points.length < 2) return null;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const span = max - min || 1;
+  const W = 200;
+  const d = points.map((v, i) => `${i === 0 ? 'M' : 'L'}${((i / (points.length - 1)) * W).toFixed(1)} ${(height - 3 - ((v - min) / span) * (height - 6)).toFixed(1)}`).join(' ');
+  return (
+    <svg viewBox={`0 0 ${W} ${height}`} preserveAspectRatio="none" style={{ width: '100%', height, marginTop: 8, display: 'block' }} aria-hidden="true">
+      <path d={d} fill="none" stroke={color} strokeWidth="2" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
 }
 
 function financialHealth(budget) {
   if (budget >= 100_000_000) return { text: 'Saúde ótima', color: 'var(--success)' };
-  if (budget >= 30_000_000) return { text: 'Saudável', color: 'var(--gold-ink)' };
+  if (budget >= 30_000_000) return { text: 'Saudável', color: 'var(--success)' };
   if (budget >= 5_000_000) return { text: 'Apertado', color: 'var(--warning-ink)' };
   return { text: 'Crítico', color: 'var(--danger)' };
 }
+export { financialHealth };
 
-// Texto de zona na tabela pro cabeçalho do clube — G4/rebaixamento pra
-// Série A, acesso/playoff/rebaixamento pra Série B (mesmas faixas que
-// CareerTableScreen.jsx usa, resumidas aqui só como um aviso contextual).
-function zoneStatus(divisionKey, pos, total) {
-  if (pos > total - 4) return { text: 'Zona de rebaixamento', color: 'var(--danger)' };
-  if (divisionKey === 'A' && pos <= 4) return { text: 'G4 — Libertadores', color: 'var(--success)' };
-  if (divisionKey === 'B' && pos <= 2) return { text: 'Zona de acesso direto', color: 'var(--success)' };
-  if (divisionKey === 'B' && pos <= 6) return { text: 'Zona de playoff', color: 'var(--gold-ink)' };
-  return null;
-}
-
-// Vidro fosco (glassmorphism) — pedido explícito do usuário (2026-11-06,
-// com briefings de design colados, o mais recente um mockup HTML/Tailwind
-// completo): fundo semi-transparente + blur + borda sutil + sombra.
-// `backdropFilter` cai graciosamente pra um fundo um pouco mais opaco em
-// navegadores sem suporte (nenhuma quebra visual, só perde o blur).
-const cardStyle = {
-  padding: '16px', borderRadius: 16,
-  background: 'var(--surface)',
-  border: '1px solid var(--line)', boxShadow: 'var(--shadow-sm)', borderRadius: 20,
+const TONE_COLOR = { success: 'var(--success)', warning: 'var(--warning)', danger: 'var(--danger)', muted: 'var(--muted)', info: 'var(--info)' };
+const ALERT_STYLE = {
+  danger: { bg: 'var(--danger-soft)', fg: 'var(--danger)' },
+  warning: { bg: 'var(--warning-soft)', fg: 'var(--warning-ink)' },
+  info: { bg: 'var(--info-soft)', fg: 'var(--info)' },
+  success: { bg: 'var(--success-soft)', fg: 'var(--success)' },
 };
-const cardLabelStyle = { fontSize: 10.5, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, fontFamily: 'var(--font-mono)' };
-const RESULT_COLORS = { V: '#1F7A4D', D: '#B23B3B', E: '#CFC6B1' };
 
-function TeamCrest({ teamId, size }) {
-  const team = TEAMS.find(t => t.id === teamId);
-  const logo = team && CLUB_LOGOS[team.club];
-  return logo
-    ? <img src={logo} alt={displayName(team.club)} style={{ width: size, height: size, objectFit: 'contain' }} />
-    : <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surface-2)' }} />;
-}
+const INBOX_FILTERS = [
+  { id: 'all', label: 'Tudo' },
+  { id: 'diretoria', label: 'Diretoria' },
+  { id: 'mercado', label: 'Mercado' },
+  { id: 'imprensa', label: 'Imprensa' },
+];
 
-function FormDots({ form }) {
-  if (!form.length) return <span style={{ fontSize: 9.5, color: 'var(--muted)' }}>sem jogos</span>;
+export function InboxList({ save, limit, onOpenItem, filter, setFilter }) {
+  const all = save.inbox || [];
+  const list = all.filter(m => filter === 'all' || m.cat === filter);
+  const shown = limit ? list.slice(0, limit) : list;
   return (
-    <div style={{ display: 'flex', gap: 3 }}>
-      {form.map((r, i) => (
-        <span key={i} style={{
-          width: 14, height: 14, borderRadius: 4, fontSize: 8.5, fontWeight: 800,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: RESULT_COLORS[r], color: r === 'E' ? 'var(--ink)' : '#fff',
-        }}>{r}</span>
-      ))}
-    </div>
-  );
-}
-
-function NextMatchCard({ save, division, seasonOver, nextMatch, onOpenPreview }) {
-  // Chance de vitória/empate real (pedido explícito do usuário 2026-11-13:
-  // "tem que aparecer a chance de vitoria empate tire isso de força que nao
-  // ta fazendo muito sentido") — mesma fórmula da simulação de verdade
-  // (matchOutcomeProbabilities, App.jsx) que a prévia do confronto
-  // (MatchPreviewModal) já usa, em vez da força bruta de elenco sem moral/
-  // fator casa que só dava uma ideia vaga de "difícil ou fácil".
-  const odds = nextMatch ? matchOutcomeProbabilities(teamForSim(save, nextMatch.homeId), teamForSim(save, nextMatch.awayId)) : null;
-  const homeWinPct = odds ? Math.round(odds.homeWin * 100) : 0;
-  const drawPct = odds ? Math.round(odds.draw * 100) : 0;
-  const awayWinPct = odds ? Math.max(0, 100 - homeWinPct - drawPct) : 0;
-  // Clicável (pedido explícito do usuário 2026-11-12) — abre a prévia do
-  // confronto (MatchPreviewModal): força de cada lado já com moral, time
-  // titular previsto, posição na tabela e últimos 5 jogos.
-  const clickable = !seasonOver && !!nextMatch;
-  return (
-    <div
-      className="career-hub-card"
-      onClick={clickable ? () => onOpenPreview(nextMatch) : undefined}
-      title={clickable ? 'Ver prévia do confronto' : undefined}
-      style={{ ...cardStyle, position: 'relative', overflow: 'hidden', borderLeft: '3px solid var(--gold)', cursor: clickable ? 'pointer' : 'default' }}
-    >
-      <div style={{ ...cardLabelStyle, textAlign: 'center', marginBottom: 12, color: 'var(--gold-ink)', opacity: 0.85, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-        ⚽ Próximo jogo
-        {clickable && <span style={{ fontSize: 9, color: 'var(--muted)', textTransform: 'none', fontWeight: 600, letterSpacing: 0 }}>· toque pra ver prévia</span>}
-      </div>
-      {seasonOver ? (
-        <div style={{ fontSize: 12.5, color: 'var(--ink-2)', textAlign: 'center', padding: '10px 0' }}>Temporada {save.season} terminada.</div>
-      ) : nextMatch ? (
-        <>
-          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 14, position: 'relative' }}>
-            <div style={{
-              position: 'absolute', left: '50%', top: '32%', transform: 'translate(-50%,-50%)',
-              width: 90, height: 90, borderRadius: '50%', background: 'radial-gradient(circle, rgba(194,154,69,0.16), transparent 70%)', pointerEvents: 'none',
-            }} />
-            <div style={{ textAlign: 'center', flex: 1, minWidth: 0, position: 'relative' }}>
-              <TeamCrest teamId={nextMatch.homeId} size={56} />
-              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{TEAMS.find(t => t.id === nextMatch.homeId)?.club}</div>
-              <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 4 }}>{nextMatch.homeId === save.myClubId ? 'Seu time' : 'Casa'}</div>
-              <FormDots form={clubForm(division, nextMatch.homeId)} />
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700, flexShrink: 0, position: 'relative', marginTop: 20 }}>×</div>
-            <div style={{ textAlign: 'center', flex: 1, minWidth: 0, position: 'relative' }}>
-              <TeamCrest teamId={nextMatch.awayId} size={56} />
-              <div style={{ fontSize: 11, fontWeight: 700, marginTop: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{TEAMS.find(t => t.id === nextMatch.awayId)?.club}</div>
-              <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 4 }}>{nextMatch.awayId === save.myClubId ? 'Seu time' : 'Fora'}</div>
-              <FormDots form={clubForm(division, nextMatch.awayId)} />
-            </div>
-          </div>
-          <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)', margin: '12px 0 10px', fontFamily: 'var(--font-mono)' }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
-          <div style={{ paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, fontWeight: 600, opacity: 0.8, marginBottom: 4 }}>
-              <span style={{ color: 'var(--ink)' }}>Vitória {homeWinPct}%</span>
-              <span style={{ opacity: 0.6 }}>Empate {drawPct}%</span>
-              <span style={{ color: 'var(--gold-ink)' }}>Vitória {awayWinPct}%</span>
-            </div>
-            <div style={{ width: '100%', height: 6, borderRadius: 999, background: 'var(--surface-2)', overflow: 'hidden', display: 'flex' }}>
-              <div style={{ width: `${homeWinPct}%`, background: 'var(--line-strong)' }} />
-              <div style={{ width: `${drawPct}%`, background: 'var(--surface-2)' }} />
-              <div style={{ width: `${awayWinPct}%`, background: 'linear-gradient(90deg, var(--gold), var(--gold))' }} />
-            </div>
-          </div>
-        </>
-      ) : (
-        <div style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '10px 0' }}>Sem jogo seu nesta rodada.</div>
-      )}
-    </div>
-  );
-}
-
-function LastGameCard({ save, division }) {
-  const last = lastMatchResult(save, division);
-  if (!last) return null;
-  const oppTeam = TEAMS.find(t => t.id === last.oppId);
-  const myGoalsFirst = last.isHome;
-  return (
-    <div className="career-hub-card" style={cardStyle}>
-      <div style={cardLabelStyle}>Último jogo</div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <TeamCrest teamId={myGoalsFirst ? save.myClubId : last.oppId} size={24} />
-          <span style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {myGoalsFirst ? TEAMS.find(t => t.id === save.myClubId)?.club : oppTeam?.club}
-          </span>
-        </div>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 800, color: RESULT_COLORS[last.res], flexShrink: 0, padding: '0 8px' }}>
-          {myGoalsFirst ? last.myGoals : last.oppGoals} - {myGoalsFirst ? last.oppGoals : last.myGoals}
-        </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {myGoalsFirst ? oppTeam?.club : TEAMS.find(t => t.id === save.myClubId)?.club}
-          </span>
-          <TeamCrest teamId={myGoalsFirst ? last.oppId : save.myClubId} size={24} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Medidor visual do orçamento (semicírculo, teto de referência R$250M — só
-// pra escala visual, satura em 100% acima disso) + status de saúde
-// financeira + valor total do elenco (dado real, computePlayerValue).
-function MoneyMeter({ save }) {
-  const budget = save.clubs[save.myClubId].budget;
-  const health = financialHealth(budget);
-  const squadValue = squadValueTotal(save, save.myClubId);
-  const REF_MAX = 250_000_000;
-  const pct = Math.max(0, Math.min(1, budget / REF_MAX));
-  const r = 60, cx = 90, cy = 72;
-  const circ = Math.PI * r;
-  return (
-    <div className="career-hub-card" style={cardStyle}>
-      <div style={{ ...cardLabelStyle, textAlign: 'center' }}>Orçamento</div>
-      <svg width="100%" height="84" viewBox="0 0 180 84" style={{ display: 'block', marginTop: 4 }}>
-        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="var(--muted)" strokeWidth={12} strokeLinecap="round" />
-        <path
-          d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="var(--gold-ink)" strokeWidth={12} strokeLinecap="round"
-          strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
-          style={{ transition: 'stroke-dashoffset 0.4s ease' }}
-        />
-        <text x={cx} y={cy - 16} textAnchor="middle" fontSize="14" fontWeight="700" fill="var(--gold-ink)" fontFamily='var(--font-mono)'>{formatMoneyShort(budget)}</text>
-        <text x={cx} y={cy - 2} textAnchor="middle" fontSize="9" fontWeight="700" fill={health.color}>{health.text}</text>
-      </svg>
-      <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)', textAlign: 'center' }}>
-        <div style={{ fontSize: 9.5, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Valor do elenco</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>{formatMoneyShort(squadValue)}</div>
-      </div>
-    </div>
-  );
-}
-
-function NovidadesCard({ dayEventsRich }) {
-  return (
-    <div className="career-hub-card" style={cardStyle}>
-      <div style={cardLabelStyle}>📰 O que aconteceu</div>
-      {dayEventsRich.length === 0 ? (
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>Nada de novo por enquanto.</div>
-      ) : (
-        <div style={{ marginTop: 8, display: 'grid', gap: 7 }}>
-          {dayEventsRich.map((ev, i) => {
-            const tag = EVENT_TAG[ev.type] || { text: 'Novidade', color: 'var(--gold-ink)' };
-            return (
-              <div key={i} style={{ padding: '8px 10px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginBottom: 4 }}>
-                  <span style={{ color: tag.color, fontWeight: 700 }}>{tag.text}</span>
-                  <span style={{ opacity: 0.45, fontFamily: 'var(--font-mono)' }}>{formatCalendarDay(ev.day)}</span>
-                </div>
-                <p style={{ fontSize: 12, lineHeight: 1.4, margin: 0 }}>{ev.text}</p>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Maiores negócios da LIGA INTEIRA nesta temporada (os 40 clubes, não só o
-// do usuário) — vem de `save.transferLog`, alimentado em cada venda/compra
-// (rosterStore.js/seasonEngine.js). Fica vazio até a primeira janela de
-// transferências da temporada produzir alguma negociação de IA.
-function TopTransfersCard({ save }) {
-  const seasonLog = (save.transferLog || []).filter(e => e.season === save.season && e.amount > 0);
-  const top = [...seasonLog].sort((a, b) => b.amount - a.amount).slice(0, 5);
-  return (
-    <div className="career-hub-card" style={cardStyle}>
-      <div style={cardLabelStyle}>🔥 Top transferências na liga</div>
-      {top.length === 0 ? (
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>Nenhuma negociação ainda nesta temporada.</div>
-      ) : (
-        <div style={{ marginTop: 8, display: 'grid', gap: 7 }}>
-          {top.map((t, i) => {
-            const fromTeam = TEAMS.find(x => x.id === t.fromClubId);
-            const toTeam = TEAMS.find(x => x.id === t.toClubId);
-            return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 10, background: 'var(--surface)' }}>
-                <TeamCrest teamId={t.toClubId} size={22} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.playerName}</div>
-                  <div style={{ fontSize: 9.5, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(fromTeam?.club)} ➔ {displayName(toTeam?.club)}</div>
-                </div>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--gold-ink)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{formatMoneyShort(t.amount)}</span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Tabela rápida — topo 2 + a linha do usuário destacada (igual o mockup).
-// Reaproveita `division.table`, já ordenado por posição (mesma fonte que
-// CareerTableScreen.jsx usa).
-function MiniTableCard({ division, divisionKey, myClubId, myPos }) {
-  const table = division.table;
-  const rows = new Map();
-  table.slice(0, 2).forEach((r, i) => rows.set(r.id, i + 1));
-  rows.set(myClubId, myPos);
-  const sortedRows = [...rows.entries()].sort((a, b) => a[1] - b[1]);
-  return (
-    <div className="career-hub-card" style={cardStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={cardLabelStyle}>📊 Tabela rápida</div>
-        <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>Série {divisionKey} · R{division.round}/{division.fixtures.length}</span>
-      </div>
-      <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
-        {sortedRows.map(([clubId, pos]) => {
-          const row = table.find(r => r.id === clubId);
-          const team = TEAMS.find(t => t.id === clubId);
-          const mine = clubId === myClubId;
+    <>
+      <div className="ch-chips" role="tablist" aria-label="Filtrar caixa de entrada">
+        {INBOX_FILTERS.map(f => {
+          const unread = all.filter(m => !m.read && (f.id === 'all' || m.cat === f.id)).length;
           return (
-            <div key={clubId} style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8,
-              background: mine ? 'rgba(194,154,69,0.12)' : 'transparent',
-              borderLeft: mine ? '2px solid var(--gold)' : '2px solid transparent',
-            }}>
-              <span style={{ width: 16, fontSize: 11, fontWeight: 800, color: mine ? 'var(--gold-ink)' : 'var(--success)', fontFamily: 'var(--font-mono)' }}>{pos}</span>
-              <TeamCrest teamId={clubId} size={16} />
-              <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: mine ? 700 : 500, color: mine ? 'var(--gold-ink)' : 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(team?.club)}</span>
-              <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{row?.pj ?? 0}J</span>
-              <span style={{ fontSize: 12, fontWeight: 800, fontFamily: 'var(--font-mono)', color: mine ? 'var(--gold-ink)' : 'var(--ink)' }}>{row?.pts ?? 0}</span>
-            </div>
+            <button key={f.id} type="button" role="tab" aria-selected={filter === f.id} className={`ch-chip${filter === f.id ? ' ch-on' : ''}`} onClick={() => setFilter(f.id)}>
+              {f.label}{unread > 0 && f.id !== 'all' ? <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11 }}>{unread}</span> : null}
+            </button>
           );
         })}
       </div>
-    </div>
+      {shown.length === 0 ? (
+        <div className="ch-empty">Nada por aqui ainda. As mensagens chegam conforme a temporada anda.</div>
+      ) : shown.map(m => (
+        <button key={m.id} type="button" className="ch-al" onClick={() => onOpenItem(m)}>
+          {m.read ? <span style={{ width: 8, flexShrink: 0 }} /> : <i className="ch-unread" aria-label="não lida" />}
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <b style={{ fontWeight: m.read ? 500 : 600 }}>{m.title}</b>
+            <p>{m.text} · {dayParts(m.day).d} {dayParts(m.day).m}{m.season !== save.season ? ` · temp. ${m.season}` : ''}</p>
+          </div>
+          <span className="ch-act" style={{ color: 'var(--muted)', fontWeight: 500, fontFamily: 'var(--font-mono)', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '.06em' }}>{m.cat}</span>
+        </button>
+      ))}
+    </>
   );
 }
 
-function NavButton({ icon, label, sub, onClick, accent, style }) {
-  return (
-    <button className="career-nav-btn" onClick={onClick} style={{ ...navBtnStyle, ...style }}>
-      <span style={{
-        width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        marginBottom: 10, background: accent ? 'var(--gold-soft)' : 'var(--surface-2)', color: accent ? 'var(--gold-ink)' : 'var(--green)',
-      }}><Icon name={icon} size={20} /></span>
-      <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 16 }}>{label}</span>
-      <span style={{ fontSize: 12, marginTop: 2, color: accent ? 'var(--gold-ink)' : 'var(--muted)', fontWeight: accent ? 600 : 400 }}>{sub}</span>
-    </button>
-  );
-}
-
-export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, onExit }) {
-  const team = TEAMS.find(t => t.id === save.myClubId);
+export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, onMarkRead }) {
+  const team = clubOf(save.myClubId);
   const club = save.clubs[save.myClubId];
-  const logo = CLUB_LOGOS[team.club];
-  const { key: divisionKey, data: division } = myDivisionData(save);
-  const myPos = division.table.findIndex(r => r.id === save.myClubId) + 1;
-  const nextMatches = division.fixtures[division.round] || [];
-  const nextMatch = nextMatches.find(m => m.homeId === save.myClubId || m.awayId === save.myClubId);
+  const { key: divisionKey, data: division } = myDivision(save);
+  const n = division.table.length;
+  const myIdx = division.table.findIndex(r => r.id === save.myClubId);
+  const myPos = myIdx + 1;
+  const myRow = division.table[myIdx];
   const seasonOver = division.round >= division.fixtures.length;
   const offerCount = save.pendingOffers?.length || 0;
-  // Pedido explícito do usuário (2026-11-12): não deixar iniciar uma
-  // partida sem formação definida, nem com jogador suspenso na escalação
-  // (ver applyUserDiscipline em seasonEngine.js) — bloqueia os dois
-  // botões de avanço, igual já acontecia com proposta pendente.
   const noFormation = !save.myStarters?.length;
   const suspendedStarters = noFormation ? [] : save.myStarters.filter(name => (save.suspensions?.[name] || 0) > 0);
-  const hasSuspendedStarter = suspendedStarters.length > 0;
-  const advanceBlocked = offerCount > 0 || noFormation || hasSuspendedStarter;
-  const [preview, setPreview] = useState(null); // null | { homeId, awayId }
-  const dayEventsRich = (save.lastDayEvents || [])
-    .map(ev => ({ type: ev.type, day: ev.day, text: eventLine(ev, save.myClubId) }))
-    .filter(e => e.text);
-  const academyCount = club.roster.filter(p => p.inAcademy).length;
-  const windowOpen = isTransferWindowOpen(save.calendarDay);
-  const zone = zoneStatus(divisionKey, myPos, division.table.length);
-  const rosterCount = club.roster.filter(p => !p.inAcademy).length;
-  const copaStatus = !save.copa ? null
-    : save.copa.phase === 'done' ? (save.copa.champion === save.myClubId ? 'Campeão!' : 'Encerrada')
-    : COPA_ROUND_LABELS[save.copa.round];
+  const advanceBlocked = offerCount > 0 || noFormation || suspendedStarters.length > 0;
+  const [preview, setPreview] = useState(null);
+  const [inboxFilter, setInboxFilter] = useState('all');
+
+  const board = computeBoard(save);
+  const myForm = clubForm(division, save.myClubId, 5);
+  const morale = moraleFrom(myForm);
+  const agenda = upcomingFixtures(save, 5);
+  const next = agenda[0] || null;
+  const tableInfo = tableSlice(save);
+  const alerts = squadAlerts(save);
+  const windowInfo = transferWindowText(save.calendarDay);
+  const tier = careerClubTier(save.myClubId);
+
+  // Variação de posição na rodada: compara com o registro da rodada anterior.
+  const hist = (save.budgetHistory || []).filter(h => h.season === save.season);
+  const prevPos = hist.length >= 2 ? hist[hist.length - 2].pos : null;
+  const posDelta = prevPos && division.round > 0 ? prevPos - myPos : null;
+  const balance = club.budget;
+  const health = financialHealth(balance);
+  const sparkPoints = hist.map(h => h.balance);
+  const squadValue = club.roster.filter(p => !p.inAcademy).reduce((s, p) => s + computePlayerValue(p, save.myClubId), 0);
+
+  // Próximo jogo: probabilidades com a mesma fórmula da simulação.
+  let odds = null, homeId = null, awayId = null;
+  if (next) {
+    homeId = next.isHome === false ? next.oppId : save.myClubId;
+    awayId = next.isHome === false ? save.myClubId : next.oppId;
+    odds = matchOutcomeProbabilities(teamForSim(save, homeId), teamForSim(save, awayId));
+  }
+  const pHome = odds ? Math.round(odds.homeWin * 100) : 0;
+  const pDraw = odds ? Math.round(odds.draw * 100) : 0;
+  const pAway = odds ? Math.max(0, 100 - pHome - pDraw) : 0;
+  const nextLeague = agenda.find(a => a.comp === 'Brasileirão');
+  const insight = next ? assistantInsight(save, nextLeague && nextLeague.day === next.day ? nextLeague : { homeId, awayId }) : null;
+  const oppDivision = (id) => (save.clubs[id]?.division === 'B' ? save.divisionB : save.divisionA);
+
+  const stripe = `repeating-linear-gradient(180deg, ${team.colors?.p || '#0D3A29'} 0 14px, ${team.colors?.s || '#FBF9F4'} 14px 28px)`;
+  const started = division.round > 0;
+  const inZ4 = started && myPos > n - 4;
+  const lastPlayed = (() => {
+    if (division.round <= 0) return null;
+    const m = (division.results?.[division.round - 1] || []).find(r => r.homeId === save.myClubId || r.awayId === save.myClubId);
+    if (!m) return null;
+    const isHome = m.homeId === save.myClubId;
+    const my = isHome ? m.homeGoals : m.awayGoals;
+    const op = isHome ? m.awayGoals : m.homeGoals;
+    return { m, res: my > op ? 'V' : my < op ? 'D' : 'E', day: save.seasonCalendar[division.round - 1], round: division.round };
+  })();
+
+  const primaryLabel = offerCount > 0 ? 'Responder propostas'
+    : noFormation ? 'Definir formação'
+      : suspendedStarters.length ? 'Tirar suspenso da escalação'
+        : seasonOver ? 'Encerrar temporada'
+          : next?.comp === 'Brasileirão' ? `Jogar rodada ${next.roundIdx + 1}`
+            : next ? `Avançar até a Copa` : 'Avançar';
+  const primaryAction = offerCount > 0 ? () => onNavigate('market')
+    : (noFormation || suspendedStarters.length) ? () => onNavigate('formation')
+      : onAdvanceDay;
+
+  const openInboxItem = (m) => {
+    if (!m.read) onMarkRead([m.id]);
+    if (m.action) onNavigate(m.action);
+  };
 
   return (
-    <div className="career-hub-grid">
-      <style>{`
-        /* Largura cheia (pedido explícito do usuário, 2026-11-06, reforçado
-           duas vezes: um teto de 1800px ainda deixava faixa preta visível
-           em monitor mais largo) — SEM teto de largura nenhum agora, só
-           98% da tela (igual pedido: "w-full max-w-[98%]"). Colunas
-           PROPORCIONAIS (1fr/2fr/1fr, equivalente a col-span-3/6/3 de um
-           grid de 12) com piso mínimo (minmax) só pra não esmagar o
-           conteúdo em telas médias. */
-        .career-hub-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(420px, 2fr) minmax(260px, 1fr); gap: 18px; width: 98%; max-width: none; margin: 0 auto; padding: 24px 12px; box-sizing: border-box; }
-        .career-hub-col { display: grid; gap: 10px; align-content: start; min-width: 0; }
-        .career-hub-card { transition: border-color 0.18s ease, transform 0.18s ease; }
-        .career-hub-card:hover { border-color: var(--line-strong); }
-        .career-nav-btn { transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease; }
-        .career-nav-btn:hover { background: var(--surface); border-color: var(--gold); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
-        .career-advance-btn { transition: filter 0.15s ease, transform 0.15s ease; }
-        .career-advance-btn:not(:disabled):hover { filter: brightness(1.12); transform: translateY(-1px); box-shadow: var(--shadow); }
-        .career-simulate-btn:not(:disabled):hover { background: var(--surface-2); border-color: var(--line-strong); }
-        @media (max-width: 1100px) {
-          .career-hub-grid { grid-template-columns: 1fr 1fr; }
-          .career-hub-col:first-child { grid-column: 1; }
-          .career-hub-col:nth-child(2) { grid-column: 1 / -1; order: -1; }
-          .career-hub-col:last-child { grid-column: 2; }
-        }
-        @media (max-width: 760px) {
-          .career-hub-grid { grid-template-columns: 1fr; max-width: 560px; }
-          .career-hub-col:first-child, .career-hub-col:nth-child(2), .career-hub-col:last-child { grid-column: 1; order: initial; }
-        }
-      `}</style>
+    <div className="ch-main">
+      {/* ── Hero do clube ── */}
+      <section className="ch-card ch-hero">
+        <span className="ch-hero-stripe" style={{ background: stripe }} aria-hidden="true" />
+        <div className="ch-hero-id" style={{ display: 'flex', gap: 22, alignItems: 'center', minWidth: 0 }}>
+          <span className="ch-hero-crest" style={{ width: 84, height: 84, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
+            <TeamBadge src={CLUB_LOGOS[team.club]} name={team.club} color={team.colors?.p} size={84} radius={42} />
+          </span>
+          <div style={{ minWidth: 0 }}>
+            <span className="ch-mono">Temporada {save.season} · {longDate(save.season, save.calendarDay)}</span>
+            <h1>{displayName(team.club)}</h1>
+            <div className="ch-hero-meta">
+              <span className="ch-tag ch-t-mute">Série {divisionKey}</span>
+              {division.round > 0 && (
+                <span className={`ch-tag ${inZ4 ? 'ch-t-danger' : myPos <= (divisionKey === 'A' ? 6 : 2) ? 'ch-t-success' : 'ch-t-mute'}`}>
+                  {myPos}º{inZ4 ? ' · Zona de rebaixamento' : divisionKey === 'A' && myPos <= 4 ? ' · G4' : divisionKey === 'B' && myPos <= 2 ? ' · Acesso direto' : ''}
+                </span>
+              )}
+              <span className={`ch-tag ${windowInfo.open ? 'ch-t-success' : 'ch-t-mute'}`}>{windowInfo.text}</span>
+              <span className="ch-tag ch-t-gold">{TIER_TEXT[tier]}</span>
+            </div>
+          </div>
+        </div>
+        <div className="ch-board">
+          <div className="ch-row"><span className="ch-mono">Objetivo da diretoria</span><span className={`ch-tag ch-t-${board.tone}`}>{board.status}</span></div>
+          <h4>{board.text}</h4>
+          <div className="ch-row ch-small" style={{ marginBottom: 8 }}><span>Confiança da diretoria</span><b style={{ color: TONE_COLOR[board.tone] }}>{board.confidence}%</b></div>
+          <div className="ch-bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={board.confidence} aria-label="Confiança da diretoria"><i style={{ width: `${board.confidence}%`, background: TONE_COLOR[board.tone] }} /></div>
+          <div className="ch-small" style={{ marginTop: 10 }}>
+            {division.round === 0 ? `${board.roundsLeft} rodadas pela frente`
+              : board.ptsGap > 0 ? `Falta${board.ptsGap > 1 ? 'm' : ''} ${board.ptsGap} ponto${board.ptsGap > 1 ? 's' : ''} para ficar ${board.short} · ${board.roundsLeft} rodadas restantes`
+                : board.pos <= board.target ? `Dentro da meta · ${board.roundsLeft} rodadas restantes`
+                  : `Empatado em pontos com o ${board.short} · ${board.roundsLeft} rodadas restantes`}
+          </div>
+        </div>
+      </section>
 
-      <div className="career-hub-col">
-        <NextMatchCard save={save} division={division} seasonOver={seasonOver} nextMatch={nextMatch} onOpenPreview={setPreview} />
-        <LastGameCard save={save} division={division} />
-        <MoneyMeter save={save} />
-      </div>
+      {/* ── KPIs ── */}
+      <section className="ch-kpis" aria-label="Indicadores da temporada">
+        <div className="ch-card ch-kpi">
+          <span className="ch-mono">Posição</span>
+          <b style={{ color: inZ4 ? 'var(--danger)' : undefined }}>{started ? `${myPos}º` : '—'}</b>
+          <span className={`ch-d`} style={{ color: posDelta > 0 ? 'var(--success)' : posDelta < 0 ? 'var(--danger)' : undefined }}>
+            {division.round === 0 ? 'Temporada não começou' : posDelta == null ? `Série ${divisionKey}` : posDelta === 0 ? 'Mesma posição na rodada' : `${posDelta > 0 ? '▲' : '▼'} ${Math.abs(posDelta)} posiç${Math.abs(posDelta) > 1 ? 'ões' : 'ão'} na rodada`}
+          </span>
+        </div>
+        <div className="ch-card ch-kpi">
+          <span className="ch-mono">Pontos</span>
+          <b>{myRow?.pts ?? 0}</b>
+          <span className="ch-d">{myRow?.pj ?? 0} jogos · {myRow?.v ?? 0}V {myRow?.e ?? 0}E {myRow?.d ?? 0}D</span>
+        </div>
+        <div className="ch-card ch-kpi">
+          <span className="ch-mono">Saldo de gols</span>
+          <b>{(() => { const sg = (myRow?.gp ?? 0) - (myRow?.gc ?? 0); return sg > 0 ? `+${sg}` : sg < 0 ? `−${-sg}` : '0'; })()}</b>
+          <span className="ch-d">{myRow?.gp ?? 0} marcados · {myRow?.gc ?? 0} sofridos</span>
+        </div>
+        <div className="ch-card ch-kpi" title={`Valor do elenco: ${formatMoneyShort(squadValue)}`}>
+          <span className="ch-mono">Orçamento</span>
+          <b>{formatMoneyShort(balance)}</b>
+          <span className="ch-d" style={{ color: health.color }}>{health.text}</span>
+          {sparkPoints.length >= 2
+            ? <Sparkline points={sparkPoints} color={sparkPoints[sparkPoints.length - 1] >= sparkPoints[0] ? '#1F7A4D' : '#B23B3B'} />
+            : <span className="ch-d" style={{ marginTop: 8 }}>Elenco vale {formatMoneyShort(squadValue)}</span>}
+        </div>
+        <div className="ch-card ch-kpi">
+          <span className="ch-mono">Moral do elenco</span>
+          <b>{morale.label}</b>
+          <span className="ch-d">{morale.detail}</span>
+          <div className="ch-bar" style={{ marginTop: 12, height: 6 }}><i style={{ width: `${Math.max(6, morale.pct)}%`, background: TONE_COLOR[morale.tone] }} /></div>
+        </div>
+      </section>
+
+      {/* ── Próximo jogo + agenda ── */}
+      <section className="ch-row2">
+        <div className="ch-match on-dark">
+          <span className="ch-ring" aria-hidden="true" />
+          {seasonOver || !next ? (
+            <div style={{ position: 'relative' }}>
+              <span className="ch-mono">Próximo jogo</span>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, margin: '18px 0 8px' }}>{seasonOver ? `Temporada ${save.season} terminada` : 'Sem jogo marcado'}</div>
+              <p style={{ color: '#B6CBBF', margin: 0 }}>{seasonOver ? 'Feche a temporada para ver o relatório e começar a próxima.' : 'Avance o calendário para seguir com a temporada.'}</p>
+              <div className="ch-actions">
+                <button type="button" className="ch-btn ch-btn-gold" onClick={primaryAction}>
+                  <Icon name="play" size={16} />{primaryLabel}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <div className="ch-row" style={{ position: 'relative' }}>
+                <span className="ch-mono">Próximo jogo · {next.comp} · {next.detail}</span>
+                <span className="ch-mono">{next.isHome === null ? 'Jogo único' : next.isHome ? 'Em casa' : 'Fora de casa'}</span>
+              </div>
+              <button type="button" className="ch-vs" onClick={() => setPreview({ homeId, awayId })} title="Ver prévia do confronto" style={{ background: 'none', border: 'none', color: 'inherit', width: '100%', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)' }}>
+                <div className="ch-team">
+                  <Crest clubId={homeId} size={72} ring />
+                  <b>{displayName(clubOf(homeId)?.club)}</b>
+                  <FormBadges form={clubForm(oppDivision(homeId), homeId, 5)} />
+                </div>
+                <div className="ch-mid">
+                  <div className="ch-when">{dayParts(next.day).d} {dayParts(next.day).m}</div>
+                  <small style={{ textTransform: 'capitalize' }}>{weekdayOf(save.season, next.day)}{CLUB_STADIUMS[clubOf(homeId)?.club] ? ` · ${CLUB_STADIUMS[clubOf(homeId)?.club]}` : ''}</small>
+                </div>
+                <div className="ch-team">
+                  <Crest clubId={awayId} size={72} ring />
+                  <b>{displayName(clubOf(awayId)?.club)}</b>
+                  <FormBadges form={clubForm(oppDivision(awayId), awayId, 5)} />
+                </div>
+              </button>
+              <div className="ch-prob">
+                <span>Vitória {displayName(clubOf(homeId)?.club)} {pHome}%</span>
+                <span>Empate {pDraw}%</span>
+                <span style={{ textAlign: 'right' }}>Vitória {displayName(clubOf(awayId)?.club)} {pAway}%</span>
+              </div>
+              <div className="ch-bar" role="img" aria-label={`Probabilidades: ${pHome}% mandante, ${pDraw}% empate, ${pAway}% visitante`}>
+                <i style={{ width: `${pHome}%`, background: homeId === save.myClubId ? 'var(--gold)' : '#C24747' }} />
+                <i style={{ width: `${pDraw}%`, background: 'rgba(255,255,255,.35)' }} />
+                <i style={{ width: `${pAway}%`, background: awayId === save.myClubId ? 'var(--gold)' : '#C24747' }} />
+              </div>
+              {insight && (
+                <div className="ch-insight">
+                  <Icon name="bolt" size={18} style={{ color: 'var(--gold)', marginTop: 1 }} />
+                  <div><b>Leitura do auxiliar:</b> {insight}</div>
+                </div>
+              )}
+              <div className="ch-actions">
+                <button type="button" className="ch-btn ch-btn-ghost" onClick={() => onNavigate('formation')}>
+                  <Icon name="formation" size={18} />Ajustar escalação
+                </button>
+                <button type="button" className="ch-btn ch-btn-gold" onClick={primaryAction}>
+                  <Icon name={noFormation || suspendedStarters.length ? 'formation' : offerCount ? 'chat' : 'play'} size={16} />{primaryLabel}
+                </button>
+              </div>
+              {!seasonOver && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+                  <button type="button" className="ch-sim" onClick={onSimulateSeason} disabled={advanceBlocked} title={advanceBlocked ? 'Resolva a pendência acima primeiro' : 'Simula o resto da temporada sem parar'}>
+                    <Icon name="forward" size={14} />Simular temporada até o fim
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+
+        <div className="ch-card" style={{ overflow: 'hidden' }}>
+          <div className="ch-head"><h3>Agenda</h3><button type="button" className="ch-link" onClick={() => onNavigate('calendar')}>Calendário completo</button></div>
+          {agenda.length === 0 && <div className="ch-empty">Nenhum jogo marcado até o fim da temporada.</div>}
+          {agenda.map((a, i) => (
+            <div key={`${a.comp}-${a.day}-${i}`} className="ch-fx">
+              <div className="ch-dt"><b>{String(dayParts(a.day).d).padStart(2, '0')}</b><span>{dayParts(a.day).m}</span></div>
+              <div className="ch-nm">
+                <b>{displayName(clubOf(a.oppId)?.club)}</b> <span className="ch-small">{a.isHome === null ? 'neutro' : a.isHome ? 'casa' : 'fora'}</span>
+                <small>{a.comp} · {a.detail}</small>
+              </div>
+              <div className="ch-dif" title={`Dificuldade ${a.difficulty} de 5`} aria-label={`Dificuldade ${a.difficulty} de 5`}>
+                {[1, 2, 3, 4, 5].map(k => <i key={k} className={k <= a.difficulty ? 'ch-on' : ''} />)}
+              </div>
+            </div>
+          ))}
+          {lastPlayed && (() => {
+            const isHome = lastPlayed.m.homeId === save.myClubId;
+            const { d, m } = dayParts(lastPlayed.day);
+            return (
+              <div className="ch-fx" style={{ background: 'var(--bg)' }}>
+                <div className="ch-dt"><b>{String(d).padStart(2, '0')}</b><span>{m}</span></div>
+                <div className="ch-nm">
+                  <b>{displayName(clubOf(lastPlayed.m.homeId)?.club)} {lastPlayed.m.homeGoals} × {lastPlayed.m.awayGoals} {displayName(clubOf(lastPlayed.m.awayId)?.club)}</b>
+                  <small>Último jogo · Brasileirão · Rodada {lastPlayed.round} · {isHome ? 'em casa' : 'fora'}</small>
+                </div>
+                <span className={`ch-tag ${lastPlayed.res === 'V' ? 'ch-t-success' : lastPlayed.res === 'D' ? 'ch-t-danger' : 'ch-t-mute'}`}>{lastPlayed.res}</span>
+              </div>
+            );
+          })()}
+        </div>
+      </section>
+
+      {/* ── Tabela, avisos e caixa de entrada ── */}
+      <section className="ch-row3">
+        <div className="ch-card" style={{ overflow: 'hidden' }}>
+          <div className="ch-head"><h3>Tabela</h3><button type="button" className="ch-link" onClick={() => onNavigate('table')}>Ver completa</button></div>
+          <table className="ch-table">
+            <tbody>
+              {tableInfo.rows.map(r => r.gap ? (
+                <tr key={r.key}><td colSpan={4} style={{ textAlign: 'center', color: 'var(--muted)', padding: '4px 0', fontFamily: 'var(--font-body)' }}>···</td></tr>
+              ) : (
+                <FragmentRow key={r.id} r={r} n={tableInfo.n} started={started} />
+              ))}
+            </tbody>
+          </table>
+          <div className="ch-small" style={{ padding: '12px 22px 18px', borderTop: '1px solid var(--line)' }}>{division.round === 0 ? 'A tabela começa a andar na rodada 1.' : tableInfo.sentence}</div>
+        </div>
+
+        <div className="ch-card" style={{ overflow: 'hidden' }}>
+          <div className="ch-head"><h3>Avisos do elenco</h3><button type="button" className="ch-link" onClick={() => onNavigate('squad')}>Abrir elenco</button></div>
+          {alerts.length === 0 && <div className="ch-empty">Nenhum aviso: elenco sem suspensos, pendurados ou pendências.</div>}
+          {alerts.slice(0, 5).map((a, i) => {
+            const st = ALERT_STYLE[a.tone] || ALERT_STYLE.info;
+            const As = a.action ? 'button' : 'div';
+            return (
+              <As key={`${a.kind}-${i}`} type={a.action ? 'button' : undefined} className="ch-al" onClick={a.action ? () => onNavigate(a.action) : undefined}>
+                <span className="ch-ico" style={{ background: st.bg, color: st.fg }}><Icon name={a.icon} size={18} /></span>
+                <div style={{ minWidth: 0 }}><b>{a.title}</b><p>{a.text}</p></div>
+                {a.action && <span className="ch-act">{a.actionLabel}</span>}
+              </As>
+            );
+          })}
+        </div>
+
+        <div className="ch-card" style={{ overflow: 'hidden' }}>
+          <div className="ch-head"><h3>Caixa de entrada</h3><button type="button" className="ch-link" onClick={() => onNavigate('inbox')}>Tudo</button></div>
+          <InboxList save={save} limit={4} filter={inboxFilter} setFilter={setInboxFilter} onOpenItem={openInboxItem} />
+        </div>
+      </section>
 
       {preview && (
         <MatchPreviewModal save={save} division={division} homeId={preview.homeId} awayId={preview.awayId} onClose={() => setPreview(null)} />
       )}
-
-      <div className="career-hub-col">
-        <button onClick={onExit} style={{ ...backButtonStyle, marginBottom: 0, justifySelf: 'start' }}><Icon name="arrowLeft" size={15} /> Sair da carreira</button>
-
-        <div className="career-hub-card" style={{ ...cardStyle }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ position: 'relative', flexShrink: 0 }}>
-              {logo && <img src={logo} alt={displayName(team.club)} style={{ width: 52, height: 52, objectFit: 'contain' }} />}
-              <span style={{
-                position: 'absolute', bottom: -4, right: -8, minWidth: 22, height: 20, padding: '0 4px', borderRadius: 999,
-                background: 'var(--green)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '2px solid var(--surface)', fontFamily: 'var(--font-mono)',
-              }}>{myPos}º</span>
-            </div>
-            <div style={{ minWidth: 0 }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 24, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                {displayName(team.club)}
-                <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gold-ink)', background: 'rgba(194,154,69,0.12)', border: '1px solid var(--gold)', borderRadius: 999, padding: '2px 7px' }}>Série {divisionKey}</span>
-              </div>
-              <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>
-                {formatCalendarDay(save.calendarDay)} · Temporada {save.season}
-                {zone && <span style={{ color: zone.color, fontWeight: 700 }}> · {zone.text}</span>}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginTop: 12 }}>
-            <TransferWindowBadge day={save.calendarDay} style={{ width: '100%', boxSizing: 'border-box' }} />
-          </div>
-          {windowOpen && (
-            <button onClick={() => onNavigate('market')} style={{ marginTop: 6, width: '100%', background: 'none', border: 'none', color: 'var(--gold-ink)', fontSize: 11, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', textAlign: 'right' }}>
-              Explorar Mercado →
-            </button>
-          )}
-        </div>
-
-        {offerCount > 0 && (
-          <Alert tone="info" icon="chat" onClick={() => onNavigate('market')}>
-            <b>{offerCount} proposta{offerCount > 1 ? 's' : ''}</b> esperando resposta — toque pra ver
-          </Alert>
-        )}
-        {offerCount === 0 && noFormation && (
-          <Alert tone="warning" icon="formation" onClick={() => onNavigate('formation')}>
-            <b>Defina sua formação</b> antes de jogar — toque pra escalar
-          </Alert>
-        )}
-        {offerCount === 0 && !noFormation && hasSuspendedStarter && (
-          <Alert tone="danger" onClick={() => onNavigate('formation')}>
-            <b>{suspendedStarters.join(', ')}</b> suspenso{suspendedStarters.length > 1 ? 's' : ''} — ajuste a formação antes de jogar
-          </Alert>
-        )}
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
-          <NavButton icon="shirt" label="Elenco" sub={`${rosterCount} jogadores`} onClick={() => onNavigate('squad')} />
-          <NavButton icon="formation" label="Formação" sub={save.myFormationLabel || 'Não definida'} onClick={() => onNavigate('formation')} />
-          <NavButton icon="market" label="Mercado" sub={windowOpen ? 'Janela aberta' : 'Janela fechada'} accent={offerCount > 0 || windowOpen} onClick={() => onNavigate('market')} />
-          <NavButton icon="table" label="Tabela" sub={`${myPos}º lugar`} onClick={() => onNavigate('table')} />
-          <NavButton icon="calendar" label="Calendário" sub={`${division.fixtures.length} rodadas`} onClick={() => onNavigate('calendar')} />
-          <NavButton icon="cup" label="Copa do Brasil" sub={copaStatus} accent={save.copa?.phase === 'done' && save.copa.champion === save.myClubId} onClick={() => onNavigate('copa')} />
-        </div>
-
-        <button className="career-nav-btn" onClick={() => onNavigate('youth')} style={{
-          width: '100%', padding: '0 16px', minHeight: 52, borderRadius: 16, border: '1px solid var(--line)',
-          background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-body)',
-        }}>
-          <span style={{ color: 'var(--green)', display: 'flex' }}><Icon name="sprout" size={20} /></span>
-          <span style={{ fontSize: 14, fontWeight: 600, flex: 1, textAlign: 'left' }}>Categoria de base</span>
-          {academyCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--success)', background: 'rgba(31,122,77,0.12)', border: '1px solid rgba(31,122,77,0.4)', borderRadius: 999, padding: '2px 8px' }}>{academyCount} promessa{academyCount > 1 ? 's' : ''}</span>}
-        </button>
-
-        <div style={{ paddingTop: 4 }}>
-          <button className="career-advance-btn" onClick={onAdvanceDay} disabled={advanceBlocked} style={{
-            width: '100%', minHeight: 56, padding: '0 20px', borderRadius: 999, border: advanceBlocked ? '1px dashed var(--line-strong)' : 'none', cursor: advanceBlocked ? 'not-allowed' : 'pointer',
-            background: advanceBlocked ? 'var(--surface-2)' : 'var(--green)',
-            color: advanceBlocked ? 'var(--muted)' : '#fff', fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-body)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-          }}>
-            {advanceBlocked ? <Icon name="lock" size={17} /> : seasonOver ? null : <Icon name="play" size={15} />}
-            {offerCount > 0 ? 'Responda as propostas primeiro' : noFormation ? 'Defina a formação primeiro' : hasSuspendedStarter ? 'Tire o suspenso da escalação' : seasonOver ? 'Encerrar temporada →' : 'Avançar rodada'}
-          </button>
-        </div>
-        {!seasonOver && (
-          <div style={{ display: 'flex', justifyContent: 'center' }}>
-            <button className="career-simulate-btn" onClick={onSimulateSeason} disabled={advanceBlocked} style={{
-              minHeight: 44, padding: '0 20px', borderRadius: 999, cursor: advanceBlocked ? 'not-allowed' : 'pointer',
-              border: '1px solid var(--line-strong)', background: 'transparent', color: advanceBlocked ? 'var(--muted)' : 'var(--ink-2)', fontSize: 13, fontWeight: 500,
-              display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-body)', opacity: advanceBlocked ? 0.6 : 1,
-            }}>
-              <Icon name="forward" size={15} /> Simular temporada até o fim
-            </button>
-          </div>
-        )}
-      </div>
-
-      <div className="career-hub-col">
-        <NovidadesCard dayEventsRich={dayEventsRich} />
-        <TopTransfersCard save={save} />
-        <MiniTableCard division={division} divisionKey={divisionKey} myClubId={save.myClubId} myPos={myPos} />
-      </div>
     </div>
   );
 }
 
-const navBtnStyle = {
-  padding: '16px 14px', borderRadius: 18, border: '1px solid var(--line)',
-  background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer', minHeight: 112,
-  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left', fontFamily: 'var(--font-body)',
-};
+function FragmentRow({ r, n, started }) {
+  const team = clubOf(r.id);
+  return (
+    <>
+      {started && r.pos === n - 3 && <tr className="ch-zline" aria-hidden="true"><td colSpan={4} /></tr>}
+      <tr className={`${r.mine ? 'ch-me' : ''} ${started && r.z4 ? 'ch-z' : ''}`}>
+        <td>{r.pos}</td>
+        <td><span className="ch-cl"><TeamBadge src={CLUB_LOGOS[team?.club]} name={team?.club || ''} color={team?.colors?.p} size={20} radius={10} /><span style={{ fontWeight: r.mine ? 700 : 400 }}>{displayName(team?.club)}</span></span></td>
+        <td className="ch-j">{r.pj}J</td>
+        <td>{r.pts}</td>
+      </tr>
+    </>
+  );
+}
+
+// Cor do clube como texto (contraste garantido sobre o creme).
+export const clubInk = (clubId) => readableOn('#FBF9F4', clubOf(clubId)?.colors?.p || '#0D3A29');

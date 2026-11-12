@@ -33,6 +33,10 @@ import { proposeTransfer, promoteYouthPlayer } from './engine/rosterStore.js';
 import { toggleLoanList, requestLoanIn } from './engine/loans.js';
 import { applyCareerLineupChange } from './engine/simHelpers.js';
 import { displayName } from '../lib/displayName.js';
+import { syncCareerMeta, markInboxRead } from './engine/careerMeta.js';
+import { CareerShell } from './components/CareerShell.jsx';
+import { CareerInboxScreen } from './screens/CareerInboxScreen.jsx';
+import { CareerFinanceScreen } from './screens/CareerFinanceScreen.jsx';
 
 export function CareerApp({ onExit, onHudChange }) {
   const [save, setSave] = useState(() => loadCareerSave());
@@ -63,14 +67,19 @@ export function CareerApp({ onExit, onHudChange }) {
   const [savesList, setSavesList] = useState([]);
 
   useEffect(() => {
-    if (save) saveCareerSave(save);
+    if (!save) return;
+    // Dados derivados da Visão geral (histórico de saldo, caixa de entrada,
+    // diretoria) — idempotente: só devolve um save novo se algo mudou.
+    const synced = syncCareerMeta(save);
+    if (synced !== save) { setSave(synced); return; }
+    saveCareerSave(save);
   }, [save]);
 
   useEffect(() => {
     if (!onHudChange) return;
     if (save) {
       const team = TEAMS.find(t => t.id === save.myClubId);
-      onHudChange({ active: true, balance: save.clubs[save.myClubId].budget, clubLabel: team.club, clubColor: team.colors?.p });
+      onHudChange({ active: true, balance: save.clubs[save.myClubId].budget, clubLabel: displayName(team.club), clubColor: team.colors?.p, season: save.season });
     } else {
       onHudChange(null);
     }
@@ -316,6 +325,10 @@ export function CareerApp({ onExit, onHudChange }) {
   // nova é de fato montada (ver seasonEngine.js: endOfSeason/
   // finalizeSeasonAfterUserTie já pararam em `screen:'season-report'` e
   // deixaram o relatório pronto em `save.lastSeasonReport`).
+  const handleMarkRead = useCallback((ids) => {
+    setSave(prev => prev && markInboxRead(prev, ids));
+  }, []);
+
   const handleAdvanceSeason = useCallback(() => {
     setSave(prev => prev && advanceToNextSeason(prev));
     setScreen('hub');
@@ -428,13 +441,24 @@ export function CareerApp({ onExit, onHudChange }) {
     );
   }
 
-  if (screen === 'squad') return <CareerSquadScreen save={save} onToggleListed={handleToggleListed} onBack={() => setScreen('hub')} />;
-  if (screen === 'formation') return <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onSaveFormationPreset={handleSaveFormationPreset} onDeleteFormationPreset={handleDeleteFormationPreset} onBack={() => setScreen('hub')} />;
-  if (screen === 'table') return <CareerTableScreen save={save} onBack={() => setScreen('hub')} />;
-  if (screen === 'calendar') return <CareerCalendarScreen save={save} onBack={() => setScreen('hub')} />;
-  if (screen === 'copa') return <CareerCopaScreen save={save} onBack={() => setScreen('hub')} />;
-  if (screen === 'youth') return <CareerYouthScreen save={save} onPromote={handlePromoteYouth} onBack={() => setScreen('hub')} />;
-  if (screen === 'market') return <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onRequestLoan={handleRequestLoan} onBack={() => setScreen('hub')} />;
+  const back = () => setScreen('hub');
+  let body;
+  if (screen === 'squad') body = <CareerSquadScreen save={save} onToggleListed={handleToggleListed} onBack={back} />;
+  else if (screen === 'formation') body = <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onSaveFormationPreset={handleSaveFormationPreset} onDeleteFormationPreset={handleDeleteFormationPreset} onBack={back} />;
+  else if (screen === 'table') body = <CareerTableScreen save={save} onBack={back} />;
+  else if (screen === 'calendar') body = <CareerCalendarScreen save={save} onBack={back} />;
+  else if (screen === 'copa') body = <CareerCopaScreen save={save} onBack={back} />;
+  else if (screen === 'youth') body = <CareerYouthScreen save={save} onPromote={handlePromoteYouth} onBack={back} />;
+  else if (screen === 'market') body = <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onRequestLoan={handleRequestLoan} onBack={back} />;
+  else if (screen === 'inbox') body = <CareerInboxScreen save={save} onNavigate={setScreen} onMarkRead={handleMarkRead} />;
+  else if (screen === 'finance') body = <CareerFinanceScreen save={save} />;
+  else body = <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onSimulateSeason={handleSimulateSeason} onMarkRead={handleMarkRead} />;
 
-  return <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onSimulateSeason={handleSimulateSeason} onExit={onExit} />;
+  const NAV_SCREENS = ['squad', 'formation', 'table', 'calendar', 'copa', 'youth', 'market', 'inbox', 'finance'];
+  const active = NAV_SCREENS.includes(screen) ? screen : 'hub';
+  return (
+    <CareerShell save={save} active={active} onNavigate={setScreen} onExit={onExit}>
+      {body}
+    </CareerShell>
+  );
 }
