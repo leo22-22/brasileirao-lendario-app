@@ -51,7 +51,7 @@ function untag(player) {
 // dele — mais disposto se for jovem ou se tiver gente melhor na mesma
 // posição (sobra de elenco), menos disposto se for o melhor da posição
 // (não quer abrir mão do titular).
-function loanOutWillingness(clubRoster, player) {
+export function loanOutWillingness(clubRoster, player) {
   const samePos = clubRoster.filter(p => p.pos[0] === player.pos[0]);
   const betterCount = samePos.filter(p => p.ovr > player.ovr).length;
   let chance = 0.35;
@@ -180,7 +180,12 @@ export function returnDueLoans(save, day) {
     const due = roster.filter(p => p.loan?.kind === '6m' && p.loan.returnDay <= day);
     if (due.length === 0) continue;
     next = replaceRoster(next, clubId, roster.filter(p => !due.includes(p)));
-    for (const p of due) next = addPlayersToClub(next, p.onLoanFrom, [untag(p)]);
+    for (const p of due) {
+      next = addPlayersToClub(next, p.onLoanFrom, [untag(p)]);
+      // Registro do retorno (só histórico — não muda elenco nem orçamento
+      // além do que já acontecia): alimenta a tag "Retorno" do Mercado.
+      next = { ...next, transferLog: appendTransferLog({ ...next, calendarDay: day }, { type: 'loan-return', playerName: p.name, fromClubId: clubId, toClubId: p.onLoanFrom, amount: 0 }) };
+    }
   }
   return next;
 }
@@ -205,7 +210,10 @@ export function returnSeasonLoans(save) {
     }
     if (returning.length === 0) continue;
     next = replaceRoster(next, clubId, staying);
-    for (const p of returning) next = addPlayersToClub(next, p.onLoanFrom, [untag(p)]);
+    for (const p of returning) {
+      next = addPlayersToClub(next, p.onLoanFrom, [untag(p)]);
+      next = { ...next, transferLog: appendTransferLog(next, { type: 'loan-return', playerName: p.name, fromClubId: clubId, toClubId: p.onLoanFrom, amount: 0 }) };
+    }
   }
   return next;
 }

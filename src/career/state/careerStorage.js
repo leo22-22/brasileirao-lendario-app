@@ -25,6 +25,7 @@ import { drawCopaBracket, COPA_DAYS } from '../engine/copaEngine.js';
 import { makePrng, hashSeed } from '../../App.jsx';
 import { TEAMS } from '../../data/teams.js';
 import { ensureCareerMetaDefaults } from '../engine/careerMeta.js';
+import { ensureMarketDefaults } from '../engine/marketQueue.js';
 
 const LEGACY_KEY = 'brl_career_save';
 const INDEX_KEY = 'brl_career_saves_index';
@@ -153,6 +154,8 @@ function backfill(save) {
   // rodada, caixa de entrada e estado da diretoria — saves antigos começam
   // vazios e são preenchidos a partir da rodada seguinte (careerMeta.js).
   next = ensureCareerMetaDefaults(next);
+  // Mercado redesenhado: observados e propostas agendadas.
+  next = ensureMarketDefaults(next);
   return next;
 }
 

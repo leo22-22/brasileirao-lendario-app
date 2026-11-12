@@ -187,3 +187,4 @@ button.ui-alert { width: 100%; text-align: left; cursor: pointer; font-family: v
 .ui-footer a, .ui-footer button { background: none; border: none; color: var(--muted); font-size: 13.5px; cursor: pointer; padding: 10px 0; font-family: var(--font-body); text-decoration: none; }
 .ui-footer a:hover, .ui-footer button:hover { color: var(--ink); }
 @media (max-width: 640px) { .ui-footer { flex-direction: column; align-items: flex-start; padding: 28px 16px 40px; } }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }

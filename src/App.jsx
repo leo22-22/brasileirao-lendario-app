@@ -11388,6 +11388,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-carreira-mercado',
+    date: 'Novembro de 2026',
+    title: 'Mercado do Modo Carreira redesenhado',
+    desc: 'O Mercado ganhou a aba Contratar, com busca em todos os 40 clubes, filtros por posição, idade, OVR, valor, divisão e clube, e a chance real de o clube aceitar sua proposta antes de enviar. Também entraram: lista de jogadores Observados (com a variação de OVR e valor), linha do tempo da janela de transferências, carências do elenco, balanço de compras e vendas e histórico em tabela. Novidade de regra: com a janela fechada dá para agendar propostas e pedidos de empréstimo — eles são enviados automaticamente no dia em que a janela abrir.',
+  },
+  {
     id: '2026-11-carreira-elenco',
     date: 'Novembro de 2026',
     title: 'Elenco do Modo Carreira redesenhado',

@@ -69,7 +69,7 @@ export function buyPlayer(save, buyerId, sellerId, playerName) {
 // o clube NUNCA aceita (impede uma proposta "absurda" tipo R$1M por um
 // jogador de R$100M); de 60% a 100%, a chance cresce suavemente (não é um
 // degrau seco); a partir de 100%, aceita sempre.
-function acceptanceChance(offeredAmount, askingValue) {
+export function acceptanceChance(offeredAmount, askingValue) {
   const ratio = offeredAmount / askingValue;
   if (ratio >= 1) return 1;
   if (ratio < 0.6) return 0;

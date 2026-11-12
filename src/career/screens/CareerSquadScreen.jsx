@@ -12,6 +12,7 @@ import { posOrderIndex, posSector } from '../../lib/format.js';
 import { computePlayerValue } from '../engine/pricing.js';
 import { playerSeasonStats } from '../engine/seasonStats.js';
 import { transferWindowText } from '../engine/careerMeta.js';
+import { squadDepth, DEPTH_GROUPS, VETERAN_AGE } from '../engine/squadDepth.js';
 import { TEAMS } from '../../data/teams.js';
 import { displayName } from '../../lib/displayName.js';
 import { Icon } from '../../ui/index.jsx';
@@ -34,11 +35,6 @@ const POS_NAME = {
   GOL: 'Goleiro', ZAG: 'Zagueiro', LD: 'Lateral-direito', LE: 'Lateral-esquerdo', VOL: 'Volante', MC: 'Meio-campista',
   MD: 'Meia-direita', ME: 'Meia-esquerda', MEI: 'Meia ofensivo', PD: 'Ponta-direita', PE: 'Ponta-esquerda', ATA: 'Atacante',
 };
-const DEPTH = [
-  { id: 'GOL', pos: ['GOL'] }, { id: 'LD', pos: ['LD'] }, { id: 'ZAG', pos: ['ZAG'] }, { id: 'LE', pos: ['LE'] },
-  { id: 'VOL', pos: ['VOL'] }, { id: 'MC', pos: ['MC', 'MD', 'ME'], label: 'MC' }, { id: 'MEI', pos: ['MEI'] },
-  { id: 'PD/PE', pos: ['PD', 'PE'] }, { id: 'ATA', pos: ['ATA'] },
-];
 const SORTS = [
   { id: 'ovr', label: 'OVR' }, { id: 'age', label: 'Idade' }, { id: 'value', label: 'Valor' },
   { id: 'potential', label: 'Potencial' }, { id: 'goals', label: 'Gols' }, { id: 'matches', label: 'Jogos' },
@@ -204,7 +200,7 @@ export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOp
   const squadValue = roster.reduce((s, p) => s + valueOf(p), 0);
   const withAge = roster.filter(p => p.age != null);
   const avgAge = withAge.length ? withAge.reduce((s, p) => s + p.age, 0) / withAge.length : null;
-  const veterans = withAge.filter(p => p.age >= 32).length;
+  const veterans = withAge.filter(p => p.age >= VETERAN_AGE).length;
   const listedCount = roster.filter(p => transferList.includes(p.name)).length;
   const loanListedCount = roster.filter(p => loanList.includes(p.name)).length;
   const loanedIn = roster.filter(p => p.onLoanFrom && p.onLoanFrom !== clubId).length;
@@ -212,10 +208,7 @@ export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOp
   const windowInfo = transferWindowText(save.calendarDay);
 
   // ── Profundidade ──
-  const depth = DEPTH.map(d => {
-    const ps = roster.filter(p => d.pos.includes(p.pos[0]));
-    return { ...d, count: ps.length, best: ps.length ? Math.max(...ps.map(p => p.ovr)) : null };
-  });
+  const depth = squadDepth(roster).map(d => ({ ...d, best: d.bestOvr }));
 
   // ── Destaques ──
   const statRows = roster.map(p => ({ p, s: statsOf(p) }));
@@ -230,7 +223,7 @@ export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOp
 
   // ── Filtro, ordenação e grupos ──
   const q = normalize(query.trim());
-  const depthDef = posFilter ? DEPTH.find(d => d.id === posFilter) : null;
+  const depthDef = posFilter ? DEPTH_GROUPS.find(d => d.id === posFilter) : null;
   const filtered = roster
     .filter(p => !q || normalize(p.name).includes(q))
     .filter(p => sector === 'all' || posSector(p.pos[0]) === sector)

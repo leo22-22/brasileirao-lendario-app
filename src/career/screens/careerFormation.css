@@ -1,5 +1,4 @@
 /* Formação do Modo Carreira — valores do modo-carreira-formacao-mockup.html */
-.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
 
 .cf-main { max-width: 1480px; }
 .cf-ph { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; }

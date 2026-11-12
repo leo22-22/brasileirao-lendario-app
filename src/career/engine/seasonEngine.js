@@ -731,6 +731,18 @@ const COUNTER_ACCEPT_CEILING = 1.15;
 // valor. Senão, o comprador desiste e a proposta é removida (contestar
 // tem risco de perder o negócio, não só de ficar na mesma). Devolve
 // `{ save, accepted }` pra UI poder avisar o resultado.
+// Teto que o comprador ainda topa pagar numa contraproposta — parte
+// determinística de `counterOffer`, exportada pra tela mostrar "aceita até
+// R$ X" com exatamente a mesma regra. `null` = negócio inviável.
+export function counterOfferCeiling(save, offer) {
+  if (!offer || offer.type === 'loan') return null;
+  const seller = save.clubs[offer.toClubId];
+  const buyer = save.clubs[offer.fromClubId];
+  const player = seller?.roster.find(p => p.name === offer.playerName);
+  if (!seller || !buyer || !player || !canSell(seller.roster)) return null;
+  return Math.min(offer.amount * COUNTER_ACCEPT_CEILING, buyer.budget * AI_BUDGET_STRETCH);
+}
+
 export function counterOffer(save, offerIndex, counterAmount) {
   const offer = save.pendingOffers[offerIndex];
   if (!offer || offer.type === 'loan') return { save, accepted: false }; // empréstimo não tem valor, não dá pra contrapropor
@@ -739,9 +751,8 @@ export function counterOffer(save, offerIndex, counterAmount) {
   const seller = save.clubs[offer.toClubId];
   const buyer = save.clubs[offer.fromClubId];
   const player = seller?.roster.find(p => p.name === offer.playerName);
-  const willingCeiling = offer.amount * COUNTER_ACCEPT_CEILING;
-  const buyerWalksAway = !seller || !buyer || !player || !canSell(seller.roster)
-    || counterAmount > willingCeiling || counterAmount > buyer.budget * AI_BUDGET_STRETCH;
+  const ceiling = counterOfferCeiling(save, offer);
+  const buyerWalksAway = ceiling == null || counterAmount > ceiling;
   if (buyerWalksAway) return { save: { ...save, pendingOffers: remaining }, accepted: false };
 
   return {

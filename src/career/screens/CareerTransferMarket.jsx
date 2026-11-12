@@ -1,572 +1,568 @@
-// Mercado de transferências do Modo Carreira — com orçamento de verdade,
-// diferente do TransferMarket usado pelos outros modos (App.jsx, troca
-// direta sem preço). Três abas: listar/consultar o próprio elenco (sem
-// venda direta — só marca disponibilidade e espera proposta, estilo "lista
-// de transferências" de EA FC), fazer proposta por um jogador de qualquer
-// um dos outros 39 clubes (o clube vendedor decide aceitar ou não, estilo
-// FIFA/Football Manager — nunca uma compra automática), e responder
-// propostas recebidas (aceitar, rejeitar ou mandar contraproposta). Busca
-// por nome + filtro de posição em toda lista de jogador, e busca por nome
-// + divisão na lista de clubes.
-import { useState } from 'react';
+// Mercado de transferências do Modo Carreira — redesenho de 2026-11-13
+// seguindo modo-carreira-mercado-mockup.html. Regras de negócio iguais às
+// de antes: proposta de compra decidida pelo clube vendedor
+// (proposeTransfer/acceptanceChance), pedido de empréstimo
+// (requestLoanIn/loanOutWillingness), listas de venda/empréstimo do meu
+// elenco, propostas recebidas (aceitar/contrapropor/recusar), bloqueios de
+// janela, orçamento (canAfford = orçamento ≥ 50% do valor) e elenco mínimo
+// do vendedor. Novidades: aba Contratar (busca em todos os clubes),
+// Observados (save.shortlist) e propostas agendadas com a janela fechada
+// (save.queuedProposals, enviadas quando a janela abre — marketQueue.js).
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { CAREER_CLUB_IDS } from '../../data/career-clubs.js';
 import { computePlayerValue } from '../engine/pricing.js';
-import { MIN_SQUAD_SIZE } from '../engine/rosterStore.js';
-import { isTransferWindowOpen } from '../engine/calendar.js';
-import { LOAN_DURATIONS } from '../engine/loans.js';
-import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
-import { backButtonStyle } from '../components/styles.js';
-import { ovrColor, posOrderIndex, posColor, POS_ORDER } from '../../lib/format.js';
+import { MIN_SQUAD_SIZE, acceptanceChance } from '../engine/rosterStore.js';
+import { isTransferWindowOpen, nextWindowOpenDay, currentWindowCloseDay, JAN_END, WINDOW2_START, WINDOW2_END } from '../engine/calendar.js';
+import { LOAN_DURATIONS, loanOutWillingness } from '../engine/loans.js';
+import { decideAiListings } from '../engine/aiTransfers.js';
+import { squadNeeds } from '../engine/squadDepth.js';
+import { findPlayerAnywhere, isShortlisted } from '../engine/marketQueue.js';
+import { dayParts } from '../engine/careerMeta.js';
+import { POS_ORDER, posSector } from '../../lib/format.js';
 import { displayName } from '../../lib/displayName.js';
+import { Icon, TeamBadge, Modal } from '../../ui/index.jsx';
+import '../components/careerShell.css';
+import './careerSquad.css';
+import './careerMarket.css';
 
-// Reaproveita POS_ORDER (lib/format.js) em vez de manter uma lista própria
-// — já cobre os 12 códigos de posição que existem nos dados (inclusive MD/
-// ME, usados por alguns jogadores reais, que uma lista escrita à mão aqui
-// tinha deixado de fora).
-const POSITIONS = POS_ORDER;
+const PAGE = 25;
+const MONTHS_FULL = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+const MLEN = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
-function formatMoney(n) {
-  return 'R$ ' + n.toLocaleString('pt-BR');
-}
-
-// Normaliza acento pra busca não exigir digitar "ã"/"é" certinho (ex.:
-// buscar "sao paulo" ou "joao" encontra "São Paulo"/"João").
 function normalize(s) {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 }
+function money(n) {
+  return 'R$ ' + Math.round(n).toLocaleString('pt-BR');
+}
+function moneyShort(n) {
+  const abs = Math.abs(n);
+  const sign = n < 0 ? '−' : '';
+  if (abs >= 1_000_000_000) return `${sign}R$ ${(abs / 1_000_000_000).toFixed(1).replace('.', ',')}B`;
+  if (abs >= 10_000_000) return `${sign}R$ ${Math.round(abs / 1_000_000)}M`;
+  if (abs >= 1_000_000) return `${sign}R$ ${(abs / 1_000_000).toFixed(1).replace('.', ',')}M`;
+  if (abs >= 1_000) return `${sign}R$ ${Math.round(abs / 1_000)}K`;
+  return `${sign}R$ ${abs}`;
+}
+function longDate(day) {
+  let r = Math.max(1, Math.min(365, day)); let m = 0;
+  while (m < 11 && r > MLEN[m]) { r -= MLEN[m]; m++; }
+  return `${r} de ${MONTHS_FULL[m]}`;
+}
+const shortD = (day) => { const { d, m } = dayParts(day); return `${String(d).padStart(2, '0')}/${m}`; };
+const clubOf = (id) => TEAMS.find(t => t.id === id);
+const ovrClass = (o) => (o >= 85 ? 'sq-o-hi' : o >= 80 ? 'sq-o-md' : 'sq-o-lo');
 
-// `adv` (opcional) = busca avançada (pedido explícito do usuário
-// 2026-11-13: "filtrar de tal idade a tal idade, de tal valor a tal
-// valor") — { ageMin, ageMax, valueMin, valueMax, getValue }. Jogador sem
-// idade conhecida (elenco histórico/legado sem backfill, ver pricing.js)
-// nunca bate um filtro de idade — mostrar ele dentro de qualquer faixa
-// seria inventar um dado que não existe.
-function filterPlayers(roster, query, pos, adv) {
-  const q = normalize(query.trim());
-  return roster
-    // Filtra pela posição PRINCIPAL (pos[0], a mesma que aparece no badge
-    // da linha) — não por "p.pos.includes(pos)", que mostraria um jogador
-    // versátil (ex.: cadastrado como ['MEI','ATA']) com o badge "MEI"
-    // dentro do filtro "ATA", o que pareceria um resultado errado.
-    .filter(p => (!q || normalize(p.name).includes(q)) && (!pos || p.pos[0] === pos))
-    .filter(p => {
-      if (!adv) return true;
-      if (adv.ageMin != null && (p.age == null || p.age < adv.ageMin)) return false;
-      if (adv.ageMax != null && (p.age == null || p.age > adv.ageMax)) return false;
-      if (adv.valueMin != null || adv.valueMax != null) {
-        const v = adv.getValue(p);
-        if (adv.valueMin != null && v < adv.valueMin) return false;
-        if (adv.valueMax != null && v > adv.valueMax) return false;
-      }
-      return true;
-    })
-    .sort((a, b) => posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]) || b.ovr - a.ovr);
+// Chance de aceite em 5 faixas — a probabilidade vem da MESMA função que
+// decide a proposta (acceptanceChance / loanOutWillingness).
+function chanceBand(p) {
+  if (p <= 0) return { label: 'Nenhuma', segs: 0, tone: 'danger' };
+  if (p < 0.25) return { label: 'Muito baixa', segs: 1, tone: 'danger' };
+  if (p < 0.5) return { label: 'Baixa', segs: 2, tone: 'warning' };
+  if (p < 0.75) return { label: 'Média', segs: 3, tone: 'warning' };
+  if (p < 1) return { label: 'Alta', segs: 4, tone: 'success' };
+  return { label: 'Muito alta', segs: 5, tone: 'success' };
+}
+const TONE = { danger: 'var(--danger)', warning: 'var(--warning-ink)', success: 'var(--success)' };
+
+function PosChip({ pos }) {
+  return <span className={`sq-pos sq-${posSector(pos)}`}>{pos}</span>;
+}
+function Crest({ clubId, size = 30 }) {
+  const t = clubOf(clubId);
+  return <TeamBadge src={CLUB_LOGOS[t?.club]} name={t?.club || ''} color={t?.colors?.p || '#0D3A29'} size={size} radius={size / 2} />;
 }
 
-const inputStyle = {
-  padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line-strong)',
-  background: 'var(--surface)', color: 'var(--ink)', fontSize: 12.5, outline: 'none',
+function Toast({ toast }) {
+  if (!toast) return null;
+  return <div className={`mk-toast mk-toast-${toast.tone}`} role="status" aria-live="polite"><Icon name={toast.tone === 'success' ? 'check' : toast.tone === 'danger' ? 'close' : 'info'} size={16} />{toast.text}</div>;
+}
+
+// ── Janela de transferências ───────────────────────────────────────────
+function WindowCard({ day }) {
+  const open = isTransferWindowOpen(day);
+  const close = currentWindowCloseDay(day);
+  const nextOpen = nextWindowOpenDay(day);
+  const daysTo = open ? close - day : (nextOpen > day ? nextOpen - day : 365 - day + nextOpen);
+  const pct = (d) => `${((d - 1) / 364) * 100}%`;
+  return (
+    <div className={`ch-card mk-win${open ? ' mk-win-open' : ''}`}>
+      <div className="mk-win-st">
+        <span className="mk-win-ico"><Icon name="calendar" size={18} /></span>
+        <div>
+          <b>{open ? 'Janela aberta' : 'Janela fechada'}</b>
+          <div className="ch-small">{open ? `Fecha em ${longDate(close)} · falta${daysTo === 1 ? '' : 'm'} ${daysTo} dia${daysTo === 1 ? '' : 's'}` : `Abre em ${longDate(nextOpen)} · falta${daysTo === 1 ? '' : 'm'} ${daysTo} dia${daysTo === 1 ? '' : 's'}`}</div>
+        </div>
+      </div>
+      <div className="mk-tl" role="img" aria-label={`Linha do tempo: janelas de 1 a ${JAN_END} de janeiro e de ${longDate(WINDOW2_START)} a ${longDate(WINDOW2_END)}; hoje é ${longDate(day)}`}>
+        <span className="mk-tl-base" />
+        <span className="mk-tl-open" style={{ left: 0, width: pct(JAN_END) }} />
+        <span className="mk-tl-open" style={{ left: pct(WINDOW2_START), width: `calc(${pct(WINDOW2_END)} - ${pct(WINDOW2_START)})` }} />
+        <span className="mk-tl-now" style={{ left: pct(day) }}><em>hoje</em></span>
+        {[['jan', 1], ['abr', 91], ['jul', 182], ['out', 274]].map(([m, d]) => <span key={m} className="mk-tl-m" style={{ left: pct(d) }}>{m}</span>)}
+        <span className="mk-tl-m" style={{ right: 0 }}>dez</span>
+      </div>
+      <p className="ch-small mk-win-txt">{open ? 'Pode contratar, pedir emprestado e responder propostas agora.' : 'Dá para observar, listar e agendar propostas. Elas são enviadas quando a janela abrir.'}</p>
+    </div>
+  );
+}
+
+// ── Painel de proposta (compra + empréstimo) ───────────────────────────
+function ProposePanel({ save, row, onPropose, onRequestLoan, onQueue, onCancelQueued, onDone, notify }) {
+  const { p, clubId, value } = row;
+  const windowOpen = isTransferWindowOpen(save.calendarDay);
+  const budget = save.clubs[save.myClubId].budget;
+  const sellerRoster = save.clubs[clubId].roster.filter(x => !x.inAcademy);
+  const sellerCanSell = save.clubs[clubId].roster.length > MIN_SQUAD_SIZE;
+  const canAfford = budget >= value * 0.5; // mesma regra de antes
+  const [amount, setAmount] = useState(() => Math.min(value, Math.max(0, budget)));
+  const [loanKind, setLoanKind] = useState('1s');
+  const queued = (save.queuedProposals || []).filter(q => q.playerName === p.name);
+  const queuedBuy = queued.find(q => q.kind === 'buy');
+  const queuedLoan = queued.find(q => q.kind === 'loan');
+  const pBuy = amount > 0 ? acceptanceChance(amount, value) : 0;
+  const band = chanceBand(pBuy);
+  const pLoan = loanOutWillingness(sellerRoster, p);
+  const loanBand = chanceBand(pLoan);
+  const borrowed = !!p.onLoanFrom;
+  const openDay = nextWindowOpenDay(save.calendarDay);
+
+  const buyBlock = !sellerCanSell ? `${displayName(clubOf(clubId)?.club)} está no mínimo de ${MIN_SQUAD_SIZE} jogadores e não pode vender.`
+    : !canAfford ? `Orçamento insuficiente: é preciso ter pelo menos 50% do valor (${moneyShort(value * 0.5)}).`
+      : amount <= 0 ? 'Digite um valor.'
+        : amount > budget ? `O valor passa do seu orçamento (${moneyShort(budget)}).`
+          : null;
+  const loanBlock = borrowed ? 'Jogador já está emprestado a este clube.' : !sellerCanSell ? 'O clube dono está no mínimo de elenco.' : null;
+
+  const sendBuy = () => {
+    if (buyBlock) return;
+    if (!windowOpen) {
+      onQueue({ kind: 'buy', playerName: p.name, clubId, amount });
+      notify({ tone: 'info', text: `Proposta por ${p.name} agendada para ${shortD(openDay)}.` });
+      return;
+    }
+    const res = onPropose(clubId, p.name, amount);
+    notify(res.accepted
+      ? { tone: 'success', text: `${p.name} contratado por ${money(res.price)}.` }
+      : { tone: 'danger', text: res.reason === 'orçamento insuficiente' ? 'Orçamento insuficiente.' : `O ${displayName(clubOf(clubId)?.club)} recusou ${money(amount)} por ${p.name}.` });
+    if (res.accepted) onDone();
+  };
+  const sendLoan = () => {
+    if (loanBlock) return;
+    if (!windowOpen) {
+      onQueue({ kind: 'loan', playerName: p.name, clubId, loanKind });
+      notify({ tone: 'info', text: `Pedido de empréstimo de ${p.name} agendado para ${shortD(openDay)}.` });
+      return;
+    }
+    const res = onRequestLoan(clubId, p.name, loanKind);
+    notify(res.accepted
+      ? { tone: 'success', text: `${p.name} chega emprestado (${LOAN_DURATIONS.find(d => d.kind === loanKind)?.label}).` }
+      : { tone: 'danger', text: `O ${displayName(clubOf(clubId)?.club)} recusou emprestar ${p.name}.` });
+    if (res.accepted) onDone();
+  };
+
+  return (
+    <div className="mk-prop" role="region" aria-label={`Proposta por ${p.name}`}>
+      <div>
+        <h5>Proposta de compra</h5>
+        <label className="mk-moneyin">
+          <span className="sr-only">Valor da proposta em reais</span>
+          <span aria-hidden="true">R$</span>
+          <input
+            inputMode="numeric"
+            value={amount ? Number(amount).toLocaleString('pt-BR') : ''}
+            onChange={e => setAmount(Number(e.target.value.replace(/\D/g, '').slice(0, 11)) || 0)}
+            aria-label="Valor da proposta"
+          />
+        </label>
+        <div className="mk-quick">
+          {[[-0.2, '−20%'], [-0.1, '−10%'], [0, 'Valor de mercado'], [0.1, '+10%']].map(([f, l]) => {
+            const v = Math.round(value * (1 + f));
+            return <button key={l} type="button" className={amount === v ? 'mk-on' : ''} onClick={() => setAmount(v)}>{l}</button>;
+          })}
+        </div>
+        <div className="ch-row mk-chance"><span>Chance de o {displayName(clubOf(clubId)?.club)} aceitar</span><b style={{ color: TONE[band.tone] }}>{band.label} · {Math.round(pBuy * 100)}%</b></div>
+        <div className="mk-seg5" aria-hidden="true">{[1, 2, 3, 4, 5].map(i => <i key={i} className={i <= band.segs ? `mk-on mk-${band.tone}` : ''} />)}</div>
+        <div className="ch-small" style={{ marginTop: 8 }}>Valor de mercado {money(value)} · abaixo de 60% dele o clube nunca aceita.</div>
+        <div className="ch-small">Depois da compra: orçamento {money(budget - amount)}</div>
+      </div>
+      <div>
+        <h5>Ou pedir emprestado</h5>
+        <div className="mk-quick" style={{ marginTop: 0 }} role="radiogroup" aria-label="Duração do empréstimo">
+          {LOAN_DURATIONS.map(d => <button key={d.kind} type="button" role="radio" aria-checked={loanKind === d.kind} className={loanKind === d.kind ? 'mk-on' : ''} onClick={() => setLoanKind(d.kind)}>{d.label}</button>)}
+        </div>
+        <div className="ch-row mk-chance"><span>Chance de emprestar</span><b style={{ color: TONE[loanBand.tone] }}>{loanBand.label} · {Math.round(pLoan * 100)}%</b></div>
+        <div className="mk-seg5" aria-hidden="true">{[1, 2, 3, 4, 5].map(i => <i key={i} className={i <= loanBand.segs ? `mk-on mk-${loanBand.tone}` : ''} />)}</div>
+        <div className="ch-small" style={{ marginTop: 8 }}>O clube decide na hora. Titulares raramente são emprestados.</div>
+        <div className="mk-pbtn">
+          <button type="button" className="ui-btn ui-btn-dark ui-btn-md" style={{ flex: '1 1 160px' }} disabled={!!buyBlock} onClick={sendBuy} title={buyBlock || undefined}>
+            {windowOpen ? 'Enviar proposta' : queuedBuy ? 'Atualizar agendamento' : 'Agendar proposta'}
+          </button>
+          <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" disabled={!!loanBlock} onClick={sendLoan} title={loanBlock || undefined}>
+            {windowOpen ? 'Pedir empréstimo' : queuedLoan ? 'Atualizar pedido' : 'Agendar empréstimo'}
+          </button>
+        </div>
+        {(buyBlock && amount > 0) && <div className="mk-locked mk-locked-danger"><Icon name="warning" size={16} />{buyBlock}</div>}
+        {loanBlock && <div className="mk-locked mk-locked-danger"><Icon name="warning" size={16} />{loanBlock}</div>}
+        {!windowOpen && <div className="mk-locked"><Icon name="calendar" size={16} />Janela fechada · a proposta fica salva e é enviada em {shortD(openDay)}</div>}
+        {queued.map(q => (
+          <div key={q.kind} className="mk-locked mk-locked-info">
+            <Icon name="clock" size={16} />
+            <span style={{ flex: 1 }}>{q.kind === 'buy' ? `Proposta de ${money(q.amount)} agendada` : `Empréstimo (${LOAN_DURATIONS.find(d => d.kind === q.loanKind)?.label}) agendado`}</span>
+            <button type="button" className="ch-link" onClick={() => onCancelQueued(p.name, q.kind)}>Cancelar</button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Tabela de jogadores de outros clubes ───────────────────────────────
+function PlayerTable({ save, rows, openKey, setOpenKey, onToggleShortlist, panelProps, total, page, setPage, emptyText }) {
+  const shown = rows.slice(0, page * PAGE);
+  return (
+    <>
+      <div className="mk-th" aria-hidden="true"><span>Jogador · {total} resultado{total === 1 ? '' : 's'}</span><span>Pos</span><span className="r">Idade</span><span className="r">OVR</span><span className="r">Valor</span><span /></div>
+      {shown.length === 0 && <div className="ch-empty">{emptyText}</div>}
+      {shown.map(row => {
+        const key = `${row.clubId}::${row.p.name}`;
+        const open = openKey === key;
+        const watched = isShortlisted(save, row.p.name);
+        const extra = [
+          displayName(clubOf(row.clubId)?.club),
+          row.p.potential != null && row.p.potential > row.p.ovr ? `potencial ${row.p.potential}` : null,
+          row.listed ? 'na lista do clube' : null,
+          row.loanChance >= 0.5 ? 'empréstimo provável' : null,
+        ].filter(Boolean).join(' · ');
+        return (
+          <div key={key} className={`mk-tr-wrap${open ? ' mk-open' : ''}`}>
+            <div className="mk-tr">
+              <div className="mk-pl"><Crest clubId={row.clubId} /><div style={{ minWidth: 0 }}><b className="cf-ell">{row.p.name}</b><small>{extra}</small></div></div>
+              <PosChip pos={row.p.pos[0]} />
+              <span className="sq-num mk-hide-m">{row.p.age ?? '—'}</span>
+              <span className={`sq-ovr ${ovrClass(row.p.ovr)}`}>{row.p.ovr}</span>
+              <span className="sq-num mk-hide-m">{moneyShort(row.value)}</span>
+              <span className="mk-acts">
+                <button type="button" className={`mk-icon-btn${watched ? ' mk-watch-on' : ''}`} onClick={() => onToggleShortlist(row.clubId, row.p.name)} aria-pressed={watched} aria-label={watched ? `Deixar de observar ${row.p.name}` : `Observar ${row.p.name}`} title={watched ? 'Observando · clique para remover' : 'Observar'}>
+                  <Icon name={watched ? 'check' : 'eye'} size={16} />
+                </button>
+                <button type="button" className={`mk-act${open ? ' mk-act-on' : ''}`} onClick={() => setOpenKey(open ? null : key)} aria-expanded={open}>{open ? 'Fechar' : 'Propor'}</button>
+              </span>
+            </div>
+            {open && (
+              <div className="mk-prop-wrap">
+                <div className="mk-sheet-bg" onClick={() => setOpenKey(null)} aria-hidden="true" />
+                <div className="mk-prop-sheet">
+                  <div className="mk-sheet-head">
+                    <b>{row.p.name}</b>
+                    <button type="button" className="ui-modal-close" style={{ position: 'static' }} onClick={() => setOpenKey(null)} aria-label="Fechar proposta"><Icon name="close" size={18} /></button>
+                  </div>
+                  <ProposePanel save={save} row={row} {...panelProps} onDone={() => setOpenKey(null)} />
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })}
+      {shown.length < rows.length && (
+        <div className="mk-more"><button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={() => setPage(page + 1)}>Carregar mais {Math.min(PAGE, rows.length - shown.length)} · {shown.length} de {rows.length}</button></div>
+      )}
+    </>
+  );
+}
+
+const SORTS = [
+  { id: 'value-for-money', label: 'Melhor custo-benefício' },
+  { id: 'ovr', label: 'OVR' },
+  { id: 'value', label: 'Valor' },
+  { id: 'age', label: 'Idade (mais novos)' },
+  { id: 'potential', label: 'Potencial' },
+];
+// Custo-benefício = OVR por valor (com o OVR acima de 60 pesando ao quadrado
+// pra não premiar só jogador barato e fraco).
+const sortFns = {
+  'value-for-money': (a, b) => ((b.p.ovr - 60) ** 2 / (b.value / 1e6 + 2)) - ((a.p.ovr - 60) ** 2 / (a.value / 1e6 + 2)),
+  ovr: (a, b) => b.p.ovr - a.p.ovr || a.value - b.value,
+  value: (a, b) => b.value - a.value,
+  age: (a, b) => (a.p.age ?? 99) - (b.p.age ?? 99) || b.p.ovr - a.p.ovr,
+  potential: (a, b) => (b.p.potential ?? b.p.ovr) - (a.p.potential ?? a.p.ovr) || b.p.ovr - a.p.ovr,
 };
 
-function PosBadge({ pos }) {
-  const c = posColor(pos);
-  return (
-    <span style={{
-      width: 34, flexShrink: 0, textAlign: 'center', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.3,
-      fontFamily: 'var(--font-mono)', padding: '3px 0', borderRadius: 6,
-      color: c, background: `${c}22`, border: `1px solid ${c}55`,
-    }}>{pos}</span>
-  );
-}
+const EMPTY_F = { q: '', pos: [], ageMin: '', ageMax: '', ovrMin: '', valueMax: '', division: '', clubId: '', afford: false, loan: false };
 
-const EMPTY_ADV = { ageMin: '', ageMax: '', valueMin: '', valueMax: '' };
-
-// Busca avançada (pedido explícito do usuário 2026-11-13: "tipo busca
-// avançada aí lá dá pra filtrar de tal idade a tal idade, de tal valor a
-// tal valor etc") — painel recolhível abaixo da busca normal, só com
-// idade e valor de mercado (os dois únicos atributos numéricos que fazem
-// sentido pra faixa aqui; posição já tem o seletor dedicado ao lado).
-function AdvancedFilters({ adv, setAdv }) {
-  const [open, setOpen] = useState(false);
-  const active = !!(adv.ageMin || adv.ageMax || adv.valueMin || adv.valueMax);
-  const update = (key, val) => setAdv(prev => ({ ...prev, [key]: val }));
+function FiltersBar({ f, setF, needPos, budget, fixedClub }) {
+  const set = (k, v) => setF(prev => ({ ...prev, [k]: v }));
+  const num = (v, max) => v.replace(/\D/g, '').slice(0, max);
   return (
-    <div style={{ marginTop: 6 }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{ background: 'none', border: 'none', padding: 0, color: active ? 'var(--gold-ink)' : 'var(--muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-      >🔎 Busca avançada{active ? ' (ativa)' : ''} {open ? '▲' : '▼'}</button>
-      {open && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)' }}>
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Idade</div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input value={adv.ageMin} onChange={e => update('ageMin', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-              <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>até</span>
-              <input value={adv.ageMax} onChange={e => update('ageMax', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Valor de mercado (R$)</div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input value={adv.valueMin ? Number(adv.valueMin).toLocaleString('pt-BR') : ''} onChange={e => update('valueMin', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-              <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>até</span>
-              <input value={adv.valueMax ? Number(adv.valueMax).toLocaleString('pt-BR') : ''} onChange={e => update('valueMax', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-          {active && (
-            <button
-              onClick={() => setAdv(EMPTY_ADV)}
-              style={{ gridColumn: '1 / -1', background: 'none', border: '1px solid rgba(178,59,59,0.45)', borderRadius: 8, padding: '6px 0', color: 'var(--danger)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
-            >Limpar busca avançada</button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function PlayerSearchBar({ query, setQuery, pos, setPos, resultCount, adv, setAdv }) {
-  const advActive = !!(adv?.ageMin || adv?.ageMax || adv?.valueMin || adv?.valueMax);
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <div style={{ display: 'flex', gap: 6 }}>
-        <input value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 Buscar jogador pelo nome..." style={{ ...inputStyle, flex: 1 }} />
-        <select value={pos} onChange={e => setPos(e.target.value)} style={{ ...inputStyle, flexShrink: 0, colorScheme: 'dark' }}>
-          <option value="" style={{ background: 'var(--surface)', color: 'var(--ink)' }}>Todas posições</option>
-          {POSITIONS.map(p => <option key={p} value={p} style={{ background: 'var(--surface)', color: 'var(--ink)' }}>{p}</option>)}
-        </select>
+    <div className="mk-fbar">
+      <div className="mk-pg" role="group" aria-label="Posições">
+        {POS_ORDER.map(pos => {
+          const on = f.pos.includes(pos);
+          return (
+            <button key={pos} type="button" aria-pressed={on} className={`${on ? 'mk-on' : ''}${needPos.has(pos) ? ' mk-need' : ''}`} onClick={() => set('pos', on ? f.pos.filter(x => x !== pos) : [...f.pos, pos])} title={needPos.has(pos) ? 'Posição carente no seu elenco' : undefined}>{pos}</button>
+          );
+        })}
       </div>
-      {adv && setAdv && <AdvancedFilters adv={adv} setAdv={setAdv} />}
-      {(query || pos || advActive) && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>{resultCount} jogador{resultCount === 1 ? '' : 'es'} encontrado{resultCount === 1 ? '' : 's'}</div>}
+      <label className="mk-fsel">Idade <input inputMode="numeric" value={f.ageMin} onChange={e => set('ageMin', num(e.target.value, 2))} placeholder="18" aria-label="Idade mínima" />–<input inputMode="numeric" value={f.ageMax} onChange={e => set('ageMax', num(e.target.value, 2))} placeholder="40" aria-label="Idade máxima" /></label>
+      <label className="mk-fsel">OVR <input inputMode="numeric" value={f.ovrMin} onChange={e => set('ovrMin', num(e.target.value, 2))} placeholder="min" aria-label="OVR mínimo" />+</label>
+      <label className="mk-fsel">Até R$ <input inputMode="numeric" value={f.valueMax ? Number(f.valueMax).toLocaleString('pt-BR') : ''} onChange={e => set('valueMax', num(e.target.value, 11))} placeholder="valor" aria-label="Valor máximo" style={{ width: 92 }} /></label>
+      {!fixedClub && (
+        <>
+          <label className="mk-fsel"><span className="sr-only">Divisão</span>
+            <select value={f.division} onChange={e => set('division', e.target.value)} aria-label="Divisão"><option value="">Série A e B</option><option value="A">Série A</option><option value="B">Série B</option></select>
+          </label>
+          <label className="mk-fsel"><span className="sr-only">Clube</span>
+            <select value={f.clubId} onChange={e => set('clubId', e.target.value)} aria-label="Clube">
+              <option value="">Todos os clubes</option>
+              {CAREER_CLUB_IDS.map(id => clubOf(id)).sort((a, b) => a.club.localeCompare(b.club)).map(t => <option key={t.id} value={t.id}>{displayName(t.club)}</option>)}
+            </select>
+          </label>
+        </>
+      )}
+      <label className="mk-tog"><input type="checkbox" checked={f.afford} onChange={e => set('afford', e.target.checked)} /><i aria-hidden="true" />Cabe no orçamento</label>
+      <label className="mk-tog"><input type="checkbox" checked={f.loan} onChange={e => set('loan', e.target.checked)} /><i aria-hidden="true" />Empréstimo provável</label>
+      {(f.pos.length || f.ageMin || f.ageMax || f.ovrMin || f.valueMax || f.division || f.clubId || f.afford || f.loan) ? (
+        <button type="button" className="ch-link" onClick={() => setF(prev => ({ ...EMPTY_F, q: prev.q }))}>Limpar filtros</button>
+      ) : null}
+      <span className="sr-only">Orçamento atual {money(budget)}</span>
     </div>
   );
 }
 
-function TabBar({ tab, setTab, offerCount }) {
-  const tabs = [
-    { id: 'mine', label: 'Meu elenco' },
-    { id: 'other', label: 'Outros clubes' },
-    { id: 'offers', label: `Propostas${offerCount ? ` (${offerCount})` : ''}` },
-    { id: 'history', label: 'Histórico' },
-  ];
+function applyFilters(rows, f, budget) {
+  const q = normalize(f.q.trim());
+  return rows.filter(r => {
+    const p = r.p;
+    if (q && !normalize(p.name).includes(q)) return false;
+    if (f.pos.length && !f.pos.includes(p.pos[0])) return false;
+    if (f.ageMin && (p.age == null || p.age < Number(f.ageMin))) return false;
+    if (f.ageMax && (p.age == null || p.age > Number(f.ageMax))) return false;
+    if (f.ovrMin && p.ovr < Number(f.ovrMin)) return false;
+    if (f.valueMax && r.value > Number(f.valueMax)) return false;
+    if (f.division && r.division !== f.division) return false;
+    if (f.clubId && r.clubId !== f.clubId) return false;
+    if (f.afford && !(budget >= r.value * 0.5)) return false; // mesma regra canAfford
+    if (f.loan && r.loanChance < 0.5) return false;
+    return true;
+  });
+}
+
+function SearchTable({ save, allRows, fixedClub, f, setF, sort, setSort, needPos, panelProps, onToggleShortlist }) {
+  const budget = save.clubs[save.myClubId].budget;
+  const [openKey, setOpenKey] = useState(null);
+  const [page, setPage] = useState(1);
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const base = fixedClub ? allRows.filter(r => r.clubId === fixedClub) : allRows;
+  const rows = useMemo(() => applyFilters(base, f, budget).sort(sortFns[sort]), [base, f, budget, sort]);
+  useEffect(() => { setPage(1); }, [f, sort, fixedClub]);
+  const activeCount = f.pos.length + ['ageMin', 'ageMax', 'ovrMin', 'valueMax', 'division', 'clubId', 'afford', 'loan'].filter(k => f[k]).length;
   return (
-    <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
-      {tabs.map(t => (
-        <button
-          key={t.id}
-          onClick={() => setTab(t.id)}
-          style={{
-            flex: '1 1 auto', padding: '8px 4px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-            border: `1px solid ${tab === t.id ? 'var(--gold)' : 'var(--line-strong)'}`,
-            background: tab === t.id ? 'rgba(194,154,69,0.12)' : 'transparent',
-            color: tab === t.id ? 'var(--gold-ink)' : 'var(--ink-2)',
-          }}
-        >{t.label}</button>
-      ))}
+    <div className="ch-card mk-res">
+      <div className="mk-top">
+        <label className="sq-search" style={{ flex: '1 1 220px' }}>
+          <Icon name="search" size={16} />
+          <input value={f.q} onChange={e => setF(prev => ({ ...prev, q: e.target.value }))} placeholder={fixedClub ? 'Buscar jogador neste clube…' : 'Buscar jogador em todos os clubes…'} aria-label="Buscar jogador" />
+        </label>
+        <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm mk-only-m" onClick={() => setFiltersOpen(true)} aria-haspopup="dialog">Filtros{activeCount ? ` · ${activeCount}` : ''}</button>
+        <label className="sq-sort"><span className="sr-only">Ordenar por</span>
+          <select value={sort} onChange={e => setSort(e.target.value)} aria-label="Ordenar por">{SORTS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}</select>
+        </label>
+      </div>
+      <div className="mk-hide-m-block"><FiltersBar f={f} setF={setF} needPos={needPos} budget={budget} fixedClub={fixedClub} /></div>
+      {filtersOpen && (
+        <Modal onClose={() => setFiltersOpen(false)} maxWidth={560} labelledBy="mk-f-title">
+          <h3 id="mk-f-title" style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 22, margin: '0 0 12px' }}>Filtros</h3>
+          <FiltersBar f={f} setF={setF} needPos={needPos} budget={budget} fixedClub={fixedClub} />
+          <button type="button" className="ui-btn ui-btn-dark ui-btn-md ui-btn-block" style={{ marginTop: 14 }} onClick={() => setFiltersOpen(false)}>Ver {rows.length} resultado{rows.length === 1 ? '' : 's'}</button>
+        </Modal>
+      )}
+      <PlayerTable
+        save={save} rows={rows} total={rows.length} openKey={openKey} setOpenKey={setOpenKey}
+        onToggleShortlist={onToggleShortlist} panelProps={panelProps} page={page} setPage={setPage}
+        emptyText="Nenhum jogador com esses filtros."
+      />
     </div>
   );
 }
 
-function PlayerRowShell({ pos, children }) {
-  const c = posColor(pos);
-  return (
-    <div style={{
-      display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 10,
-      background: 'var(--surface)', border: '1px solid var(--line)',
-      borderLeft: `3px solid ${c}`, marginBottom: 6,
-    }}>
-      {children}
-    </div>
-  );
-}
-
-// Botões de duração (6 meses / 1 temporada / 2 temporadas) reaproveitados
-// nos dois fluxos de empréstimo (emprestar o meu / pedir emprestado).
-function DurationPicker({ kind, setKind }) {
-  return (
-    <div style={{ display: 'flex', gap: 6 }}>
-      {LOAN_DURATIONS.map(d => (
-        <button
-          key={d.kind}
-          onClick={() => setKind(d.kind)}
-          style={{
-            flex: 1, padding: '6px 0', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-            border: `1px solid ${kind === d.kind ? 'var(--info)' : 'var(--line-strong)'}`,
-            background: kind === d.kind ? 'rgba(47,111,168,0.14)' : 'transparent',
-            color: kind === d.kind ? 'var(--info)' : 'var(--ink-2)',
-          }}
-        >{d.label}</button>
-      ))}
-    </div>
-  );
-}
-
-function MyRosterTab({ save, onToggleListed, onToggleLoanList, windowOpen }) {
-  const [query, setQuery] = useState('');
-  const [pos, setPos] = useState('');
-  const [adv, setAdv] = useState(EMPTY_ADV);
+// ── Meu elenco ─────────────────────────────────────────────────────────
+function MyRosterTab({ save, onToggleListed, onToggleLoanList }) {
+  const [q, setQ] = useState('');
   const roster = save.clubs[save.myClubId].roster.filter(p => !p.inAcademy);
   const transferList = save.transferList || [];
   const loanList = save.loanList || [];
-  const advParsed = {
-    ageMin: adv.ageMin ? Number(adv.ageMin) : null,
-    ageMax: adv.ageMax ? Number(adv.ageMax) : null,
-    valueMin: adv.valueMin ? Number(adv.valueMin) : null,
-    valueMax: adv.valueMax ? Number(adv.valueMax) : null,
-    getValue: p => computePlayerValue(p, save.myClubId),
-  };
-  const filtered = filterPlayers(roster, query, pos, advParsed);
+  const nq = normalize(q.trim());
+  const rows = roster.filter(p => !nq || normalize(p.name).includes(nq)).sort((a, b) => POS_ORDER.indexOf(a.pos[0]) - POS_ORDER.indexOf(b.pos[0]) || b.ovr - a.ovr);
   return (
-    <div>
-      {!windowOpen && <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Janela fechada — pode listar jogadores agora, mas as propostas só chegam quando ela abrir (janeiro, ou julho).</p>}
-      {roster.length <= MIN_SQUAD_SIZE && <p style={{ fontSize: 12, color: 'var(--warning-ink)', marginBottom: 10 }}>Elenco no mínimo de {MIN_SQUAD_SIZE} jogadores — mesmo que venha proposta, não vai dar pra vender/emprestar até o elenco crescer.</p>}
-      <p style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>📋 Não dá pra vender direto — coloque o jogador na lista de transferências (aumenta em 50% a chance de vir proposta por ele) e aguarde alguém se interessar. 🔁 Empréstimo funciona igual: colocar na lista de empréstimo não empresta ninguém sozinho, só sinaliza que o jogador tá disponível — uma proposta de empréstimo (com a duração que o clube propôs) pode ou não aparecer depois. Aceite ou rejeite as duas na aba Propostas.</p>
-      <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} adv={adv} setAdv={setAdv} />
-      {filtered.length === 0 && <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
-      {filtered.map(p => {
-        const value = computePlayerValue(p, save.myClubId);
+    <div className="ch-card mk-res">
+      <div className="mk-top">
+        <label className="sq-search" style={{ flex: '1 1 220px' }}><Icon name="search" size={16} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar no meu elenco…" aria-label="Buscar no meu elenco" /></label>
+        <span className="ch-small">{transferList.filter(n => roster.some(p => p.name === n)).length} à venda · {loanList.filter(n => roster.some(p => p.name === n)).length} para empréstimo</span>
+      </div>
+      {roster.length <= MIN_SQUAD_SIZE && <div className="mk-locked" style={{ margin: '12px 18px 0' }}><Icon name="warning" size={16} />Elenco no mínimo de {MIN_SQUAD_SIZE}: mesmo com proposta, não dá para vender ou emprestar.</div>}
+      <div className="mk-th mk-th-mine" aria-hidden="true"><span>Jogador</span><span>Pos</span><span className="r">Idade</span><span className="r">OVR</span><span className="r">Valor</span><span className="r">Venda · Empréstimo</span></div>
+      {rows.map(p => {
         const listed = transferList.includes(p.name);
         const loanListed = loanList.includes(p.name);
-        const borrowed = !!p.onLoanFrom; // jogador que EU peguei emprestado — não dá pra re-emprestar
+        const borrowed = !!p.onLoanFrom;
         return (
-          <PlayerRowShell key={p.name} pos={p.pos[0]}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <PosBadge pos={p.pos[0]} />
-              <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-              {borrowed && <span style={{ fontSize: 9.5, color: 'var(--info)', fontWeight: 700, border: '1px solid rgba(47,111,168,0.5)', borderRadius: 999, padding: '2px 6px' }}>EMPRESTADO</span>}
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ovrColor(p.ovr), fontSize: 13 }}>{p.ovr}</span>
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-2)' }}>{formatMoney(value)}</span>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {!borrowed && (
-                  <button
-                    onClick={() => onToggleLoanList(p.name)}
-                    title={loanListed ? 'Tirar da lista de empréstimo' : 'Colocar na lista de empréstimo (pode vir proposta de empréstimo)'}
-                    style={{
-                      padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                      border: `1px solid ${loanListed ? 'rgba(47,111,168,0.6)' : 'var(--line-strong)'}`,
-                      background: loanListed ? 'rgba(47,111,168,0.14)' : 'transparent',
-                      color: loanListed ? 'var(--info)' : 'var(--ink-2)',
-                    }}
-                  >{loanListed ? '🔁 Na lista' : '🔁 Emprestar'}</button>
-                )}
-                <button
-                  onClick={() => onToggleListed(p.name)}
-                  title={listed ? 'Tirar da lista de transferências' : 'Colocar na lista de transferências (+50% chance de proposta)'}
-                  style={{
-                    padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                    border: `1px solid ${listed ? 'rgba(194,154,69,0.6)' : 'var(--line-strong)'}`,
-                    background: listed ? 'rgba(194,154,69,0.15)' : 'transparent',
-                    color: listed ? 'var(--gold-ink)' : 'var(--ink-2)',
-                  }}
-                >{listed ? '📋 Na lista' : '📋 Listar'}</button>
+          <div key={p.name} className="mk-tr mk-tr-mine">
+            <div className="mk-pl" style={{ minWidth: 0 }}>
+              <div style={{ minWidth: 0 }}>
+                <b className="cf-ell">{p.name}</b>
+                <small>{p.pos.join(' · ')}{borrowed ? ` · emprestado pelo ${displayName(clubOf(p.onLoanFrom)?.club)}` : ''}</small>
               </div>
             </div>
-          </PlayerRowShell>
+            <PosChip pos={p.pos[0]} />
+            <span className="sq-num mk-hide-m">{p.age ?? '—'}</span>
+            <span className={`sq-ovr ${ovrClass(p.ovr)}`}>{p.ovr}</span>
+            <span className="sq-num mk-hide-m">{moneyShort(computePlayerValue(p, save.myClubId))}</span>
+            <span className="mk-toggles">
+              <button type="button" className={`mk-sw${listed ? ' mk-sw-on' : ''}`} aria-pressed={listed} onClick={() => onToggleListed(p.name)} aria-label={`${listed ? 'Tirar' : 'Colocar'} ${p.name} na lista de venda`}>
+                <i aria-hidden="true" />Venda
+              </button>
+              <button type="button" className={`mk-sw${loanListed ? ' mk-sw-on mk-sw-info' : ''}`} aria-pressed={loanListed} disabled={borrowed} onClick={() => onToggleLoanList(p.name)} title={borrowed ? 'Jogador emprestado não pode ser reemprestado' : undefined} aria-label={`${loanListed ? 'Tirar' : 'Colocar'} ${p.name} na lista de empréstimo`}>
+                <i aria-hidden="true" />Empréstimo
+              </button>
+            </span>
+          </div>
         );
       })}
     </div>
   );
 }
 
-// Linha de um jogador de outro clube, com proposta inline — digita um
-// valor e envia; o clube vendedor decide aceitar ou recusar (nunca uma
-// compra automática). `onPropose` já devolve o resultado síncrono pra
-// tela mostrar na hora.
-function ProposeRow({ player, price, enabled, disabledReason, onPropose, onRequestLoan }) {
-  const [mode, setMode] = useState(null); // null | 'buy' | 'loan'
-  const [amountInput, setAmountInput] = useState('');
-  const [loanKind, setLoanKind] = useState(null);
-  const [loanResult, setLoanResult] = useState(null);
-  const amount = amountInput ? parseInt(amountInput, 10) : 0;
-  const borrowed = !!player.onLoanFrom;
-
-  const handleOpenBuy = () => {
-    setAmountInput(String(price));
-    setMode('buy');
+// ── Propostas recebidas ────────────────────────────────────────────────
+function OfferCard({ save, offer, idx, onRespond, onCounterOffer, notify }) {
+  const [countering, setCountering] = useState(false);
+  const [counter, setCounter] = useState(0);
+  const buyer = clubOf(offer.fromClubId);
+  const isLoan = offer.type === 'loan';
+  const loanLabel = isLoan ? LOAN_DURATIONS.find(d => d.kind === offer.kind)?.label : null;
+  const player = save.clubs[save.myClubId].roster.find(p => p.name === offer.playerName);
+  const market = player ? computePlayerValue(player, save.myClubId) : null;
+  const diff = !isLoan && market ? Math.round(((offer.amount - market) / market) * 100) : null;
+  const accept = () => {
+    onRespond(idx, true);
+    notify({ tone: 'success', text: isLoan ? `${offer.playerName} emprestado ao ${displayName(buyer?.club)} (${loanLabel}).` : `${offer.playerName} vendido ao ${displayName(buyer?.club)} por ${money(offer.amount)}.` });
   };
-  const handleSend = () => {
-    if (amount <= 0) return;
-    onPropose(player.name, amount);
-    setMode(null);
-    setAmountInput('');
+  const reject = () => { onRespond(idx, false); notify({ tone: 'info', text: `Proposta por ${offer.playerName} recusada.` }); };
+  const sendCounter = () => {
+    if (counter <= offer.amount) return;
+    const res = onCounterOffer(idx, counter);
+    notify(res?.accepted ? { tone: 'success', text: `Contraproposta aceita: ${offer.playerName} vendido por ${money(counter)}.` } : { tone: 'danger', text: `O ${displayName(buyer?.club)} não topou ${money(counter)} e desistiu.` });
   };
-  const handleSendLoan = () => {
-    if (!loanKind) return;
-    setLoanResult(onRequestLoan(player.name, loanKind));
-  };
-
   return (
-    <PlayerRowShell pos={player.pos[0]}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <PosBadge pos={player.pos[0]} />
-        <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ovrColor(player.ovr), fontSize: 13 }}>{player.ovr}</span>
+    <div className="mk-offer">
+      <div className="mk-offer-head">
+        <Crest clubId={offer.fromClubId} size={40} />
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <b>{displayName(buyer?.club)}</b> quer <b>{offer.playerName}</b>
+          <div className="ch-small">{player ? `${player.pos[0]} · ${player.age ?? '—'} anos · OVR ${player.ovr}` : ''}</div>
+        </div>
+        <span className={`ch-tag ${isLoan ? 'ch-t-info' : 'ch-t-gold'}`}>{isLoan ? `Empréstimo · ${loanLabel}` : 'Compra'}</span>
       </div>
-      {mode === null && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-2)' }}>Valor de mercado: {formatMoney(price)}</span>
-          <div style={{ display: 'flex', gap: 6 }}>
-            {!borrowed && (
-              <button
-                onClick={() => { setLoanResult(null); setLoanKind(null); setMode('loan'); }}
-                title="Pedir emprestado"
-                style={{ padding: '6px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(47,111,168,0.5)', background: 'transparent', color: 'var(--info)' }}
-              >🔁 Emprestado</button>
-            )}
-            <button
-              onClick={handleOpenBuy}
-              disabled={!enabled}
-              title={disabledReason}
-              style={{
-                padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: enabled ? 'pointer' : 'default',
-                border: '1px solid rgba(31,122,77,0.5)', background: enabled ? 'rgba(31,122,77,0.12)' : 'transparent',
-                color: enabled ? 'var(--success)' : 'rgb(31,122,77)',
-              }}
-            >💰 Fazer proposta</button>
-          </div>
+      {!isLoan && (
+        <div className="mk-offer-vals">
+          <div><small>Oferta</small><b>{money(offer.amount)}</b></div>
+          <div><small>Valor de mercado</small><b>{market != null ? money(market) : '—'}</b></div>
+          <div><small>Diferença</small><b style={{ color: diff >= 0 ? 'var(--success)' : 'var(--danger)' }}>{diff != null ? `${diff > 0 ? '+' : ''}${diff}%` : '—'}</b></div>
         </div>
       )}
-      {mode === 'buy' && (
-        <div>
-          <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Quanto menor que {formatMoney(price)}, menor a chance do clube aceitar.</p>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input
-              value={amountInput ? Number(amountInput).toLocaleString('pt-BR') : ''}
-              onChange={e => setAmountInput(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              inputMode="numeric"
-              style={{ ...inputStyle, flex: 1 }}
-            />
-            <button
-              onClick={handleSend}
-              disabled={amount <= 0}
-              style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: amount > 0 ? 'var(--success)' : 'rgba(31,122,77,0.14)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: amount > 0 ? 'pointer' : 'default' }}
-            >Enviar</button>
-            <button onClick={() => setMode(null)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+      {countering ? (
+        <div className="mk-counter">
+          <label className="mk-moneyin"><span aria-hidden="true">R$</span><input inputMode="numeric" value={counter ? counter.toLocaleString('pt-BR') : ''} onChange={e => setCounter(Number(e.target.value.replace(/\D/g, '').slice(0, 11)) || 0)} aria-label="Valor da contraproposta" /></label>
+          <div className="mk-quick">
+            {[0.05, 0.1, 0.15, 0.2].map(f => { const v = Math.round(offer.amount * (1 + f)); return <button key={f} type="button" className={counter === v ? 'mk-on' : ''} onClick={() => setCounter(v)}>+{Math.round(f * 100)}%</button>; })}
+            {market && <button type="button" className={counter === market ? 'mk-on' : ''} onClick={() => setCounter(market)}>Valor de mercado</button>}
+          </div>
+          <div className="ch-small" style={{ margin: '8px 0 10px' }}>Se passar do que o clube topa pagar, ele desiste e a proposta cai.</div>
+          <div className="mk-pbtn" style={{ marginTop: 0 }}>
+            <button type="button" className="ui-btn ui-btn-dark ui-btn-md" disabled={counter <= offer.amount} onClick={sendCounter}>Enviar contraproposta</button>
+            <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" onClick={() => setCountering(false)}>Voltar</button>
           </div>
         </div>
-      )}
-      {mode === 'loan' && (
-        loanResult ? (
-          <div style={{ fontSize: 12, color: loanResult.accepted ? 'var(--info)' : 'var(--danger)' }}>
-            {loanResult.accepted ? `✅ ${player.name} veio emprestado!` : '❌ O clube recusou emprestar.'}{' '}
-            <button onClick={() => setMode(null)} style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer', fontSize: 12 }}>fechar</button>
-          </div>
-        ) : (
-          <div>
-            <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Pedir {player.name} emprestado por:</p>
-            <DurationPicker kind={loanKind} setKind={setLoanKind} />
-            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-              <button onClick={handleSendLoan} disabled={!loanKind} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: loanKind ? 'var(--info)' : 'rgba(47,111,168,0.14)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: loanKind ? 'pointer' : 'default' }}>Enviar pedido</button>
-              <button onClick={() => setMode(null)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
-            </div>
-          </div>
-        )
-      )}
-    </PlayerRowShell>
-  );
-}
-
-function ClubRosterList({ save, clubId, onPropose, onRequestLoan, windowOpen }) {
-  const [query, setQuery] = useState('');
-  const [pos, setPos] = useState('');
-  const [adv, setAdv] = useState(EMPTY_ADV);
-  const [lastResult, setLastResult] = useState(null); // { playerName, accepted, reason, price }
-  const team = TEAMS.find(t => t.id === clubId);
-  const logo = CLUB_LOGOS[team.club];
-  const roster = save.clubs[clubId].roster.filter(p => !p.inAcademy);
-  const myBudget = save.clubs[save.myClubId].budget;
-  const sellerCanSell = roster.length > MIN_SQUAD_SIZE;
-  const advParsed = {
-    ageMin: adv.ageMin ? Number(adv.ageMin) : null,
-    ageMax: adv.ageMax ? Number(adv.ageMax) : null,
-    valueMin: adv.valueMin ? Number(adv.valueMin) : null,
-    valueMax: adv.valueMax ? Number(adv.valueMax) : null,
-    getValue: p => computePlayerValue(p, clubId),
-  };
-  const filtered = filterPlayers(roster, query, pos, advParsed);
-
-  const handlePropose = (playerName, amount) => {
-    const res = onPropose(clubId, playerName, amount);
-    setLastResult({ playerName, ...res });
-  };
-  const handleRequestLoan = (playerName, kind) => onRequestLoan(clubId, playerName, kind);
-
-  return (
-    <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
-        {logo && <img src={logo} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
-        <div style={{ fontWeight: 700, fontSize: 15 }}>{displayName(team.club)}</div>
-      </div>
-      {!windowOpen && <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Janela fechada — só dá pra consultar os preços, não propor.</p>}
-      {lastResult && (
-        <div style={{
-          padding: '9px 12px', borderRadius: 8, marginBottom: 10, fontSize: 12.5,
-          background: lastResult.accepted ? 'rgba(31,122,77,0.1)' : 'rgba(178,59,59,0.1)',
-          border: `1px solid ${lastResult.accepted ? 'rgba(31,122,77,0.45)' : 'rgba(178,59,59,0.45)'}`,
-          color: lastResult.accepted ? 'var(--success)' : 'var(--danger)',
-        }}>
-          {lastResult.accepted
-            ? `✅ Proposta por ${lastResult.playerName} aceita — comprado por ${formatMoney(lastResult.price)}!`
-            : lastResult.reason === 'orçamento insuficiente'
-              ? `❌ Não foi possível propor por ${lastResult.playerName}: orçamento insuficiente.`
-              : `❌ Proposta por ${lastResult.playerName} recusada — tente um valor mais perto do de mercado.`}
-        </div>
-      )}
-      <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} adv={adv} setAdv={setAdv} />
-      {filtered.length === 0 && <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
-      {filtered.map(p => {
-        const price = computePlayerValue(p, clubId);
-        const canAfford = myBudget >= price * 0.5; // precisa dar pra propor pelo menos um valor com chance real
-        const enabled = windowOpen && canAfford && sellerCanSell;
-        const disabledReason = !windowOpen ? 'Janela de transferências fechada' : !canAfford ? 'Orçamento insuficiente pra uma proposta com chance real' : !sellerCanSell ? 'Clube vendedor no mínimo de elenco' : '';
-        return (
-          <ProposeRow key={p.name} player={p} price={price} enabled={enabled} disabledReason={disabledReason} onPropose={handlePropose} onRequestLoan={handleRequestLoan} />
-        );
-      })}
-    </div>
-  );
-}
-
-// Força aproximada do elenco (média de OVR, fora da categoria de base) —
-// só pra filtro/comparação nesta lista de clubes, não é a mesma conta que
-// a simulação usa (teamForSim pesa moral/capitão só pro MEU clube).
-function clubSquadStrength(save, clubId) {
-  const roster = save.clubs[clubId]?.roster.filter(p => !p.inAcademy) || [];
-  if (!roster.length) return 0;
-  return Math.round(roster.reduce((s, p) => s + p.ovr, 0) / roster.length);
-}
-
-// Valor de mercado total do elenco (mesma fonte de preço que o resto do
-// Mercado usa) — mesma conta que squadValueTotal em CareerHub.jsx, mas
-// local aqui (arquivos diferentes, sem import circular à toa por uma
-// função de 2 linhas).
-function clubSquadValue(save, clubId) {
-  return save.clubs[clubId].roster.filter(p => !p.inAcademy).reduce((s, p) => s + computePlayerValue(p, clubId), 0);
-}
-
-const EMPTY_CLUB_ADV = { strengthMin: '', strengthMax: '', valueMin: '', valueMax: '' };
-
-// Busca avançada na lista de clubes (pedido explícito do usuário
-// 2026-11-13: "eu quero que tenha uma busca avançada aqui tbm", na aba
-// "Outros clubes") — mesmo painel recolhível da busca avançada de
-// jogador, só que filtrando força do elenco e valor total em vez de
-// idade/valor individual.
-function ClubAdvancedFilters({ adv, setAdv }) {
-  const [open, setOpen] = useState(false);
-  const active = !!(adv.strengthMin || adv.strengthMax || adv.valueMin || adv.valueMax);
-  const update = (key, val) => setAdv(prev => ({ ...prev, [key]: val }));
-  return (
-    <div style={{ marginBottom: 10 }}>
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{ background: 'none', border: 'none', padding: 0, color: active ? 'var(--gold-ink)' : 'var(--muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
-      >🔎 Busca avançada{active ? ' (ativa)' : ''} {open ? '▲' : '▼'}</button>
-      {open && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)' }}>
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Força do elenco (OVR)</div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input value={adv.strengthMin} onChange={e => update('strengthMin', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-              <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>até</span>
-              <input value={adv.strengthMax} onChange={e => update('strengthMax', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-          <div>
-            <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Valor total do elenco (R$)</div>
-            <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <input value={adv.valueMin ? Number(adv.valueMin).toLocaleString('pt-BR') : ''} onChange={e => update('valueMin', e.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-              <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>até</span>
-              <input value={adv.valueMax ? Number(adv.valueMax).toLocaleString('pt-BR') : ''} onChange={e => update('valueMax', e.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-            </div>
-          </div>
-          {active && (
-            <button
-              onClick={() => setAdv(EMPTY_CLUB_ADV)}
-              style={{ gridColumn: '1 / -1', background: 'none', border: '1px solid rgba(178,59,59,0.45)', borderRadius: 8, padding: '6px 0', color: 'var(--danger)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
-            >Limpar busca avançada</button>
-          )}
+      ) : (
+        <div className="mk-pbtn">
+          <button type="button" className="ui-btn ui-btn-dark ui-btn-md" onClick={accept} style={{ flex: '1 1 140px' }}>Aceitar</button>
+          {!isLoan && <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" onClick={() => { setCounter(Math.round(offer.amount * 1.1)); setCountering(true); }}>Contraproposta</button>}
+          <button type="button" className="ui-btn ui-btn-danger ui-btn-md" onClick={reject}>Recusar</button>
         </div>
       )}
     </div>
   );
 }
 
-function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
-  const [clubId, setClubId] = useState(null);
-  const [clubQuery, setClubQuery] = useState('');
+function OffersTab({ save, onRespond, onCounterOffer, notify, goMine, onCancelQueued }) {
+  const offers = save.pendingOffers || [];
+  const queued = save.queuedProposals || [];
+  return (
+    <div className="mk-col">
+      {offers.length === 0 ? (
+        <div className="ch-card mk-empty">
+          <span className="mk-empty-ico"><Icon name="chat" size={26} /></span>
+          <b>Nenhuma proposta recebida</b>
+          <p className="ch-small">Elas chegam com a janela aberta. Listar jogadores aumenta a chance.</p>
+          <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={goMine}>Listar jogadores</button>
+        </div>
+      ) : offers.map((o, i) => <OfferCard key={`${o.fromClubId}-${o.playerName}-${i}`} save={save} offer={o} idx={i} onRespond={onRespond} onCounterOffer={onCounterOffer} notify={notify} />)}
+      {queued.length > 0 && (
+        <div className="ch-card" style={{ overflow: 'hidden' }}>
+          <div className="ch-head"><h3>Agendadas por você</h3><span className="ch-small">enviadas em {shortD(nextWindowOpenDay(save.calendarDay))}</span></div>
+          {queued.map(q => (
+            <div key={`${q.kind}-${q.playerName}`} className="ch-al">
+              <Crest clubId={q.clubId} size={32} />
+              <div style={{ minWidth: 0, flex: 1 }}><b>{q.playerName}</b><p>{q.kind === 'buy' ? `Compra · ${money(q.amount)}` : `Empréstimo · ${LOAN_DURATIONS.find(d => d.kind === q.loanKind)?.label}`} · {displayName(clubOf(q.clubId)?.club)}</p></div>
+              <button type="button" className="ch-act ch-link" onClick={() => onCancelQueued(q.playerName, q.kind)}>Cancelar</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Clubes ─────────────────────────────────────────────────────────────
+function ClubsTab({ save, clubStats, onOpenClub }) {
   const [division, setDivision] = useState('A');
-  const [clubAdv, setClubAdv] = useState(EMPTY_CLUB_ADV);
-
-  if (clubId) {
-    return (
-      <div>
-        <button onClick={() => setClubId(null)} style={{ ...backButtonStyle, fontSize: 12, padding: '6px 12px', marginBottom: 10 }}>← Outro clube</button>
-        <ClubRosterList key={clubId} save={save} clubId={clubId} onPropose={onPropose} onRequestLoan={onRequestLoan} windowOpen={windowOpen} />
-      </div>
-    );
-  }
-
-  // Divisão ATUAL de cada clube (save.clubs[id].division, atualizada de
-  // verdade a cada acesso/queda no fim de temporada — ver seasonEngine.js)
-  // em vez da lista estática SERIE_A/B_2026_TEAM_IDS (a composição real de
-  // 2026): bug reportado pelo usuário 2026-11-13 — um clube rebaixado pra
-  // Série B continuava aparecendo em "Série A" aqui pra sempre.
-  const idsForDivision = CAREER_CLUB_IDS.filter(id => save.clubs[id].division === division);
-  const q = normalize(clubQuery.trim());
-  const strengthMin = clubAdv.strengthMin ? Number(clubAdv.strengthMin) : null;
-  const strengthMax = clubAdv.strengthMax ? Number(clubAdv.strengthMax) : null;
-  const valueMin = clubAdv.valueMin ? Number(clubAdv.valueMin) : null;
-  const valueMax = clubAdv.valueMax ? Number(clubAdv.valueMax) : null;
-  const filteredIds = idsForDivision
-    .filter(id => id !== save.myClubId)
-    .filter(id => !q || normalize(TEAMS.find(t => t.id === id).club).includes(q))
+  const [q, setQ] = useState('');
+  const [adv, setAdv] = useState({ sMin: '', sMax: '', vMin: '', vMax: '' });
+  const nq = normalize(q.trim());
+  const ids = CAREER_CLUB_IDS.filter(id => id !== save.myClubId && save.clubs[id].division === division)
+    .filter(id => !nq || normalize(clubOf(id).club).includes(nq))
     .filter(id => {
-      if (strengthMin == null && strengthMax == null) return true;
-      const str = clubSquadStrength(save, id);
-      if (strengthMin != null && str < strengthMin) return false;
-      if (strengthMax != null && str > strengthMax) return false;
+      const s = clubStats[id];
+      if (adv.sMin && s.strength < Number(adv.sMin)) return false;
+      if (adv.sMax && s.strength > Number(adv.sMax)) return false;
+      if (adv.vMin && s.value < Number(adv.vMin) * 1e6) return false;
+      if (adv.vMax && s.value > Number(adv.vMax) * 1e6) return false;
       return true;
     })
-    .filter(id => {
-      if (valueMin == null && valueMax == null) return true;
-      const val = clubSquadValue(save, id);
-      if (valueMin != null && val < valueMin) return false;
-      if (valueMax != null && val > valueMax) return false;
-      return true;
-    });
-
+    .sort((a, b) => clubOf(a).club.localeCompare(clubOf(b).club));
+  const set = (k) => (e) => setAdv(prev => ({ ...prev, [k]: e.target.value.replace(/\D/g, '').slice(0, 5) }));
   return (
-    <div>
-      <input value={clubQuery} onChange={e => setClubQuery(e.target.value)} placeholder="🔍 Buscar clube pelo nome..." style={{ ...inputStyle, width: '100%', marginBottom: 8, boxSizing: 'border-box' }} />
-      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-        {['A', 'B'].map(d => (
-          <button
-            key={d}
-            onClick={() => setDivision(d)}
-            style={{
-              flex: 1, padding: '7px 0', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-              border: `1px solid ${division === d ? 'var(--gold)' : 'var(--line-strong)'}`,
-              background: division === d ? 'rgba(194,154,69,0.12)' : 'transparent',
-              color: division === d ? 'var(--gold-ink)' : 'var(--ink-2)',
-            }}
-          >Série {d}</button>
-        ))}
+    <div className="ch-card mk-res">
+      <div className="mk-top">
+        <div className="cf-seg" role="tablist" aria-label="Divisão">
+          {['A', 'B'].map(d => <button key={d} type="button" role="tab" aria-selected={division === d} className={division === d ? 'cf-on' : ''} onClick={() => setDivision(d)}>Série {d}</button>)}
+        </div>
+        <label className="sq-search" style={{ flex: '1 1 200px' }}><Icon name="search" size={16} /><input value={q} onChange={e => setQ(e.target.value)} placeholder="Buscar clube…" aria-label="Buscar clube" /></label>
       </div>
-      <ClubAdvancedFilters adv={clubAdv} setAdv={setClubAdv} />
-      {filteredIds.length === 0 && <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '12px 0' }}>Nenhum clube encontrado com esse filtro.</p>}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {filteredIds.map(id => {
-          const team = TEAMS.find(t => t.id === id);
-          const logo = CLUB_LOGOS[team.club];
+      <div className="mk-fbar">
+        <label className="mk-fsel">Força <input inputMode="numeric" value={adv.sMin} onChange={set('sMin')} placeholder="min" aria-label="Força mínima" />–<input inputMode="numeric" value={adv.sMax} onChange={set('sMax')} placeholder="max" aria-label="Força máxima" /></label>
+        <label className="mk-fsel">Valor R$ <input inputMode="numeric" value={adv.vMin} onChange={set('vMin')} placeholder="min" aria-label="Valor mínimo em milhões" />–<input inputMode="numeric" value={adv.vMax} onChange={set('vMax')} placeholder="max" aria-label="Valor máximo em milhões" />M</label>
+      </div>
+      {ids.length === 0 && <div className="ch-empty">Nenhum clube com esses filtros.</div>}
+      <div className="mk-clubs">
+        {ids.map(id => {
+          const s = clubStats[id];
           return (
-            <button key={id} onClick={() => setClubId(id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer', textAlign: 'left' }} className="mode-card-hover">
-              {logo && <img src={logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
-              <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(team.club)}</span>
+            <button key={id} type="button" className="mk-club" onClick={() => onOpenClub(id)}>
+              <Crest clubId={id} size={40} />
+              <b className="cf-ell">{displayName(clubOf(id).club)}</b>
+              <span className="mk-club-stats"><span><small>Força</small>{s.strength}</span><span><small>Valor</small>{moneyShort(s.value)}</span><span><small>Na lista</small>{s.listed}</span></span>
             </button>
           );
         })}
@@ -575,183 +571,120 @@ function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
   );
 }
 
-function OfferCard({ offer, idx, onRespond, onCounterOffer, onResult }) {
-  const [countering, setCountering] = useState(false);
-  const [counterInput, setCounterInput] = useState('');
-  const buyerTeam = TEAMS.find(t => t.id === offer.fromClubId);
-  const counterAmount = counterInput ? parseInt(counterInput, 10) : 0;
-  const isLoan = offer.type === 'loan';
-  const loanLabel = isLoan ? LOAN_DURATIONS.find(d => d.kind === offer.kind)?.label : null;
-
-  const handleAccept = () => {
-    onRespond(idx, true);
-    onResult({ type: isLoan ? 'loan-accept' : 'accept', playerName: offer.playerName, clubName: buyerTeam?.club, amount: offer.amount, loanLabel });
-  };
-  const handleReject = () => {
-    onRespond(idx, false);
-    onResult({ type: isLoan ? 'loan-reject' : 'reject', playerName: offer.playerName, clubName: buyerTeam?.club });
-  };
-  const handleSendCounter = () => {
-    if (counterAmount <= offer.amount) return;
-    const result = onCounterOffer(idx, counterAmount);
-    onResult({
-      type: result?.accepted ? 'counter-accept' : 'counter-reject',
-      playerName: offer.playerName, clubName: buyerTeam?.club, amount: counterAmount,
-    });
-    setCountering(false);
-    setCounterInput('');
-  };
-
-  return (
-    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 8 }}>
-      {isLoan ? (
-        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{displayName(buyerTeam?.club)}</b> quer pegar <b>{offer.playerName}</b> emprestado por <b style={{ color: 'var(--info)' }}>{loanLabel}</b></div>
-      ) : (
-        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{displayName(buyerTeam?.club)}</b> oferece <b style={{ color: 'var(--gold-ink)' }}>{formatMoney(offer.amount)}</b> por <b>{offer.playerName}</b></div>
-      )}
-      {!countering ? (
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={handleAccept} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: 'var(--success)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Aceitar</button>
-          {!isLoan && <button onClick={() => setCountering(true)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid var(--gold)', background: 'rgba(194,154,69,0.1)', color: 'var(--gold-ink)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Contraproposta</button>}
-          <button onClick={handleReject} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' }}>Rejeitar</button>
-        </div>
-      ) : (
-        <div>
-          <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Peça um valor maior — se o clube topar pagar, a venda sai nesse valor; se achar caro demais, desiste e a proposta cai.</p>
-          <div style={{ display: 'flex', gap: 6 }}>
-            <input
-              value={counterInput ? Number(counterInput).toLocaleString('pt-BR') : ''}
-              onChange={e => setCounterInput(e.target.value.replace(/\D/g, '').slice(0, 10))}
-              placeholder={`Maior que ${formatMoney(offer.amount)}`}
-              inputMode="numeric"
-              style={{ ...inputStyle, flex: 1 }}
-            />
-            <button
-              onClick={handleSendCounter}
-              disabled={counterAmount <= offer.amount}
-              style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: counterAmount > offer.amount ? 'var(--gold)' : 'rgba(194,154,69,0.2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: counterAmount > offer.amount ? 'pointer' : 'default' }}
-            >Enviar</button>
-            <button onClick={() => { setCountering(false); setCounterInput(''); }} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Mensagem informativa depois de aceitar/rejeitar/contrapropor — pedido
-// explícito do usuário (2026-11-06: antes a proposta só sumia da lista
-// sem dizer o que aconteceu).
-function offerResultMessage(result) {
-  if (result.type === 'accept') return { ok: true, text: `✅ Proposta aceita — ${result.playerName} foi vendido para o ${result.clubName} por ${formatMoney(result.amount)}.` };
-  if (result.type === 'reject') return { ok: false, text: `❌ Proposta por ${result.playerName} recusada.` };
-  if (result.type === 'loan-accept') return { ok: true, text: `✅ Empréstimo aceito — ${result.playerName} foi pro ${result.clubName} por ${result.loanLabel}.` };
-  if (result.type === 'loan-reject') return { ok: false, text: `❌ Proposta de empréstimo por ${result.playerName} recusada.` };
-  if (result.type === 'counter-accept') return { ok: true, text: `✅ Contraproposta aceita — ${result.playerName} foi vendido para o ${result.clubName} por ${formatMoney(result.amount)}.` };
-  return { ok: false, text: `↩️ O ${result.clubName} não topou pagar ${formatMoney(result.amount)} por ${result.playerName} e desistiu do negócio.` };
-}
-
-function OffersTab({ save, onRespond, onCounterOffer }) {
-  const [lastResult, setLastResult] = useState(null);
-  if (!save.pendingOffers?.length) {
-    return (
-      <div>
-        {lastResult && (() => {
-          const msg = offerResultMessage(lastResult);
-          return (
-            <div style={{
-              padding: '9px 12px', borderRadius: 8, marginBottom: 12, fontSize: 12.5,
-              background: msg.ok ? 'rgba(31,122,77,0.1)' : 'rgba(178,59,59,0.1)',
-              border: `1px solid ${msg.ok ? 'rgba(31,122,77,0.45)' : 'rgba(178,59,59,0.45)'}`,
-              color: msg.ok ? 'var(--success)' : 'var(--danger)',
-            }}>{msg.text}</div>
-          );
-        })()}
-        <p style={{ fontSize: 13, color: 'var(--muted)' }}>Nenhuma proposta por enquanto — elas podem surgir durante uma janela de transferências aberta (janeiro, ou julho), quando um clube de IA se interessa por algum jogador seu (pra comprar ou pra pegar emprestado). Colocar o jogador na lista de transferências ou na lista de empréstimo (aba "Meu elenco") aumenta a chance.</p>
-      </div>
-    );
-  }
-  return (
-    <div>
-      {lastResult && (() => {
-        const msg = offerResultMessage(lastResult);
-        return (
-          <div style={{
-            padding: '9px 12px', borderRadius: 8, marginBottom: 10, fontSize: 12.5,
-            background: msg.ok ? 'rgba(31,122,77,0.1)' : 'rgba(178,59,59,0.1)',
-            border: `1px solid ${msg.ok ? 'rgba(31,122,77,0.45)' : 'rgba(178,59,59,0.45)'}`,
-            color: msg.ok ? 'var(--success)' : 'var(--danger)',
-          }}>{msg.text}</div>
-        );
-      })()}
-      {save.pendingOffers.map((offer, idx) => (
-        <OfferCard key={`${offer.fromClubId}-${offer.playerName}-${idx}`} offer={offer} idx={idx} onRespond={onRespond} onCounterOffer={onCounterOffer} onResult={setLastResult} />
-      ))}
-    </div>
-  );
-}
-
+// ── Histórico ──────────────────────────────────────────────────────────
+const HIST_TYPES = {
+  'user-buy': { label: 'Compra', tone: 'gold', sign: -1 },
+  'user-sell': { label: 'Venda', tone: 'success', sign: 1 },
+  'loan-out': { label: 'Empréstimo', tone: 'info', sign: 0 },
+  'loan-in': { label: 'Empréstimo', tone: 'info', sign: 0 },
+  'loan-return': { label: 'Retorno', tone: 'mute', sign: 0 },
+  retired: { label: 'Aposentadoria', tone: 'mute', sign: 0 },
+};
 const HISTORY_FILTERS = [
   { id: '', label: 'Todos' },
   { id: 'user-buy', label: 'Comprados' },
   { id: 'user-sell', label: 'Vendidos' },
   { id: 'loan-out', label: 'Emprestados' },
   { id: 'loan-in', label: 'Pegos emprestado' },
+  { id: 'loan-return', label: 'Retornos' },
   { id: 'retired', label: 'Aposentados' },
 ];
-
-// Uma linha do histórico, já com ícone/texto/cor prontos pra UI — cada tipo
-// de evento (comprado/vendido/emprestado/pegado emprestado/aposentado) lê
-// os clubes certos pra formar a frase (quem compra/empresta é sempre o
-// outro lado do negócio, nunca o próprio usuário, que a frase já assume).
-function historyLine(entry, myClubId) {
-  const otherId = entry.fromClubId === myClubId ? entry.toClubId : entry.fromClubId;
-  const otherTeam = TEAMS.find(t => t.id === otherId);
-  switch (entry.type) {
-    case 'user-buy':
-      return { icon: '📥', color: 'var(--success)', text: `Comprado — ${entry.playerName} do ${displayName(otherTeam?.club)} por ${formatMoney(entry.amount)}` };
-    case 'user-sell':
-      return { icon: '📤', color: 'var(--warning-ink)', text: `Vendido — ${entry.playerName} para o ${displayName(otherTeam?.club)} por ${formatMoney(entry.amount)}` };
-    case 'loan-out':
-      return { icon: '🔁', color: 'var(--info)', text: `Emprestado — ${entry.playerName} para o ${displayName(otherTeam?.club)}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
-    case 'loan-in':
-      return { icon: '🔁', color: 'var(--info)', text: `Pego emprestado — ${entry.playerName} do ${displayName(otherTeam?.club)}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
-    case 'retired':
-      return { icon: '🏁', color: 'var(--ink-2)', text: `Aposentado — ${entry.playerName}` };
-    default:
-      return { icon: '🔄', color: 'var(--ink-2)', text: entry.playerName };
-  }
-}
+const myLog = (save) => (save.transferLog || []).filter(e => e.fromClubId === save.myClubId || e.toClubId === save.myClubId);
 
 function HistoryTab({ save }) {
   const [filter, setFilter] = useState('');
-  const myId = save.myClubId;
-  const mine = (save.transferLog || []).filter(e => e.fromClubId === myId || e.toClubId === myId);
-  const filtered = (filter ? mine.filter(e => e.type === filter) : mine).slice().reverse(); // mais recente primeiro
+  const mine = myLog(save);
+  const list = (filter ? mine.filter(e => e.type === filter) : mine).slice().reverse();
+  const seasons = [...new Set(list.map(e => e.season))];
   return (
-    <div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: 12, flexWrap: 'wrap' }}>
-        {HISTORY_FILTERS.map(f => (
-          <button
-            key={f.id}
-            onClick={() => setFilter(f.id)}
-            style={{
-              padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-              border: `1px solid ${filter === f.id ? 'var(--gold)' : 'var(--line-strong)'}`,
-              background: filter === f.id ? 'rgba(194,154,69,0.12)' : 'transparent',
-              color: filter === f.id ? 'var(--gold-ink)' : 'var(--muted)',
-            }}
-          >{f.label}</button>
-        ))}
+    <div className="ch-card mk-res">
+      <div className="ch-chips" style={{ padding: '14px 18px' }} role="tablist" aria-label="Filtrar histórico">
+        {HISTORY_FILTERS.map(f => {
+          const n = f.id ? mine.filter(e => e.type === f.id).length : mine.length;
+          return <button key={f.id || 'all'} type="button" role="tab" aria-selected={filter === f.id} className={`ch-chip${filter === f.id ? ' ch-on' : ''}`} onClick={() => setFilter(f.id)}>{f.label} <em style={{ fontStyle: 'normal', opacity: 0.6 }}>{n}</em></button>;
+        })}
       </div>
-      {filtered.length === 0 && <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '12px 0' }}>Nenhum registro {filter ? 'desse tipo ' : ''}ainda.</p>}
-      {filtered.map((entry, i) => {
-        const line = historyLine(entry, myId);
+      {list.length === 0 && <div className="ch-empty">Nenhum registro {filter ? 'desse tipo ' : ''}ainda.</div>}
+      {seasons.map(season => (
+        <div key={season}>
+          <div className="sq-grp">Temporada {season}</div>
+          {list.filter(e => e.season === season).map((e, i) => {
+            const t = HIST_TYPES[e.type] || { label: e.type, tone: 'mute', sign: 0 };
+            const incoming = e.toClubId === save.myClubId;
+            const otherId = incoming ? e.fromClubId : e.toClubId;
+            const sign = e.type === 'user-buy' ? -1 : e.type === 'user-sell' ? 1 : 0;
+            return (
+              <div key={`${season}-${i}`} className="mk-hr">
+                <span className="mk-hr-date">d{e.day ?? '—'}<small>{e.day ? shortD(e.day) : ''}</small></span>
+                <span className={`ch-tag ch-t-${t.tone === 'gold' ? 'gold' : t.tone}`}>{e.type === 'loan-in' ? 'Pego emprestado' : t.label}</span>
+                <span className="mk-hr-pl"><b className="cf-ell">{e.playerName}</b></span>
+                <span className="mk-hr-club">{e.type !== 'retired' && otherId ? <><span className="ch-small">{incoming ? 'do' : 'para o'}</span><Crest clubId={otherId} size={22} /><span className="cf-ell">{displayName(clubOf(otherId)?.club)}</span></> : <span className="ch-small">—</span>}</span>
+                <span className="mk-hr-v" style={{ color: sign > 0 ? 'var(--success)' : sign < 0 ? 'var(--danger)' : 'var(--muted)' }}>{sign ? `${sign > 0 ? '+' : '−'}${moneyShort(e.amount).replace('R$ ', '')}` : e.durationLabel || '—'}</span>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Observados ─────────────────────────────────────────────────────────
+function ShortlistTab({ save, allRows, onToggleShortlist, panelProps }) {
+  const [openKey, setOpenKey] = useState(null);
+  const list = save.shortlist || [];
+  if (!list.length) {
+    return (
+      <div className="ch-card mk-empty">
+        <span className="mk-empty-ico"><Icon name="eye" size={26} /></span>
+        <b>Nenhum jogador observado</b>
+        <p className="ch-small">Use o botão de olho em Contratar ou Clubes para acompanhar OVR e valor.</p>
+      </div>
+    );
+  }
+  return (
+    <div className="ch-card mk-res">
+      <div className="mk-th mk-th-watch" aria-hidden="true"><span>Jogador</span><span>Pos</span><span className="r">OVR</span><span className="r">Valor</span><span /></div>
+      {list.map(s => {
+        const row = allRows.find(r => r.p.name === s.playerName);
+        const found = row || findPlayerAnywhere(save, s.playerName);
+        const atMine = found && found.clubId === save.myClubId;
+        const p = row?.p || found?.player;
+        if (!p) {
+          return (
+            <div key={s.playerName} className="mk-tr mk-tr-watch">
+              <div className="mk-pl"><div><b>{s.playerName}</b><small>Não está mais em nenhum clube (aposentado)</small></div></div>
+              <span /><span /><span />
+              <button type="button" className="ch-link" onClick={() => onToggleShortlist(s.clubId, s.playerName)}>Remover</button>
+            </div>
+          );
+        }
+        const value = row ? row.value : computePlayerValue(p, found.clubId);
+        const dOvr = p.ovr - s.ovr;
+        const dVal = s.value ? Math.round(((value - s.value) / s.value) * 100) : 0;
+        const key = `${row?.clubId}::${p.name}`;
+        const open = openKey === key;
         return (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 6 }}>
-            <span style={{ fontSize: 15, flexShrink: 0 }}>{line.icon}</span>
-            <span style={{ flex: 1, fontSize: 12.5, color: line.color }}>{line.text}</span>
-            <span style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>T{entry.season} · d{entry.day}</span>
+          <div key={s.playerName} className={`mk-tr-wrap${open ? ' mk-open' : ''}`}>
+            <div className="mk-tr mk-tr-watch">
+              <div className="mk-pl"><Crest clubId={found.clubId} /><div style={{ minWidth: 0 }}><b className="cf-ell">{p.name}</b><small>{displayName(clubOf(found.clubId)?.club)}{atMine ? ' · já é seu' : ''}{found.clubId !== s.clubId ? ` · trocou de clube` : ''} · observado em {shortD(s.day)}</small></div></div>
+              <PosChip pos={p.pos[0]} />
+              <span className="mk-delta"><span className={`sq-ovr ${ovrClass(p.ovr)}`}>{p.ovr}</span>{dOvr !== 0 && <small style={{ color: dOvr > 0 ? 'var(--success)' : 'var(--danger)' }}>{dOvr > 0 ? '+' : ''}{dOvr}</small>}</span>
+              <span className="mk-delta mk-hide-m"><span className="sq-num">{moneyShort(value)}</span>{dVal !== 0 && <small style={{ color: dVal > 0 ? 'var(--success)' : 'var(--danger)' }}>{dVal > 0 ? '+' : ''}{dVal}%</small>}</span>
+              <span className="mk-acts">
+                <button type="button" className="mk-icon-btn mk-watch-on" onClick={() => onToggleShortlist(s.clubId, s.playerName)} aria-label={`Deixar de observar ${p.name}`} title="Deixar de observar"><Icon name="close" size={15} /></button>
+                {row && <button type="button" className={`mk-act${open ? ' mk-act-on' : ''}`} onClick={() => setOpenKey(open ? null : key)} aria-expanded={open}>{open ? 'Fechar' : 'Propor'}</button>}
+              </span>
+            </div>
+            {open && row && (
+              <div className="mk-prop-wrap">
+                <div className="mk-sheet-bg" onClick={() => setOpenKey(null)} aria-hidden="true" />
+                <div className="mk-prop-sheet">
+                  <div className="mk-sheet-head"><b>{p.name}</b><button type="button" className="ui-modal-close" style={{ position: 'static' }} onClick={() => setOpenKey(null)} aria-label="Fechar proposta"><Icon name="close" size={18} /></button></div>
+                  <ProposePanel save={save} row={row} {...panelProps} onDone={() => setOpenKey(null)} />
+                </div>
+              </div>
+            )}
           </div>
         );
       })}
@@ -759,20 +692,183 @@ function HistoryTab({ save }) {
   );
 }
 
-export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounterOffer, onToggleListed, onToggleLoanList, onRequestLoan, onBack }) {
-  const [tab, setTab] = useState(save.pendingOffers?.length ? 'offers' : 'mine');
-  const windowOpen = isTransferWindowOpen(save.calendarDay);
+// ── Lateral ────────────────────────────────────────────────────────────
+function SideColumn({ save, onSeekPos, onOpenHistory }) {
+  const roster = save.clubs[save.myClubId].roster.filter(p => !p.inAcademy);
+  const { thin, veterans } = squadNeeds(roster);
+  const log = myLog(save);
+  const season = log.filter(e => e.season === save.season);
+  const sells = season.filter(e => e.type === 'user-sell');
+  const buys = season.filter(e => e.type === 'user-buy');
+  const sellT = sells.reduce((s, e) => s + (e.amount || 0), 0);
+  const buyT = buys.reduce((s, e) => s + (e.amount || 0), 0);
+  const recent = log.slice(-4).reverse();
   return (
-    <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 4 }}>Mercado de Transferências</h2>
-      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Orçamento: <b style={{ color: 'var(--gold-ink)' }}>{formatMoney(save.clubs[save.myClubId].budget)}</b></p>
-      <TransferWindowBadge day={save.calendarDay} style={{ marginBottom: 12 }} />
-      <TabBar tab={tab} setTab={setTab} offerCount={save.pendingOffers?.length || 0} />
-      {tab === 'mine' && <MyRosterTab save={save} onToggleListed={onToggleListed} onToggleLoanList={onToggleLoanList} windowOpen={windowOpen} />}
-      {tab === 'other' && <OtherClubsTab save={save} onPropose={onPropose} onRequestLoan={onRequestLoan} windowOpen={windowOpen} />}
-      {tab === 'offers' && <OffersTab save={save} onRespond={onRespondOffer} onCounterOffer={onCounterOffer} />}
-      {tab === 'history' && <HistoryTab save={save} />}
+    <div className="mk-side">
+      <div className="ch-card" style={{ overflow: 'hidden' }}>
+        <div className="ch-head"><h3>Carências</h3></div>
+        {thin.length === 0 && veterans.length === 0 && <div className="ch-empty">Elenco sem posição carente.</div>}
+        {thin.map(d => (
+          <div key={d.id} className="mk-need">
+            <span className="mk-k">{d.id}</span>
+            <div style={{ minWidth: 0, flex: 1 }}><b>{d.count === 0 ? 'Nenhum jogador' : 'Só 1 jogador'}</b><small>{d.best ? `Melhor: ${d.best.name}, ${d.best.ovr}${(save.transferList || []).includes(d.best.name) ? ' (na lista)' : ''}` : 'Posição descoberta'}</small></div>
+            <button type="button" className="ch-link" onClick={() => onSeekPos(d.pos)}>Buscar</button>
+          </div>
+        ))}
+        {veterans.length > 0 && (
+          <div className="mk-need">
+            <span className="mk-k mk-k-mute">32+</span>
+            <div style={{ minWidth: 0, flex: 1 }}><b>{veterans.length} jogador{veterans.length > 1 ? 'es' : ''} veterano{veterans.length > 1 ? 's' : ''}</b><small className="cf-ell">{veterans.slice(0, 3).map(p => p.name).join(', ')}{veterans.length > 3 ? '…' : ''}</small></div>
+          </div>
+        )}
+      </div>
+      <div className="ch-card">
+        <div className="ch-head"><h3>Balanço da temporada</h3></div>
+        <div className="mk-bal">
+          <div className="ch-row"><span>Vendas · {sells.length}</span><b style={{ color: 'var(--success)' }}>+ {moneyShort(sellT)}</b></div>
+          <div className="ch-row"><span>Compras · {buys.length}</span><b style={{ color: 'var(--danger)' }}>− {moneyShort(buyT)}</b></div>
+          <div className="ch-row"><span><b style={{ fontFamily: 'var(--font-body)' }}>Saldo</b></span><b style={{ color: sellT - buyT >= 0 ? 'var(--success)' : 'var(--danger)' }}>{sellT - buyT >= 0 ? '+ ' : '− '}{moneyShort(Math.abs(sellT - buyT))}</b></div>
+        </div>
+      </div>
+      <div className="ch-card" style={{ overflow: 'hidden' }}>
+        <div className="ch-head"><h3>Movimentações</h3><button type="button" className="ch-link" onClick={onOpenHistory}>Histórico</button></div>
+        {recent.length === 0 && <div className="ch-empty">Nenhuma movimentação ainda.</div>}
+        {recent.map((e, i) => {
+          const incoming = e.toClubId === save.myClubId;
+          const other = clubOf(incoming ? e.fromClubId : e.toClubId);
+          const sign = e.type === 'user-buy' ? -1 : e.type === 'user-sell' ? 1 : 0;
+          return (
+            <div key={i} className="mk-hist">
+              <span className={`mk-ar ${incoming ? 'mk-in' : 'mk-out'}`} aria-label={incoming ? 'entrada' : 'saída'}><Icon name="arrowRight" size={14} style={{ transform: `rotate(${incoming ? 135 : -45}deg)` }} /></span>
+              <div style={{ minWidth: 0, flex: 1 }}><b className="cf-ell">{e.playerName}</b><small>{e.type === 'retired' ? 'aposentou' : `${incoming ? 'do' : 'para o'} ${displayName(other?.club)}`} · dia {e.day ?? '—'}</small></div>
+              <span className="mk-v" style={{ color: sign > 0 ? 'var(--success)' : sign < 0 ? 'var(--danger)' : 'var(--muted)' }}>{sign ? `${sign > 0 ? '+' : '−'}${moneyShort(e.amount).replace('R$ ', '')}` : HIST_TYPES[e.type]?.label || ''}</span>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ── Tela ───────────────────────────────────────────────────────────────
+export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounterOffer, onToggleListed, onToggleLoanList, onRequestLoan, onToggleShortlist, onQueueProposal, onCancelQueued }) {
+  const [tab, setTab] = useState(save.pendingOffers?.length ? 'offers' : 'buy');
+  const [club, setClub] = useState(null);
+  const [f, setF] = useState(EMPTY_F);
+  const [clubF, setClubF] = useState(EMPTY_F);
+  const [sort, setSort] = useState('value-for-money');
+  const [toast, setToast] = useState(null);
+  const [howOpen, setHowOpen] = useState(false);
+  const toastTimer = useRef(null);
+  const notify = (t) => { setToast(t); clearTimeout(toastTimer.current); toastTimer.current = setTimeout(() => setToast(null), 4000); };
+  useEffect(() => () => clearTimeout(toastTimer.current), []);
+
+  const team = clubOf(save.myClubId);
+  const myRoster = save.clubs[save.myClubId].roster.filter(p => !p.inAcademy);
+  const budget = save.clubs[save.myClubId].budget;
+
+  // Todos os jogadores de outros clubes, com valor, "na lista do clube"
+  // (decideAiListings, mesma regra que a IA usa) e chance de empréstimo.
+  const { allRows, clubStats } = useMemo(() => {
+    const rows = [];
+    const stats = {};
+    for (const id of CAREER_CLUB_IDS) {
+      if (id === save.myClubId) continue;
+      const roster = save.clubs[id].roster.filter(p => !p.inAcademy);
+      const listed = new Set(decideAiListings(roster));
+      let valueSum = 0;
+      for (const p of roster) {
+        const value = computePlayerValue(p, id);
+        valueSum += value;
+        rows.push({ p, clubId: id, value, listed: listed.has(p.name), loanChance: loanOutWillingness(roster, p), division: save.clubs[id].division });
+      }
+      stats[id] = { strength: roster.length ? Math.round(roster.reduce((s, p) => s + p.ovr, 0) / roster.length) : 0, value: valueSum, listed: listed.size };
+    }
+    return { allRows: rows, clubStats: stats };
+  }, [save.clubs, save.myClubId]);
+
+  const needPos = useMemo(() => {
+    const { thin } = squadNeeds(myRoster);
+    return new Set(thin.flatMap(d => d.pos));
+  }, [myRoster]);
+
+  const log = myLog(save).filter(e => e.season === save.season);
+  const windowBalance = log.reduce((s, e) => s + (e.type === 'user-sell' ? e.amount || 0 : e.type === 'user-buy' ? -(e.amount || 0) : 0), 0);
+  const listedCount = (save.transferList || []).filter(n => myRoster.some(p => p.name === n)).length;
+  const offerCount = save.pendingOffers?.length || 0;
+  const shortCount = (save.shortlist || []).length;
+
+  const panelProps = { onPropose, onRequestLoan, onQueue: onQueueProposal, onCancelQueued, notify };
+  const tabs = [
+    { id: 'buy', label: 'Contratar', icon: 'search' },
+    { id: 'mine', label: 'Meu elenco', icon: 'shirt', badge: listedCount ? `${listedCount} listado${listedCount > 1 ? 's' : ''}` : null },
+    { id: 'offers', label: 'Propostas', icon: 'chat', badge: String(offerCount), hot: offerCount > 0 },
+    { id: 'clubs', label: 'Clubes', icon: 'cup' },
+    { id: 'history', label: 'Histórico', icon: 'calendar' },
+    { id: 'watch', label: 'Observados', icon: 'eye', badge: shortCount ? String(shortCount) : null, hot: shortCount > 0 },
+  ];
+  const seekPos = (positions) => { setF({ ...EMPTY_F, pos: positions }); setTab('buy'); setClub(null); };
+
+  return (
+    <div className="ch-main mk-main">
+      <div className="mk-ph">
+        <div style={{ minWidth: 0 }}>
+          <span className="ch-mono">{displayName(team.club)} · Temporada {save.season} · {longDate(save.calendarDay)}</span>
+          <h1>Mercado</h1>
+        </div>
+        <div className="mk-budget">
+          <div><small>Orçamento</small><b>{moneyShort(budget)}</b></div>
+          <div><small>Saldo na temporada</small><b style={{ color: windowBalance > 0 ? 'var(--success)' : windowBalance < 0 ? 'var(--danger)' : undefined }}>{windowBalance > 0 ? '+ ' : windowBalance < 0 ? '− ' : ''}{moneyShort(Math.abs(windowBalance))}</b></div>
+          <div><small>Elenco</small><b>{myRoster.length} <span className="ch-small" style={{ fontFamily: 'var(--font-body)' }}>mín. {MIN_SQUAD_SIZE}</span></b></div>
+        </div>
+      </div>
+
+      <WindowCard day={save.calendarDay} />
+
+      <div className="mk-tabs-row">
+        <div className="mk-tabs" role="tablist" aria-label="Seções do mercado">
+          {tabs.map(t => (
+            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={tab === t.id ? 'mk-on' : ''} onClick={() => { setTab(t.id); setClub(null); }}>
+              <Icon name={t.icon} size={16} />{t.label}{t.badge && <em className={t.hot ? 'mk-hot' : ''}>{t.badge}</em>}
+            </button>
+          ))}
+        </div>
+        <span className="mk-how-wrap">
+          <button type="button" className="ch-link" onClick={() => setHowOpen(o => !o)} aria-expanded={howOpen}><Icon name="info" size={15} /> Como funciona</button>
+          {howOpen && (
+            <span className="mk-how" role="dialog" aria-label="Como funciona o mercado">
+              <b>Comprar:</b> o clube vendedor decide. Abaixo de 60% do valor de mercado ele nunca aceita; a partir do valor cheio, sempre aceita.<br />
+              <b>Vender:</b> não existe venda direta. Coloque o jogador na lista de venda (+50% de chance de proposta) e responda na aba Propostas.<br />
+              <b>Emprestar:</b> funciona igual, pela lista de empréstimo; a duração vem na proposta.<br />
+              <b>Janela fechada:</b> dá para agendar propostas; elas são enviadas no dia em que a janela abrir.
+              <button type="button" className="ch-link" style={{ display: 'block', marginTop: 6 }} onClick={() => setHowOpen(false)}>Fechar</button>
+            </span>
+          )}
+        </span>
+      </div>
+
+      <div className="mk-lay">
+        <div className="mk-col" style={{ minWidth: 0 }}>
+          {tab === 'buy' && <SearchTable save={save} allRows={allRows} f={f} setF={setF} sort={sort} setSort={setSort} needPos={needPos} panelProps={panelProps} onToggleShortlist={onToggleShortlist} />}
+          {tab === 'mine' && <MyRosterTab save={save} onToggleListed={onToggleListed} onToggleLoanList={onToggleLoanList} />}
+          {tab === 'offers' && <OffersTab save={save} onRespond={onRespondOffer} onCounterOffer={onCounterOffer} notify={notify} goMine={() => setTab('mine')} onCancelQueued={onCancelQueued} />}
+          {tab === 'clubs' && !club && <ClubsTab save={save} clubStats={clubStats} onOpenClub={(id) => { setClub(id); setClubF(EMPTY_F); }} />}
+          {tab === 'clubs' && club && (
+            <>
+              <div className="ch-card mk-clubhead">
+                <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={() => setClub(null)}><Icon name="arrowLeft" size={15} />Clubes</button>
+                <Crest clubId={club} size={44} />
+                <div style={{ minWidth: 0 }}><h2>{displayName(clubOf(club).club)}</h2><span className="ch-small">Série {save.clubs[club].division} · força {clubStats[club].strength} · {moneyShort(clubStats[club].value)} · {clubStats[club].listed} na lista</span></div>
+              </div>
+              <SearchTable save={save} allRows={allRows} fixedClub={club} f={clubF} setF={setClubF} sort={sort} setSort={setSort} needPos={needPos} panelProps={panelProps} onToggleShortlist={onToggleShortlist} />
+            </>
+          )}
+          {tab === 'history' && <HistoryTab save={save} />}
+          {tab === 'watch' && <ShortlistTab save={save} allRows={allRows} onToggleShortlist={onToggleShortlist} panelProps={panelProps} />}
+        </div>
+        <SideColumn save={save} onSeekPos={seekPos} onOpenHistory={() => { setTab('history'); setClub(null); }} />
+      </div>
+      <Toast toast={toast} />
     </div>
   );
 }

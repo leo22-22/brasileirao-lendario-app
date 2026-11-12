@@ -349,6 +349,9 @@ function inboxFromTransferLog(entry, idx, save) {
   const id = `tlog-${idx}-${entry.playerName}`;
   const buying = entry.toClubId === save.myClubId;
   const other = clubName(buying ? entry.fromClubId : entry.toClubId);
+  if (entry.type === 'loan-return') {
+    return { id, day, season, cat: 'mercado', title: buying ? `${entry.playerName} volta de empréstimo` : `${entry.playerName} volta ao ${other}`, text: buying ? `Retorna do ${other}` : 'Fim do empréstimo' };
+  }
   const isLoan = String(entry.type || '').startsWith('loan');
   const title = isLoan
     ? (buying ? `${entry.playerName} chega emprestado do ${other}` : `${entry.playerName} emprestado ao ${other}`)
@@ -409,6 +412,16 @@ export function syncCareerMeta(save) {
     boardState = { ...prevBoard, confidence: board.confidence };
   }
   if (boardState !== prevBoard) next = { ...next, board: boardState };
+
+  // Observados: aviso quando a janela abre (uma vez por janela).
+  if ((next.shortlist || []).length && isTransferWindowOpen(next.calendarDay)) {
+    const windowKey = next.calendarDay <= 31 ? 'jan' : 'jul';
+    const id = `s${next.season}-shortlist-${windowKey}`;
+    if (!known.has(id)) {
+      const n = next.shortlist.length;
+      fresh.push({ id, day: next.calendarDay, season: next.season, cat: 'mercado', action: 'market', title: `${n} jogador${n > 1 ? 'es' : ''} observado${n > 1 ? 's' : ''} disponíve${n > 1 ? 'is' : 'l'}`, text: 'A janela de transferências abriu — veja a aba Observados.' });
+    }
+  }
 
   if (fresh.length) {
     const inbox = [...fresh.map(m => ({ ...m, read: false })), ...next.inbox]

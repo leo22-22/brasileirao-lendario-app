@@ -34,6 +34,7 @@ import { toggleLoanList, requestLoanIn } from './engine/loans.js';
 import { applyCareerLineupChange } from './engine/simHelpers.js';
 import { displayName } from '../lib/displayName.js';
 import { syncCareerMeta, markInboxRead } from './engine/careerMeta.js';
+import { processQueuedProposals, toggleShortlist, queueProposal, cancelQueuedProposal } from './engine/marketQueue.js';
 import { CareerShell } from './components/CareerShell.jsx';
 import { CareerInboxScreen } from './screens/CareerInboxScreen.jsx';
 import { CareerFinanceScreen } from './screens/CareerFinanceScreen.jsx';
@@ -75,7 +76,7 @@ export function CareerApp({ onExit, onHudChange }) {
     if (!save) return;
     // Dados derivados da Visão geral (histórico de saldo, caixa de entrada,
     // diretoria) — idempotente: só devolve um save novo se algo mudou.
-    const synced = syncCareerMeta(save);
+    const synced = syncCareerMeta(processQueuedProposals(save));
     if (synced !== save) { setSave(synced); return; }
     saveCareerSave(save);
   }, [save]);
@@ -336,6 +337,17 @@ export function CareerApp({ onExit, onHudChange }) {
   // nova é de fato montada (ver seasonEngine.js: endOfSeason/
   // finalizeSeasonAfterUserTie já pararam em `screen:'season-report'` e
   // deixaram o relatório pronto em `save.lastSeasonReport`).
+  // Mercado: observados e propostas agendadas (janela fechada).
+  const handleToggleShortlist = useCallback((clubId, playerName) => {
+    setSave(prev => prev && toggleShortlist(prev, clubId, playerName));
+  }, []);
+  const handleQueueProposal = useCallback((proposal) => {
+    setSave(prev => prev && queueProposal(prev, proposal));
+  }, []);
+  const handleCancelQueued = useCallback((playerName, kind) => {
+    setSave(prev => prev && cancelQueuedProposal(prev, playerName, kind));
+  }, []);
+
   const handleMarkRead = useCallback((ids) => {
     setSave(prev => prev && markInboxRead(prev, ids));
   }, []);
@@ -460,7 +472,7 @@ export function CareerApp({ onExit, onHudChange }) {
   else if (screen === 'calendar') body = <CareerCalendarScreen save={save} onBack={back} />;
   else if (screen === 'copa') body = <CareerCopaScreen save={save} onBack={back} />;
   else if (screen === 'youth') body = <CareerYouthScreen save={save} onPromote={handlePromoteYouth} onBack={back} />;
-  else if (screen === 'market') body = <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onRequestLoan={handleRequestLoan} onBack={back} />;
+  else if (screen === 'market') body = <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onRequestLoan={handleRequestLoan} onToggleShortlist={handleToggleShortlist} onQueueProposal={handleQueueProposal} onCancelQueued={handleCancelQueued} onNavigate={setScreen} onBack={back} />;
   else if (screen === 'inbox') body = <CareerInboxScreen save={save} onNavigate={setScreen} onMarkRead={handleMarkRead} />;
   else if (screen === 'finance') body = <CareerFinanceScreen save={save} />;
   else body = <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onSimulateSeason={handleSimulateSeason} onMarkRead={handleMarkRead} />;
