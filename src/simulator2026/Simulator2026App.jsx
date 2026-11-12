@@ -111,7 +111,7 @@ function persistSave(save) {
 function TeamCrest({ team, size = 22 }) {
   return team?.clubLogo
     ? <img src={team.clubLogo} alt={team.club} style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
-    : <div style={{ width: size, height: size, borderRadius: '50%', background: 'rgba(255,255,255,0.1)', flexShrink: 0 }} />;
+    : <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surface-2)', flexShrink: 0 }} />;
 }
 
 // Monta o pacote de UMA partida (placar + timeline minuto a minuto já
@@ -260,7 +260,7 @@ function LiveMatchScreen({ pending, roundLabel, onFinish }) {
   const aColor = awayTeam.color || '#c94040';
 
   return (
-    <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px', fontFamily: "'Inter', sans-serif", color: '#F4F1EA' }}>
+    <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <div style={{ fontSize: 10.5, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 10 }}>{roundLabel}</div>
       <div style={ts.liveMatchBox}>
         <div style={ts.liveTeamsRow}>
@@ -281,17 +281,17 @@ function LiveMatchScreen({ pending, roundLabel, onFinish }) {
 
         {phase !== 'intro' && (
           <div style={ts.clockRow}>
-            <div style={{ ...ts.clock, color: phase === 'playing' ? '#7fd99a' : '#F4F1EA' }}>{minute}'</div>
+            <div style={{ ...ts.clock, color: phase === 'playing' ? 'var(--success)' : 'var(--ink)' }}>{minute}'</div>
             {phase === 'playing' && <div style={ts.clockPulse} />}
             {phase === 'playing' && (
               <div style={{ display: 'flex', gap: 4, marginLeft: 6 }}>
                 {[1, 1.5, 2].map(sp => (
                   <button key={sp} onClick={() => setSpeed(sp)} style={{
-                    fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: speed === sp ? 700 : 400,
+                    fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: speed === sp ? 700 : 400,
                     padding: '3px 8px', borderRadius: 6, border: '1px solid', cursor: 'pointer',
-                    borderColor: speed === sp ? '#d4a23c' : 'rgba(255,255,255,0.2)',
-                    background: speed === sp ? 'rgba(212,162,60,0.15)' : 'transparent',
-                    color: speed === sp ? '#d4a23c' : 'rgba(255,255,255,0.6)',
+                    borderColor: speed === sp ? 'var(--gold)' : 'var(--line-strong)',
+                    background: speed === sp ? 'rgba(194,154,69,0.15)' : 'transparent',
+                    color: speed === sp ? 'var(--gold-ink)' : 'var(--ink-2)',
                   }}>{sp}x</button>
                 ))}
               </div>
@@ -331,10 +331,10 @@ function LiveMatchScreen({ pending, roundLabel, onFinish }) {
       </div>
 
       {phase === 'intro' && (
-        <button onClick={start} style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>▶ Jogar partida</button>
+        <button onClick={start} style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--gold)', color: 'var(--ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>▶ Jogar partida</button>
       )}
       {phase === 'playing' && (
-        <button onClick={skipToEnd} style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>⏭ Pular pro resultado</button>
+        <button onClick={skipToEnd} style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>⏭ Pular pro resultado</button>
       )}
 
       {phase === 'done' && (
@@ -345,7 +345,7 @@ function LiveMatchScreen({ pending, roundLabel, onFinish }) {
           homeTeam={homeTeam}
           awayTeam={awayTeam}
           myTeamId={null}
-          myTeamColor="#d4a23c"
+          myTeamColor="#C29A45"
           onDismiss={onFinish}
         />
       )}
@@ -398,13 +398,13 @@ export function Simulator2026App({ onExit }) {
   const lastResults = [...save.log].reverse().slice(0, 12);
 
   return (
-    <div style={{ width: '100%', maxWidth: 680, margin: '0 auto', padding: '24px 16px', fontFamily: "'Inter', sans-serif", color: '#F4F1EA' }}>
+    <div style={{ width: '100%', maxWidth: 680, margin: '0 auto', padding: '24px 16px', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
       <button
         onClick={onExit}
-        style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#F4F1EA', padding: '8px 14px', fontSize: 12.5, cursor: 'pointer', marginBottom: 16 }}
+        style={{ background: 'none', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)', padding: '8px 14px', fontSize: 12.5, cursor: 'pointer', marginBottom: 16 }}
       >← Voltar ao menu</button>
 
-      <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, marginBottom: 4 }}>📡 Simulador do Brasileirão 2026</h1>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, marginBottom: 4 }}>📡 Simulador do Brasileirão 2026</h1>
       <p style={{ fontSize: 12.5, opacity: 0.6, marginBottom: 18 }}>
         {seasonOver
           ? 'Temporada encerrada — campeão definido.'
@@ -412,7 +412,7 @@ export function Simulator2026App({ onExit }) {
       </p>
 
       {!seasonOver && nextMatch && (
-        <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)', marginBottom: 14 }}>
+        <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)', marginBottom: 14 }}>
           <div style={{ fontSize: 10.5, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center', marginBottom: 8 }}>
             {nextMatch.postponed ? 'Jogo atrasado — Rodada 21' : `Rodada ${nextMatch.round}`}
           </div>
@@ -429,16 +429,16 @@ export function Simulator2026App({ onExit }) {
       {!seasonOver && (
         <button
           onClick={handlePlayMatch}
-          style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}
+          style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--gold)', color: 'var(--ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}
         >▶ Jogar este jogo</button>
       )}
       <button
         onClick={handleSimulateAgain}
-        style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.18)', background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 18 }}
+        style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 18 }}
       >🔁 Simular tudo novamente{seasonOver ? '' : ' (recomeça da rodada 34)'}</button>
 
       {lastResults.length > 0 && (
-        <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 18 }}>
+        <div style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 18 }}>
           <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
             Últimos resultados
           </div>
@@ -448,7 +448,7 @@ export function Simulator2026App({ onExit }) {
                 <span style={{ fontSize: 9, opacity: 0.4, width: 44, flexShrink: 0 }}>{r.postponed ? 'R21 (atr.)' : `R${r.round}`}</span>
                 <TeamCrest team={teamById[r.homeId]} size={18} />
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamById[r.homeId].club}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 13.5 }}>{r.homeGoals} x {r.awayGoals}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13.5 }}>{r.homeGoals} x {r.awayGoals}</span>
                 <span style={{ flex: 1, minWidth: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamById[r.awayId].club}</span>
                 <TeamCrest team={teamById[r.awayId]} size={18} />
               </div>
@@ -458,19 +458,19 @@ export function Simulator2026App({ onExit }) {
       )}
 
       <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Classificação</div>
-      <div style={{ borderRadius: 12, border: '1px solid rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr 28px 28px 28px 28px 36px 36px', gap: 4, padding: '6px 10px', fontSize: 9.5, opacity: 0.5, fontWeight: 700, background: 'rgba(255,255,255,0.03)' }}>
+      <div style={{ borderRadius: 12, border: '1px solid var(--line)', overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr 28px 28px 28px 28px 36px 36px', gap: 4, padding: '6px 10px', fontSize: 9.5, opacity: 0.5, fontWeight: 700, background: 'var(--surface)' }}>
           <span>#</span><span>Time</span><span style={{ textAlign: 'center' }}>PJ</span><span style={{ textAlign: 'center' }}>V</span><span style={{ textAlign: 'center' }}>E</span><span style={{ textAlign: 'center' }}>D</span><span style={{ textAlign: 'center' }}>SG</span><span style={{ textAlign: 'center' }}>PTS</span>
         </div>
         {save.table.map((row, i) => {
-          const zoneColor = i < 4 ? '#7fd99a' : i < 6 ? '#5dade2' : i < 12 ? '#9fb3a8' : i >= 16 ? '#e05050' : 'transparent';
+          const zoneColor = i < 4 ? '#1F7A4D' : i < 6 ? '#2F6FA8' : i < 12 ? '#9AA39D' : i >= 16 ? '#B23B3B' : 'transparent';
           return (
             <div key={row.id} style={{
               display: 'grid', gridTemplateColumns: '24px 1fr 28px 28px 28px 28px 36px 36px', gap: 4, alignItems: 'center',
-              padding: '7px 10px', fontSize: 12, borderTop: '1px solid rgba(255,255,255,0.05)',
-              borderLeft: `3px solid ${zoneColor}`, background: i === 0 ? 'rgba(212,162,60,0.08)' : 'transparent',
+              padding: '7px 10px', fontSize: 12, borderTop: '1px solid var(--line)',
+              borderLeft: `3px solid ${zoneColor}`, background: i === 0 ? 'rgba(194,154,69,0.1)' : 'transparent',
             }}>
-              <span style={{ opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>{i + 1}</span>
+              <span style={{ opacity: 0.6, fontFamily: 'var(--font-mono)' }}>{i + 1}</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
                 <TeamCrest team={row} size={18} />
                 <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: i === 0 ? 700 : 400 }}>{row.club}</span>
@@ -480,7 +480,7 @@ export function Simulator2026App({ onExit }) {
               <span style={{ textAlign: 'center', opacity: 0.8 }}>{row.e}</span>
               <span style={{ textAlign: 'center', opacity: 0.8 }}>{row.d}</span>
               <span style={{ textAlign: 'center', opacity: 0.8 }}>{row.gp - row.gc}</span>
-              <span style={{ textAlign: 'center', fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>{row.pts}</span>
+              <span style={{ textAlign: 'center', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{row.pts}</span>
             </div>
           );
         })}

@@ -3,6 +3,12 @@
 // não duplicar entre os dois bundles (ver src/main.jsx: rotas de conteúdo
 // carregam um bundle separado do jogo, code-splitting real).
 export function hexToRgba(hex, alpha) {
+  // Tokens CSS (var(--gold) etc.) não têm canais pra separar — usa
+  // color-mix pra aplicar a transparência do mesmo jeito.
+  if (typeof hex !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(hex)) {
+    if (typeof hex === 'string' && /^#[0-9a-fA-F]{3}$/.test(hex)) hex = '#' + hex.slice(1).split('').map(c => c + c).join('');
+    else return `color-mix(in srgb, ${hex || 'var(--gold)'} ${Math.round(alpha * 100)}%, transparent)`;
+  }
   const r = parseInt(hex.slice(1, 3), 16);
   const g = parseInt(hex.slice(3, 5), 16);
   const b = parseInt(hex.slice(5, 7), 16);
@@ -10,10 +16,11 @@ export function hexToRgba(hex, alpha) {
 }
 
 export function ovrColor(ovr) {
-  if (ovr >= 93) return '#FFD700';
-  if (ovr >= 86) return '#d4a23c';
-  if (ovr >= 78) return '#94a3b8';
-  return '#64748b';
+  // Tons escuros (tema claro): todos com contraste >= 4.5:1 sobre o creme.
+  if (ovr >= 93) return '#7A5A10';
+  if (ovr >= 86) return '#8A6A24';
+  if (ovr >= 78) return '#46566A';
+  return '#5E6670';
 }
 
 // Ordem fixa de exibição por posição primária (lista de jogadores no Draft
@@ -29,14 +36,14 @@ export function posOrderIndex(pos) {
 // editor de escalação de verdade. Goleiro âmbar, defesa azul, meio
 // verde, meia ofensivo roxo, ataque laranja.
 export const POS_COLOR = {
-  GOL: '#e8a33d',
-  ZAG: '#5dade2', LD: '#5dade2', LE: '#5dade2',
-  VOL: '#7fd99a', MC: '#7fd99a', MD: '#7fd99a', ME: '#7fd99a',
-  MEI: '#b48ce0',
-  PD: '#f2994a', PE: '#f2994a', ATA: '#f2994a',
+  GOL: '#8F5D14',
+  ZAG: '#2F6FA8', LD: '#2F6FA8', LE: '#2F6FA8',
+  VOL: '#1F7A4D', MC: '#1F7A4D', MD: '#1F7A4D', ME: '#1F7A4D',
+  MEI: '#6B4FA0',
+  PD: '#B0521C', PE: '#B0521C', ATA: '#B0521C',
 };
 export function posColor(pos) {
-  return POS_COLOR[pos] || '#9fb3a8';
+  return POS_COLOR[pos] || '#69736B';
 }
 
 // Extrai o nome base e a conquista (texto entre parênteses no fim do label,

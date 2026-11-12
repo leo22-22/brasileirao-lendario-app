@@ -13,22 +13,22 @@ import { getZoneInfo } from '../../App.jsx';
 import { backButtonStyle } from '../components/styles.js';
 
 function serieBZone(pos, total) {
-  if (pos <= 2) return { color: '#7fd99a', label: 'Acesso', title: 'Acesso direto à Série A' };
-  if (pos <= 6) return { color: '#d4a23c', label: 'Playoff', title: 'Disputa o acesso via playoff' };
-  if (pos >= total - 3) return { color: '#e05050', label: 'Z4', title: 'Rebaixamento' };
+  if (pos <= 2) return { color: 'var(--success)', label: 'Acesso', title: 'Acesso direto à Série A' };
+  if (pos <= 6) return { color: 'var(--gold-ink)', label: 'Playoff', title: 'Disputa o acesso via playoff' };
+  if (pos >= total - 3) return { color: 'var(--danger)', label: 'Z4', title: 'Rebaixamento' };
   return null;
 }
 
 const SERIE_A_LEGEND = [
-  { color: '#22c55e', text: 'G4 — Libertadores (fase de grupos)' },
-  { color: '#86efac', text: 'G6 — Libertadores (pré)' },
-  { color: '#60a5fa', text: 'até 12º — Sul-Americana' },
-  { color: '#ef4444', text: 'Z4 — rebaixamento' },
+  { color: 'var(--success)', text: 'G4 — Libertadores (fase de grupos)' },
+  { color: 'var(--success)', text: 'G6 — Libertadores (pré)' },
+  { color: 'var(--info)', text: 'até 12º — Sul-Americana' },
+  { color: 'var(--danger)', text: 'Z4 — rebaixamento' },
 ];
 const SERIE_B_LEGEND = [
-  { color: '#7fd99a', text: '1º-2º — acesso direto à Série A' },
-  { color: '#d4a23c', text: '3º-6º — disputam o acesso (playoff)' },
-  { color: '#e05050', text: 'Z4 — rebaixamento (sem acesso, segue/cai de divisão)' },
+  { color: 'var(--success)', text: '1º-2º — acesso direto à Série A' },
+  { color: 'var(--gold-ink)', text: '3º-6º — disputam o acesso (playoff)' },
+  { color: 'var(--danger)', text: 'Z4 — rebaixamento (sem acesso, segue/cai de divisão)' },
 ];
 
 export function CareerTableScreen({ save, onBack }) {
@@ -47,7 +47,7 @@ export function CareerTableScreen({ save, onBack }) {
   const getZone = (pos) => {
     if (division === 'B') return serieBZone(pos, data.table.length);
     if (copaChampionInG4 && pos === 5) {
-      return { color: '#22c55e', label: 'G4', title: 'Libertadores — vaga extra (campeão da Copa do Brasil já está no G4)' };
+      return { color: 'var(--success)', label: 'G4', title: 'Libertadores — vaga extra (campeão da Copa do Brasil já está no G4)' };
     }
     return getZoneInfo(pos, data.table.length);
   };
@@ -55,7 +55,7 @@ export function CareerTableScreen({ save, onBack }) {
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 12 }}>Tabela</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 12 }}>Tabela</h2>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {['A', 'B'].map(d => (
@@ -64,9 +64,9 @@ export function CareerTableScreen({ save, onBack }) {
             onClick={() => setDivision(d)}
             style={{
               flex: 1, padding: '8px 0', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              border: `1px solid ${division === d ? '#d4a23c' : 'rgba(255,255,255,0.15)'}`,
-              background: division === d ? 'rgba(212,162,60,0.12)' : 'transparent',
-              color: division === d ? '#d4a23c' : 'rgba(244,241,234,0.6)',
+              border: `1px solid ${division === d ? 'var(--gold)' : 'var(--line-strong)'}`,
+              background: division === d ? 'rgba(194,154,69,0.12)' : 'transparent',
+              color: division === d ? 'var(--gold-ink)' : 'var(--ink-2)',
             }}
           >Série {d}</button>
         ))}
@@ -93,7 +93,7 @@ export function CareerTableScreen({ save, onBack }) {
               const team = TEAMS.find(t => t.id === row.id);
               const zone = getZone(pos);
               return (
-                <tr key={row.id} style={{ background: isMe ? 'rgba(212,162,60,0.1)' : 'transparent', fontWeight: isMe ? 700 : 400 }} title={zone?.title}>
+                <tr key={row.id} style={{ background: isMe ? 'rgba(194,154,69,0.1)' : 'transparent', fontWeight: isMe ? 700 : 400 }} title={zone?.title}>
                   <td style={{ padding: '6px', borderLeft: `3px solid ${zone?.color || 'transparent'}` }}>{pos}</td>
                   <td style={{ padding: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{team?.club || row.label}</td>
                   <td style={{ padding: '6px', textAlign: 'center' }}>{row.pj}</td>
@@ -101,7 +101,7 @@ export function CareerTableScreen({ save, onBack }) {
                   <td style={{ padding: '6px', textAlign: 'center' }}>{row.e}</td>
                   <td style={{ padding: '6px', textAlign: 'center' }}>{row.d}</td>
                   <td style={{ padding: '6px', textAlign: 'center' }}>{row.gp - row.gc}</td>
-                  <td style={{ padding: '6px', textAlign: 'center', color: '#d4a23c' }}>{row.pts}</td>
+                  <td style={{ padding: '6px', textAlign: 'center', color: 'var(--gold-ink)' }}>{row.pts}</td>
                 </tr>
               );
             })}
@@ -117,7 +117,7 @@ export function CareerTableScreen({ save, onBack }) {
           </div>
         ))}
         {division === 'A' && copaChampionInG4 && (
-          <div style={{ fontSize: 11, color: '#22c55e', marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 2 }}>
             🏆 O campeão da Copa do Brasil está no G4 — uma vaga extra de Libertadores abriu pro 5º colocado.
           </div>
         )}

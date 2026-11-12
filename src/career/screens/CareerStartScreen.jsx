@@ -22,9 +22,9 @@ export function CareerStartScreen({ save, onContinue, onNewCareer, onOpenLoad, o
   return (
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={{ ...backButtonStyle, marginBottom: 20 }}>← Voltar ao menu</button>
-      <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, marginBottom: 20, textAlign: 'center' }}>Modo Carreira</h1>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, marginBottom: 20, textAlign: 'center' }}>Modo Carreira</h1>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)', marginBottom: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)', marginBottom: 20 }}>
         {logo && <img src={logo} alt={team.club} style={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 15 }}>{team.club}</div>
@@ -32,20 +32,20 @@ export function CareerStartScreen({ save, onContinue, onNewCareer, onOpenLoad, o
         </div>
       </div>
 
-      <button onClick={onContinue} style={{ width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
+      <button onClick={onContinue} style={{ width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', background: 'var(--gold)', color: 'var(--ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
         ▶ Continuar carreira
       </button>
 
       <button
         onClick={onOpenLoad}
-        style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: '1px solid rgba(111,184,224,0.35)', background: 'rgba(111,184,224,0.08)', color: '#6fb8e0', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', marginBottom: 10 }}
+        style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: '1px solid rgba(47,111,168,0.45)', background: 'rgba(47,111,168,0.1)', color: 'var(--info)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer', marginBottom: 10 }}
       >
         📂 Carregar outra carreira
       </button>
 
       <button
         onClick={onNewCareer}
-        style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(244,241,234,0.7)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}
+        style={{ width: '100%', padding: '12px 0', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink-2)', fontSize: 13.5, fontWeight: 600, cursor: 'pointer' }}
       >
         🆕 Começar uma carreira nova
       </button>

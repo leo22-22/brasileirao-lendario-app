@@ -7,7 +7,7 @@ import { CLUB_LOGOS } from '../../data/club-logos.js';
 export const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 export const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 export const WEEKDAY_LABELS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
-export const RESULT_COLORS = { V: '#7fd99a', D: '#e05050', E: 'rgba(255,255,255,0.45)' };
+export const RESULT_COLORS = { V: '#1F7A4D', D: '#B23B3B', E: '#8A938C' };
 // Ano fictício fixo só pra matemática de dia-da-semana da grade — o Modo
 // Carreira usa dia-do-ano (1-365) sem ano real, não precisa bater com
 // nenhum calendário de verdade.
@@ -44,7 +44,7 @@ export function TinyCrest({ team, ring, emoji }) {
   return (
     <div style={{
       width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      border: ring ? `2px solid ${ring}` : '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', overflow: 'hidden', flexShrink: 0,
+      border: ring ? `2px solid ${ring}` : '1px solid var(--line-strong)', background: 'var(--surface)', overflow: 'hidden', flexShrink: 0,
     }}>
       {emoji ? <span style={{ fontSize: 11 }}>{emoji}</span> : logo ? <img src={logo} alt="" style={{ width: '72%', height: '72%', objectFit: 'contain' }} /> : <span style={{ fontSize: 9, opacity: 0.4 }}>?</span>}
     </div>
@@ -52,6 +52,6 @@ export function TinyCrest({ team, ring, emoji }) {
 }
 
 export const navArrowStyle = {
-  background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#F4F1EA',
+  background: 'none', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)',
   width: 28, height: 28, cursor: 'pointer',
 };

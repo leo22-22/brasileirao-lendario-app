@@ -1,0 +1,83 @@
+/* Tokens de design do app inteiro (tema claro/creme, mesmo da home).
+   Importado em src/main.jsx — vale pro jogo (App.jsx) e pras páginas de
+   conteúdo (ContentApp). Estilos inline usam via `var(--token)`.
+
+   Ilhas escuras (gramado, placar, cards verdes de destaque): qualquer
+   elemento com a classe `.on-dark` redefine os tokens de texto/linha/
+   superfície pra versões claras — assim um estilo escrito com var(--ink)
+   continua legível em cima do verde sem precisar de outro conjunto de cores. */
+:root {
+  --bg: #F5F1E8;
+  --surface: #FBF9F4;
+  --surface-2: #EFE9DC;
+  --ink: #0F1F17;
+  --ink-2: #3A463F;
+  --muted: #69736B;
+  --line: #E3DCCB;
+  --line-strong: #CFC6B1;
+
+  --green: #0D3A29;
+  --green-2: #14523A;
+  --gold: #C29A45;
+  --gold-ink: #8A6A24;      /* dourado para TEXTO sobre creme (contraste ≥ 4.5) */
+  --gold-soft: #EBDDBB;
+
+  --success: #1F7A4D;
+  --info: #2F6FA8;
+  --warning: #B7791F;       /* use --warning-ink para texto pequeno */
+  --warning-ink: #8F5D14;
+  --danger: #B23B3B;
+  --purple: #6B4FA0;
+
+  /* fundos tingidos (10–14%) das cores de status */
+  --success-soft: rgba(31, 122, 77, 0.11);
+  --info-soft: rgba(47, 111, 168, 0.11);
+  --warning-soft: rgba(183, 121, 31, 0.12);
+  --danger-soft: rgba(178, 59, 59, 0.10);
+  --purple-soft: rgba(107, 79, 160, 0.11);
+  --gold-tint: rgba(194, 154, 69, 0.14);
+
+  --pitch: #124A35;
+  --pitch-2: #11452F;
+  --on-dark: #FBF9F4;
+
+  --shadow: 0 10px 30px -12px rgba(15, 31, 23, 0.18);
+  --shadow-sm: 0 4px 14px -6px rgba(15, 31, 23, 0.14);
+  --overlay: rgba(15, 31, 23, 0.45);
+
+  --font-serif: 'Fraunces', Georgia, serif;
+  --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
+
+  color-scheme: light;
+}
+
+/* Ilha escura: gramado, placares e cards verdes. */
+.on-dark {
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-2: rgba(255, 255, 255, 0.10);
+  --ink: #FBF9F4;
+  --ink-2: rgba(251, 249, 244, 0.82);
+  --muted: rgba(251, 249, 244, 0.64);
+  --line: rgba(255, 255, 255, 0.16);
+  --line-strong: rgba(255, 255, 255, 0.28);
+  --gold-ink: #E2C27A;
+  --success: #7FD99A;
+  --info: #8EC3EE;
+  --warning: #F0B95C;
+  --warning-ink: #F0B95C;
+  --danger: #F08A80;
+  --purple: #C7A8F0;
+  color: var(--ink);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
+}
+body { min-height: 100vh; }
+
+::selection { background: var(--gold-soft); color: var(--ink); }

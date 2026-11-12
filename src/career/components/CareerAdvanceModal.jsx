@@ -129,21 +129,21 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, o
   }, [eventsVisible]);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(5,10,8,0.9)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--surface)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 11, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>📅 Calendário avançando</div>
           {!eventsVisible && (
             <>
-              <div style={{ display: 'flex', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', overflow: 'hidden' }}>
+              <div style={{ display: 'flex', borderRadius: 999, border: '1px solid var(--line-strong)', overflow: 'hidden' }}>
                 {Object.keys(SPEEDS).map(k => (
                   <button
                     key={k}
                     onClick={() => { setSpeedKey(k); saveSpeed(k); }}
                     style={{
                       fontSize: 10.5, fontWeight: 700, padding: '3px 9px', border: 'none', cursor: 'pointer',
-                      background: speedKey === k ? 'rgba(212,162,60,0.3)' : 'rgba(255,255,255,0.06)',
-                      color: speedKey === k ? '#d4a23c' : '#F4F1EA',
+                      background: speedKey === k ? 'rgba(194,154,69,0.2)' : 'var(--surface)',
+                      color: speedKey === k ? 'var(--gold-ink)' : 'var(--ink)',
                     }}
                   >{k}</button>
                 ))}
@@ -152,24 +152,24 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, o
                 onClick={onStop}
                 style={{
                   fontSize: 10.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
-                  padding: '3px 10px', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)',
-                  background: 'rgba(255,255,255,0.06)', color: '#F4F1EA', cursor: 'pointer',
+                  padding: '3px 10px', borderRadius: 999, border: '1px solid var(--line-strong)',
+                  background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer',
                 }}
               >⏹ Parar</button>
             </>
           )}
         </div>
 
-        <div style={{ padding: '14px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 12 }}>
+        <div style={{ padding: '14px 12px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
             <span style={{ ...navArrowStyle, opacity: 0.25, cursor: 'default' }}>‹</span>
-            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 15, fontWeight: 700, minWidth: 130, textAlign: 'center' }}>{MONTH_NAMES[viewMonth]}</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700, minWidth: 130, textAlign: 'center' }}>{MONTH_NAMES[viewMonth]}</div>
             <span style={{ ...navArrowStyle, opacity: 0.25, cursor: 'default' }}>›</span>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
             {WEEKDAY_LABELS.map(w => (
-              <div key={w} style={{ textAlign: 'center', fontSize: 10, fontFamily: "'Space Mono', monospace", opacity: 0.45, letterSpacing: 0.5 }}>{w}</div>
+              <div key={w} style={{ textAlign: 'center', fontSize: 10, fontFamily: 'var(--font-mono)', opacity: 0.45, letterSpacing: 0.5 }}>{w}</div>
             ))}
           </div>
 
@@ -203,20 +203,20 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, o
                   title={hasRound ? `Rodada ${round + 1}${opponent?.team ? ` · ${opponent.team.club}` : ''}` : hasCopa ? `Copa do Brasil · ${COPA_ROUND_LABELS[copaRound]}` : undefined}
                   style={{
                     minHeight: 56, padding: '4px 2px', borderRadius: 8, textAlign: 'center',
-                    border: `1px solid ${isCursor ? 'rgba(212,162,60,0.8)' : isPast ? 'rgba(255,255,255,0.14)' : hasAny ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}`,
-                    background: isCursor ? 'rgba(212,162,60,0.22)' : isPast ? 'rgba(255,255,255,0.08)' : hasAny ? 'rgba(255,255,255,0.04)' : 'transparent',
-                    boxShadow: isCursor ? '0 0 10px rgba(212,162,60,0.4)' : 'none',
-                    color: '#F4F1EA', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                    border: `1px solid ${isCursor ? 'var(--gold)' : isPast ? 'var(--line-strong)' : hasAny ? 'var(--line-strong)' : 'var(--line)'}`,
+                    background: isCursor ? 'rgba(194,154,69,0.2)' : isPast ? 'var(--surface-2)' : hasAny ? 'var(--surface)' : 'transparent',
+                    boxShadow: isCursor ? '0 0 10px rgba(194,154,69,0.35)' : 'none',
+                    color: 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                     transition: 'background 0.12s, border 0.12s',
                   }}
                 >
-                  <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", fontWeight: isCursor ? 700 : 400, color: isCursor ? '#d4a23c' : isPast ? 'rgba(244,241,234,0.4)' : '#F4F1EA', opacity: hasAny || isCursor ? 0.95 : isPast ? 0.6 : 0.3 }}>{dayOfMonth}</span>
+                  <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', fontWeight: isCursor ? 700 : 400, color: isCursor ? 'var(--gold-ink)' : isPast ? 'var(--muted)' : 'var(--ink)', opacity: hasAny || isCursor ? 0.95 : isPast ? 0.6 : 0.3 }}>{dayOfMonth}</span>
                   {hasRound && <TinyCrest team={opponent?.team} ring={result ? RESULT_COLORS[result.res] : null} />}
                   {hasRound && !result && (
-                    <span style={{ fontSize: 8.5, color: '#d4a23c', fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>R{round + 1}</span>
+                    <span style={{ fontSize: 8.5, color: 'var(--gold-ink)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>R{round + 1}</span>
                   )}
                   {result && (
-                    <span style={{ fontSize: 9, fontFamily: "'Space Mono', monospace", display: 'flex', gap: 2 }}>
+                    <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', display: 'flex', gap: 2 }}>
                       <span style={{ fontWeight: 800, color: RESULT_COLORS[result.res] }}>{result.res}</span>
                       <span style={{ opacity: 0.6 }}>{result.gf}-{result.ga}</span>
                     </span>
@@ -228,7 +228,7 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, o
           </div>
         </div>
 
-        <div style={{ textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#d4a23c', fontWeight: 700, marginBottom: eventsVisible && eventLines.length ? 12 : 0 }}>
+        <div style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold-ink)', fontWeight: 700, marginBottom: eventsVisible && eventLines.length ? 12 : 0 }}>
           {formatCalendarDay(cursorDay)}
         </div>
 
@@ -237,7 +237,7 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, o
             {eventLines.map((line, i) => (
               <div key={i} style={{
                 fontSize: 12.5, opacity: 0, padding: '6px 10px', borderRadius: 8, textAlign: 'center',
-                background: 'rgba(255,255,255,0.04)', animation: `brlAdvFadeIn 0.3s ease forwards ${i * 0.15}s`,
+                background: 'var(--surface)', animation: `brlAdvFadeIn 0.3s ease forwards ${i * 0.15}s`,
               }}>{line}</div>
             ))}
           </div>

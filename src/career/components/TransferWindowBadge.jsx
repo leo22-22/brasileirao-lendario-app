@@ -7,7 +7,7 @@ import { isTransferWindowOpen, currentWindowCloseDay, nextWindowOpenDay, formatC
 export function TransferWindowBadge({ day, style }) {
   const open = isTransferWindowOpen(day);
   const dateLabel = open ? formatCalendarDay(currentWindowCloseDay(day)) : formatCalendarDay(nextWindowOpenDay(day));
-  const color = open ? '#7fd99a' : '#e05050';
+  const color = open ? '#1F7A4D' : '#B23B3B';
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10,

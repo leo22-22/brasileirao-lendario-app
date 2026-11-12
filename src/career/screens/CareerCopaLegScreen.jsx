@@ -49,7 +49,7 @@ export function CareerCopaLegScreen({ title, leg, leg1Result, prepare, onDoneIda
 
   return (
     <div style={{ ...wrapStyle, textAlign: 'center' }}>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, marginBottom: 10 }}>{title}</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, marginBottom: 10 }}>{title}</h2>
       <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 8 }}>Ida: {leg1Result.homeGoals} x {leg1Result.awayGoals}</div>
       <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 12 }}>Volta: {leg2.homeGoals} x {leg2.awayGoals}</div>
       <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Agregado: {aggA} x {aggB}</div>

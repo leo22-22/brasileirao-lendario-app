@@ -14,7 +14,7 @@ import { SERIE_A_2026_TEAM_IDS, SERIE_B_2026_TEAM_IDS, CAREER_CLUB_META } from '
 import { backButtonStyle } from '../components/styles.js';
 
 const TIER_LABEL = { elite: 'Elite', grande: 'Grande', medio: 'Médio', pequeno: 'Pequeno' };
-const TIER_COLOR = { elite: '#d4a23c', grande: '#7fd99a', medio: '#9fb3a8', pequeno: '#8a8a8a' };
+const TIER_COLOR = { elite: '#8A6A24', grande: '#1F7A4D', medio: '#2F6FA8', pequeno: '#69736B' };
 
 // Teto do orçamento personalizado — "até 1 bilhão", pedido do usuário. Sem
 // piso: o usuário pode começar com R$0 de propósito (pedido explícito
@@ -36,9 +36,9 @@ function ClubCard({ clubId, selected, onSelect }) {
       onClick={() => onSelect(clubId)}
       style={{
         display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 12,
-        border: selected ? '1px solid rgba(212,162,60,0.6)' : '1px solid rgba(255,255,255,0.1)',
-        background: selected ? 'rgba(212,162,60,0.12)' : 'rgba(255,255,255,0.03)',
-        color: '#F4F1EA', cursor: 'pointer', textAlign: 'left', width: '100%',
+        border: selected ? '1px solid var(--gold)' : '1px solid var(--line)',
+        background: selected ? 'rgba(194,154,69,0.12)' : 'var(--surface)',
+        color: 'var(--ink)', cursor: 'pointer', textAlign: 'left', width: '100%',
       }}
       className="mode-card-hover"
     >
@@ -48,7 +48,7 @@ function ClubCard({ clubId, selected, onSelect }) {
         <div style={{ width: 32, height: 32, flexShrink: 0 }} />
       )}
       <div style={{ flex: 1, minWidth: 0, fontWeight: 700, fontSize: 13, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{team.club}</div>
-      {selected && <span style={{ fontSize: 13, color: '#d4a23c', flexShrink: 0 }}>✓</span>}
+      {selected && <span style={{ fontSize: 13, color: 'var(--gold-ink)', flexShrink: 0 }}>✓</span>}
       <span style={{
         fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5,
         padding: '3px 7px', borderRadius: 999, flexShrink: 0,
@@ -86,7 +86,7 @@ export function ClubPickerScreen({ onPick, onBack }) {
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h1 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, marginBottom: 6 }}>Escolha seu clube</h1>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, marginBottom: 6 }}>Escolha seu clube</h1>
       <p style={{ fontSize: 13, opacity: 0.65, marginBottom: 16, lineHeight: 1.5 }}>
         Comece o Modo Carreira num dos 40 clubes reais da Série A ou B de 2026 — selecione um clube, defina o orçamento inicial que quiser e confirme.
       </p>
@@ -97,7 +97,7 @@ export function ClubPickerScreen({ onPick, onBack }) {
         placeholder="🔍 Buscar clube pelo nome..."
         style={{
           width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 8, marginBottom: 10,
-          border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.03)', color: '#F4F1EA', fontSize: 13, outline: 'none',
+          border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, outline: 'none',
         }}
       />
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
@@ -107,9 +107,9 @@ export function ClubPickerScreen({ onPick, onBack }) {
             onClick={() => setDivision(d)}
             style={{
               flex: 1, padding: '8px 0', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              border: `1px solid ${division === d ? '#d4a23c' : 'rgba(255,255,255,0.15)'}`,
-              background: division === d ? 'rgba(212,162,60,0.12)' : 'transparent',
-              color: division === d ? '#d4a23c' : 'rgba(244,241,234,0.6)',
+              border: `1px solid ${division === d ? 'var(--gold)' : 'var(--line-strong)'}`,
+              background: division === d ? 'rgba(194,154,69,0.12)' : 'transparent',
+              color: division === d ? 'var(--gold-ink)' : 'var(--ink-2)',
             }}
           >Série {d}</button>
         ))}
@@ -122,7 +122,7 @@ export function ClubPickerScreen({ onPick, onBack }) {
       </div>
 
       {selectedClubId && (
-        <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)' }}>
+        <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
             {selectedLogo && <img src={selectedLogo} alt={selectedTeam.club} style={{ width: 32, height: 32, objectFit: 'contain' }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
             <div style={{ fontWeight: 700, fontSize: 14 }}>{selectedTeam.club} selecionado</div>
@@ -138,11 +138,11 @@ export function ClubPickerScreen({ onPick, onBack }) {
             inputMode="numeric"
             style={{
               width: '100%', boxSizing: 'border-box', padding: '9px 12px', borderRadius: 8, marginBottom: 6,
-              border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.03)', color: '#F4F1EA',
-              fontSize: 13, outline: 'none', fontFamily: "'Space Mono', monospace",
+              border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)',
+              fontSize: 13, outline: 'none', fontFamily: 'var(--font-mono)',
             }}
           />
-          <div style={{ fontSize: 11, marginBottom: 14, color: budgetClamped ? '#e05050' : 'rgba(244,241,234,0.5)' }}>
+          <div style={{ fontSize: 11, marginBottom: 14, color: budgetClamped ? 'var(--danger)' : 'var(--muted)' }}>
             {budgetClamped
               ? `Limitado a R$ ${MAX_CUSTOM_BUDGET.toLocaleString('pt-BR')}.`
               : hasCustomBudget
@@ -152,7 +152,7 @@ export function ClubPickerScreen({ onPick, onBack }) {
 
           <button
             onClick={() => onPick(selectedClubId, customBudget)}
-            style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
+            style={{ width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--gold)', color: 'var(--ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer' }}
           >
             Começar carreira →
           </button>

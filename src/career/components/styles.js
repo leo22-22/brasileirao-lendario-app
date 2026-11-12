@@ -6,6 +6,6 @@
 export const backButtonStyle = {
   display: 'inline-flex', alignItems: 'center', gap: 6,
   padding: '7px 14px', borderRadius: 8,
-  border: '1px solid rgba(212,162,60,0.35)', background: 'rgba(212,162,60,0.1)',
-  color: '#d4a23c', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 12,
+  border: '1px solid rgba(194,154,69,0.5)', background: 'rgba(194,154,69,0.1)',
+  color: 'var(--gold-ink)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 12,
 };

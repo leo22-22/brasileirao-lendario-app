@@ -71,10 +71,10 @@ export function eventLine(ev, myClubId) {
 // ideia do mockup — "Mercado"/"Bastidores" — só que derivada do tipo real
 // do evento, não inventada).
 const EVENT_TAG = {
-  match: { text: 'Partida', color: '#7fd99a' },
-  'transfer-ai': { text: 'Mercado', color: '#d4a23c' },
-  offer: { text: 'Proposta', color: '#6fb8e0' },
-  'copa-round': { text: 'Copa do Brasil', color: '#d4a23c' },
+  match: { text: 'Partida', color: 'var(--success)' },
+  'transfer-ai': { text: 'Mercado', color: 'var(--gold-ink)' },
+  offer: { text: 'Proposta', color: 'var(--info)' },
+  'copa-round': { text: 'Copa do Brasil', color: 'var(--gold-ink)' },
 };
 
 // Último resultado do usuário já jogado (não o próximo) — procura na
@@ -98,20 +98,20 @@ function squadValueTotal(save, clubId) {
 }
 
 function financialHealth(budget) {
-  if (budget >= 100_000_000) return { text: 'Saúde ótima', color: '#7fd99a' };
-  if (budget >= 30_000_000) return { text: 'Saudável', color: '#d4a23c' };
-  if (budget >= 5_000_000) return { text: 'Apertado', color: '#e0a33d' };
-  return { text: 'Crítico', color: '#e05050' };
+  if (budget >= 100_000_000) return { text: 'Saúde ótima', color: 'var(--success)' };
+  if (budget >= 30_000_000) return { text: 'Saudável', color: 'var(--gold-ink)' };
+  if (budget >= 5_000_000) return { text: 'Apertado', color: 'var(--warning-ink)' };
+  return { text: 'Crítico', color: 'var(--danger)' };
 }
 
 // Texto de zona na tabela pro cabeçalho do clube — G4/rebaixamento pra
 // Série A, acesso/playoff/rebaixamento pra Série B (mesmas faixas que
 // CareerTableScreen.jsx usa, resumidas aqui só como um aviso contextual).
 function zoneStatus(divisionKey, pos, total) {
-  if (pos > total - 4) return { text: 'Zona de rebaixamento', color: '#e05050' };
-  if (divisionKey === 'A' && pos <= 4) return { text: 'G4 — Libertadores', color: '#7fd99a' };
-  if (divisionKey === 'B' && pos <= 2) return { text: 'Zona de acesso direto', color: '#7fd99a' };
-  if (divisionKey === 'B' && pos <= 6) return { text: 'Zona de playoff', color: '#d4a23c' };
+  if (pos > total - 4) return { text: 'Zona de rebaixamento', color: 'var(--danger)' };
+  if (divisionKey === 'A' && pos <= 4) return { text: 'G4 — Libertadores', color: 'var(--success)' };
+  if (divisionKey === 'B' && pos <= 2) return { text: 'Zona de acesso direto', color: 'var(--success)' };
+  if (divisionKey === 'B' && pos <= 6) return { text: 'Zona de playoff', color: 'var(--gold-ink)' };
   return null;
 }
 
@@ -122,18 +122,18 @@ function zoneStatus(divisionKey, pos, total) {
 // navegadores sem suporte (nenhuma quebra visual, só perde o blur).
 const cardStyle = {
   padding: '16px', borderRadius: 16,
-  background: 'rgba(20,28,22,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
-  border: '1px solid rgba(255,255,255,0.09)', boxShadow: '0 10px 28px rgba(0,0,0,0.28)',
+  background: 'var(--surface)',
+  border: '1px solid var(--line)', boxShadow: '0 10px 28px rgba(15,31,23,0.14)',
 };
 const cardLabelStyle = { fontSize: 10.5, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 };
-const RESULT_COLORS = { V: '#7fd99a', D: '#e05050', E: 'rgba(244,241,234,0.6)' };
+const RESULT_COLORS = { V: '#1F7A4D', D: '#B23B3B', E: '#CFC6B1' };
 
 function TeamCrest({ teamId, size }) {
   const team = TEAMS.find(t => t.id === teamId);
   const logo = team && CLUB_LOGOS[team.club];
   return logo
     ? <img src={logo} alt={team.club} style={{ width: size, height: size, objectFit: 'contain' }} />
-    : <div style={{ width: size, height: size, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />;
+    : <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surface-2)' }} />;
 }
 
 function FormDots({ form }) {
@@ -144,7 +144,7 @@ function FormDots({ form }) {
         <span key={i} style={{
           width: 14, height: 14, borderRadius: 4, fontSize: 8.5, fontWeight: 800,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: RESULT_COLORS[r], color: r === 'E' ? '#0B1A12' : '#0B1A12',
+          background: RESULT_COLORS[r], color: r === 'E' ? 'var(--ink)' : '#fff',
         }}>{r}</span>
       ))}
     </div>
@@ -171,9 +171,9 @@ function NextMatchCard({ save, division, seasonOver, nextMatch, onOpenPreview })
       className="career-hub-card"
       onClick={clickable ? () => onOpenPreview(nextMatch) : undefined}
       title={clickable ? 'Ver prévia do confronto' : undefined}
-      style={{ ...cardStyle, position: 'relative', overflow: 'hidden', borderLeft: '3px solid #d4a23c', cursor: clickable ? 'pointer' : 'default' }}
+      style={{ ...cardStyle, position: 'relative', overflow: 'hidden', borderLeft: '3px solid var(--gold)', cursor: clickable ? 'pointer' : 'default' }}
     >
-      <div style={{ ...cardLabelStyle, textAlign: 'center', marginBottom: 12, color: '#d4a23c', opacity: 0.85, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+      <div style={{ ...cardLabelStyle, textAlign: 'center', marginBottom: 12, color: 'var(--gold-ink)', opacity: 0.85, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
         ⚽ Próximo jogo
         {clickable && <span style={{ fontSize: 9, opacity: 0.6, textTransform: 'none', fontWeight: 600, letterSpacing: 0 }}>· toque pra ver prévia</span>}
       </div>
@@ -184,7 +184,7 @@ function NextMatchCard({ save, division, seasonOver, nextMatch, onOpenPreview })
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 14, position: 'relative' }}>
             <div style={{
               position: 'absolute', left: '50%', top: '32%', transform: 'translate(-50%,-50%)',
-              width: 90, height: 90, borderRadius: '50%', background: 'radial-gradient(circle, rgba(212,162,60,0.16), transparent 70%)', pointerEvents: 'none',
+              width: 90, height: 90, borderRadius: '50%', background: 'radial-gradient(circle, rgba(194,154,69,0.16), transparent 70%)', pointerEvents: 'none',
             }} />
             <div style={{ textAlign: 'center', flex: 1, minWidth: 0, position: 'relative' }}>
               <TeamCrest teamId={nextMatch.homeId} size={56} />
@@ -200,17 +200,17 @@ function NextMatchCard({ save, division, seasonOver, nextMatch, onOpenPreview })
               <FormDots form={clubForm(division, nextMatch.awayId)} />
             </div>
           </div>
-          <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.55, margin: '12px 0 10px', fontFamily: "'Space Mono', monospace" }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
-          <div style={{ paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+          <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.55, margin: '12px 0 10px', fontFamily: 'var(--font-mono)' }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
+          <div style={{ paddingTop: 10, borderTop: '1px solid var(--line)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, fontWeight: 600, opacity: 0.8, marginBottom: 4 }}>
-              <span style={{ color: 'rgba(244,241,234,0.9)' }}>Vitória {homeWinPct}%</span>
+              <span style={{ color: 'var(--ink)' }}>Vitória {homeWinPct}%</span>
               <span style={{ opacity: 0.6 }}>Empate {drawPct}%</span>
-              <span style={{ color: '#d4a23c' }}>Vitória {awayWinPct}%</span>
+              <span style={{ color: 'var(--gold-ink)' }}>Vitória {awayWinPct}%</span>
             </div>
-            <div style={{ width: '100%', height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', display: 'flex' }}>
-              <div style={{ width: `${homeWinPct}%`, background: 'rgba(255,255,255,0.4)' }} />
-              <div style={{ width: `${drawPct}%`, background: 'rgba(255,255,255,0.15)' }} />
-              <div style={{ width: `${awayWinPct}%`, background: 'linear-gradient(90deg, #d4a23c, #f0c868)' }} />
+            <div style={{ width: '100%', height: 6, borderRadius: 999, background: 'var(--surface-2)', overflow: 'hidden', display: 'flex' }}>
+              <div style={{ width: `${homeWinPct}%`, background: 'var(--line-strong)' }} />
+              <div style={{ width: `${drawPct}%`, background: 'var(--surface-2)' }} />
+              <div style={{ width: `${awayWinPct}%`, background: 'linear-gradient(90deg, var(--gold), var(--gold))' }} />
             </div>
           </div>
         </>
@@ -236,7 +236,7 @@ function LastGameCard({ save, division }) {
             {myGoalsFirst ? TEAMS.find(t => t.id === save.myClubId)?.club : oppTeam?.club}
           </span>
         </div>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 14, fontWeight: 800, color: RESULT_COLORS[last.res], flexShrink: 0, padding: '0 8px' }}>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 14, fontWeight: 800, color: RESULT_COLORS[last.res], flexShrink: 0, padding: '0 8px' }}>
           {myGoalsFirst ? last.myGoals : last.oppGoals} - {myGoalsFirst ? last.oppGoals : last.myGoals}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0, justifyContent: 'flex-end' }}>
@@ -265,18 +265,18 @@ function MoneyMeter({ save }) {
     <div className="career-hub-card" style={cardStyle}>
       <div style={{ ...cardLabelStyle, textAlign: 'center' }}>Orçamento</div>
       <svg width="100%" height="84" viewBox="0 0 180 84" style={{ display: 'block', marginTop: 4 }}>
-        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={12} strokeLinecap="round" />
+        <path d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="var(--muted)" strokeWidth={12} strokeLinecap="round" />
         <path
-          d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="#d4a23c" strokeWidth={12} strokeLinecap="round"
+          d={`M ${cx - r} ${cy} A ${r} ${r} 0 0 1 ${cx + r} ${cy}`} fill="none" stroke="var(--gold-ink)" strokeWidth={12} strokeLinecap="round"
           strokeDasharray={circ} strokeDashoffset={circ * (1 - pct)}
           style={{ transition: 'stroke-dashoffset 0.4s ease' }}
         />
-        <text x={cx} y={cy - 16} textAnchor="middle" fontSize="14" fontWeight="700" fill="#d4a23c" fontFamily="'Space Mono', monospace">{formatMoneyShort(budget)}</text>
+        <text x={cx} y={cy - 16} textAnchor="middle" fontSize="14" fontWeight="700" fill="var(--gold-ink)" fontFamily='var(--font-mono)'>{formatMoneyShort(budget)}</text>
         <text x={cx} y={cy - 2} textAnchor="middle" fontSize="9" fontWeight="700" fill={health.color}>{health.text}</text>
       </svg>
-      <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'center' }}>
+      <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)', textAlign: 'center' }}>
         <div style={{ fontSize: 9.5, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 0.4 }}>Valor do elenco</div>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#F4F1EA', fontFamily: "'Space Mono', monospace" }}>{formatMoneyShort(squadValue)}</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>{formatMoneyShort(squadValue)}</div>
       </div>
     </div>
   );
@@ -291,12 +291,12 @@ function NovidadesCard({ dayEventsRich }) {
       ) : (
         <div style={{ marginTop: 8, display: 'grid', gap: 7 }}>
           {dayEventsRich.map((ev, i) => {
-            const tag = EVENT_TAG[ev.type] || { text: 'Novidade', color: '#d4a23c' };
+            const tag = EVENT_TAG[ev.type] || { text: 'Novidade', color: 'var(--gold-ink)' };
             return (
-              <div key={i} style={{ padding: '8px 10px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div key={i} style={{ padding: '8px 10px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, marginBottom: 4 }}>
                   <span style={{ color: tag.color, fontWeight: 700 }}>{tag.text}</span>
-                  <span style={{ opacity: 0.45, fontFamily: "'Space Mono', monospace" }}>{formatCalendarDay(ev.day)}</span>
+                  <span style={{ opacity: 0.45, fontFamily: 'var(--font-mono)' }}>{formatCalendarDay(ev.day)}</span>
                 </div>
                 <p style={{ fontSize: 12, lineHeight: 1.4, margin: 0 }}>{ev.text}</p>
               </div>
@@ -326,13 +326,13 @@ function TopTransfersCard({ save }) {
             const fromTeam = TEAMS.find(x => x.id === t.fromClubId);
             const toTeam = TEAMS.find(x => x.id === t.toClubId);
             return (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 10, background: 'rgba(255,255,255,0.025)' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 10, background: 'var(--surface)' }}>
                 <TeamCrest teamId={t.toClubId} size={22} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.playerName}</div>
                   <div style={{ fontSize: 9.5, opacity: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fromTeam?.club} ➔ {toTeam?.club}</div>
                 </div>
-                <span style={{ fontSize: 11.5, fontWeight: 700, color: '#d4a23c', fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{formatMoneyShort(t.amount)}</span>
+                <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--gold-ink)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{formatMoneyShort(t.amount)}</span>
               </div>
             );
           })}
@@ -355,7 +355,7 @@ function MiniTableCard({ division, divisionKey, myClubId, myPos }) {
     <div className="career-hub-card" style={cardStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={cardLabelStyle}>📊 Tabela rápida</div>
-        <span style={{ fontSize: 10, opacity: 0.45, fontFamily: "'Space Mono', monospace" }}>Série {divisionKey} · R{division.round}/{division.fixtures.length}</span>
+        <span style={{ fontSize: 10, opacity: 0.45, fontFamily: 'var(--font-mono)' }}>Série {divisionKey} · R{division.round}/{division.fixtures.length}</span>
       </div>
       <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
         {sortedRows.map(([clubId, pos]) => {
@@ -365,14 +365,14 @@ function MiniTableCard({ division, divisionKey, myClubId, myPos }) {
           return (
             <div key={clubId} style={{
               display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8,
-              background: mine ? 'rgba(212,162,60,0.12)' : 'transparent',
-              borderLeft: mine ? '2px solid #d4a23c' : '2px solid transparent',
+              background: mine ? 'rgba(194,154,69,0.12)' : 'transparent',
+              borderLeft: mine ? '2px solid var(--gold)' : '2px solid transparent',
             }}>
-              <span style={{ width: 16, fontSize: 11, fontWeight: 800, color: mine ? '#d4a23c' : '#7fd99a', fontFamily: "'Space Mono', monospace" }}>{pos}</span>
+              <span style={{ width: 16, fontSize: 11, fontWeight: 800, color: mine ? 'var(--gold-ink)' : 'var(--success)', fontFamily: 'var(--font-mono)' }}>{pos}</span>
               <TeamCrest teamId={clubId} size={16} />
-              <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: mine ? 700 : 500, color: mine ? '#d4a23c' : '#F4F1EA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.club}</span>
-              <span style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace" }}>{row?.pj ?? 0}J</span>
-              <span style={{ fontSize: 12, fontWeight: 800, fontFamily: "'Space Mono', monospace", color: mine ? '#d4a23c' : '#F4F1EA' }}>{row?.pts ?? 0}</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: mine ? 700 : 500, color: mine ? 'var(--gold-ink)' : 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.club}</span>
+              <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>{row?.pj ?? 0}J</span>
+              <span style={{ fontSize: 12, fontWeight: 800, fontFamily: 'var(--font-mono)', color: mine ? 'var(--gold-ink)' : 'var(--ink)' }}>{row?.pts ?? 0}</span>
             </div>
           );
         })}
@@ -386,10 +386,10 @@ function NavButton({ icon, label, sub, onClick, accent, style }) {
     <button className="career-nav-btn" onClick={onClick} style={{ ...navBtnStyle, ...style }}>
       <span style={{
         width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 16, marginBottom: 6, background: accent ? 'rgba(212,162,60,0.12)' : 'rgba(127,217,154,0.1)',
+        fontSize: 16, marginBottom: 6, background: accent ? 'rgba(194,154,69,0.12)' : 'rgba(31,122,77,0.1)',
       }}>{icon}</span>
       <span style={{ fontWeight: 700, fontSize: 12.5 }}>{label}</span>
-      <span style={{ fontSize: 9.5, opacity: 0.55, marginTop: 2, color: accent ? '#d4a23c' : 'rgba(244,241,234,0.55)', fontWeight: accent ? 700 : 400 }}>{sub}</span>
+      <span style={{ fontSize: 9.5, opacity: 0.55, marginTop: 2, color: accent ? 'var(--gold-ink)' : 'var(--muted)', fontWeight: accent ? 700 : 400 }}>{sub}</span>
     </button>
   );
 }
@@ -437,17 +437,12 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
         .career-hub-grid { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(420px, 2fr) minmax(260px, 1fr); gap: 18px; width: 98%; max-width: none; margin: 0 auto; padding: 24px 12px; box-sizing: border-box; }
         .career-hub-col { display: grid; gap: 10px; align-content: start; min-width: 0; }
         .career-hub-card { transition: border-color 0.18s ease, transform 0.18s ease; }
-        .career-hub-card:hover { border-color: rgba(212,162,60,0.3); }
+        .career-hub-card:hover { border-color: var(--line-strong); }
         .career-nav-btn { transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease; }
-        .career-nav-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(212,162,60,0.4); transform: translateY(-1px); }
-        @keyframes careerAdvancePulse {
-          0%, 100% { box-shadow: 0 0 0 1px rgba(212,162,60,0.35), 0 10px 26px rgba(212,162,60,0.28), 0 2px 6px rgba(0,0,0,0.25); }
-          50% { box-shadow: 0 0 0 1px rgba(212,162,60,0.5), 0 10px 34px rgba(212,162,60,0.5), 0 2px 6px rgba(0,0,0,0.25); }
-        }
+        .career-nav-btn:hover { background: var(--surface); border-color: var(--gold); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
         .career-advance-btn { transition: filter 0.15s ease, transform 0.15s ease; }
-        .career-advance-btn:not(:disabled) { animation: careerAdvancePulse 2.5s ease-in-out infinite; }
-        .career-advance-btn:not(:disabled):hover { filter: brightness(1.08); transform: scale(1.01); }
-        .career-simulate-btn:not(:disabled):hover { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.3); }
+        .career-advance-btn:not(:disabled):hover { filter: brightness(1.12); transform: translateY(-1px); box-shadow: var(--shadow); }
+        .career-simulate-btn:not(:disabled):hover { background: var(--surface-2); border-color: var(--line-strong); }
         @media (max-width: 1100px) {
           .career-hub-grid { grid-template-columns: 1fr 1fr; }
           .career-hub-col:first-child { grid-column: 1; }
@@ -479,14 +474,14 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
               {logo && <img src={logo} alt={team.club} style={{ width: 52, height: 52, objectFit: 'contain' }} />}
               <span style={{
                 position: 'absolute', bottom: -4, right: -8, minWidth: 22, height: 20, padding: '0 4px', borderRadius: 999,
-                background: '#d4a23c', color: '#0B1A12', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '2px solid rgba(20,28,22,0.9)',
+                background: 'var(--gold)', color: 'var(--ink)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '2px solid var(--line)',
               }}>{myPos}º</span>
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 19, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 {team.club}
-                <span style={{ fontSize: 9.5, fontWeight: 700, color: '#d4a23c', background: 'rgba(212,162,60,0.12)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 999, padding: '2px 7px' }}>Série {divisionKey}</span>
+                <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gold-ink)', background: 'rgba(194,154,69,0.12)', border: '1px solid var(--gold)', borderRadius: 999, padding: '2px 7px' }}>Série {divisionKey}</span>
               </div>
               <div style={{ fontSize: 11.5, opacity: 0.6, marginTop: 2 }}>
                 {formatCalendarDay(save.calendarDay)} · Temporada {save.season}
@@ -499,24 +494,24 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
             <TransferWindowBadge day={save.calendarDay} style={{ width: '100%', boxSizing: 'border-box' }} />
           </div>
           {windowOpen && (
-            <button onClick={() => onNavigate('market')} style={{ marginTop: 6, width: '100%', background: 'none', border: 'none', color: '#d4a23c', fontSize: 11, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', textAlign: 'right' }}>
+            <button onClick={() => onNavigate('market')} style={{ marginTop: 6, width: '100%', background: 'none', border: 'none', color: 'var(--gold-ink)', fontSize: 11, fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', textAlign: 'right' }}>
               Explorar Mercado →
             </button>
           )}
         </div>
 
         {offerCount > 0 && (
-          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)', fontSize: 12, color: '#d4a23c', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('market')}>
+          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)', fontSize: 12, color: 'var(--gold-ink)', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('market')}>
             📨 {offerCount} proposta{offerCount > 1 ? 's' : ''} esperando resposta — toque pra ver
           </div>
         )}
         {offerCount === 0 && noFormation && (
-          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(224,80,80,0.1)', border: '1px solid rgba(224,80,80,0.3)', fontSize: 12, color: '#e08080', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('formation')}>
+          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(178,59,59,0.1)', border: '1px solid rgba(178,59,59,0.4)', fontSize: 12, color: 'var(--danger)', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('formation')}>
             🧩 Defina sua formação antes de jogar — toque pra escalar
           </div>
         )}
         {offerCount === 0 && !noFormation && hasSuspendedStarter && (
-          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(224,80,80,0.1)', border: '1px solid rgba(224,80,80,0.3)', fontSize: 12, color: '#e08080', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('formation')}>
+          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(178,59,59,0.1)', border: '1px solid rgba(178,59,59,0.4)', fontSize: 12, color: 'var(--danger)', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('formation')}>
             🟥 {suspendedStarters.join(', ')} suspenso{suspendedStarters.length > 1 ? 's' : ''} — ajuste a formação antes de jogar
           </div>
         )}
@@ -531,20 +526,20 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
         </div>
 
         <button className="career-nav-btn" onClick={() => onNavigate('youth')} style={{
-          width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)',
-          background: 'rgba(255,255,255,0.03)', color: '#F4F1EA', cursor: 'pointer',
+          width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-strong)',
+          background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer',
           display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
         }}>
           <span>🌱</span>
           <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Categoria de Base</span>
-          {academyCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: '#7fd99a', background: 'rgba(127,217,154,0.12)', border: '1px solid rgba(127,217,154,0.3)', borderRadius: 999, padding: '2px 8px' }}>{academyCount} promessa{academyCount > 1 ? 's' : ''}</span>}
+          {academyCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--success)', background: 'rgba(31,122,77,0.12)', border: '1px solid rgba(31,122,77,0.4)', borderRadius: 999, padding: '2px 8px' }}>{academyCount} promessa{academyCount > 1 ? 's' : ''}</span>}
         </button>
 
         <div style={{ paddingTop: 4 }}>
           <button className="career-advance-btn" onClick={onAdvanceDay} disabled={advanceBlocked} style={{
-            width: '100%', padding: '18px 0', borderRadius: 14, border: advanceBlocked ? 'none' : '2px solid rgba(240,200,104,0.5)', cursor: advanceBlocked ? 'default' : 'pointer',
-            background: advanceBlocked ? 'rgba(212,162,60,0.3)' : 'linear-gradient(135deg, #f0c868, #d4a23c, #f0c868)',
-            color: '#0B1A12', fontSize: 17, fontWeight: 800, letterSpacing: 0.4,
+            width: '100%', padding: '18px 0', borderRadius: 14, border: advanceBlocked ? 'none' : '2px solid var(--gold)', cursor: advanceBlocked ? 'default' : 'pointer',
+            background: advanceBlocked ? 'rgba(194,154,69,0.2)' : 'linear-gradient(135deg, var(--gold), var(--gold), var(--gold))',
+            color: 'var(--ink)', fontSize: 17, fontWeight: 800, letterSpacing: 0.4,
           }}>
             {offerCount > 0 ? 'Responda as propostas primeiro' : noFormation ? 'Defina a formação primeiro' : hasSuspendedStarter ? 'Tire o suspenso da escalação' : seasonOver ? 'Encerrar temporada →' : '▶ Avançar rodada'}
           </button>
@@ -553,7 +548,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <button className="career-simulate-btn" onClick={onSimulateSeason} disabled={advanceBlocked} style={{
               padding: '9px 20px', borderRadius: 999, cursor: advanceBlocked ? 'default' : 'pointer',
-              border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.03)', color: 'rgba(244,241,234,0.7)', fontSize: 12, fontWeight: 600,
+              border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12, fontWeight: 600,
             }}>
               ⏩ Simular temporada até o fim
             </button>
@@ -571,7 +566,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
 }
 
 const navBtnStyle = {
-  padding: '12px 8px', borderRadius: 12, border: '1px solid rgba(255,255,255,0.12)',
-  background: 'rgba(255,255,255,0.03)', color: '#F4F1EA', cursor: 'pointer',
+  padding: '12px 8px', borderRadius: 12, border: '1px solid var(--line-strong)',
+  background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer',
   display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
 };

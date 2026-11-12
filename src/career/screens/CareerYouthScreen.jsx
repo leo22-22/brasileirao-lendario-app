@@ -22,7 +22,7 @@ function PosBadge({ pos }) {
   return (
     <span style={{
       width: 34, flexShrink: 0, textAlign: 'center', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.3,
-      fontFamily: "'Space Mono', monospace", padding: '3px 0', borderRadius: 6,
+      fontFamily: 'var(--font-mono)', padding: '3px 0', borderRadius: 6,
       color: c, background: `${c}22`, border: `1px solid ${c}55`,
     }}>{pos}</span>
   );
@@ -35,7 +35,7 @@ export function CareerYouthScreen({ save, onPromote, onBack }) {
   return (
     <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>🌱 Categoria de Base</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 4 }}>🌱 Categoria de Base</h2>
       <p style={{ fontSize: 11.5, opacity: 0.55, marginBottom: 16, lineHeight: 1.4 }}>
         Jovens revelados pela base ficam aqui — não entram em campo nem podem ser negociados até você promover pro elenco profissional, ou automaticamente quando completam 20 anos.
       </p>
@@ -49,7 +49,7 @@ export function CareerYouthScreen({ save, onPromote, onBack }) {
         return (
           <div key={p.name} style={{
             padding: '12px 14px', borderRadius: 10, marginBottom: 8,
-            background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.08)',
+            background: 'var(--surface)', border: '1px solid var(--line)',
             borderLeft: `3px solid ${posColor(p.pos[0])}`,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 }}>
@@ -60,15 +60,15 @@ export function CareerYouthScreen({ save, onPromote, onBack }) {
                 </div>
                 <div style={{ fontSize: 11, opacity: 0.55 }}>{p.age} anos</div>
               </div>
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 15 }}>{p.ovr}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ovrColor(p.ovr), fontSize: 15 }}>{p.ovr}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <span style={{ fontSize: 11.5, opacity: 0.75 }}>
-                {range ? <>Potencial: <b style={{ color: '#d4a23c' }}>{range.low}-{range.high}</b></> : 'Sem potencial de crescimento'}
+                {range ? <>Potencial: <b style={{ color: 'var(--gold-ink)' }}>{range.low}-{range.high}</b></> : 'Sem potencial de crescimento'}
               </span>
               <button
                 onClick={() => onPromote(p.name)}
-                style={{ padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(127,217,154,0.4)', background: 'rgba(127,217,154,0.12)', color: '#7fd99a' }}
+                style={{ padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(31,122,77,0.5)', background: 'rgba(31,122,77,0.12)', color: 'var(--success)' }}
               >⬆️ Promover</button>
             </div>
           </div>

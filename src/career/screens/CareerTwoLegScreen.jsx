@@ -56,13 +56,13 @@ export function CareerTwoLegScreen({ title, subtitle, winLabel, loseLabel, prepa
   const iWon = tieData.myAggGoals !== tieData.oppAggGoals ? tieData.myAggGoals > tieData.oppAggGoals : !!tieData.penaltyWinnerIsMe;
   return (
     <div style={{ ...wrapStyle, textAlign: 'center' }}>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, marginBottom: 10 }}>{title}</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, marginBottom: 10 }}>{title}</h2>
       <p style={{ fontSize: 13, opacity: 0.7, marginBottom: 20 }}>{subtitle}</p>
       <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 8 }}>Ida: {tieData.leg1.sim.homeGoals} x {tieData.leg1.sim.awayGoals}</div>
       <div style={{ fontSize: 13, opacity: 0.8, marginBottom: 12 }}>Volta: {tieData.leg2.sim.homeGoals} x {tieData.leg2.sim.awayGoals}</div>
       <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>Agregado: {tieData.myAggGoals} x {tieData.oppAggGoals}</div>
       {tieData.wentToPenalties && <div style={{ fontSize: 12, opacity: 0.7, marginBottom: 8 }}>Empate no agregado — decidido nos pênaltis.</div>}
-      <div style={{ fontSize: 15, fontWeight: 700, color: iWon ? '#7fd99a' : '#e05050', marginBottom: 20 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: iWon ? 'var(--success)' : 'var(--danger)', marginBottom: 20 }}>
         {iWon ? winLabel : loseLabel}
       </div>
       <button onClick={() => onContinue(tieData)} style={primaryBtnStyle}>Continuar →</button>

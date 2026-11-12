@@ -84,11 +84,11 @@ function PitchSlotCircle({ slot, player, pending, suspended, onClick }) {
       <div style={{ position: 'relative' }}>
         <div style={{
           width: 38, height: 38, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 11, fontWeight: 800, fontFamily: "'Space Mono', monospace",
-          background: pending ? 'rgba(212,162,60,0.35)' : filled ? c : 'rgba(255,255,255,0.08)',
-          border: suspended ? '2.5px solid #e05050' : pending ? '2.5px solid #d4a23c' : filled ? '2px solid rgba(255,255,255,0.65)' : `1.5px dashed ${c}88`,
-          color: filled ? '#0B1A12' : pending ? '#d4a23c' : `${c}cc`,
-          boxShadow: suspended ? '0 0 14px rgba(224,80,80,0.6)' : pending ? '0 0 14px rgba(212,162,60,0.5)' : filled ? '0 3px 8px rgba(0,0,0,0.5)' : 'none',
+          fontSize: 11, fontWeight: 800, fontFamily: 'var(--font-mono)',
+          background: pending ? 'rgba(194,154,69,0.2)' : filled ? c : 'var(--surface-2)',
+          border: suspended ? '2.5px solid var(--danger)' : pending ? '2.5px solid var(--gold)' : filled ? '2px solid var(--line-strong)' : `1.5px dashed ${c}88`,
+          color: filled ? 'var(--ink)' : pending ? 'var(--gold-ink)' : `${c}cc`,
+          boxShadow: suspended ? '0 0 14px rgba(178,59,59,0.3)' : pending ? '0 0 14px rgba(194,154,69,0.35)' : filled ? 'var(--shadow)' : 'none',
         }}>
           {filled ? player.ovr : slot.label}
         </div>
@@ -96,8 +96,8 @@ function PitchSlotCircle({ slot, player, pending, suspended, onClick }) {
       </div>
       {filled && (
         <div style={{
-          fontSize: 9.5, fontWeight: 600, color: suspended ? '#e05050' : '#F4F1EA', textAlign: 'center', lineHeight: 1.1,
-          textShadow: '0 1px 3px rgba(0,0,0,0.9)', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          fontSize: 9.5, fontWeight: 600, color: suspended ? 'var(--danger)' : 'var(--ink)', textAlign: 'center', lineHeight: 1.1,
+          textShadow: 'var(--shadow)', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>{player.name}</div>
       )}
     </div>
@@ -110,13 +110,13 @@ function PitchField({ slots, starters, roster, pendingSlotKey, suspendedSet, onS
     <div style={{
       position: 'relative', width: '100%', aspectRatio: '0.68', borderRadius: 12, overflow: 'hidden',
       background: '#124d27',
-      backgroundImage: 'repeating-linear-gradient(to bottom, rgba(0,0,0,0.07) 0%, rgba(0,0,0,0.07) 14.3%, transparent 14.3%, transparent 28.6%)',
-      border: '1px solid rgba(255,255,255,0.1)', marginBottom: 12,
+      backgroundImage: 'repeating-linear-gradient(to bottom, var(--surface-2) 0%, var(--surface-2) 14.3%, transparent 14.3%, transparent 28.6%)',
+      border: '1px solid var(--line)', marginBottom: 12,
     }}>
-      <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.3)' }} />
-      <div style={{ position: 'absolute', left: '50%', top: '50%', width: 60, height: 60, border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '50%', transform: 'translate(-50%,-50%)' }} />
-      <div style={{ position: 'absolute', top: 0, left: '18%', width: '64%', height: '15%', border: '1.5px solid rgba(255,255,255,0.3)', borderTop: 'none' }} />
-      <div style={{ position: 'absolute', bottom: 0, left: '18%', width: '64%', height: '15%', border: '1.5px solid rgba(255,255,255,0.3)', borderBottom: 'none' }} />
+      <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--line-strong)' }} />
+      <div style={{ position: 'absolute', left: '50%', top: '50%', width: 60, height: 60, border: '1.5px solid var(--line-strong)', borderRadius: '50%', transform: 'translate(-50%,-50%)' }} />
+      <div style={{ position: 'absolute', top: 0, left: '18%', width: '64%', height: '15%', border: '1.5px solid var(--line-strong)', borderTop: 'none' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: '18%', width: '64%', height: '15%', border: '1.5px solid var(--line-strong)', borderBottom: 'none' }} />
       {slots.map(slot => (
         <PitchSlotCircle
           key={slot.key}
@@ -151,17 +151,17 @@ function StartersFunctionsList({ slots, starters, roster, captainName, penaltyTa
         const isCap = captainName === name;
         const isPen = penaltyTakerName === name;
         return (
-          <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: (isCap || isPen) ? 'rgba(212,162,60,0.08)' : 'rgba(255,255,255,0.03)' }}>
-            <span style={{ width: 26, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</span>
+          <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, background: (isCap || isPen) ? 'rgba(194,154,69,0.1)' : 'var(--surface)' }}>
+            <span style={{ width: 26, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: 'var(--font-mono)' }}>{p.pos[0]}</span>
             <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 11.5, color: ovrColor(p.ovr), flexShrink: 0 }}>{p.ovr}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11.5, color: ovrColor(p.ovr), flexShrink: 0 }}>{p.ovr}</span>
             <button
               onClick={() => onToggleCaptain(name)}
               title={isCap ? 'Capitão — clique pra tirar' : 'Definir como capitão (+2 OVR)'}
               style={{
                 flexShrink: 0, width: 26, height: 26, borderRadius: 7, fontSize: 10.5, fontWeight: 800, cursor: 'pointer',
-                border: `1px solid ${isCap ? 'rgba(212,162,60,0.6)' : 'rgba(255,255,255,0.15)'}`,
-                background: isCap ? '#d4a23c' : 'transparent', color: isCap ? '#0B1A12' : 'rgba(244,241,234,0.5)',
+                border: `1px solid ${isCap ? 'var(--gold)' : 'var(--line-strong)'}`,
+                background: isCap ? 'var(--gold)' : 'transparent', color: isCap ? 'var(--ink)' : 'var(--muted)',
               }}
             >C</button>
             <button
@@ -169,8 +169,8 @@ function StartersFunctionsList({ slots, starters, roster, captainName, penaltyTa
               title={isPen ? 'Cobrador de pênalti — clique pra tirar' : 'Definir como cobrador de pênalti'}
               style={{
                 flexShrink: 0, width: 26, height: 26, borderRadius: 7, fontSize: 10.5, fontWeight: 800, cursor: 'pointer',
-                border: `1px solid ${isPen ? 'rgba(111,184,224,0.6)' : 'rgba(255,255,255,0.15)'}`,
-                background: isPen ? '#6fb8e0' : 'transparent', color: isPen ? '#0B1A12' : 'rgba(244,241,234,0.5)',
+                border: `1px solid ${isPen ? 'rgba(47,111,168,0.6)' : 'var(--line-strong)'}`,
+                background: isPen ? 'var(--info)' : 'transparent', color: isPen ? 'var(--ink)' : 'var(--muted)',
               }}
             >P</button>
           </div>
@@ -191,10 +191,10 @@ function PlayerPoolPicker({ pos, pool, suspendedSet, onPick, onCancel }) {
   const usingFallback = compatible.length === 0 && pool.length > 0;
   const sorted = [...(usingFallback ? pool : compatible)].sort((a, b) => b.ovr - a.ovr);
   return (
-    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)', marginBottom: 12 }}>
+    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)', marginBottom: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-        <div style={{ fontSize: 12.5, fontWeight: 700, color: '#d4a23c' }}>Quem joga em {pos}?</div>
-        <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.6)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+        <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--gold-ink)' }}>Quem joga em {pos}?</div>
+        <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'var(--ink-2)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
       </div>
       {sorted.length === 0 && <p style={{ fontSize: 12, opacity: 0.5 }}>Todo mundo já tá escalado em outra vaga.</p>}
       {usingFallback && <p style={{ fontSize: 11, opacity: 0.55, marginBottom: 6 }}>Ninguém do banco joga de {pos} — mostrando o banco inteiro.</p>}
@@ -210,14 +210,14 @@ function PlayerPoolPicker({ pos, pool, suspendedSet, onPick, onCancel }) {
               style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 8, textAlign: 'left',
                 cursor: suspended ? 'default' : 'pointer', opacity: suspended ? 0.5 : 1,
-                background: suspended ? 'rgba(224,80,80,0.06)' : p.pos.includes(pos) ? 'rgba(127,217,154,0.1)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${suspended ? 'rgba(224,80,80,0.3)' : p.pos.includes(pos) ? 'rgba(127,217,154,0.3)' : 'rgba(255,255,255,0.08)'}`, color: '#F4F1EA',
+                background: suspended ? 'rgba(178,59,59,0.1)' : p.pos.includes(pos) ? 'rgba(31,122,77,0.1)' : 'var(--surface)',
+                border: `1px solid ${suspended ? 'rgba(178,59,59,0.4)' : p.pos.includes(pos) ? 'rgba(31,122,77,0.4)' : 'var(--line)'}`, color: 'var(--ink)',
               }}
             >
-              <span style={{ width: 28, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</span>
+              <span style={{ width: 28, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: 'var(--font-mono)' }}>{p.pos[0]}</span>
               <span style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-              {suspended && <span style={{ fontSize: 10, fontWeight: 700, color: '#e05050' }}>🟥 suspenso</span>}
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 12.5 }}>{p.ovr}</span>
+              {suspended && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--danger)' }}>🟥 suspenso</span>}
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ovrColor(p.ovr), fontSize: 12.5 }}>{p.ovr}</span>
             </button>
           );
         })}
@@ -255,15 +255,15 @@ function BenchBubble({ p, selected, disabled, suspended, onClick }) {
       <div style={{ position: 'relative' }}>
         <div style={{
           width: 44, height: 44, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 12, fontWeight: 800, fontFamily: "'Space Mono', monospace",
-          background: selected ? c : 'rgba(255,255,255,0.08)', color: selected ? '#0B1A12' : `${c}cc`,
-          border: suspended ? '2px solid #e05050' : selected ? '2px solid rgba(255,255,255,0.65)' : `1.5px dashed ${c}88`,
-          boxShadow: suspended ? '0 0 10px rgba(224,80,80,0.5)' : selected ? '0 3px 7px rgba(0,0,0,0.4)' : 'none',
+          fontSize: 12, fontWeight: 800, fontFamily: 'var(--font-mono)',
+          background: selected ? c : 'var(--surface-2)', color: selected ? 'var(--ink)' : `${c}cc`,
+          border: suspended ? '2px solid var(--danger)' : selected ? '2px solid var(--line-strong)' : `1.5px dashed ${c}88`,
+          boxShadow: suspended ? '0 0 10px rgba(178,59,59,0.3)' : selected ? 'var(--shadow)' : 'none',
         }}>{p.ovr}</div>
         {suspended && <span style={{ position: 'absolute', top: -4, right: -4, fontSize: 11 }}>🟥</span>}
       </div>
-      <div style={{ fontSize: 9, fontWeight: 700, color: suspended ? '#e05050' : c, fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</div>
-      <div style={{ fontSize: 9, fontWeight: 600, textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: suspended ? '#e05050' : '#F4F1EA', opacity: 0.85 }}>{p.name}</div>
+      <div style={{ fontSize: 9, fontWeight: 700, color: suspended ? 'var(--danger)' : c, fontFamily: 'var(--font-mono)' }}>{p.pos[0]}</div>
+      <div style={{ fontSize: 9, fontWeight: 600, textAlign: 'center', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: suspended ? 'var(--danger)' : 'var(--ink)', opacity: 0.85 }}>{p.name}</div>
     </button>
   );
 }
@@ -274,23 +274,23 @@ function BenchBubble({ p, selected, disabled, suspended, onClick }) {
 function SavePresetPanel({ onSave, onCancel }) {
   const [name, setName] = useState('');
   return (
-    <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: 'rgba(212,162,60,0.08)', border: '1px solid rgba(212,162,60,0.3)' }}>
+    <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)' }}>
       <input
         value={name}
         onChange={e => setName(e.target.value.slice(0, 40))}
         placeholder="Nome da formação (ex.: Time reserva)"
         style={{
           width: '100%', boxSizing: 'border-box', padding: '8px 10px', borderRadius: 8, marginBottom: 8,
-          border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 12.5, outline: 'none',
+          border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 12.5, outline: 'none',
         }}
       />
       <div style={{ display: 'flex', gap: 6 }}>
         <button
           onClick={() => name.trim() && onSave(name.trim())}
           disabled={!name.trim()}
-          style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', background: name.trim() ? '#d4a23c' : 'rgba(212,162,60,0.3)', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: name.trim() ? 'pointer' : 'default' }}
+          style={{ flex: 1, padding: '8px 0', borderRadius: 8, border: 'none', background: name.trim() ? 'var(--gold)' : 'rgba(194,154,69,0.2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: name.trim() ? 'pointer' : 'default' }}
         >Salvar</button>
-        <button onClick={onCancel} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+        <button onClick={onCancel} style={{ padding: '8px 12px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
       </div>
     </div>
   );
@@ -300,17 +300,17 @@ function SavePresetPanel({ onSave, onCancel }) {
 // precisa confirmar escalação depois, igual qualquer edição) ou apagar.
 function LoadPresetPanel({ presets, onLoad, onDelete, onCancel }) {
   return (
-    <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: 'rgba(111,184,224,0.06)', border: '1px solid rgba(111,184,224,0.2)' }}>
+    <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: 'rgba(47,111,168,0.1)', border: '1px solid rgba(47,111,168,0.3)' }}>
       {presets.length === 0 && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>Nenhuma formação salva ainda — use "Criar formação" pra guardar a de agora.</p>}
       {presets.map(preset => (
-        <div key={preset.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6, marginBottom: 4, background: 'rgba(255,255,255,0.03)' }}>
-          <button onClick={() => onLoad(preset)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', color: '#F4F1EA', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div key={preset.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6, marginBottom: 4, background: 'var(--surface)' }}>
+          <button onClick={() => onLoad(preset)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', color: 'var(--ink)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {preset.name} <span style={{ opacity: 0.5, fontWeight: 400 }}>({FORMATIONS[preset.formationKey]?.label || preset.formationKey})</span>
           </button>
-          <button onClick={() => onDelete(preset.id)} title="Apagar formação" style={{ background: 'none', border: 'none', color: 'rgba(224,80,80,0.75)', fontSize: 15, cursor: 'pointer', padding: '0 4px', flexShrink: 0 }}>×</button>
+          <button onClick={() => onDelete(preset.id)} title="Apagar formação" style={{ background: 'none', border: 'none', color: 'rgb(178,59,59)', fontSize: 15, cursor: 'pointer', padding: '0 4px', flexShrink: 0 }}>×</button>
         </div>
       ))}
-      <button onClick={onCancel} style={{ marginTop: 2, background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>Fechar</button>
+      <button onClick={onCancel} style={{ marginTop: 2, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 11, textDecoration: 'underline', cursor: 'pointer', padding: 0 }}>Fechar</button>
     </div>
   );
 }
@@ -475,7 +475,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
   return (
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Formação</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 4 }}>Formação</h2>
       <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 12 }}>Clique numa vaga do campinho pra escalar ou tirar um jogador — edite quantas vezes quiser durante a temporada. OVR titular médio {avgOvr}. Escolha também até 12 reservas no banco mais abaixo — quem não for titular nem estiver no banco não entra em campo.</p>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
@@ -483,18 +483,18 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
           value={formationKey}
           onChange={e => handleFormationChange(e.target.value)}
           style={{
-            flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
-            background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 12.5, outline: 'none', colorScheme: 'dark',
+            flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line-strong)',
+            background: 'var(--surface)', color: 'var(--ink)', fontSize: 12.5, outline: 'none', colorScheme: 'dark',
           }}
         >
           {Object.entries(FORMATIONS).map(([key, f]) => (
-            <option key={key} value={key} style={{ background: '#13241a', color: '#F4F1EA' }}>{f.label}</option>
+            <option key={key} value={key} style={{ background: 'var(--surface)', color: 'var(--ink)' }}>{f.label}</option>
           ))}
         </select>
-        <button onClick={handleSuggest} style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '0 12px', fontSize: 11, color: 'rgba(244,241,234,0.7)', cursor: 'pointer' }}>
+        <button onClick={handleSuggest} style={{ background: 'none', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '0 12px', fontSize: 11, color: 'var(--ink-2)', cursor: 'pointer' }}>
           🪄 Sugerir
         </button>
-        <button onClick={handleClear} style={{ background: 'none', border: '1px solid rgba(224,80,80,0.35)', borderRadius: 8, padding: '0 12px', fontSize: 11, color: '#e08080', cursor: 'pointer' }}>
+        <button onClick={handleClear} style={{ background: 'none', border: '1px solid rgba(178,59,59,0.45)', borderRadius: 8, padding: '0 12px', fontSize: 11, color: 'var(--danger)', cursor: 'pointer' }}>
           🧹 Limpar
         </button>
       </div>
@@ -502,11 +502,11 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <button
           onClick={() => setPresetPanel(prev => (prev === 'save' ? null : 'save'))}
-          style={{ flex: 1, background: 'none', border: `1px solid ${presetPanel === 'save' ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.15)'}`, borderRadius: 8, padding: '8px 0', fontSize: 11.5, fontWeight: 700, color: presetPanel === 'save' ? '#d4a23c' : 'rgba(244,241,234,0.7)', cursor: 'pointer' }}
+          style={{ flex: 1, background: 'none', border: `1px solid ${presetPanel === 'save' ? 'var(--gold)' : 'var(--line-strong)'}`, borderRadius: 8, padding: '8px 0', fontSize: 11.5, fontWeight: 700, color: presetPanel === 'save' ? 'var(--gold-ink)' : 'var(--ink-2)', cursor: 'pointer' }}
         >💾 Criar formação</button>
         <button
           onClick={() => setPresetPanel(prev => (prev === 'load' ? null : 'load'))}
-          style={{ flex: 1, background: 'none', border: `1px solid ${presetPanel === 'load' ? 'rgba(111,184,224,0.5)' : 'rgba(255,255,255,0.15)'}`, borderRadius: 8, padding: '8px 0', fontSize: 11.5, fontWeight: 700, color: presetPanel === 'load' ? '#6fb8e0' : 'rgba(244,241,234,0.7)', cursor: 'pointer' }}
+          style={{ flex: 1, background: 'none', border: `1px solid ${presetPanel === 'load' ? 'rgba(47,111,168,0.6)' : 'var(--line-strong)'}`, borderRadius: 8, padding: '8px 0', fontSize: 11.5, fontWeight: 700, color: presetPanel === 'load' ? 'var(--info)' : 'var(--ink-2)', cursor: 'pointer' }}
         >📂 Carregar formação</button>
       </div>
       {presetPanel === 'save' && <SavePresetPanel onSave={handleSavePreset} onCancel={() => setPresetPanel(null)} />}
@@ -514,7 +514,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
         <LoadPresetPanel presets={save.savedFormations || []} onLoad={handleLoadPreset} onDelete={onDeleteFormationPreset} onCancel={() => setPresetPanel(null)} />
       )}
 
-      <div style={{ fontSize: 13, fontWeight: 700, color: filledCount === 11 ? '#7fd99a' : '#d4a23c', marginBottom: 8 }}>Titulares: {filledCount}/11</div>
+      <div style={{ fontSize: 13, fontWeight: 700, color: filledCount === 11 ? 'var(--success)' : 'var(--gold-ink)', marginBottom: 8 }}>Titulares: {filledCount}/11</div>
 
       <PitchField slots={slots} starters={starters} roster={roster} pendingSlotKey={pendingSlotKey} suspendedSet={suspendedSet} onSlotClick={handleSlotClick} />
 
@@ -522,16 +522,16 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
         <PlayerPoolPicker pos={pendingPos} pool={bench} suspendedSet={suspendedSet} onPick={handlePick} onCancel={() => setPendingSlotKey(null)} />
       )}
       {hasSuspendedStarter && (
-        <p style={{ fontSize: 11.5, color: '#e05050', marginBottom: 10 }}>🟥 Tem jogador suspenso na escalação — tire ele antes de confirmar.</p>
+        <p style={{ fontSize: 11.5, color: 'var(--danger)', marginBottom: 10 }}>🟥 Tem jogador suspenso na escalação — tire ele antes de confirmar.</p>
       )}
 
       {filledCount === 11 && (
         <>
           <div style={{
             textAlign: 'center', fontSize: 11.5, padding: '8px 12px', marginBottom: 10, borderRadius: 8,
-            background: (validCaptain && validPenaltyTaker) ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.04)',
-            border: `1px solid ${(validCaptain && validPenaltyTaker) ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.08)'}`,
-            color: (validCaptain && validPenaltyTaker) ? '#d4a23c' : 'rgba(255,255,255,0.5)',
+            background: (validCaptain && validPenaltyTaker) ? 'rgba(194,154,69,0.1)' : 'var(--surface)',
+            border: `1px solid ${(validCaptain && validPenaltyTaker) ? 'rgba(194,154,69,0.5)' : 'var(--line)'}`,
+            color: (validCaptain && validPenaltyTaker) ? 'var(--gold-ink)' : 'var(--muted)',
           }}>
             {validCaptain && validPenaltyTaker
               ? `Capitão: ${validCaptain} (+2 OVR) · Cobrador de pênalti: ${validPenaltyTaker}`
@@ -546,10 +546,10 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
       )}
 
       <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
-        Banco: <span style={{ color: benchSelected.length === 12 ? '#7fd99a' : '#d4a23c' }}>{benchSelected.length}/12</span> · reserva dos reservas: {Math.max(0, bench.length - benchSelected.length)}
+        Banco: <span style={{ color: benchSelected.length === 12 ? 'var(--success)' : 'var(--gold-ink)' }}>{benchSelected.length}/12</span> · reserva dos reservas: {Math.max(0, bench.length - benchSelected.length)}
       </div>
       {hasSuspendedBench && (
-        <p style={{ fontSize: 11.5, color: '#e05050', marginBottom: 10 }}>🟥 Tem suspenso no banco — tire ele antes de confirmar (suspenso não pode nem ficar relacionado).</p>
+        <p style={{ fontSize: 11.5, color: 'var(--danger)', marginBottom: 10 }}>🟥 Tem suspenso no banco — tire ele antes de confirmar (suspenso não pode nem ficar relacionado).</p>
       )}
       <div style={{ marginBottom: 16 }}>
         <BenchCarousel players={bench} benchSet={new Set(benchSelected)} suspendedSet={suspendedSet} onToggle={handleToggleBench} />
@@ -557,7 +557,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
 
       <button onClick={handleConfirm} disabled={!canConfirm} style={{
         width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', cursor: canConfirm ? 'pointer' : 'default',
-        background: canConfirm ? '#d4a23c' : 'rgba(212,162,60,0.3)', color: '#0B1A12', fontSize: 15, fontWeight: 700,
+        background: canConfirm ? 'var(--gold)' : 'rgba(194,154,69,0.2)', color: 'var(--ink)', fontSize: 15, fontWeight: 700,
       }}>
         {canConfirm
           ? 'Confirmar escalação →'

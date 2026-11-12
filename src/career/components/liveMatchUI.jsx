@@ -32,15 +32,15 @@ function saveSpeed(v) {
 // CareerTwoLegScreen, CareerCopaLegScreen).
 export function MatchSpeedPicker({ speedKey, onChange, style }) {
   return (
-    <div style={{ display: 'flex', borderRadius: 999, border: '1px solid rgba(255,255,255,0.18)', overflow: 'hidden', ...style }}>
+    <div style={{ display: 'flex', borderRadius: 999, border: '1px solid var(--line-strong)', overflow: 'hidden', ...style }}>
       {Object.keys(SPEEDS).map(k => (
         <button
           key={k}
           onClick={() => onChange(k)}
           style={{
             fontSize: 10.5, fontWeight: 700, padding: '4px 10px', border: 'none', cursor: 'pointer',
-            background: speedKey === k ? 'rgba(212,162,60,0.3)' : 'rgba(255,255,255,0.06)',
-            color: speedKey === k ? '#d4a23c' : '#F4F1EA',
+            background: speedKey === k ? 'rgba(194,154,69,0.2)' : 'var(--surface)',
+            color: speedKey === k ? 'var(--gold-ink)' : 'var(--ink)',
           }}
         >{k}</button>
       ))}
@@ -81,7 +81,7 @@ export function TeamBadge({ team }) {
 }
 
 export function RatingsList({ ratings, homeTeam, awayTeam }) {
-  const ratingColor = r => (r >= 8 ? '#7fd99a' : r >= 6.5 ? '#d4a23c' : r >= 5 ? '#e0b050' : '#e05050');
+  const ratingColor = r => (r >= 8 ? '#1F7A4D' : r >= 6.5 ? '#8A6A24' : r >= 5 ? '#8F5D14' : '#B23B3B');
   const Col = ({ team }) => {
     const list = ratings.filter(r => r.teamId === team.id).sort((a, b) => b.rating - a.rating);
     return (
@@ -90,14 +90,14 @@ export function RatingsList({ ratings, homeTeam, awayTeam }) {
         {list.map(p => (
           <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 11.5, marginBottom: 3 }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ratingColor(p.rating), flexShrink: 0 }}>{p.rating.toFixed(1)}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ratingColor(p.rating), flexShrink: 0 }}>{p.rating.toFixed(1)}</span>
           </div>
         ))}
       </div>
     );
   };
   return (
-    <div style={{ display: 'flex', gap: 16, marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div style={{ display: 'flex', gap: 16, marginBottom: 14, padding: '10px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)' }}>
       <Col team={homeTeam} />
       <Col team={awayTeam} />
     </div>
@@ -192,11 +192,11 @@ export function useLiveMatchPlayer(sim, homeTeam, awayTeam) {
 }
 
 export const wrapStyle = { width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' };
-export const cardStyle = { padding: '14px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' };
+export const cardStyle = { padding: '14px 12px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--line)' };
 export const labelStyle = { fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 4 };
-export const primaryBtnStyle = { width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: '#d4a23c', color: '#0B1A12', fontSize: 14, fontWeight: 700, cursor: 'pointer' };
-export const secondaryBtnStyle = { width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(255,255,255,0.15)', background: 'transparent', color: 'rgba(244,241,234,0.8)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 8 };
-const pauseBtnStyle = { width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(255,140,0,0.4)', background: 'rgba(255,140,0,0.1)', color: '#ffaa00', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', marginBottom: 8 };
+export const primaryBtnStyle = { width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--gold)', color: 'var(--ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer' };
+export const secondaryBtnStyle = { width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 8 };
+const pauseBtnStyle = { width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(183,121,31,0.5)', background: 'rgba(183,121,31,0.1)', color: 'var(--warning-ink)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', marginBottom: 8 };
 
 // Painel de troca mostrado quando o usuário pausa a partida ao vivo
 // (pedido explícito do usuário 2026-11-13: "coloque comigo se eu quiser
@@ -234,13 +234,13 @@ function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, onApplySub, o
               onClick={() => setSelectedSlotKey(prev => (prev === slot.key ? null : slot.key))}
               style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, textAlign: 'left', cursor: 'pointer',
-                background: isSelected ? 'rgba(212,162,60,0.15)' : 'rgba(255,255,255,0.03)',
-                border: `1px solid ${isSelected ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.08)'}`, color: '#F4F1EA',
+                background: isSelected ? 'rgba(194,154,69,0.15)' : 'var(--surface)',
+                border: `1px solid ${isSelected ? 'rgba(194,154,69,0.6)' : 'var(--line)'}`, color: 'var(--ink)',
               }}
             >
-              <span style={{ width: 26, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</span>
+              <span style={{ width: 26, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: 'var(--font-mono)' }}>{p.pos[0]}</span>
               <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 11.5, color: ovrColor(p.ovr) }}>{p.ovr}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11.5, color: ovrColor(p.ovr) }}>{p.ovr}</span>
             </button>
           );
         })}
@@ -255,11 +255,11 @@ function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, onApplySub, o
               <button
                 key={p.name}
                 onClick={() => onApplySub(selectedSlotKey, p.name)}
-                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, textAlign: 'left', cursor: 'pointer', background: 'rgba(127,217,154,0.08)', border: '1px solid rgba(127,217,154,0.3)', color: '#F4F1EA' }}
+                style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, textAlign: 'left', cursor: 'pointer', background: 'rgba(31,122,77,0.1)', border: '1px solid rgba(31,122,77,0.4)', color: 'var(--ink)' }}
               >
-                <span style={{ width: 26, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</span>
+                <span style={{ width: 26, fontSize: 10, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: 'var(--font-mono)' }}>{p.pos[0]}</span>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 11.5, color: ovrColor(p.ovr) }}>{p.ovr}</span>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11.5, color: ovrColor(p.ovr) }}>{p.ovr}</span>
               </button>
             ))}
           </div>
@@ -271,9 +271,9 @@ function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, onApplySub, o
                   <button
                     key={s.key}
                     onClick={() => onReposition(selectedSlotKey, s.key)}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, textAlign: 'left', cursor: 'pointer', background: 'rgba(111,184,224,0.08)', border: '1px solid rgba(111,184,224,0.3)', color: '#F4F1EA' }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 8px', borderRadius: 8, textAlign: 'left', cursor: 'pointer', background: 'rgba(47,111,168,0.1)', border: '1px solid rgba(47,111,168,0.4)', color: 'var(--ink)' }}
                   >
-                    <span style={{ width: 26, fontSize: 10, fontWeight: 700, color: posColor(myPitchBySlot[s.key].pos[0]), fontFamily: "'Space Mono', monospace" }}>{myPitchBySlot[s.key].pos[0]}</span>
+                    <span style={{ width: 26, fontSize: 10, fontWeight: 700, color: posColor(myPitchBySlot[s.key].pos[0]), fontFamily: 'var(--font-mono)' }}>{myPitchBySlot[s.key].pos[0]}</span>
                     <span style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{myPitchBySlot[s.key].name}</span>
                   </button>
                 ))}
@@ -367,24 +367,24 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
         <div style={labelStyle}>{label}</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, margin: '8px 0 4px' }}>
           <TeamBadge team={homeTeam} />
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 30, fontWeight: 700 }}>{homeGoals} - {awayGoals}</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 30, fontWeight: 700 }}>{homeGoals} - {awayGoals}</div>
           <TeamBadge team={awayTeam} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>
+          <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, fontFamily: 'var(--font-mono)' }}>
             {phase === 'playing' ? (isPaused ? 'Pausado' : `${minute}'`) : 'Fim de jogo'}
           </div>
           {phase === 'playing' && !isPaused && <MatchSpeedPicker speedKey={speedKey} onChange={changeSpeed} />}
         </div>
       </div>
 
-      <div style={{ minHeight: 140, marginBottom: 16, display: 'grid', gap: 6, padding: 10, borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ minHeight: 140, marginBottom: 16, display: 'grid', gap: 6, padding: 10, borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)' }}>
         {shownEvents.length === 0 && phase === 'playing' && (
           <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.4, padding: '20px 0' }}>Bola rolando...</div>
         )}
         {[...shownEvents].reverse().map((ev, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, padding: '5px 8px', borderRadius: 8, background: 'rgba(255,255,255,0.03)' }}>
-            <span style={{ width: 28, opacity: 0.5, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{ev.minute}'</span>
+          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, padding: '5px 8px', borderRadius: 8, background: 'var(--surface)' }}>
+            <span style={{ width: 28, opacity: 0.5, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{ev.minute}'</span>
             <span>{eventIcon(ev)}</span>
             <span style={{ flex: 1 }}>{eventText(ev)}</span>
           </div>
@@ -413,9 +413,9 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
       {phase === 'done' && (
         <>
           {motm && (
-            <div style={{ textAlign: 'center', background: 'rgba(212,162,60,0.1)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
-              🌟 Craque da partida: <b style={{ color: '#d4a23c' }}>{motm.name}</b>{' '}
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
+            <div style={{ textAlign: 'center', background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)', borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
+              🌟 Craque da partida: <b style={{ color: 'var(--gold-ink)' }}>{motm.name}</b>{' '}
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
             </div>
           )}
           <RatingsList ratings={sim.ratings} homeTeam={homeTeam} awayTeam={awayTeam} />

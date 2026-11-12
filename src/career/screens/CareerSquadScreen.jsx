@@ -45,15 +45,15 @@ function normalize(s) {
 
 const cardStyle = {
   padding: '14px', borderRadius: 14,
-  background: 'rgba(20,28,22,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)',
-  border: '1px solid rgba(255,255,255,0.09)',
+  background: 'var(--surface)',
+  border: '1px solid var(--line)',
 };
 
 function StatCard({ label, value, sub, accent }) {
   return (
     <div className="squad-card" style={cardStyle}>
       <div style={{ fontSize: 10, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>{label}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: accent || '#F4F1EA', fontFamily: "'Space Mono', monospace", marginTop: 4 }}>{value}</div>
+      <div style={{ fontSize: 22, fontWeight: 800, color: accent || 'var(--ink)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{value}</div>
       {sub && <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 2 }}>{sub}</div>}
     </div>
   );
@@ -64,7 +64,7 @@ function PosBadge({ pos }) {
   return (
     <span style={{
       width: 36, flexShrink: 0, textAlign: 'center', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.3,
-      fontFamily: "'Space Mono', monospace", padding: '4px 0', borderRadius: 7, color: c, background: `${c}22`, border: `1px solid ${c}55`,
+      fontFamily: 'var(--font-mono)', padding: '4px 0', borderRadius: 7, color: c, background: `${c}22`, border: `1px solid ${c}55`,
     }}>{pos}</span>
   );
 }
@@ -74,7 +74,7 @@ function OvrBadge({ ovr }) {
   return (
     <span style={{
       width: 34, height: 34, flexShrink: 0, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 13, fontWeight: 800, fontFamily: "'Space Mono', monospace", color: c,
+      fontSize: 13, fontWeight: 800, fontFamily: 'var(--font-mono)', color: c,
       background: `${c}18`, border: `1.5px solid ${c}`, boxShadow: `0 0 8px ${c}55`,
     }}>{ovr}</span>
   );
@@ -83,14 +83,14 @@ function OvrBadge({ ovr }) {
 function PlayerDetail({ p, clubId }) {
   const value = computePlayerValue(p, clubId);
   return (
-    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'grid', gap: 4, fontSize: 11.5 }}>
+    <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid var(--line)', display: 'grid', gap: 4, fontSize: 11.5 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ opacity: 0.6 }}>Posições</span>
         <span>{p.pos.join(' / ')}</span>
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between' }}>
         <span style={{ opacity: 0.6 }}>Valor de mercado</span>
-        <span style={{ fontFamily: "'Space Mono', monospace", color: '#d4a23c' }}>{formatMoney(value)}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--gold-ink)' }}>{formatMoney(value)}</span>
       </div>
       {p.age != null ? (
         <>
@@ -101,10 +101,10 @@ function PlayerDetail({ p, clubId }) {
           {p.potential != null && (
             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
               <span style={{ opacity: 0.6 }}>Potencial</span>
-              <span style={{ color: p.potential > p.ovr ? '#7fd99a' : undefined }}>{p.potential > p.ovr ? `até ${p.potential}` : 'já no teto'}</span>
+              <span style={{ color: p.potential > p.ovr ? 'var(--success)' : undefined }}>{p.potential > p.ovr ? `até ${p.potential}` : 'já no teto'}</span>
             </div>
           )}
-          {p.isStar && <div style={{ color: '#d4a23c', fontWeight: 600 }}>⭐ Joia da categoria de base</div>}
+          {p.isStar && <div style={{ color: 'var(--gold-ink)', fontWeight: 600 }}>⭐ Joia da categoria de base</div>}
         </>
       ) : (
         <div style={{ opacity: 0.45, fontStyle: 'italic' }}>Idade ainda não cadastrada pra esse jogador.</div>
@@ -118,8 +118,8 @@ function PlayerRow({ p, clubId, listed, expanded, onToggleExpand, onToggleListed
   return (
     <div className="squad-row" style={{
       padding: '10px 12px', borderRadius: 12,
-      background: expanded ? `${c}14` : 'rgba(127,217,154,0.03)',
-      border: `1px solid ${expanded ? `${c}55` : 'rgba(127,217,154,0.08)'}`,
+      background: expanded ? `${c}14` : 'var(--surface)',
+      border: `1px solid ${expanded ? `${c}55` : 'rgba(31,122,77,0.3)'}`,
       borderLeft: `3px solid ${c}`,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -134,14 +134,14 @@ function PlayerRow({ p, clubId, listed, expanded, onToggleExpand, onToggleListed
             {p.age != null ? `${p.age} anos · ` : ''}{p.pos.join('/')}
           </div>
         </div>
-        <span style={{ fontSize: 11, opacity: 0.6, fontFamily: "'Space Mono', monospace", display: 'none' }} className="squad-value-wide">{formatMoneyShort(computePlayerValue(p, clubId))}</span>
+        <span style={{ fontSize: 11, opacity: 0.6, fontFamily: 'var(--font-mono)', display: 'none' }} className="squad-value-wide">{formatMoneyShort(computePlayerValue(p, clubId))}</span>
         <OvrBadge ovr={p.ovr} />
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           <button onClick={onToggleExpand} title="Ver detalhes" style={iconBtnStyle}>👁</button>
           <button
             onClick={onToggleListed}
             title={listed ? 'Tirar da lista de transferências' : 'Colocar na lista de transferências'}
-            style={{ ...iconBtnStyle, color: listed ? '#d4a23c' : iconBtnStyle.color, borderColor: listed ? 'rgba(212,162,60,0.5)' : iconBtnStyle.borderColor }}
+            style={{ ...iconBtnStyle, color: listed ? 'var(--gold-ink)' : iconBtnStyle.color, borderColor: listed ? 'var(--gold)' : iconBtnStyle.borderColor }}
           >📋</button>
         </div>
       </div>
@@ -163,12 +163,12 @@ function PlayerMiniCard({ p, clubId, listed, expanded, onToggleListed, onExpand 
         {p.isYouth && '🌱'}{p.isStar && '⭐'} {p.name}
       </div>
       <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 2 }}>{p.age != null ? `${p.age} anos · ` : ''}{p.pos.join('/')}</div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-        <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", color: '#d4a23c' }}>{formatMoneyShort(value)}</span>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
+        <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--gold-ink)' }}>{formatMoneyShort(value)}</span>
         <button
           onClick={e => { e.stopPropagation(); onToggleListed(); }}
           title={listed ? 'Tirar da lista de transferências' : 'Colocar na lista de transferências'}
-          style={{ ...iconBtnStyle, color: listed ? '#d4a23c' : iconBtnStyle.color, borderColor: listed ? 'rgba(212,162,60,0.5)' : iconBtnStyle.borderColor }}
+          style={{ ...iconBtnStyle, color: listed ? 'var(--gold-ink)' : iconBtnStyle.color, borderColor: listed ? 'var(--gold)' : iconBtnStyle.borderColor }}
         >📋</button>
       </div>
       {expanded && <PlayerDetail p={p} clubId={clubId} />}
@@ -177,8 +177,8 @@ function PlayerMiniCard({ p, clubId, listed, expanded, onToggleListed, onExpand 
 }
 
 const iconBtnStyle = {
-  width: 28, height: 28, borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
-  background: 'rgba(255,255,255,0.04)', color: 'rgba(244,241,234,0.7)', fontSize: 13, cursor: 'pointer',
+  width: 28, height: 28, borderRadius: 8, border: '1px solid var(--line-strong)',
+  background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 13, cursor: 'pointer',
   display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
 };
 
@@ -225,12 +225,12 @@ export function CareerSquadScreen({ save, onToggleListed, onBack }) {
         .squad-wrap { width: 98%; max-width: none; margin: 0 auto; padding: 24px 12px; box-sizing: border-box; }
         .squad-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 14px 0; }
         .squad-card { transition: border-color 0.18s ease, transform 0.18s ease; }
-        .squad-card:hover { border-color: rgba(212,162,60,0.3); }
+        .squad-card:hover { border-color: var(--line-strong); }
         .squad-row { transition: border-color 0.15s ease; }
         .squad-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 14px; }
-        .squad-tab { padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid rgba(255,255,255,0.15); background: transparent; color: rgba(244,241,234,0.6); transition: all 0.15s ease; }
-        .squad-tab:hover { border-color: rgba(212,162,60,0.4); }
-        .squad-tab.active { border-color: #d4a23c; background: rgba(212,162,60,0.12); color: #d4a23c; }
+        .squad-tab { padding: 7px 14px; border-radius: 999px; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid var(--line-strong); background: transparent; color: var(--ink-2); min-height: 40px; transition: all 0.15s ease; }
+        .squad-tab:hover { border-color: var(--gold); }
+        .squad-tab.active { border-color: var(--green); background: var(--green); color: #fff; }
         .squad-cards-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
         .squad-group-grid { display: grid; gap: 6px; }
         @media (min-width: 720px) {
@@ -242,13 +242,13 @@ export function CareerSquadScreen({ save, onToggleListed, onBack }) {
       `}</style>
 
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, margin: '4px 0 0' }}>👕 Elenco</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, margin: '4px 0 0' }}>👕 Elenco</h2>
 
       <div className="squad-stats">
         <StatCard label="Total de jogadores" value={roster.length} />
-        <StatCard label="Média de overall" value={avgOvr} accent="#d4a23c" />
+        <StatCard label="Média de overall" value={avgOvr} accent="#8A6A24" />
         <StatCard label="Jogador mais valioso" value={starPlayer ? starPlayer.ovr : '—'} sub={starPlayer?.name} accent={ovrColor(starPlayer?.ovr || 0)} />
-        <StatCard label="Categoria de base" value={`${academyCount} 🌱`} sub="promessas" accent="#7fd99a" />
+        <StatCard label="Categoria de base" value={`${academyCount} 🌱`} sub="promessas" accent="#1F7A4D" />
       </div>
 
       <div className="squad-controls">
@@ -258,7 +258,7 @@ export function CareerSquadScreen({ save, onToggleListed, onBack }) {
           placeholder="🔍 Buscar jogador pelo nome..."
           style={{
             flex: '1 1 280px', maxWidth: 360, boxSizing: 'border-box', padding: '8px 12px', borderRadius: 999,
-            border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 12.5, outline: 'none',
+            border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 12.5, outline: 'none',
           }}
         />
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>

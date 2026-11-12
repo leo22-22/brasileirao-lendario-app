@@ -106,19 +106,19 @@ export function CareerCalendarScreen({ save, onBack }) {
   return (
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Calendário da temporada {save.season}</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 4 }}>Calendário da temporada {save.season}</h2>
       <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 16 }}>Série {save.clubs[save.myClubId].division} · {division.round}/{division.fixtures.length} rodadas jogadas.</p>
 
-      <div style={{ padding: '14px 12px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 16 }}>
+      <div style={{ padding: '14px 12px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
           <button onClick={() => shiftMonth(-1)} disabled={viewMonth === 0} style={{ ...navArrowStyle, opacity: viewMonth === 0 ? 0.3 : 1 }}>‹</button>
-          <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 15, fontWeight: 700, minWidth: 130, textAlign: 'center' }}>{MONTH_NAMES[viewMonth]}</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700, minWidth: 130, textAlign: 'center' }}>{MONTH_NAMES[viewMonth]}</div>
           <button onClick={() => shiftMonth(1)} disabled={viewMonth === 11} style={{ ...navArrowStyle, opacity: viewMonth === 11 ? 0.3 : 1 }}>›</button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
           {WEEKDAY_LABELS.map(w => (
-            <div key={w} style={{ textAlign: 'center', fontSize: 10, fontFamily: "'Space Mono', monospace", opacity: 0.45, letterSpacing: 0.5 }}>{w}</div>
+            <div key={w} style={{ textAlign: 'center', fontSize: 10, fontFamily: 'var(--font-mono)', opacity: 0.45, letterSpacing: 0.5 }}>{w}</div>
           ))}
         </div>
 
@@ -147,18 +147,18 @@ export function CareerCalendarScreen({ save, onBack }) {
               title={hasAny ? titleParts.join(' | ') : 'Sem jogo'}
               style={{
                 minHeight: 64, padding: '4px 2px', borderRadius: 8, textAlign: 'center', cursor: hasAny ? 'pointer' : 'default',
-                border: `1px solid ${isSelected ? 'rgba(212,162,60,0.6)' : hasAny ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}`,
-                background: isSelected ? 'rgba(212,162,60,0.12)' : hasAny ? 'rgba(255,255,255,0.04)' : 'transparent',
-                color: '#F4F1EA', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                border: `1px solid ${isSelected ? 'var(--gold)' : hasAny ? 'var(--line-strong)' : 'var(--line)'}`,
+                background: isSelected ? 'rgba(194,154,69,0.12)' : hasAny ? 'var(--surface)' : 'transparent',
+                color: 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
               }}
             >
-              <span style={{ fontSize: 11, fontFamily: "'Space Mono', monospace", opacity: hasAny ? 0.85 : 0.3 }}>{dayOfMonth}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', opacity: hasAny ? 0.85 : 0.3 }}>{dayOfMonth}</span>
               {hasRound && <TinyCrest team={opponent?.team} ring={result ? RESULT_COLORS[result.res] : null} />}
               {hasRound && !result && (
-                <span style={{ fontSize: 8.5, color: '#d4a23c', fontWeight: 700, fontFamily: "'Space Mono', monospace" }}>R{round + 1}</span>
+                <span style={{ fontSize: 8.5, color: 'var(--gold-ink)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>R{round + 1}</span>
               )}
               {result && (
-                <span style={{ fontSize: 9, fontFamily: "'Space Mono', monospace", display: 'flex', gap: 2 }}>
+                <span style={{ fontSize: 9, fontFamily: 'var(--font-mono)', display: 'flex', gap: 2 }}>
                   <span style={{ fontWeight: 800, color: RESULT_COLORS[result.res] }}>{result.res}</span>
                   <span style={{ opacity: 0.6 }}>{result.gf}-{result.ga}</span>
                 </span>
@@ -166,7 +166,7 @@ export function CareerCalendarScreen({ save, onBack }) {
               {hasCopa && (
                 <>
                   <TinyCrest emoji="🏆" ring={copaInfo?.myResult ? RESULT_COLORS[copaInfo.myResult] : null} />
-                  <span style={{ fontSize: 8, color: '#d4a23c', fontWeight: 700 }}>Copa</span>
+                  <span style={{ fontSize: 8, color: 'var(--gold-ink)', fontWeight: 700 }}>Copa</span>
                 </>
               )}
             </button>
@@ -176,7 +176,7 @@ export function CareerCalendarScreen({ save, onBack }) {
       </div>
 
       {selected.type === 'round' && (
-        <div style={{ padding: '12px 12px 4px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ padding: '12px 12px 4px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--line)' }}>
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.45, marginBottom: 6 }}>
             Jogos da rodada {selected.idx + 1}{selectedDay ? ` · ${formatCalendarDay(selectedDay)}` : ''}
           </div>
@@ -189,13 +189,13 @@ export function CareerCalendarScreen({ save, onBack }) {
             return (
               <div key={`${m.homeId}-${m.awayId}`} style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '6px 6px', fontSize: 11.5, borderRadius: 6,
-                borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.05)',
-                background: isMine ? 'rgba(212,162,60,0.08)' : 'transparent', fontWeight: isMine ? 700 : 400,
+                borderBottom: isLast ? 'none' : '1px solid var(--line)',
+                background: isMine ? 'rgba(194,154,69,0.1)' : 'transparent', fontWeight: isMine ? 700 : 400,
               }}>
                 <span style={{ flex: 1, minWidth: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {homeTeam?.id === myTeam?.id ? myTeam.club : homeTeam?.club}
                 </span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, minWidth: 44, textAlign: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, minWidth: 44, textAlign: 'center' }}>
                   {r ? `${r.homeGoals} - ${r.awayGoals}` : 'x'}
                 </span>
                 <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -208,7 +208,7 @@ export function CareerCalendarScreen({ save, onBack }) {
       )}
 
       {selected.type === 'copa' && (
-        <div style={{ padding: '12px 12px 4px', borderRadius: 14, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ padding: '12px 12px 4px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--line)' }}>
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.45, marginBottom: 6 }}>
             🏆 Copa do Brasil — {COPA_ROUND_LABELS[selected.idx]}{selectedDay ? ` · ${formatCalendarDay(selectedDay)}` : ''}
           </div>
@@ -229,16 +229,16 @@ export function CareerCalendarScreen({ save, onBack }) {
             return (
               <div key={`${t.aId}-${t.bId}`} style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '6px 6px', fontSize: 11.5, borderRadius: 6,
-                borderBottom: isLast ? 'none' : '1px solid rgba(255,255,255,0.05)',
-                background: isMine ? 'rgba(212,162,60,0.08)' : 'transparent', fontWeight: isMine ? 700 : 400,
+                borderBottom: isLast ? 'none' : '1px solid var(--line)',
+                background: isMine ? 'rgba(194,154,69,0.1)' : 'transparent', fontWeight: isMine ? 700 : 400,
               }}>
-                <span style={{ flex: 1, minWidth: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: resolved && t.winnerId === t.aId ? '#7fd99a' : undefined }}>
+                <span style={{ flex: 1, minWidth: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: resolved && t.winnerId === t.aId ? 'var(--success)' : undefined }}>
                   {aTeam?.id === myTeam?.id ? myTeam.club : aTeam?.club}
                 </span>
-                <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, minWidth: 44, textAlign: 'center' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, minWidth: 44, textAlign: 'center' }}>
                   {resolved ? `${t.aggA} - ${t.aggB}` : 'x'}
                 </span>
-                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: resolved && t.winnerId === t.bId ? '#7fd99a' : undefined }}>
+                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: resolved && t.winnerId === t.bId ? 'var(--success)' : undefined }}>
                   {bTeam?.id === myTeam?.id ? myTeam.club : bTeam?.club}
                 </span>
               </div>

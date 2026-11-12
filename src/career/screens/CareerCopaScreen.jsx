@@ -64,8 +64,8 @@ export function CareerCopaScreen({ save, onBack }) {
       <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
         {bracket}
         <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-        <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 16 }}>Copa do Brasil</h2>
-        <div style={{ textAlign: 'center', padding: '32px 16px', borderRadius: 14, background: iAmChampion ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.03)', border: iAmChampion ? '1px solid rgba(212,162,60,0.4)' : '1px solid rgba(255,255,255,0.08)' }}>
+        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 16 }}>Copa do Brasil</h2>
+        <div style={{ textAlign: 'center', padding: '32px 16px', borderRadius: 14, background: iAmChampion ? 'rgba(194,154,69,0.1)' : 'var(--surface)', border: iAmChampion ? '1px solid var(--gold)' : '1px solid var(--line)' }}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{championTeam?.club}</div>
           <div style={{ fontSize: 13, opacity: 0.7 }}>
@@ -73,7 +73,7 @@ export function CareerCopaScreen({ save, onBack }) {
           </div>
         </div>
         {hasBracket && (
-          <button onClick={() => setShowBracket(true)} style={{ width: '100%', marginTop: 14, padding: '12px 0', borderRadius: 10, border: '1px solid rgba(212,162,60,0.4)', background: 'rgba(212,162,60,0.1)', color: '#d4a23c', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
+          <button onClick={() => setShowBracket(true)} style={{ width: '100%', marginTop: 14, padding: '12px 0', borderRadius: 10, border: '1px solid var(--gold)', background: 'rgba(194,154,69,0.1)', color: 'var(--gold-ink)', fontSize: 13, fontWeight: 700, cursor: 'pointer' }}>
             🏆 Ver chaveamento
           </button>
         )}
@@ -89,20 +89,20 @@ export function CareerCopaScreen({ save, onBack }) {
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
       {bracket}
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Copa do Brasil</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 4 }}>Copa do Brasil</h2>
       <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 16 }}>{roundLabel} · {formatCalendarDay(copaCurrentDay(copa))}</p>
 
       {hasBracket && (
-        <button onClick={() => setShowBracket(true)} style={{ width: '100%', marginBottom: 14, padding: '10px 0', borderRadius: 10, border: '1px solid rgba(212,162,60,0.4)', background: 'rgba(212,162,60,0.1)', color: '#d4a23c', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
+        <button onClick={() => setShowBracket(true)} style={{ width: '100%', marginBottom: 14, padding: '10px 0', borderRadius: 10, border: '1px solid var(--gold)', background: 'rgba(194,154,69,0.1)', color: 'var(--gold-ink)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
           🏆 Ver chaveamento
         </button>
       )}
 
       {!stillIn && (
-        <p style={{ fontSize: 12.5, color: '#e05050', marginBottom: 12 }}>Seu clube já foi eliminado nessa edição da Copa.</p>
+        <p style={{ fontSize: 12.5, color: 'var(--danger)', marginBottom: 12 }}>Seu clube já foi eliminado nessa edição da Copa.</p>
       )}
       {myInBye && (
-        <p style={{ fontSize: 12.5, color: '#7fd99a', marginBottom: 12 }}>Seu clube folga nessa fase — entra direto na fase seguinte.</p>
+        <p style={{ fontSize: 12.5, color: 'var(--success)', marginBottom: 12 }}>Seu clube folga nessa fase — entra direto na fase seguinte.</p>
       )}
 
       <div style={{ display: 'grid', gap: 6 }}>
@@ -113,8 +113,8 @@ export function CareerCopaScreen({ save, onBack }) {
           return (
             <div key={i} style={{
               padding: '9px 12px', borderRadius: 10, fontSize: 13, fontWeight: isMine ? 700 : 400,
-              border: isMine ? '1px solid rgba(212,162,60,0.5)' : '1px solid rgba(255,255,255,0.08)',
-              background: isMine ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.03)',
+              border: isMine ? '1px solid rgba(194,154,69,0.6)' : '1px solid var(--line)',
+              background: isMine ? 'rgba(194,154,69,0.1)' : 'var(--surface)',
             }}>
               {aTeam?.club} <span style={{ opacity: 0.5, fontWeight: 400 }}>x</span> {bTeam?.club}
             </div>

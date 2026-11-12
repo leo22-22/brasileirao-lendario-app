@@ -2,6 +2,7 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { TEAMS } from './data/teams.js'
 import { INFO_ROUTES } from './data/info-content.js'
+import './styles/tokens.css'
 
 // Code splitting real: rotas de conteúdo (índice de times, time individual,
 // institucionais) baixam um bundle PRÓPRIO e pequeno (src/content/), sem

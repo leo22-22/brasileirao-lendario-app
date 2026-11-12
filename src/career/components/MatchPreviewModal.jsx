@@ -13,14 +13,14 @@ import { matchOutcomeProbabilities } from '../../App.jsx';
 
 // Cópia local de TeamCrest/FormDots (CareerHub.jsx) — evita import
 // circular entre a tela e este modal (o hub é quem abre o modal).
-const RESULT_COLORS = { V: '#7fd99a', D: '#e05050', E: 'rgba(244,241,234,0.6)' };
+const RESULT_COLORS = { V: '#1F7A4D', D: '#B23B3B', E: '#8A938C' };
 
 function TeamCrest({ teamId, size }) {
   const team = TEAMS.find(t => t.id === teamId);
   const logo = team && CLUB_LOGOS[team.club];
   return logo
     ? <img src={logo} alt={team.club} style={{ width: size, height: size, objectFit: 'contain' }} />
-    : <div style={{ width: size, height: size, borderRadius: '50%', background: 'rgba(255,255,255,0.08)' }} />;
+    : <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surface-2)' }} />;
 }
 
 function FormDots({ form }) {
@@ -31,7 +31,7 @@ function FormDots({ form }) {
         <span key={i} style={{
           width: 14, height: 14, borderRadius: 4, fontSize: 8.5, fontWeight: 800,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: RESULT_COLORS[r], color: '#0B1A12',
+          background: RESULT_COLORS[r], color: 'var(--ink)',
         }}>{r}</span>
       ))}
     </div>
@@ -46,9 +46,9 @@ function LineupColumn({ label, players, mc }) {
       <div style={{ display: 'grid', gap: 5 }}>
         {sorted.map(p => (
           <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5 }}>
-            <span style={{ width: 26, flexShrink: 0, fontSize: 9.5, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: "'Space Mono', monospace" }}>{p.pos[0]}</span>
+            <span style={{ width: 26, flexShrink: 0, fontSize: 9.5, fontWeight: 700, color: posColor(p.pos[0]), fontFamily: 'var(--font-mono)' }}>{p.pos[0]}</span>
             <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 11, flexShrink: 0 }}>{p.ovr}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ovrColor(p.ovr), fontSize: 11, flexShrink: 0 }}>{p.ovr}</span>
           </div>
         ))}
       </div>
@@ -57,7 +57,7 @@ function LineupColumn({ label, players, mc }) {
 }
 
 export function MatchPreviewModal({ save, division, homeId, awayId, onClose }) {
-  const mc = '#d4a23c';
+  const mc = 'var(--gold-ink)';
   const homeTeam = TEAMS.find(t => t.id === homeId);
   const awayTeam = TEAMS.find(t => t.id === awayId);
   const homeSim = teamForSim(save, homeId);
@@ -74,12 +74,12 @@ export function MatchPreviewModal({ save, division, homeId, awayId, onClose }) {
   const awayStarters = awaySim.players.filter(p => !p.isBench);
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', zIndex: 10000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '40px 16px' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', overflowY: 'auto', padding: '40px 16px' }}>
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          width: '100%', maxWidth: 620, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)',
-          borderRadius: 18, padding: '24px 22px', position: 'relative', boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+          width: '100%', maxWidth: 620, background: 'var(--surface)', border: '1px solid var(--line)',
+          borderRadius: 18, padding: '24px 22px', position: 'relative', boxShadow: 'var(--shadow)',
         }}
       >
         <button
@@ -87,7 +87,7 @@ export function MatchPreviewModal({ save, division, homeId, awayId, onClose }) {
           title="Fechar"
           style={{
             position: 'absolute', top: 14, right: 14, width: 28, height: 28, borderRadius: '50%',
-            border: '1px solid rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.05)', color: '#F4F1EA',
+            border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)',
             fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}
         >✕</button>
@@ -110,16 +110,16 @@ export function MatchPreviewModal({ save, division, homeId, awayId, onClose }) {
           </div>
         </div>
 
-        <div style={{ padding: '12px 14px', borderRadius: 12, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 18 }}>
+        <div style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, fontWeight: 600, opacity: 0.85, marginBottom: 6 }}>
-            <span style={{ color: 'rgba(244,241,234,0.9)' }}>Vitória {homeTeam.club} {homeWinPct}%</span>
+            <span style={{ color: 'var(--ink)' }}>Vitória {homeTeam.club} {homeWinPct}%</span>
             <span style={{ opacity: 0.6 }}>Empate {drawPct}%</span>
-            <span style={{ color: '#d4a23c' }}>Vitória {awayTeam.club} {awayWinPct}%</span>
+            <span style={{ color: 'var(--gold-ink)' }}>Vitória {awayTeam.club} {awayWinPct}%</span>
           </div>
-          <div style={{ width: '100%', height: 8, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', display: 'flex' }}>
-            <div style={{ width: `${homeWinPct}%`, background: 'rgba(255,255,255,0.4)' }} />
-            <div style={{ width: `${drawPct}%`, background: 'rgba(255,255,255,0.15)' }} />
-            <div style={{ width: `${awayWinPct}%`, background: 'linear-gradient(90deg, #d4a23c, #f0c868)' }} />
+          <div style={{ width: '100%', height: 8, borderRadius: 999, background: 'var(--surface-2)', overflow: 'hidden', display: 'flex' }}>
+            <div style={{ width: `${homeWinPct}%`, background: 'var(--line-strong)' }} />
+            <div style={{ width: `${drawPct}%`, background: 'var(--surface-2)' }} />
+            <div style={{ width: `${awayWinPct}%`, background: 'linear-gradient(90deg, var(--gold), var(--gold))' }} />
           </div>
           <div style={{ fontSize: 10, opacity: 0.4, marginTop: 6, textAlign: 'center' }}>Chance calculada a partir da força de cada elenco (já considera a fase recente/moral) e do fator casa.</div>
         </div>

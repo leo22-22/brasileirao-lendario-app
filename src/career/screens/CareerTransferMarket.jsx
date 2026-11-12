@@ -65,8 +65,8 @@ function filterPlayers(roster, query, pos, adv) {
 }
 
 const inputStyle = {
-  padding: '8px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.15)',
-  background: 'rgba(255,255,255,0.04)', color: '#F4F1EA', fontSize: 12.5, outline: 'none',
+  padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line-strong)',
+  background: 'var(--surface)', color: 'var(--ink)', fontSize: 12.5, outline: 'none',
 };
 
 function PosBadge({ pos }) {
@@ -74,7 +74,7 @@ function PosBadge({ pos }) {
   return (
     <span style={{
       width: 34, flexShrink: 0, textAlign: 'center', fontSize: 10.5, fontWeight: 800, letterSpacing: 0.3,
-      fontFamily: "'Space Mono', monospace", padding: '3px 0', borderRadius: 6,
+      fontFamily: 'var(--font-mono)', padding: '3px 0', borderRadius: 6,
       color: c, background: `${c}22`, border: `1px solid ${c}55`,
     }}>{pos}</span>
   );
@@ -95,10 +95,10 @@ function AdvancedFilters({ adv, setAdv }) {
     <div style={{ marginTop: 6 }}>
       <button
         onClick={() => setOpen(o => !o)}
-        style={{ background: 'none', border: 'none', padding: 0, color: active ? '#d4a23c' : 'rgba(244,241,234,0.5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+        style={{ background: 'none', border: 'none', padding: 0, color: active ? 'var(--gold-ink)' : 'var(--muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
       >🔎 Busca avançada{active ? ' (ativa)' : ''} {open ? '▲' : '▼'}</button>
       {open && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)' }}>
           <div>
             <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Idade</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -118,7 +118,7 @@ function AdvancedFilters({ adv, setAdv }) {
           {active && (
             <button
               onClick={() => setAdv(EMPTY_ADV)}
-              style={{ gridColumn: '1 / -1', background: 'none', border: '1px solid rgba(224,80,80,0.35)', borderRadius: 8, padding: '6px 0', color: '#e08080', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+              style={{ gridColumn: '1 / -1', background: 'none', border: '1px solid rgba(178,59,59,0.45)', borderRadius: 8, padding: '6px 0', color: 'var(--danger)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
             >Limpar busca avançada</button>
           )}
         </div>
@@ -134,8 +134,8 @@ function PlayerSearchBar({ query, setQuery, pos, setPos, resultCount, adv, setAd
       <div style={{ display: 'flex', gap: 6 }}>
         <input value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 Buscar jogador pelo nome..." style={{ ...inputStyle, flex: 1 }} />
         <select value={pos} onChange={e => setPos(e.target.value)} style={{ ...inputStyle, flexShrink: 0, colorScheme: 'dark' }}>
-          <option value="" style={{ background: '#13241a', color: '#F4F1EA' }}>Todas posições</option>
-          {POSITIONS.map(p => <option key={p} value={p} style={{ background: '#13241a', color: '#F4F1EA' }}>{p}</option>)}
+          <option value="" style={{ background: 'var(--surface)', color: 'var(--ink)' }}>Todas posições</option>
+          {POSITIONS.map(p => <option key={p} value={p} style={{ background: 'var(--surface)', color: 'var(--ink)' }}>{p}</option>)}
         </select>
       </div>
       {adv && setAdv && <AdvancedFilters adv={adv} setAdv={setAdv} />}
@@ -159,9 +159,9 @@ function TabBar({ tab, setTab, offerCount }) {
           onClick={() => setTab(t.id)}
           style={{
             flex: '1 1 auto', padding: '8px 4px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-            border: `1px solid ${tab === t.id ? '#d4a23c' : 'rgba(255,255,255,0.15)'}`,
-            background: tab === t.id ? 'rgba(212,162,60,0.12)' : 'transparent',
-            color: tab === t.id ? '#d4a23c' : 'rgba(244,241,234,0.6)',
+            border: `1px solid ${tab === t.id ? 'var(--gold)' : 'var(--line-strong)'}`,
+            background: tab === t.id ? 'rgba(194,154,69,0.12)' : 'transparent',
+            color: tab === t.id ? 'var(--gold-ink)' : 'var(--ink-2)',
           }}
         >{t.label}</button>
       ))}
@@ -174,7 +174,7 @@ function PlayerRowShell({ pos, children }) {
   return (
     <div style={{
       display: 'flex', flexDirection: 'column', gap: 8, padding: '10px 12px', borderRadius: 10,
-      background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.07)',
+      background: 'var(--surface)', border: '1px solid var(--line)',
       borderLeft: `3px solid ${c}`, marginBottom: 6,
     }}>
       {children}
@@ -193,9 +193,9 @@ function DurationPicker({ kind, setKind }) {
           onClick={() => setKind(d.kind)}
           style={{
             flex: 1, padding: '6px 0', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-            border: `1px solid ${kind === d.kind ? '#6fb8e0' : 'rgba(255,255,255,0.2)'}`,
-            background: kind === d.kind ? 'rgba(111,184,224,0.15)' : 'transparent',
-            color: kind === d.kind ? '#6fb8e0' : 'rgba(244,241,234,0.7)',
+            border: `1px solid ${kind === d.kind ? 'var(--info)' : 'var(--line-strong)'}`,
+            background: kind === d.kind ? 'rgba(47,111,168,0.14)' : 'transparent',
+            color: kind === d.kind ? 'var(--info)' : 'var(--ink-2)',
           }}
         >{d.label}</button>
       ))}
@@ -221,7 +221,7 @@ function MyRosterTab({ save, onToggleListed, onToggleLoanList, windowOpen }) {
   return (
     <div>
       {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — pode listar jogadores agora, mas as propostas só chegam quando ela abrir (janeiro, ou julho).</p>}
-      {roster.length <= MIN_SQUAD_SIZE && <p style={{ fontSize: 12, color: '#e0a33d', marginBottom: 10 }}>Elenco no mínimo de {MIN_SQUAD_SIZE} jogadores — mesmo que venha proposta, não vai dar pra vender/emprestar até o elenco crescer.</p>}
+      {roster.length <= MIN_SQUAD_SIZE && <p style={{ fontSize: 12, color: 'var(--warning-ink)', marginBottom: 10 }}>Elenco no mínimo de {MIN_SQUAD_SIZE} jogadores — mesmo que venha proposta, não vai dar pra vender/emprestar até o elenco crescer.</p>}
       <p style={{ fontSize: 11.5, opacity: 0.55, marginBottom: 10, lineHeight: 1.4 }}>📋 Não dá pra vender direto — coloque o jogador na lista de transferências (aumenta em 50% a chance de vir proposta por ele) e aguarde alguém se interessar. 🔁 Empréstimo funciona igual: colocar na lista de empréstimo não empresta ninguém sozinho, só sinaliza que o jogador tá disponível — uma proposta de empréstimo (com a duração que o clube propôs) pode ou não aparecer depois. Aceite ou rejeite as duas na aba Propostas.</p>
       <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} adv={adv} setAdv={setAdv} />
       {filtered.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
@@ -235,11 +235,11 @@ function MyRosterTab({ save, onToggleListed, onToggleLoanList, windowOpen }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <PosBadge pos={p.pos[0]} />
               <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-              {borrowed && <span style={{ fontSize: 9.5, color: '#6fb8e0', fontWeight: 700, border: '1px solid rgba(111,184,224,0.4)', borderRadius: 999, padding: '2px 6px' }}>EMPRESTADO</span>}
-              <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), fontSize: 13 }}>{p.ovr}</span>
+              {borrowed && <span style={{ fontSize: 9.5, color: 'var(--info)', fontWeight: 700, border: '1px solid rgba(47,111,168,0.5)', borderRadius: 999, padding: '2px 6px' }}>EMPRESTADO</span>}
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ovrColor(p.ovr), fontSize: 13 }}>{p.ovr}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, opacity: 0.7 }}>{formatMoney(value)}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.7 }}>{formatMoney(value)}</span>
               <div style={{ display: 'flex', gap: 6 }}>
                 {!borrowed && (
                   <button
@@ -247,9 +247,9 @@ function MyRosterTab({ save, onToggleListed, onToggleLoanList, windowOpen }) {
                     title={loanListed ? 'Tirar da lista de empréstimo' : 'Colocar na lista de empréstimo (pode vir proposta de empréstimo)'}
                     style={{
                       padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                      border: `1px solid ${loanListed ? 'rgba(111,184,224,0.5)' : 'rgba(255,255,255,0.2)'}`,
-                      background: loanListed ? 'rgba(111,184,224,0.15)' : 'transparent',
-                      color: loanListed ? '#6fb8e0' : 'rgba(244,241,234,0.6)',
+                      border: `1px solid ${loanListed ? 'rgba(47,111,168,0.6)' : 'var(--line-strong)'}`,
+                      background: loanListed ? 'rgba(47,111,168,0.14)' : 'transparent',
+                      color: loanListed ? 'var(--info)' : 'var(--ink-2)',
                     }}
                   >{loanListed ? '🔁 Na lista' : '🔁 Emprestar'}</button>
                 )}
@@ -258,9 +258,9 @@ function MyRosterTab({ save, onToggleListed, onToggleLoanList, windowOpen }) {
                   title={listed ? 'Tirar da lista de transferências' : 'Colocar na lista de transferências (+50% chance de proposta)'}
                   style={{
                     padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                    border: `1px solid ${listed ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`,
-                    background: listed ? 'rgba(212,162,60,0.15)' : 'transparent',
-                    color: listed ? '#d4a23c' : 'rgba(244,241,234,0.6)',
+                    border: `1px solid ${listed ? 'rgba(194,154,69,0.6)' : 'var(--line-strong)'}`,
+                    background: listed ? 'rgba(194,154,69,0.15)' : 'transparent',
+                    color: listed ? 'var(--gold-ink)' : 'var(--ink-2)',
                   }}
                 >{listed ? '📋 Na lista' : '📋 Listar'}</button>
               </div>
@@ -304,17 +304,17 @@ function ProposeRow({ player, price, enabled, disabledReason, onPropose, onReque
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
         <PosBadge pos={player.pos[0]} />
         <span style={{ flex: 1, minWidth: 0, fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{player.name}</span>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(player.ovr), fontSize: 13 }}>{player.ovr}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ovrColor(player.ovr), fontSize: 13 }}>{player.ovr}</span>
       </div>
       {mode === null && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, opacity: 0.7 }}>Valor de mercado: {formatMoney(price)}</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.7 }}>Valor de mercado: {formatMoney(price)}</span>
           <div style={{ display: 'flex', gap: 6 }}>
             {!borrowed && (
               <button
                 onClick={() => { setLoanResult(null); setLoanKind(null); setMode('loan'); }}
                 title="Pedir emprestado"
-                style={{ padding: '6px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(111,184,224,0.4)', background: 'transparent', color: '#6fb8e0' }}
+                style={{ padding: '6px 10px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: 'pointer', border: '1px solid rgba(47,111,168,0.5)', background: 'transparent', color: 'var(--info)' }}
               >🔁 Emprestado</button>
             )}
             <button
@@ -323,8 +323,8 @@ function ProposeRow({ player, price, enabled, disabledReason, onPropose, onReque
               title={disabledReason}
               style={{
                 padding: '6px 12px', borderRadius: 999, fontSize: 11.5, fontWeight: 700, cursor: enabled ? 'pointer' : 'default',
-                border: '1px solid rgba(127,217,154,0.4)', background: enabled ? 'rgba(127,217,154,0.12)' : 'transparent',
-                color: enabled ? '#7fd99a' : 'rgba(127,217,154,0.3)',
+                border: '1px solid rgba(31,122,77,0.5)', background: enabled ? 'rgba(31,122,77,0.12)' : 'transparent',
+                color: enabled ? 'var(--success)' : 'rgb(31,122,77)',
               }}
             >💰 Fazer proposta</button>
           </div>
@@ -343,15 +343,15 @@ function ProposeRow({ player, price, enabled, disabledReason, onPropose, onReque
             <button
               onClick={handleSend}
               disabled={amount <= 0}
-              style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: amount > 0 ? '#7fd99a' : 'rgba(127,217,154,0.3)', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: amount > 0 ? 'pointer' : 'default' }}
+              style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: amount > 0 ? 'var(--success)' : 'rgba(31,122,77,0.14)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: amount > 0 ? 'pointer' : 'default' }}
             >Enviar</button>
-            <button onClick={() => setMode(null)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={() => setMode(null)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
           </div>
         </div>
       )}
       {mode === 'loan' && (
         loanResult ? (
-          <div style={{ fontSize: 12, color: loanResult.accepted ? '#6fb8e0' : '#e05050' }}>
+          <div style={{ fontSize: 12, color: loanResult.accepted ? 'var(--info)' : 'var(--danger)' }}>
             {loanResult.accepted ? `✅ ${player.name} veio emprestado!` : '❌ O clube recusou emprestar.'}{' '}
             <button onClick={() => setMode(null)} style={{ background: 'none', border: 'none', color: 'inherit', textDecoration: 'underline', cursor: 'pointer', fontSize: 12 }}>fechar</button>
           </div>
@@ -360,8 +360,8 @@ function ProposeRow({ player, price, enabled, disabledReason, onPropose, onReque
             <p style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>Pedir {player.name} emprestado por:</p>
             <DurationPicker kind={loanKind} setKind={setLoanKind} />
             <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-              <button onClick={handleSendLoan} disabled={!loanKind} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: loanKind ? '#6fb8e0' : 'rgba(111,184,224,0.3)', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: loanKind ? 'pointer' : 'default' }}>Enviar pedido</button>
-              <button onClick={() => setMode(null)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+              <button onClick={handleSendLoan} disabled={!loanKind} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: loanKind ? 'var(--info)' : 'rgba(47,111,168,0.14)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: loanKind ? 'pointer' : 'default' }}>Enviar pedido</button>
+              <button onClick={() => setMode(null)} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
             </div>
           </div>
         )
@@ -405,9 +405,9 @@ function ClubRosterList({ save, clubId, onPropose, onRequestLoan, windowOpen }) 
       {lastResult && (
         <div style={{
           padding: '9px 12px', borderRadius: 8, marginBottom: 10, fontSize: 12.5,
-          background: lastResult.accepted ? 'rgba(127,217,154,0.1)' : 'rgba(224,80,80,0.1)',
-          border: `1px solid ${lastResult.accepted ? 'rgba(127,217,154,0.35)' : 'rgba(224,80,80,0.35)'}`,
-          color: lastResult.accepted ? '#7fd99a' : '#e05050',
+          background: lastResult.accepted ? 'rgba(31,122,77,0.1)' : 'rgba(178,59,59,0.1)',
+          border: `1px solid ${lastResult.accepted ? 'rgba(31,122,77,0.45)' : 'rgba(178,59,59,0.45)'}`,
+          color: lastResult.accepted ? 'var(--success)' : 'var(--danger)',
         }}>
           {lastResult.accepted
             ? `✅ Proposta por ${lastResult.playerName} aceita — comprado por ${formatMoney(lastResult.price)}!`
@@ -463,10 +463,10 @@ function ClubAdvancedFilters({ adv, setAdv }) {
     <div style={{ marginBottom: 10 }}>
       <button
         onClick={() => setOpen(o => !o)}
-        style={{ background: 'none', border: 'none', padding: 0, color: active ? '#d4a23c' : 'rgba(244,241,234,0.5)', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
+        style={{ background: 'none', border: 'none', padding: 0, color: active ? 'var(--gold-ink)' : 'var(--muted)', fontSize: 11, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4 }}
       >🔎 Busca avançada{active ? ' (ativa)' : ''} {open ? '▲' : '▼'}</button>
       {open && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)' }}>
           <div>
             <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Força do elenco (OVR)</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -486,7 +486,7 @@ function ClubAdvancedFilters({ adv, setAdv }) {
           {active && (
             <button
               onClick={() => setAdv(EMPTY_CLUB_ADV)}
-              style={{ gridColumn: '1 / -1', background: 'none', border: '1px solid rgba(224,80,80,0.35)', borderRadius: 8, padding: '6px 0', color: '#e08080', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
+              style={{ gridColumn: '1 / -1', background: 'none', border: '1px solid rgba(178,59,59,0.45)', borderRadius: 8, padding: '6px 0', color: 'var(--danger)', fontSize: 11, fontWeight: 700, cursor: 'pointer' }}
             >Limpar busca avançada</button>
           )}
         </div>
@@ -549,9 +549,9 @@ function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
             onClick={() => setDivision(d)}
             style={{
               flex: 1, padding: '7px 0', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-              border: `1px solid ${division === d ? '#d4a23c' : 'rgba(255,255,255,0.15)'}`,
-              background: division === d ? 'rgba(212,162,60,0.12)' : 'transparent',
-              color: division === d ? '#d4a23c' : 'rgba(244,241,234,0.6)',
+              border: `1px solid ${division === d ? 'var(--gold)' : 'var(--line-strong)'}`,
+              background: division === d ? 'rgba(194,154,69,0.12)' : 'transparent',
+              color: division === d ? 'var(--gold-ink)' : 'var(--ink-2)',
             }}
           >Série {d}</button>
         ))}
@@ -563,7 +563,7 @@ function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
           const team = TEAMS.find(t => t.id === id);
           const logo = CLUB_LOGOS[team.club];
           return (
-            <button key={id} onClick={() => setClubId(id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.035)', color: '#F4F1EA', cursor: 'pointer', textAlign: 'left' }} className="mode-card-hover">
+            <button key={id} onClick={() => setClubId(id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer', textAlign: 'left' }} className="mode-card-hover">
               {logo && <img src={logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
               <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.club}</span>
             </button>
@@ -602,17 +602,17 @@ function OfferCard({ offer, idx, onRespond, onCounterOffer, onResult }) {
   };
 
   return (
-    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', marginBottom: 8 }}>
+    <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 8 }}>
       {isLoan ? (
-        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{buyerTeam?.club}</b> quer pegar <b>{offer.playerName}</b> emprestado por <b style={{ color: '#6fb8e0' }}>{loanLabel}</b></div>
+        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{buyerTeam?.club}</b> quer pegar <b>{offer.playerName}</b> emprestado por <b style={{ color: 'var(--info)' }}>{loanLabel}</b></div>
       ) : (
-        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{buyerTeam?.club}</b> oferece <b style={{ color: '#d4a23c' }}>{formatMoney(offer.amount)}</b> por <b>{offer.playerName}</b></div>
+        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{buyerTeam?.club}</b> oferece <b style={{ color: 'var(--gold-ink)' }}>{formatMoney(offer.amount)}</b> por <b>{offer.playerName}</b></div>
       )}
       {!countering ? (
         <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={handleAccept} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: '#7fd99a', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Aceitar</button>
-          {!isLoan && <button onClick={() => setCountering(true)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid rgba(212,162,60,0.4)', background: 'rgba(212,162,60,0.1)', color: '#d4a23c', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Contraproposta</button>}
-          <button onClick={handleReject} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Rejeitar</button>
+          <button onClick={handleAccept} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: 'var(--success)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Aceitar</button>
+          {!isLoan && <button onClick={() => setCountering(true)} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid var(--gold)', background: 'rgba(194,154,69,0.1)', color: 'var(--gold-ink)', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Contraproposta</button>}
+          <button onClick={handleReject} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' }}>Rejeitar</button>
         </div>
       ) : (
         <div>
@@ -628,9 +628,9 @@ function OfferCard({ offer, idx, onRespond, onCounterOffer, onResult }) {
             <button
               onClick={handleSendCounter}
               disabled={counterAmount <= offer.amount}
-              style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: counterAmount > offer.amount ? '#d4a23c' : 'rgba(212,162,60,0.3)', color: '#0B1A12', fontWeight: 700, fontSize: 12, cursor: counterAmount > offer.amount ? 'pointer' : 'default' }}
+              style={{ padding: '7px 12px', borderRadius: 8, border: 'none', background: counterAmount > offer.amount ? 'var(--gold)' : 'rgba(194,154,69,0.2)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: counterAmount > offer.amount ? 'pointer' : 'default' }}
             >Enviar</button>
-            <button onClick={() => { setCountering(false); setCounterInput(''); }} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
+            <button onClick={() => { setCountering(false); setCounterInput(''); }} style={{ padding: '7px 10px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
           </div>
         </div>
       )}
@@ -660,9 +660,9 @@ function OffersTab({ save, onRespond, onCounterOffer }) {
           return (
             <div style={{
               padding: '9px 12px', borderRadius: 8, marginBottom: 12, fontSize: 12.5,
-              background: msg.ok ? 'rgba(127,217,154,0.1)' : 'rgba(224,80,80,0.1)',
-              border: `1px solid ${msg.ok ? 'rgba(127,217,154,0.35)' : 'rgba(224,80,80,0.35)'}`,
-              color: msg.ok ? '#7fd99a' : '#e05050',
+              background: msg.ok ? 'rgba(31,122,77,0.1)' : 'rgba(178,59,59,0.1)',
+              border: `1px solid ${msg.ok ? 'rgba(31,122,77,0.45)' : 'rgba(178,59,59,0.45)'}`,
+              color: msg.ok ? 'var(--success)' : 'var(--danger)',
             }}>{msg.text}</div>
           );
         })()}
@@ -677,9 +677,9 @@ function OffersTab({ save, onRespond, onCounterOffer }) {
         return (
           <div style={{
             padding: '9px 12px', borderRadius: 8, marginBottom: 10, fontSize: 12.5,
-            background: msg.ok ? 'rgba(127,217,154,0.1)' : 'rgba(224,80,80,0.1)',
-            border: `1px solid ${msg.ok ? 'rgba(127,217,154,0.35)' : 'rgba(224,80,80,0.35)'}`,
-            color: msg.ok ? '#7fd99a' : '#e05050',
+            background: msg.ok ? 'rgba(31,122,77,0.1)' : 'rgba(178,59,59,0.1)',
+            border: `1px solid ${msg.ok ? 'rgba(31,122,77,0.45)' : 'rgba(178,59,59,0.45)'}`,
+            color: msg.ok ? 'var(--success)' : 'var(--danger)',
           }}>{msg.text}</div>
         );
       })()}
@@ -708,17 +708,17 @@ function historyLine(entry, myClubId) {
   const otherTeam = TEAMS.find(t => t.id === otherId);
   switch (entry.type) {
     case 'user-buy':
-      return { icon: '📥', color: '#7fd99a', text: `Comprado — ${entry.playerName} do ${otherTeam?.club} por ${formatMoney(entry.amount)}` };
+      return { icon: '📥', color: 'var(--success)', text: `Comprado — ${entry.playerName} do ${otherTeam?.club} por ${formatMoney(entry.amount)}` };
     case 'user-sell':
-      return { icon: '📤', color: '#e0a33d', text: `Vendido — ${entry.playerName} para o ${otherTeam?.club} por ${formatMoney(entry.amount)}` };
+      return { icon: '📤', color: 'var(--warning-ink)', text: `Vendido — ${entry.playerName} para o ${otherTeam?.club} por ${formatMoney(entry.amount)}` };
     case 'loan-out':
-      return { icon: '🔁', color: '#6fb8e0', text: `Emprestado — ${entry.playerName} para o ${otherTeam?.club}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
+      return { icon: '🔁', color: 'var(--info)', text: `Emprestado — ${entry.playerName} para o ${otherTeam?.club}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
     case 'loan-in':
-      return { icon: '🔁', color: '#6fb8e0', text: `Pego emprestado — ${entry.playerName} do ${otherTeam?.club}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
+      return { icon: '🔁', color: 'var(--info)', text: `Pego emprestado — ${entry.playerName} do ${otherTeam?.club}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
     case 'retired':
-      return { icon: '🏁', color: 'rgba(244,241,234,0.6)', text: `Aposentado — ${entry.playerName}` };
+      return { icon: '🏁', color: 'var(--ink-2)', text: `Aposentado — ${entry.playerName}` };
     default:
-      return { icon: '🔄', color: 'rgba(244,241,234,0.6)', text: entry.playerName };
+      return { icon: '🔄', color: 'var(--ink-2)', text: entry.playerName };
   }
 }
 
@@ -736,9 +736,9 @@ function HistoryTab({ save }) {
             onClick={() => setFilter(f.id)}
             style={{
               padding: '5px 10px', borderRadius: 999, fontSize: 11, fontWeight: 700, cursor: 'pointer',
-              border: `1px solid ${filter === f.id ? '#d4a23c' : 'rgba(255,255,255,0.15)'}`,
-              background: filter === f.id ? 'rgba(212,162,60,0.12)' : 'transparent',
-              color: filter === f.id ? '#d4a23c' : 'rgba(244,241,234,0.55)',
+              border: `1px solid ${filter === f.id ? 'var(--gold)' : 'var(--line-strong)'}`,
+              background: filter === f.id ? 'rgba(194,154,69,0.12)' : 'transparent',
+              color: filter === f.id ? 'var(--gold-ink)' : 'var(--muted)',
             }}
           >{f.label}</button>
         ))}
@@ -747,10 +747,10 @@ function HistoryTab({ save }) {
       {filtered.map((entry, i) => {
         const line = historyLine(entry, myId);
         return (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', marginBottom: 6 }}>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 6 }}>
             <span style={{ fontSize: 15, flexShrink: 0 }}>{line.icon}</span>
             <span style={{ flex: 1, fontSize: 12.5, color: line.color }}>{line.text}</span>
-            <span style={{ fontSize: 10.5, opacity: 0.4, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>T{entry.season} · d{entry.day}</span>
+            <span style={{ fontSize: 10.5, opacity: 0.4, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>T{entry.season} · d{entry.day}</span>
           </div>
         );
       })}
@@ -764,8 +764,8 @@ export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounte
   return (
     <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, marginBottom: 4 }}>Mercado de Transferências</h2>
-      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Orçamento: <b style={{ color: '#d4a23c' }}>{formatMoney(save.clubs[save.myClubId].budget)}</b></p>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 4 }}>Mercado de Transferências</h2>
+      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Orçamento: <b style={{ color: 'var(--gold-ink)' }}>{formatMoney(save.clubs[save.myClubId].budget)}</b></p>
       <TransferWindowBadge day={save.calendarDay} style={{ marginBottom: 12 }} />
       <TabBar tab={tab} setTab={setTab} offerCount={save.pendingOffers?.length || 0} />
       {tab === 'mine' && <MyRosterTab save={save} onToggleListed={onToggleListed} onToggleLoanList={onToggleLoanList} windowOpen={windowOpen} />}

@@ -13,6 +13,7 @@ import { CLUB_LOGOS } from './data/club-logos.js';
 import { CareerApp } from './career/CareerApp.jsx';
 import { INFO_TABS, INFO_ROUTES, CLUB_STADIUMS } from './data/info-content.js';
 import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from './lib/format.js';
+import { teamInk, readableOn, textOn } from './lib/color.js';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
 import { HomeLanding } from './home/HomeLanding.jsx';
@@ -866,10 +867,10 @@ const DIFFICULTY_LEVELS = {
 // Precisa bater com DIFFICULTY_WEIGHT em server/routes/me.ts, que é quem de
 // fato calcula os pontos.
 const DIFFICULTY_UI = {
-  facil: { tone: '#7fd99a', mult: '× 0,5' },
-  normal: { tone: '#9fb3a8', mult: '× 1' },
-  dificil: { tone: '#e8a33d', mult: '× 1,75' },
-  lendario: { tone: '#e0593f', mult: '× 3' },
+  facil: { tone: '#1F7A4D', mult: '× 0,5' },
+  normal: { tone: '#4F5D57', mult: '× 1' },
+  dificil: { tone: '#8F5D14', mult: '× 1,75' },
+  lendario: { tone: '#B23B3B', mult: '× 3' },
 };
 
 // Selo da dificuldade, pra ficar à vista durante a temporada inteira. Não é
@@ -885,7 +886,7 @@ function DifficultyBadge({ difficulty, style }) {
       title={`Dificuldade ${level.label} — campanha vale ${ui.mult} no ranking. ${level.desc}`}
       style={{
         display: 'inline-flex', alignItems: 'center', gap: 5, flexShrink: 0,
-        fontFamily: "'Space Mono', monospace", fontSize: 10, fontWeight: 700,
+        fontFamily: 'var(--font-mono)', fontSize: 10, fontWeight: 700,
         letterSpacing: 0.5, textTransform: 'uppercase', lineHeight: 1,
         padding: '4px 8px', borderRadius: 999, whiteSpace: 'nowrap',
         color: ui.tone, background: hexToRgba(ui.tone, 0.12),
@@ -2148,19 +2149,19 @@ function AchievementProgressCard({ id, user, unlockedSet, light }) {
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10,
-      background: light ? (isUnlocked ? 'rgba(194,154,69,0.12)' : '#FBF9F4') : (isUnlocked ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.03)'),
-      border: light ? `1px solid ${isUnlocked ? 'rgba(194,154,69,0.4)' : '#E3DCCB'}` : `1px solid ${isUnlocked ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.07)'}`,
+      background: light ? (isUnlocked ? 'rgba(194,154,69,0.12)' : '#FBF9F4') : (isUnlocked ? 'rgba(194,154,69,0.1)' : 'var(--surface)'),
+      border: light ? `1px solid ${isUnlocked ? 'rgba(194,154,69,0.55)' : '#E3DCCB'}` : `1px solid ${isUnlocked ? 'rgba(194,154,69,0.5)' : 'var(--line)'}`,
     }}>
       <span style={{ fontSize: 22, flexShrink: 0, filter: isUnlocked ? 'none' : 'grayscale(1)', opacity: isUnlocked ? 1 : 0.4 }}>{a.icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: light ? (isUnlocked ? '#0F1F17' : '#69736B') : (isUnlocked ? '#F4F1EA' : 'rgba(244,241,234,0.6)') }}>{a.label}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: light ? (isUnlocked ? '#0F1F17' : '#69736B') : (isUnlocked ? 'var(--ink)' : 'var(--ink-2)') }}>{a.label}</div>
         <div style={{ fontSize: 11, opacity: light ? 0.65 : 0.5, lineHeight: 1.3, color: light ? '#69736B' : undefined }}>{a.desc}</div>
         {progress && (
           <div style={{ marginTop: 6 }}>
-            <div style={{ height: 4, borderRadius: 999, background: light ? '#E3DCCB' : 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: light ? '#C29A45' : '#d4a23c', borderRadius: 999, transition: 'width 0.3s' }} />
+            <div style={{ height: 4, borderRadius: 999, background: light ? '#E3DCCB' : 'var(--surface-2)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: light ? 'var(--gold)' : 'var(--gold)', borderRadius: 999, transition: 'width 0.3s' }} />
             </div>
-            <div style={{ fontSize: 9.5, opacity: light ? 0.6 : 0.45, marginTop: 3, fontFamily: "'Space Mono', monospace", color: light ? '#69736B' : undefined }}>
+            <div style={{ fontSize: 9.5, opacity: light ? 0.6 : 0.45, marginTop: 3, fontFamily: 'var(--font-mono)', color: light ? '#69736B' : undefined }}>
               {Math.min(progress.current, progress.target).toLocaleString('pt-BR')}/{progress.target.toLocaleString('pt-BR')}
             </div>
           </div>
@@ -2180,11 +2181,11 @@ function AchievementsModal({ user, onClose }) {
   const unlocked = new Set(user.achievements || []);
   const totalCount = Object.keys(ACHIEVEMENT_CATALOG).length;
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, position: 'relative' }}>
-        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
-        <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginBottom: 2 }}>Conquistas</div>
-        <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 18, fontFamily: "'Space Mono', monospace" }}>{unlocked.size}/{totalCount} desbloqueadas</div>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 24, position: 'relative' }}>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, marginBottom: 2 }}>Conquistas</div>
+        <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 18, fontFamily: 'var(--font-mono)' }}>{unlocked.size}/{totalCount} desbloqueadas</div>
         {ACHIEVEMENT_CATEGORIES.map(group => (
           <div key={group.label} style={{ marginBottom: 18 }}>
             <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>{group.label}</div>
@@ -2392,20 +2393,6 @@ const MAX_SKIPS = 3;
 // e atualizado do Transfermarkt (ver `teams.js`/`market-values.js`).
 const CAREER_MODE_LOCKED = false;
 
-// Overrides de tema claro pro cabeçalho/página quando a home (fase 'intro')
-// está em tela — o resto do app (header incluso, fora da home) continua
-// escuro exatamente como sempre foi. Ver HOME_LIGHT em `isHomeLight` no App.
-// Sem `color` aqui de propósito: a cor de texto clara fica só dentro de
-// `.hl-home` (home/home.css) e dos estilos inline do cabeçalho — setar
-// cor escura na página inteira vazava (herança de CSS) pros modais que
-// continuam escuros (ModeDifficultyModal, WeeklyTeamModal, etc.), já que
-// eles não fixam a própria cor de texto e dependiam da cor do `styles.page`.
-const HOME_LIGHT_PAGE = { background: '#F5F1E8' };
-const HOME_LIGHT_HEADER = { borderBottom: '1px solid #E3DCCB', background: 'transparent' };
-const HOME_LIGHT_MARK = { width: 36, height: 36, borderRadius: 10, background: '#0D3A29', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 };
-const HOME_LIGHT_TITLE = { color: '#0F1F17' };
-const HOME_LIGHT_SUBTITLE = { color: '#69736B', opacity: 1 };
-const HOME_LIGHT_PILL = { border: '1px solid #D6CEBB', color: '#3A463F' };
 
 export default function App() {
   // ── Modo Carreira ──────────────────────────────────────────
@@ -2490,7 +2477,7 @@ export default function App() {
   // Time personalizado
   const [myTeamName, setMyTeamName] = useState(_sv?.myTeamName ?? 'Meu Time');
   const [myTeamBadge, setMyTeamBadge] = useState(_sv?.myTeamBadge ?? '⭐');
-  const [myTeamColor, setMyTeamColor] = useState(_sv?.myTeamColor ?? '#d4a23c');
+  const [myTeamColor, setMyTeamColor] = useState(_sv?.myTeamColor ?? '#C29A45');
   const [myTeamCoach, setMyTeamCoach] = useState(_sv?.myTeamCoach ?? '');
   const [myTeamCity, setMyTeamCity] = useState(_sv?.myTeamCity ?? '');
 
@@ -2562,7 +2549,7 @@ export default function App() {
   useEffect(() => {
     if (!currentUser) return;
     setMyTeamName(currentUser.team_name || 'Meu Time');
-    setMyTeamColor(currentUser.team_color || '#d4a23c');
+    setMyTeamColor(currentUser.team_color || '#C29A45');
     setMyTeamLogo(currentUser.team_logo || null);
     setMyTeamCoach(currentUser.team_coach || '');
     setMyTeamCity(currentUser.team_city || '');
@@ -5731,7 +5718,7 @@ export default function App() {
         shuffled.forEach((t, i) => {
           const pp = t.players.map((pl, j) => ({ ...pl, club: t.club, year: t.year, nat: pl.nat || 'BRA', isBench: j >= 11 }));
           aiPlayers[`ai_${i}`] = {
-            name: t.label, color: (t.colors && t.colors.p) || '#888', logo: CLUB_LOGOS[t.club] || null,
+            name: t.label, color: (t.colors && t.colors.p) || 'var(--muted)', logo: CLUB_LOGOS[t.club] || null,
             coach: t.coach || '', city: '', ready: true, formationReady: true, isAI: true, club: t.club,
             pitch: Object.fromEntries(pp.map((p, j) => [j, p])),
             ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))),
@@ -6172,14 +6159,14 @@ export default function App() {
         if (human) {
           const userPlayers = human.pitch ? partitionStartersFirst(Object.values(human.pitch)) : [];
           return {
-            id: human.pid, label: teamData.label, badge: '', color: human.color || '#d4a23c',
+            id: human.pid, label: teamData.label, badge: '', color: human.color || 'var(--gold-ink)',
             logo: CLUB_LOGOS[teamData.club] || human.logo || null, clubLogo: CLUB_LOGOS[teamData.club] || null,
             club: teamData.club, ovr: human.ovr || 70, players: userPlayers, isHuman: true,
           };
         }
         const pp = teamData.players.map(pl => ({ ...pl, club: teamData.club, year: teamData.year, nat: pl.nat || 'BRA' }));
         return {
-          id: clubId, label: teamData.label, badge: '', color: '#888', logo: null,
+          id: clubId, label: teamData.label, badge: '', color: 'var(--muted)', logo: null,
           clubLogo: CLUB_LOGOS[teamData.club] || null, club: teamData.club,
           ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))), players: pp, isHuman: false,
         };
@@ -6203,7 +6190,7 @@ export default function App() {
 
     const maxSlots = gMode === 'copa' ? 32 : 20;
     const humanTeams = players.map(([pid, p]) => ({
-      id: pid, label: p.name || 'Jogador', badge: '', color: p.color || '#d4a23c',
+      id: pid, label: p.name || 'Jogador', badge: '', color: p.color || 'var(--gold-ink)',
       // Tabela do Brasileirão, chaveamento da Copa e o card de partida ao
       // vivo leem `clubLogo` pra desenhar o escudo de QUALQUER linha que não
       // seja "meu time" (o próprio jogador tem um caso especial à parte, via
@@ -6219,7 +6206,7 @@ export default function App() {
     const shuffled = [...TEAMS].sort(() => prng() - 0.5).slice(0, needed);
     const aiTeams = shuffled.map((t, i) => {
       const pp = t.players.map(pl => ({ ...pl, club: t.club, year: t.year, nat: pl.nat || 'BRA' }));
-      return { id: `ai_${i}`, label: t.label, badge: '', color: '#888', logo: null, clubLogo: CLUB_LOGOS[t.club] || null, club: t.club, ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))), players: pp, isHuman: false };
+      return { id: `ai_${i}`, label: t.label, badge: '', color: 'var(--muted)', logo: null, clubLogo: CLUB_LOGOS[t.club] || null, club: t.club, ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))), players: pp, isHuman: false };
     });
     const allTeams = [...humanTeams, ...aiTeams];
     setLeagueTeams(allTeams);
@@ -6283,15 +6270,11 @@ export default function App() {
   // e bonito" fica melhor numa coluna mais estreita, igual à maioria dos
   // sites desse estilo (menu/dashboard, não uma landing page larga).
   const wideMainMaxWidth = multiPhase ? null : phase === 'intro' ? 1240 : ['draft', 'squad', 'transfer'].includes(phase) ? 1100 : null;
-  // Tema claro só vale na home (pedido do usuário no redesign da home,
-  // 2026-11-12: "O tema claro vale SÓ na home"). Nenhuma outra tela
-  // (draft/formação/carreira/simulador) muda de tema.
-  const isHomeLight = phase === 'intro' && !multiPhase;
+  // Tema claro (creme) agora é o padrão do app inteiro — ver src/styles/tokens.css.
 
   return (
-    <div style={{ ...styles.page, ...(isHomeLight ? HOME_LIGHT_PAGE : null) }} className={isHomeLight ? 'hl-theme' : undefined}>
+    <div style={styles.page} className="hl-theme">
       <style>{globalCss}</style>
-      {!isHomeLight && <div style={styles.bgTexture} />}
       {roomSnap && (
         <MultiplayerChatWidget
           messages={chatMessages}
@@ -6303,28 +6286,24 @@ export default function App() {
           myTeamColor={myTeamColor}
         />
       )}
-      <header style={{ ...styles.header, ...(isHomeLight ? HOME_LIGHT_HEADER : null) }}>
+      <header style={styles.header}>
         {/* Header sempre em largura total, em toda tela (diferente do `main`
             abaixo, que ainda varia por fase via wideMainMaxWidth) — pedido
             explícito pra não ficar com uma faixa estreita centralizada. */}
         <div style={{ ...styles.headerInner, maxWidth: 'none' }} className="header-inner-pad">
-          {isHomeLight ? (
-            <div style={HOME_LIGHT_MARK}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C29A45" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M7 4h10v4a5 5 0 0 1-10 0V4z" /><path d="M7 6H4a3 3 0 0 0 3 3M17 6h3a3 3 0 0 1-3 3" /><path d="M12 13v4M8.5 20h7M10 17h4" />
-              </svg>
-            </div>
-          ) : (
-            <div style={styles.crest}>🏆</div>
-          )}
+          <div style={styles.crest} onClick={requestGoHome} role="presentation">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C29A45" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <path d="M7 4h10v4a5 5 0 0 1-10 0V4z" /><path d="M7 6H4a3 3 0 0 0 3 3M17 6h3a3 3 0 0 1-3 3" /><path d="M12 13v4M8.5 20h7M10 17h4" />
+            </svg>
+          </div>
           <div>
             <div
-              style={{ ...styles.title, cursor: 'pointer', ...(isHomeLight ? HOME_LIGHT_TITLE : null) }}
+              style={{ ...styles.title, cursor: 'pointer' }}
               className="header-title-h"
               title="Voltar ao menu inicial"
               onClick={requestGoHome}
             >BRASILEIRÃO LENDÁRIO</div>
-            <div style={{ ...styles.subtitle, ...(isHomeLight ? HOME_LIGHT_SUBTITLE : null) }} className="header-subtitle-h">monte · escale · seja campeão</div>
+            <div style={styles.subtitle} className="header-subtitle-h">monte · escale · seja campeão</div>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} className="header-actions-h">
             {/* "Continuar"/"Desafio do Dia" só fazem sentido na home (o resto
@@ -6341,9 +6320,9 @@ export default function App() {
                     title="Voltar pra sua carreira salva"
                     style={{
                       display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
-                      padding: '7px 12px', borderRadius: 999, color: '#d4a23c',
-                      border: '1.5px solid rgba(212,162,60,0.4)', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                      background: 'rgba(212,162,60,0.1)',
+                      padding: '7px 12px', borderRadius: 999, color: 'var(--gold-ink)',
+                      border: '1.5px solid rgba(194,154,69,0.55)', cursor: 'pointer', fontSize: 12, fontWeight: 700,
+                      background: 'rgba(194,154,69,0.1)',
                     }}
                   >
                     💼 Continuar Carreira
@@ -6356,9 +6335,9 @@ export default function App() {
                     title={describePhase(savedPhase)}
                     style={{
                       display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
-                      padding: '7px 12px', borderRadius: 999, color: '#0B1A12',
+                      padding: '7px 12px', borderRadius: 999, color: '#fff',
                       border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700,
-                      background: `linear-gradient(135deg, ${myTeamColor || '#d4a23c'}, ${myTeamColor || '#d4a23c'}cc)`,
+                      background: teamInk(myTeamColor || '#C29A45'),
                     }}
                   >
                     ▶ Continuar
@@ -6375,9 +6354,9 @@ export default function App() {
                     style={{
                       display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', flexShrink: 0,
                       padding: '7px 12px', borderRadius: 999, cursor: dailyChallengeAlreadyPlayed ? 'default' : 'pointer', fontSize: 12, fontWeight: 700,
-                      color: dailyChallengeAlreadyPlayed ? 'rgba(244,241,234,0.4)' : (myTeamColor || '#d4a23c'),
-                      border: `1.5px solid ${dailyChallengeAlreadyPlayed ? 'rgba(255,255,255,0.12)' : hexToRgba(myTeamColor || '#d4a23c', 0.4)}`,
-                      background: dailyChallengeAlreadyPlayed ? 'transparent' : hexToRgba(myTeamColor || '#d4a23c', 0.1),
+                      color: dailyChallengeAlreadyPlayed ? 'var(--muted)' : (myTeamColor || 'var(--gold-ink)'),
+                      border: `1.5px solid ${dailyChallengeAlreadyPlayed ? 'var(--line-strong)' : hexToRgba(myTeamColor || '#C29A45', 0.4)}`,
+                      background: dailyChallengeAlreadyPlayed ? 'transparent' : hexToRgba(myTeamColor || '#C29A45', 0.1),
                     }}
                   >
                     {dailyChallengeAlreadyPlayed
@@ -6385,7 +6364,7 @@ export default function App() {
                       : <>🏆 Supercopa <span className="header-supercopa-tail">do Brasil</span></>}
                   </button>
                 )}
-                <div style={{ width: 1, height: 20, background: isHomeLight ? '#E3DCCB' : 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
+                <div style={{ width: 1, height: 20, background: 'var(--line)', flexShrink: 0 }} />
               </>
             )}
             {careerHud?.active && (
@@ -6402,10 +6381,10 @@ export default function App() {
                   // texto preto ilegível sobre o fundo escuro do cabeçalho.
                   // Só a borda/fundo (tingidos, baixa opacidade) usam a cor
                   // do clube — o texto sempre fica no dourado fixo.
-                  color: '#d4a23c',
-                  border: `1.5px solid ${hexToRgba(careerHud.clubColor || '#d4a23c', 0.4)}`,
-                  background: hexToRgba(careerHud.clubColor || '#d4a23c', 0.1),
-                  fontFamily: "'Space Mono', monospace",
+                  color: 'var(--gold-ink)',
+                  border: `1.5px solid ${hexToRgba(careerHud.clubColor || '#C29A45', 0.4)}`,
+                  background: hexToRgba(careerHud.clubColor || '#C29A45', 0.1),
+                  fontFamily: 'var(--font-mono)',
                 }}
               >
                 💰 R$ {careerHud.balance.toLocaleString('pt-BR')}
@@ -6417,10 +6396,9 @@ export default function App() {
               className="tap-target-sm"
               style={{
                 display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
-                background: 'none', border: '1px solid rgba(212,162,60,0.35)',
-                borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
-                color: appShareCopied ? '#7fd99a' : '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
-                ...(isHomeLight && !appShareCopied ? HOME_LIGHT_PILL : null),
+                background: 'none', border: '1px solid var(--line-strong)',
+                borderRadius: 999, padding: '6px 12px', minHeight: 40, cursor: 'pointer',
+                color: appShareCopied ? 'var(--success)' : 'var(--ink-2)', fontSize: 12.5, fontFamily: 'var(--font-body)',
               }}
             >
               {appShareCopied ? '✓' : '📤'} <span className="header-action-label">Compartilhar</span>
@@ -6431,17 +6409,16 @@ export default function App() {
               className="tap-target-sm"
               style={{
                 position: 'relative', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
-                background: 'none', border: '1px solid rgba(212,162,60,0.35)',
-                borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
-                color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
-                ...(isHomeLight ? HOME_LIGHT_PILL : null),
+                background: 'none', border: '1px solid var(--line-strong)',
+                borderRadius: 999, padding: '6px 12px', minHeight: 40, cursor: 'pointer',
+                color: 'var(--ink-2)', fontSize: 12.5, fontFamily: 'var(--font-body)',
               }}
             >
               🎙️ <span className="header-action-label">Áudio</span>
               {goalAudioMuted && (
                 <span style={{
-                  position: 'absolute', top: -2, right: -2, fontSize: 12, color: '#e05050',
-                  textShadow: '0 0 2px rgba(0,0,0,0.9)',
+                  position: 'absolute', top: -2, right: -2, fontSize: 12, color: 'var(--danger)',
+                  textShadow: 'var(--shadow)',
                 }}>✕</span>
               )}
             </button>
@@ -6451,10 +6428,9 @@ export default function App() {
               className="tap-target-sm"
               style={{
                 position: 'relative', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
-                background: 'none', border: '1px solid rgba(212,162,60,0.35)',
-                borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
-                color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
-                ...(isHomeLight ? HOME_LIGHT_PILL : null),
+                background: 'none', border: '1px solid var(--line-strong)',
+                borderRadius: 999, padding: '6px 12px', minHeight: 40, cursor: 'pointer',
+                color: 'var(--ink-2)', fontSize: 12.5, fontFamily: 'var(--font-body)',
               }}
             >🏆 <span className="header-action-label">Ranking</span></button>
             <button
@@ -6463,19 +6439,18 @@ export default function App() {
               className="tap-target-sm"
               style={{
                 position: 'relative', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0, whiteSpace: 'nowrap',
-                background: 'none', border: '1px solid rgba(212,162,60,0.35)',
-                borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
-                color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
-                ...(isHomeLight ? HOME_LIGHT_PILL : null),
+                background: 'none', border: '1px solid var(--line-strong)',
+                borderRadius: 999, padding: '6px 12px', minHeight: 40, cursor: 'pointer',
+                color: 'var(--ink-2)', fontSize: 12.5, fontFamily: 'var(--font-body)',
               }}
             >
               💡 <span className="header-action-label">Novidades</span>
               {unseenNewsCount > 0 && (
                 <span style={{
                   position: 'absolute', top: -6, right: -6, minWidth: 15, height: 15, padding: '0 3px',
-                  borderRadius: 999, background: '#e05050', border: '1px solid #0B1A12',
+                  borderRadius: 999, background: 'var(--danger)', border: '1px solid var(--line)',
                   fontSize: 9, fontWeight: 700, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontFamily: "'Space Mono', monospace", lineHeight: 1,
+                  fontFamily: 'var(--font-mono)', lineHeight: 1,
                 }}>
                   {unseenNewsCount > 9 ? '9+' : unseenNewsCount}
                 </span>
@@ -6487,12 +6462,11 @@ export default function App() {
                 className="header-account-btn"
                 style={{
                   display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0,
-                  background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)',
+                  background: 'var(--surface)', border: '1px solid var(--line-strong)',
                   borderRadius: 999, padding: '6px 12px', cursor: 'pointer',
-                  color: '#F4F1EA', fontSize: 12, fontFamily: "'Space Mono', monospace",
+                  color: 'var(--ink)', fontSize: 12, fontFamily: 'var(--font-mono)',
                   maxWidth: 180, whiteSpace: 'nowrap',
-                  ...(isHomeLight ? { background: '#FBF9F4', border: '1px solid #E3DCCB', color: '#0F1F17' } : null),
-                }}
+                  }}
                 title="Minha Conta"
               >
                 <span>👤</span>
@@ -6504,11 +6478,9 @@ export default function App() {
                 className="header-account-btn tap-target-sm"
                 style={{
                   flexShrink: 0, whiteSpace: 'nowrap',
-                  background: 'none', border: '1px solid rgba(212,162,60,0.35)',
-                  // 30px de altura no celular — abaixo do que o dedo acerta bem.
-                  borderRadius: 999, padding: '8px 14px', minHeight: 36, cursor: 'pointer',
-                  color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 600,
-                  ...(isHomeLight ? { background: '#0D3A29', border: 'none', color: '#fff' } : null),
+                  background: 'var(--green)', border: 'none',
+                  borderRadius: 999, padding: '8px 16px', minHeight: 40, cursor: 'pointer',
+                  color: '#fff', fontSize: 13, fontFamily: 'var(--font-body)', fontWeight: 500,
                 }}
               >
                 Entrar / Criar conta
@@ -6520,9 +6492,9 @@ export default function App() {
       {isOffline && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9500,
-          background: '#3a2c0f', color: '#d4a23c', textAlign: 'center',
-          fontSize: 12, fontFamily: "'Space Mono', monospace", padding: '6px 12px',
-          borderBottom: '1px solid rgba(212,162,60,0.35)',
+          background: 'var(--gold-soft)', color: 'var(--gold-ink)', textAlign: 'center',
+          fontSize: 12, fontFamily: 'var(--font-mono)', padding: '6px 12px',
+          borderBottom: '1px solid rgba(194,154,69,0.5)',
         }}>
           📡 Sem conexão — jogando offline. Login, ranking e multiplayer ficam indisponíveis até a rede voltar.
         </div>
@@ -6530,13 +6502,13 @@ export default function App() {
       {installPromptEvent && !installDismissed && (
         <div style={{
           position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9500,
-          background: '#0f1f15', borderTop: '1px solid rgba(212,162,60,0.3)',
+          background: 'var(--surface)', borderTop: '1px solid var(--gold)',
           display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
           flexWrap: 'wrap', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: 12.5, color: '#F4F1EA' }}>📲 Instale o Brasileirão Lendário como app pra abrir mais rápido</span>
-          <button onClick={handleInstallClick} style={{ background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 8, padding: '6px 14px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Instalar</button>
-          <button onClick={dismissInstallBanner} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.4)', fontSize: 12, cursor: 'pointer' }}>Agora não</button>
+          <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>📲 Instale o Brasileirão Lendário como app pra abrir mais rápido</span>
+          <button onClick={handleInstallClick} style={{ background: 'var(--gold)', color: 'var(--ink)', border: 'none', borderRadius: 8, padding: '6px 14px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Instalar</button>
+          <button onClick={dismissInstallBanner} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12, cursor: 'pointer' }}>Agora não</button>
         </div>
       )}
       {rankingPage && <RankingPage onBack={closeRankingPage} myUsername={currentUser?.username} myTeamColor={myTeamColor} />}
@@ -6558,17 +6530,17 @@ export default function App() {
         />
       )}
       {showLineupEditor && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2500, overflowY: 'auto', padding: 16 }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2500, overflowY: 'auto', padding: 16 }}>
           <div style={{ maxWidth: 480, margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <div style={{ fontWeight: 700, fontSize: 13, color: myTeamColor || '#d4a23c' }}>
+              <div style={{ fontWeight: 700, fontSize: 13, color: myTeamColor || 'var(--gold-ink)' }}>
                 📋 Escalação — Brasileirão Atual
               </div>
               {!showFormationSwap && (
                 <button
                   onClick={() => setShowFormationSwap(true)}
                   className="tap-target-sm"
-                  style={{ background: 'none', border: `1px solid ${hexToRgba(myTeamColor || '#d4a23c', 0.4)}`, borderRadius: 999, color: myTeamColor || '#d4a23c', fontSize: 11.5, fontWeight: 600, padding: '5px 10px', cursor: 'pointer' }}
+                  style={{ background: 'none', border: `1px solid ${hexToRgba(myTeamColor || '#C29A45', 0.4)}`, borderRadius: 999, color: myTeamColor || 'var(--gold-ink)', fontSize: 11.5, fontWeight: 600, padding: '5px 10px', cursor: 'pointer' }}
                 >
                   🔄 Trocar formação
                 </button>
@@ -6914,13 +6886,13 @@ export default function App() {
       </main>
       )}
       {showLeaveConfirm && (
-        <div onClick={() => setShowLeaveConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, textAlign: 'center' }}>
-            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Sair da sala?</div>
+        <div onClick={() => setShowLeaveConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 24, textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Sair da sala?</div>
             <p style={{ fontSize: 13, opacity: 0.65, lineHeight: 1.5, marginBottom: 6 }}>
               Você está numa partida com outros jogadores. Voltar ao menu agora desconecta você da sala.
             </p>
-            <button onClick={() => { setShowLeaveConfirm(false); leaveMultiplayer(); }} style={{ ...styles.btnPrimary, width: '100%', background: '#e05050', color: '#fff', marginTop: 16 }}>
+            <button onClick={() => { setShowLeaveConfirm(false); leaveMultiplayer(); }} style={{ ...styles.btnPrimary, width: '100%', background: 'var(--danger)', color: '#fff', marginTop: 16 }}>
               Sim, sair da sala
             </button>
             <button onClick={() => setShowLeaveConfirm(false)} style={{ ...styles.btnGhost, marginTop: 10 }}>
@@ -6930,13 +6902,13 @@ export default function App() {
         </div>
       )}
       {showOverwriteConfirm && (
-        <div onClick={() => setShowOverwriteConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24, textAlign: 'center' }}>
-            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Começar um jogo novo?</div>
+        <div onClick={() => setShowOverwriteConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 24, textAlign: 'center' }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Começar um jogo novo?</div>
             <p style={{ fontSize: 13, opacity: 0.65, lineHeight: 1.5, marginBottom: 6 }}>
               Você tem uma partida salva em <b>{describePhase(savedPhase)}</b>. Começar de novo substitui ela — não dá pra retomar depois.
             </p>
-            <button onClick={confirmNewGameOverSave} style={{ ...styles.btnPrimary, width: '100%', background: '#e05050', color: '#fff', marginTop: 16 }}>
+            <button onClick={confirmNewGameOverSave} style={{ ...styles.btnPrimary, width: '100%', background: 'var(--danger)', color: '#fff', marginTop: 16 }}>
               Começar mesmo assim
             </button>
             <button onClick={() => setShowOverwriteConfirm(false)} style={{ ...styles.btnGhost, marginTop: 10 }}>
@@ -7047,8 +7019,8 @@ function ImageCropModal({ src, onConfirm, onCancel }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18 }}>
-      <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700 }}>Recortar logo do time</div>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18 }}>
+      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700 }}>Recortar logo do time</div>
       <div style={{ fontSize: 12, opacity: 0.5 }}>Arraste para reposicionar · Use o slider para zoom</div>
       <canvas
         ref={canvasRef} width={CROP} height={CROP}
@@ -7059,13 +7031,13 @@ function ImageCropModal({ src, onConfirm, onCancel }) {
         <span style={{ fontSize: 12, opacity: 0.45 }}>−</span>
         <input type="range" min="0.3" max="4" step="0.05" value={zoom}
           onChange={e => setZoom(Number(e.target.value))}
-          style={{ width: 160, accentColor: '#d4a23c' }}
+          style={{ width: 160, accentColor: 'var(--gold-ink)' }}
         />
         <span style={{ fontSize: 12, opacity: 0.45 }}>+</span>
       </div>
       <div style={{ display: 'flex', gap: 12 }}>
-        <button onClick={onCancel} style={{ padding: '10px 22px', borderRadius: 9, border: '1px solid rgba(255,255,255,0.2)', background: 'transparent', color: '#F4F1EA', cursor: 'pointer', fontSize: 14 }}>Cancelar</button>
-        <button onClick={confirm} style={{ padding: '10px 22px', borderRadius: 9, border: 'none', background: '#d4a23c', color: '#0B1A12', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Confirmar recorte</button>
+        <button onClick={onCancel} style={{ padding: '10px 22px', borderRadius: 9, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', cursor: 'pointer', fontSize: 14 }}>Cancelar</button>
+        <button onClick={confirm} style={{ padding: '10px 22px', borderRadius: 9, border: 'none', background: 'var(--gold)', color: 'var(--ink)', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Confirmar recorte</button>
       </div>
     </div>
   );
@@ -7101,19 +7073,19 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
   };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative' }}>
-        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 28, position: 'relative' }}>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
 
         {mode === 'choice' && (
           <>
-            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>Bem-vindo!</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, marginBottom: 8, textAlign: 'center' }}>Bem-vindo!</div>
             <p style={{ fontSize: 13, opacity: 0.6, textAlign: 'center', marginBottom: 24, lineHeight: 1.5 }}>
               Crie uma conta pra salvar seu time e acessar de qualquer lugar, ou jogue como convidado sem compromisso.
             </p>
-            <button onClick={() => setMode('signup')} style={{ ...styles.btnIntro, width: '100%', background: '#d4a23c', color: '#0B1A12', marginBottom: 10 }}>Criar conta</button>
+            <button onClick={() => setMode('signup')} style={{ ...styles.btnIntro, width: '100%', background: 'var(--gold)', color: 'var(--ink)', marginBottom: 10 }}>Criar conta</button>
             <button onClick={() => setMode('login')} style={{ ...styles.btnGhost, marginTop: 0, marginBottom: 10 }}>Já tenho conta</button>
-            <button onClick={onGuestChoice} style={{ width: '100%', background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 13, padding: '8px 0', cursor: 'pointer' }}>
+            <button onClick={onGuestChoice} style={{ width: '100%', background: 'none', border: 'none', color: 'var(--muted)', fontSize: 13, padding: '8px 0', cursor: 'pointer' }}>
               Jogar como convidado →
             </button>
           </>
@@ -7121,8 +7093,8 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
 
         {(mode === 'signup' || mode === 'login') && (
           <>
-            <button onClick={() => setMode('choice')} className="tap-target-sm" style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 14px', margin: '0 0 0 -2px', minHeight: 34 }}>&#8592; Voltar</button>
-            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 18 }}>
+            <button onClick={() => setMode('choice')} className="tap-target-sm" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 14px', margin: '0 0 0 -2px', minHeight: 34 }}>&#8592; Voltar</button>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 18 }}>
               {mode === 'signup' ? 'Criar conta' : 'Entrar'}
             </div>
             {mode === 'signup' && (
@@ -7140,8 +7112,8 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
               onKeyDown={e => e.key === 'Enter' && submit()}
               style={{ ...styles.teamInput, marginBottom: 14 }}
             />
-            {error && <div style={{ color: '#e05050', fontSize: 12, marginBottom: 12 }}>{error}</div>}
-            <button onClick={submit} disabled={loading} style={{ ...styles.btnIntro, width: '100%', background: '#d4a23c', color: '#0B1A12', opacity: loading ? 0.6 : 1 }}>
+            {error && <div style={{ color: 'var(--danger)', fontSize: 12, marginBottom: 12 }}>{error}</div>}
+            <button onClick={submit} disabled={loading} style={{ ...styles.btnIntro, width: '100%', background: 'var(--gold)', color: 'var(--ink)', opacity: loading ? 0.6 : 1 }}>
               {loading ? 'Aguarde…' : mode === 'signup' ? 'Criar conta' : 'Entrar'}
             </button>
           </>
@@ -7152,7 +7124,7 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
 }
 
 // Barrinhas de equalizador — indicador de "tocando agora" reaproveitável.
-function EqBars({ color = '#d4a23c', height = 12 }) {
+function EqBars({ color = 'var(--gold)', height = 12 }) {
   return (
     <div style={{ display: 'flex', gap: 2, alignItems: 'flex-end', height, flexShrink: 0 }}>
       {[6, 10, 7, 12, 5, 9, 7, 11, 6].map((h, i) => (
@@ -7219,10 +7191,10 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
-      <div style={{ width: '100%', maxWidth: 460, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
-        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
-        <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{user.username}</div>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
+      <div style={{ width: '100%', maxWidth: 460, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 28, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{user.username}</div>
         <div style={{ fontSize: 12, opacity: 0.5, marginBottom: 20 }}>{user.email}</div>
 
         <div style={styles.teamEditSection}>
@@ -7231,20 +7203,20 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
           <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" style={{ ...styles.teamInput, marginTop: 8 }} />
           <input value={password} onChange={e => setPassword(e.target.value)} type="password" placeholder="Nova senha (opcional)" style={{ ...styles.teamInput, marginTop: 8 }} />
           <input value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} type="password" placeholder="Senha atual (p/ alterar email ou senha)" style={{ ...styles.teamInput, marginTop: 8 }} />
-          {credError && <div style={{ color: '#e05050', fontSize: 12, marginTop: 6 }}>{credError}</div>}
+          {credError && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 6 }}>{credError}</div>}
           <button onClick={saveCredentials} disabled={savingCred} style={{ ...styles.btnSmall, marginTop: 10 }}>
             {savingCred ? 'Salvando…' : 'Salvar'}
           </button>
         </div>
 
-        {error && <div style={{ color: '#e05050', fontSize: 12, marginTop: 10 }}>{error}</div>}
+        {error && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 10 }}>{error}</div>}
         {confirmDelete && (
           <input value={deletePassword} onChange={e => setDeletePassword(e.target.value)} type="password" placeholder="Digite sua senha para confirmar" style={{ ...styles.teamInput, marginTop: 10 }} autoFocus />
         )}
 
         <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
           <button onClick={onLogout} style={{ ...styles.btnGhost, marginTop: 0, flex: 1 }}>Sair</button>
-          <button onClick={handleDelete} disabled={deleting} style={{ ...styles.btnGhost, marginTop: 0, flex: 1, borderColor: 'rgba(224,80,80,0.4)', color: '#e05050' }}>
+          <button onClick={handleDelete} disabled={deleting} style={{ ...styles.btnGhost, marginTop: 0, flex: 1, borderColor: 'rgba(178,59,59,0.5)', color: 'var(--danger)' }}>
             {confirmDelete ? (deleting ? 'Excluindo…' : 'Confirmar exclusão?') : 'Excluir conta'}
           </button>
         </div>
@@ -7254,7 +7226,7 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
 }
 
 const TEAM_BADGES = ['⭐', '🔥', '🦅', '🐯', '🦁', '💎', '⚡', '🏆', '🌊', '🎯', '🛡️', '🌟'];
-const TEAM_COLORS = ['#d4a23c', '#e05050', '#4a90d9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#e91e8c'];
+const TEAM_COLORS = ['#C29A45', '#e05050', '#4a90d9', '#27ae60', '#8e44ad', '#e67e22', '#16a085', '#e91e8c'];
 
 // Estados brasileiros — usado no seletor de UF do time (Ver Clube) e no
 // filtro de região do ranking global. Precisa bater com BRAZIL_UFS no
@@ -7290,21 +7262,21 @@ function parseYouTubeId(input) {
 // pra hoje e manda pra tela de formação/sorteio pra montar um time do zero
 // pra enfrentá-lo, igual começar uma carreira nova.
 function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const { baseName, achievement } = parseTeamLabel(opponent.label);
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: 20 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 16, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ fontWeight: 700, fontSize: 15 }}>🏆 Supercopa do Brasil</div>
-          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
+          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
         </div>
         <p style={{ fontSize: 12.5, opacity: 0.6, lineHeight: 1.5, marginBottom: 16 }}>
           Monte um time do zero (mesmo sorteio de sempre) pra enfrentar o time lendário de hoje, numa partida única. Vencer dá +50 pontos no ranking global. O adversário muda todo dia, e só dá pra jogar uma vez — capricha na escalação!
         </p>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: `1px solid ${hexToRgba(mc, 0.35)}`, background: hexToRgba(mc, 0.08), marginBottom: 16 }}>
           {CLUB_LOGOS[opponent.club] && (
-            <img src={CLUB_LOGOS[opponent.club]} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+            <img src={CLUB_LOGOS[opponent.club]} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain', background: 'var(--surface)', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 10.5, opacity: 0.55, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Adversário de hoje</div>
@@ -7314,7 +7286,7 @@ function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose }) {
         </div>
         <button
           onClick={() => onPick(opponent)}
-          style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }}
+          style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }}
         >
           Montar meu time →
         </button>
@@ -7351,7 +7323,7 @@ function GameStatsBar({ style }) {
           {i > 0 && <span style={styles.gameStatsDivider} />}
           <span style={styles.gameStatsPill}>
             <span style={{ fontSize: 12, opacity: 0.85 }}>{icon}</span>
-            <b style={{ color: '#F4F1EA' }}>{n}</b> {label}
+            <b style={{ color: 'var(--ink)' }}>{n}</b> {label}
           </span>
         </span>
       ))}
@@ -7360,7 +7332,7 @@ function GameStatsBar({ style }) {
 }
 
 function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, onOpenSimulator2026, livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer, dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const [showClub, setShowClub] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showWeeklyTeam, setShowWeeklyTeam] = useState(false);
@@ -7449,10 +7421,10 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
 // dificuldade + entrar no modo num só passo, em vez de ter uma seção de
 // dificuldade solta na home valendo pra "o modo atual" de forma implícita.
 function ModeDifficultyModal({ mode, difficulty, onSetDifficulty, onConfirm, onClose, myTeamColor }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: 22 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 16, padding: 22 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <span style={{ fontSize: 30 }}>{mode.icon}</span>
@@ -7461,7 +7433,7 @@ function ModeDifficultyModal({ mode, difficulty, onSetDifficulty, onConfirm, onC
               <div style={{ fontSize: 11.5, opacity: 0.6 }}>{mode.sub}</div>
             </div>
           </div>
-          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 28, height: 28, flexShrink: 0 }}>×</button>
+          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 28, height: 28, flexShrink: 0 }}>×</button>
         </div>
         <div style={styles.teamEditLabel}>Dificuldade</div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }} className="difficulty-grid">
@@ -7477,15 +7449,15 @@ function ModeDifficultyModal({ mode, difficulty, onSetDifficulty, onConfirm, onC
                 aria-pressed={active}
                 style={{
                   padding: '10px 6px', borderRadius: 10, border: '2px solid',
-                  borderColor: active ? tone : 'rgba(255,255,255,0.12)',
-                  background: active ? hexToRgba(tone, 0.12) : 'rgba(255,255,255,0.03)',
-                  color: active ? tone : '#F4F1EA',
+                  borderColor: active ? tone : 'var(--line-strong)',
+                  background: active ? hexToRgba(tone, 0.12) : 'var(--surface)',
+                  color: active ? tone : 'var(--ink)',
                   cursor: 'pointer', textAlign: 'center', fontSize: 12, fontWeight: 700,
                   transition: 'all 0.12s',
                 }}
               >
                 {d.short}
-                <div style={{ fontSize: 9.5, fontWeight: 400, opacity: active ? 0.8 : 0.4, marginTop: 2, fontFamily: "'Space Mono', monospace" }}>
+                <div style={{ fontSize: 9.5, fontWeight: 400, opacity: active ? 0.8 : 0.4, marginTop: 2, fontFamily: 'var(--font-mono)' }}>
                   {DIFFICULTY_UI[key]?.mult}
                 </div>
               </button>
@@ -7497,7 +7469,7 @@ function ModeDifficultyModal({ mode, difficulty, onSetDifficulty, onConfirm, onC
           onClick={onConfirm}
           style={{
             width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', cursor: 'pointer',
-            background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: '#0B1A12', fontSize: 15, fontWeight: 700,
+            background: `linear-gradient(135deg, ${mc}, ${mc}cc)`, color: 'var(--ink)', fontSize: 15, fontWeight: 700,
           }}
         >
           Jogar →
@@ -7553,24 +7525,24 @@ function WeeklyTeamModal({ onClose }) {
   }, [enriched]);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 2500, overflowY: 'auto', padding: 16 }} onClick={onClose}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2500, overflowY: 'auto', padding: 16 }} onClick={onClose}>
       <div
-        style={{ maxWidth: 480, margin: '0 auto', background: '#0f2318', border: '1px solid rgba(255,215,0,0.3)', borderRadius: 16, padding: 20 }}
+        style={{ maxWidth: 480, margin: '0 auto', background: 'var(--surface)', border: '1px solid var(--gold)', borderRadius: 16, padding: 20 }}
         onClick={e => e.stopPropagation()}
       >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 4 }}>
           <div>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: '#ffd700' }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--gold-ink)' }}>
               🌟 Seleção da Semana
             </div>
-            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, color: '#F4F1EA' }}>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
               {w.label}
             </div>
             <div style={{ fontSize: 11, opacity: 0.55, marginTop: 2 }}>
               {w.sourceLabel} · {isCurrent ? 'quem está aqui joga com +3 OVR (craque +5) até sair da seleção' : 'rodada anterior — o bônus de OVR já não vale mais, só a mais recente vale'}
             </div>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
         </div>
 
         {WEEKLY_TEAMS.length > 1 && (
@@ -7579,7 +7551,7 @@ function WeeklyTeamModal({ onClose }) {
               onClick={() => hasPrev && setWeekIdx(i => i - 1)}
               disabled={!hasPrev}
               className="tap-target-sm"
-              style={{ background: 'none', border: 'none', color: hasPrev ? '#F4F1EA' : 'rgba(244,241,234,0.25)', fontSize: 20, cursor: hasPrev ? 'pointer' : 'default', padding: 4 }}
+              style={{ background: 'none', border: 'none', color: hasPrev ? 'var(--ink)' : 'var(--muted)', fontSize: 20, cursor: hasPrev ? 'pointer' : 'default', padding: 4 }}
             >‹</button>
             <div style={{ fontSize: 11.5, opacity: 0.65, minWidth: 100, textAlign: 'center' }}>
               {isCurrent ? 'Rodada atual' : 'Rodada anterior'}
@@ -7588,7 +7560,7 @@ function WeeklyTeamModal({ onClose }) {
               onClick={() => hasNext && setWeekIdx(i => i + 1)}
               disabled={!hasNext}
               className="tap-target-sm"
-              style={{ background: 'none', border: 'none', color: hasNext ? '#F4F1EA' : 'rgba(244,241,234,0.25)', fontSize: 20, cursor: hasNext ? 'pointer' : 'default', padding: 4 }}
+              style={{ background: 'none', border: 'none', color: hasNext ? 'var(--ink)' : 'var(--muted)', fontSize: 20, cursor: hasNext ? 'pointer' : 'default', padding: 4 }}
             >›</button>
           </div>
         )}
@@ -7596,9 +7568,9 @@ function WeeklyTeamModal({ onClose }) {
         <div style={styles.pitchWrap}>
           <div style={{
             ...styles.pitchField,
-            background: '#124d27',
-            backgroundImage: 'repeating-linear-gradient(to bottom, rgba(0,0,0,0.07) 0%, rgba(0,0,0,0.07) 14.3%, transparent 14.3%, transparent 28.6%)',
-          }}>
+            background: 'var(--pitch)',
+            backgroundImage: 'repeating-linear-gradient(to bottom, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.035) 14.3%, transparent 14.3%, transparent 28.6%)',
+          }} className="on-dark">
             {Object.entries(lines).map(([line, linePlayers]) => linePlayers.map((p, i) => {
               const leftPct = ((i + 1) / (linePlayers.length + 1)) * 100;
               const topPct = WEEK_LINE_TOP_PCT[line] ?? 50;
@@ -7621,8 +7593,8 @@ function WeeklyTeamModal({ onClose }) {
                     )}
                   </div>
                   <div style={{
-                    marginTop: 3, fontSize: 9.5, fontWeight: 700, color: '#F4F1EA', textAlign: 'center',
-                    textShadow: '0 1px 3px rgba(0,0,0,0.85)', lineHeight: 1.2, maxWidth: 64,
+                    marginTop: 3, fontSize: 9.5, fontWeight: 700, color: 'var(--ink)', textAlign: 'center',
+                    textShadow: 'var(--shadow)', lineHeight: 1.2, maxWidth: 64,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
                     {isCraque ? '👑 ' : ''}{shortName(p.name)}
@@ -7647,14 +7619,14 @@ function WeeklyTeamModal({ onClose }) {
                   <img src={CLUB_LOGOS[wp.team.club]} alt="" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13.5, color: '#F4F1EA' }}>
+                  <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--ink)' }}>
                     {isCraque ? '👑 ' : ''}{wp.name}
-                    {wp.player && <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: gold, marginLeft: 6 }}>{wp.player.ovr} OVR</span>}
+                    {wp.player && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: gold, marginLeft: 6 }}>{wp.player.ovr} OVR</span>}
                   </div>
                   <div style={{ fontSize: 11, opacity: 0.6 }}>{wp.posLabel}{wp.team ? ` · ${wp.team.club}` : ''}</div>
                 </div>
                 {isCurrent && (
-                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 800, color: gold, flexShrink: 0 }}>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 800, color: gold, flexShrink: 0 }}>
                     +{isCraque ? 5 : 3}
                   </div>
                 )}
@@ -7671,7 +7643,7 @@ function WeeklyTeamModal({ onClose }) {
 // gols marcados/sofridos, títulos, conquistas). Reaproveita os campos
 // career_* que o servidor já acumula a cada temporada registrada.
 function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose, onUpdateFields }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const mp = user?.career_matches_played || 0;
   const w = user?.career_wins || 0;
   const d = user?.career_draws || 0;
@@ -7836,16 +7808,16 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
   // Cor fixa (não a cor do time) pro texto — a cor do time pode ser escura
   // (ex.: preto do Santos), o que deixava o número ilegível em cima do fundo
   // escuro do modal. Dourado fixo é sempre legível, é o acento padrão do app.
-  const statColor = '#d4a23c';
+  const statColor = 'var(--gold-ink)';
   const Stat = ({ label, value }) => (
     <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
-      <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 19, fontWeight: 700, color: statColor }}>{value}</div>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 19, fontWeight: 700, color: statColor }}>{value}</div>
       <div style={{ fontSize: 9.5, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 0.5, marginTop: 3 }}>{label}</div>
     </div>
   );
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       {cropSrc && (
         <ImageCropModal
           src={cropSrc}
@@ -7854,14 +7826,14 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
         />
       )}
       {showAchievements && <AchievementsModal user={user} onClose={() => setShowAchievements(false)} />}
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '88vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, position: 'relative' }}>
-        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer', zIndex: 1, padding: 6, lineHeight: 1 }}>✕</button>
-        <div style={{ padding: '28px 24px 20px', textAlign: 'center', background: `linear-gradient(180deg, ${hexToRgba(mc, 0.18)}, transparent)`, borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '88vh', overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, position: 'relative' }}>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', zIndex: 1, padding: 6, lineHeight: 1 }}>✕</button>
+        <div style={{ padding: '28px 24px 20px', textAlign: 'center', background: `linear-gradient(180deg, ${hexToRgba(mc, 0.18)}, transparent)`, borderBottom: '1px solid var(--line)' }}>
           {myTeamLogo
             ? <img src={myTeamLogo} alt="" style={{ width: 64, height: 64, borderRadius: 16, objectFit: 'cover', marginBottom: 10 }} />
             : <div style={{ fontSize: 48, marginBottom: 6 }}>{myTeamBadge || '⭐'}</div>
           }
-          <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700 }}>{user?.team_name || 'Meu Time'}</div>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700 }}>{user?.team_name || 'Meu Time'}</div>
           <div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>
             {user?.team_city || ''}{user?.team_coach ? ` · Téc. ${user.team_coach}` : ''}
           </div>
@@ -7904,7 +7876,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
                 {myTeamLogo && (
-                  <button onClick={() => commitField('team_logo', null)} style={{ fontSize: 11, color: '#e05050', background: 'none', border: '1px solid rgba(224,80,80,0.3)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer' }}>
+                  <button onClick={() => commitField('team_logo', null)} style={{ fontSize: 11, color: 'var(--danger)', background: 'none', border: '1px solid rgba(178,59,59,0.4)', borderRadius: 5, padding: '2px 8px', cursor: 'pointer' }}>
                     Remover logo
                   </button>
                 )}
@@ -7922,8 +7894,8 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       title={club}
                       style={{
                         width: 44, height: 44, borderRadius: 10, padding: 5,
-                        border: `2px solid ${myTeamLogo === url ? mc : 'rgba(255,255,255,0.08)'}`,
-                        background: myTeamLogo === url ? hexToRgba(mc, 0.15) : 'rgba(255,255,255,0.03)',
+                        border: `2px solid ${myTeamLogo === url ? mc : 'var(--line)'}`,
+                        background: myTeamLogo === url ? hexToRgba(mc, 0.15) : 'var(--surface)',
                         cursor: 'pointer', transition: 'all 0.12s',
                       }}
                     >
@@ -7940,8 +7912,8 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                     <button key={c} onClick={() => commitField('team_color', c)} className="tap-target-sm" style={{
                       width: 30, height: 30, borderRadius: '50%',
                       background: c,
-                      border: `3px solid ${mc === c ? '#fff' : 'transparent'}`,
-                      outline: mc === c ? `2px solid ${c}` : 'none',
+                      border: `3px solid ${myTeamColor === c ? 'var(--surface)' : 'transparent'}`,
+                      outline: myTeamColor === c ? `2px solid ${c}` : 'none',
                       outlineOffset: 2,
                       cursor: 'pointer', transition: 'all 0.12s', padding: 0,
                     }} />
@@ -7996,7 +7968,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                   />
                 </div>
               </div>
-              {error && <div style={{ color: '#e05050', fontSize: 11.5, marginTop: 10 }}>{error}</div>}
+              {error && <div style={{ color: 'var(--danger)', fontSize: 11.5, marginTop: 10 }}>{error}</div>}
             </div>
           )}
 
@@ -8016,9 +7988,9 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
           </div>
           {mp > 0 && (
             <div style={{ height: 6, borderRadius: 999, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
-              <div style={{ width: `${(w / mp) * 100}%`, background: '#7fd99a' }} />
-              <div style={{ width: `${(d / mp) * 100}%`, background: '#d4a23c' }} />
-              <div style={{ width: `${(l / mp) * 100}%`, background: '#e05050' }} />
+              <div style={{ width: `${(w / mp) * 100}%`, background: 'var(--success)' }} />
+              <div style={{ width: `${(d / mp) * 100}%`, background: 'var(--gold)' }} />
+              <div style={{ width: `${(l / mp) * 100}%`, background: 'var(--danger)' }} />
             </div>
           )}
           <div style={{ fontSize: 11, opacity: 0.5, textAlign: 'center', marginBottom: 22 }}>{winPct}% de aproveitamento</div>
@@ -8054,7 +8026,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
               (mesmo tratamento visual dos cards de Áudio abaixo), com um
               teto de itens e um "+N" que abre a galeria completa.       */}
           <div style={{
-            background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
+            background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, var(--surface))`,
             border: `1px solid ${hexToRgba(mc, 0.3)}`,
             borderRadius: 16, padding: '18px 20px', marginBottom: onUpdateFields ? 24 : 0,
           }}>
@@ -8062,8 +8034,8 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🏅</div>
                 <div>
-                  <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>{unlockedCount}/{totalAchievements}</div>
-                  <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>Conquistas</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>{unlockedCount}/{totalAchievements}</div>
+                  <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700 }}>Conquistas</div>
                 </div>
               </div>
               <button onClick={() => setShowAchievements(true)} style={{ background: 'none', border: 'none', color: mc, fontSize: 11.5, fontWeight: 600, cursor: 'pointer', padding: 0, flexShrink: 0 }}>
@@ -8087,7 +8059,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                 {unlockedCount > ACHIEVEMENTS_PREVIEW_LIMIT && (
                   <button
                     onClick={() => setShowAchievements(true)}
-                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: 12, cursor: 'pointer', color: mc, minHeight: 42, padding: 0 }}
+                    style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'var(--surface)', border: '1px dashed var(--line-strong)', borderRadius: 12, cursor: 'pointer', color: mc, minHeight: 42, padding: 0 }}
                   >
                     <span style={{ fontSize: 14, fontWeight: 700 }}>+{unlockedCount - ACHIEVEMENTS_PREVIEW_LIMIT}</span>
                   </button>
@@ -8102,7 +8074,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
             <>
               {/* Áudio ambiente — trilha padrão, hino do clube ou link próprio */}
               <div style={{
-                background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
+                background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, var(--surface))`,
                 border: `1px solid ${hexToRgba(mc, 0.3)}`,
                 borderRadius: 16, padding: '18px 20px', marginBottom: 24, position: 'relative', overflow: 'hidden',
               }}>
@@ -8110,8 +8082,8 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, position: 'relative' }}>
                   <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎙️</div>
                   <div>
-                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Transmissão</div>
-                    <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>Áudio ambiente</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Transmissão</div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700 }}>Áudio ambiente</div>
                   </div>
                 </div>
 
@@ -8121,9 +8093,9 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                       padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                      border: `1px solid ${audioMode === 'default' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
-                      background: audioMode === 'default' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+                      border: `1px solid ${audioMode === 'default' ? hexToRgba(mc, 0.5) : 'var(--line)'}`,
+                      background: audioMode === 'default' ? hexToRgba(mc, 0.12) : 'var(--surface)',
+                      color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s',
                     }}
                   >
                     <span style={{ fontSize: 18 }}>🎵</span>
@@ -8141,9 +8113,9 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                       padding: '10px 14px', borderRadius: 10, cursor: anthemId ? 'pointer' : 'not-allowed',
-                      border: `1px solid ${audioMode === 'hino' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
-                      background: audioMode === 'hino' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s', opacity: anthemId ? 1 : 0.45,
+                      border: `1px solid ${audioMode === 'hino' ? hexToRgba(mc, 0.5) : 'var(--line)'}`,
+                      background: audioMode === 'hino' ? hexToRgba(mc, 0.12) : 'var(--surface)',
+                      color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s', opacity: anthemId ? 1 : 0.45,
                     }}
                   >
                     <span style={{ fontSize: 18 }}>🏆</span>
@@ -8169,9 +8141,9 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                       padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                      border: `1px solid ${audioMode === 'youtube' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
-                      background: audioMode === 'youtube' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+                      border: `1px solid ${audioMode === 'youtube' ? hexToRgba(mc, 0.5) : 'var(--line)'}`,
+                      background: audioMode === 'youtube' ? hexToRgba(mc, 0.12) : 'var(--surface)',
+                      color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s',
                     }}
                   >
                     <span style={{ fontSize: 18 }}>🔗</span>
@@ -8200,13 +8172,13 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       onKeyDown={e => e.key === 'Enter' && applyYoutube()}
                       placeholder="Link do YouTube…" style={{ ...styles.teamInput, flex: 1, margin: 0 }}
                     />
-                    <button onClick={applyYoutube} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                    <button onClick={applyYoutube} style={{ background: mc, color: '#fff', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                       Tocar
                     </button>
                   </div>
                 )}
                 {audioMode === 'youtube' && !ytId && ytInput && (
-                  <div style={{ fontSize: 11, color: '#e05050', marginTop: 6, position: 'relative' }}>Link inválido — cole um link do YouTube ou ID de 11 caracteres.</div>
+                  <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 6, position: 'relative' }}>Link inválido — cole um link do YouTube ou ID de 11 caracteres.</div>
                 )}
 
                 {audioMode === 'default' && (
@@ -8224,23 +8196,23 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
 
               {/* Áudio de gol do meu time — grava, cola link ou envia arquivo */}
               <div style={{
-                background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
+                background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, var(--surface))`,
                 border: `1px solid ${hexToRgba(mc, 0.3)}`,
                 borderRadius: 16, padding: '18px 20px', position: 'relative', overflow: 'hidden',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
                   <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>⚽</div>
                   <div>
-                    <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Comemoração</div>
-                    <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>Áudio de gol do meu time</div>
+                    <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Comemoração</div>
+                    <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700 }}>Áudio de gol do meu time</div>
                   </div>
                 </div>
 
                 {user?.goal_audio ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '8px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, padding: '8px 12px', background: 'var(--surface)', borderRadius: 8 }}>
                     <span style={{ fontSize: 12, opacity: 0.7, flex: 1 }}>Áudio personalizado configurado</span>
                     <button onClick={() => { const a = new Audio(user.goal_audio); a.play().catch(() => { }); }} style={{ fontSize: 11, color: mc, background: 'none', border: `1px solid ${hexToRgba(mc, 0.4)}`, borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>▶ Testar</button>
-                    <button onClick={removeGoalAudio} style={{ fontSize: 11, color: '#e05050', background: 'none', border: '1px solid rgba(224,80,80,0.3)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>Remover</button>
+                    <button onClick={removeGoalAudio} style={{ fontSize: 11, color: 'var(--danger)', background: 'none', border: '1px solid rgba(178,59,59,0.4)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer' }}>Remover</button>
                   </div>
                 ) : (
                   <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 12 }}>Sem áudio personalizado — toca o som padrão do clube (quando disponível) ao marcar gol.</div>
@@ -8252,9 +8224,9 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                       padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                      border: `1px solid ${goalAudioMode === 'record' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
-                      background: goalAudioMode === 'record' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+                      border: `1px solid ${goalAudioMode === 'record' ? hexToRgba(mc, 0.5) : 'var(--line)'}`,
+                      background: goalAudioMode === 'record' ? hexToRgba(mc, 0.12) : 'var(--surface)',
+                      color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s',
                     }}
                   >
                     <span style={{ fontSize: 18 }}>🎙️</span>
@@ -8269,9 +8241,9 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                       padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                      border: `1px solid ${goalAudioMode === 'link' ? hexToRgba(mc, 0.5) : 'rgba(255,255,255,0.1)'}`,
-                      background: goalAudioMode === 'link' ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+                      border: `1px solid ${goalAudioMode === 'link' ? hexToRgba(mc, 0.5) : 'var(--line)'}`,
+                      background: goalAudioMode === 'link' ? hexToRgba(mc, 0.12) : 'var(--surface)',
+                      color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s',
                     }}
                   >
                     <span style={{ fontSize: 18 }}>🔗</span>
@@ -8286,8 +8258,8 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                     style={{
                       display: 'flex', alignItems: 'center', gap: 10, width: '100%',
                       padding: '10px 14px', borderRadius: 10, cursor: 'pointer',
-                      border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
-                      color: '#F4F1EA', textAlign: 'left', transition: 'all 0.15s',
+                      border: '1px solid var(--line)', background: 'var(--surface)',
+                      color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s',
                     }}
                   >
                     <span style={{ fontSize: 18 }}>📁</span>
@@ -8305,13 +8277,13 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       <button onClick={startGoalRecording} style={{ ...styles.btnSmall, margin: 0 }}>● Iniciar gravação</button>
                     )}
                     {isRecordingGoal && (
-                      <button onClick={stopGoalRecording} style={{ ...styles.btnSmall, margin: 0, color: '#e05050', borderColor: 'rgba(224,80,80,0.4)' }}>■ Parar (gravando…)</button>
+                      <button onClick={stopGoalRecording} style={{ ...styles.btnSmall, margin: 0, color: 'var(--danger)', borderColor: 'rgba(178,59,59,0.5)' }}>■ Parar (gravando…)</button>
                     )}
                     {recordedGoalPreviewUrl && (
                       <>
                         <audio src={recordedGoalPreviewUrl} controls style={{ height: 32 }} />
                         <button onClick={saveGoalRecording} style={{ ...styles.btnSmall, margin: 0 }}>Salvar</button>
-                        <button onClick={discardGoalRecording} style={{ ...styles.btnSmall, margin: 0, color: '#e05050', borderColor: 'rgba(224,80,80,0.4)' }}>Descartar</button>
+                        <button onClick={discardGoalRecording} style={{ ...styles.btnSmall, margin: 0, color: 'var(--danger)', borderColor: 'rgba(178,59,59,0.5)' }}>Descartar</button>
                       </>
                     )}
                   </div>
@@ -8323,12 +8295,12 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       onKeyDown={e => e.key === 'Enter' && applyGoalAudioLink()}
                       placeholder="https://…/gol.mp3" style={{ ...styles.teamInput, flex: 1, margin: 0 }}
                     />
-                    <button onClick={applyGoalAudioLink} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
+                    <button onClick={applyGoalAudioLink} style={{ background: mc, color: '#fff', border: 'none', borderRadius: 8, padding: '0 16px', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>
                       Aplicar
                     </button>
                   </div>
                 )}
-                {goalAudioError && <div style={{ color: '#e05050', fontSize: 11, marginTop: 8 }}>{goalAudioError}</div>}
+                {goalAudioError && <div style={{ color: 'var(--danger)', fontSize: 11, marginTop: 8 }}>{goalAudioError}</div>}
               </div>
             </>
           )}
@@ -8353,10 +8325,10 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
 // TELAS MULTIPLAYER
 // ============================================================
 function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLogo, joinInput, onJoinInput, onCreateRoom, onJoinRoom, onBrowseRooms, connecting, error, onBack }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   return (
     <div style={styles.card} className="card-mob">
-      <button onClick={onBack} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12, padding: '6px 2px', marginLeft: -2, minHeight: 34 }}>← Voltar</button>
+      <button onClick={onBack} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 13, marginBottom: 12, padding: '6px 2px', marginLeft: -2, minHeight: 34 }}>← Voltar</button>
       <div style={styles.eyebrow}>Multiplayer</div>
       <h2 style={styles.h2}>Jogar com Amigos</h2>
 
@@ -8384,9 +8356,9 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
               style={{
                 padding: '12px', borderRadius: 12, border: '2px solid',
                 gridColumn: m.span2 ? 'span 2' : undefined,
-                borderColor: gameMode === m.id ? mc : 'rgba(255,255,255,0.1)',
-                background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'rgba(255,255,255,0.03)',
-                color: '#F4F1EA', cursor: 'pointer', textAlign: 'left',
+                borderColor: gameMode === m.id ? mc : 'var(--line)',
+                background: gameMode === m.id ? hexToRgba(mc, 0.1) : 'var(--surface)',
+                color: 'var(--ink)', cursor: 'pointer', textAlign: 'left',
                 display: m.span2 ? 'flex' : undefined, alignItems: m.span2 ? 'center' : undefined, gap: m.span2 ? 10 : undefined,
               }}
             >
@@ -8396,7 +8368,7 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
                 <span style={{ fontSize: 26, lineHeight: 1, flexShrink: 0 }}>{m.trophy}</span>
               )}
               <div>
-                <div style={{ fontWeight: 700, fontSize: 13, color: gameMode === m.id ? mc : '#F4F1EA' }}>{m.label}</div>
+                <div style={{ fontWeight: 700, fontSize: 13, color: gameMode === m.id ? mc : 'var(--ink)' }}>{m.label}</div>
                 <div style={{ fontSize: 11, opacity: 0.5 }}>{m.sub}</div>
               </div>
             </button>
@@ -8405,22 +8377,22 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
       </div>
 
       <button
-        style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12', marginBottom: 12, opacity: connecting ? 0.7 : 1 }}
+        style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff', marginBottom: 12, opacity: connecting ? 0.7 : 1 }}
         onClick={onCreateRoom}
         disabled={connecting}
       >
         {connecting ? '⏳ Conectando…' : '✦ Criar sala'}
       </button>
       {error && (
-        <div style={{ fontSize: 12, color: '#e05050', background: 'rgba(224,80,80,0.08)', border: '1px solid rgba(224,80,80,0.25)', borderRadius: 8, padding: '8px 12px', marginBottom: 10 }}>
+        <div style={{ fontSize: 12, color: 'var(--danger)', background: 'rgba(178,59,59,0.1)', border: '1px solid rgba(178,59,59,0.35)', borderRadius: 8, padding: '8px 12px', marginBottom: 10 }}>
           {error}
         </div>
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+        <div style={{ flex: 1, height: 1, background: 'var(--surface-2)' }} />
         <span style={{ fontSize: 12, opacity: 0.4 }}>ou</span>
-        <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+        <div style={{ flex: 1, height: 1, background: 'var(--surface-2)' }} />
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
@@ -8442,8 +8414,8 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
         onClick={onBrowseRooms}
         style={{
           width: '100%', marginTop: 16, padding: '10px 0', borderRadius: 10,
-          background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.12)',
-          color: '#F4F1EA', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+          background: 'var(--surface)', border: '1px solid var(--line-strong)',
+          color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
         }}
       >
         🔎 Ver salas abertas
@@ -8458,7 +8430,7 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
 // só que bloqueada (sem botão de entrar) — é assim que a lista dá uma noção
 // de "tem gente jogando" mesmo sem poder entrar naquela em específico.
 function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const [rooms, setRooms] = useState(null);
   const [error, setError] = useState('');
   const [joiningCode, setJoiningCode] = useState(null);
@@ -8482,7 +8454,7 @@ function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
 
   return (
     <div style={styles.card} className="card-mob">
-      <button onClick={onBack} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12, padding: '6px 2px', marginLeft: -2, minHeight: 34 }}>← Voltar</button>
+      <button onClick={onBack} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 13, marginBottom: 12, padding: '6px 2px', marginLeft: -2, minHeight: 34 }}>← Voltar</button>
       <div style={styles.eyebrow}>Multiplayer</div>
       <h2 style={styles.h2}>Salas Abertas</h2>
 
@@ -8501,8 +8473,8 @@ function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
                 key={room.code}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
-                  border: `1px solid ${isOpen ? hexToRgba(mc, 0.3) : 'rgba(255,255,255,0.08)'}`,
-                  background: isOpen ? hexToRgba(mc, 0.06) : 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${isOpen ? hexToRgba(mc, 0.3) : 'var(--line)'}`,
+                  background: isOpen ? hexToRgba(mc, 0.06) : 'var(--surface)',
                   opacity: isOpen ? 1 : 0.55,
                 }}
               >
@@ -8534,7 +8506,7 @@ function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
 }
 
 function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColor, myTeamLogo, myTeamCoach, myTeamCity, onSetName, onSetColor, onSetLogo, onSetCoach, onSetCity, onStartSetup, onStartSimulation, onReady, onBack }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const players = Object.entries(roomData.players || {});
   // RoomScreen só é visível de verdade durante 'lobby' — assim que o líder
   // clica em "Iniciar", o efeito de team-setup tira TODO peer daqui (vira
@@ -8607,21 +8579,21 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
 
   return (
     <div style={styles.card} className="card-mob">
-      <button onClick={onBack} style={{ background: 'none', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: 13, marginBottom: 12 }}>← Sair da sala</button>
+      <button onClick={onBack} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 13, marginBottom: 12 }}>← Sair da sala</button>
 
       {/* Código da sala */}
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
         <div style={styles.eyebrow}>{roomData.gameMode === 'copa' ? 'Copa do Brasil' : roomData.gameMode === 'atual2026' ? 'Brasileirão Atual' : 'Brasileirão'} · Sala</div>
         {isLeader && roomData.leaderPeerId && (
           <>
-            <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: mc, margin: '10px 0 6px', wordBreak: 'break-all', background: 'rgba(0,0,0,0.3)', borderRadius: 8, padding: '10px 14px', letterSpacing: 1 }}>
+            <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: mc, margin: '10px 0 6px', wordBreak: 'break-all', background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px', letterSpacing: 1 }}>
               {roomData.leaderPeerId}
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <button onClick={copyCode} style={{ fontSize: 12, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '5px 14px', color: copied ? '#7fd99a' : '#aaa', cursor: 'pointer' }}>
+              <button onClick={copyCode} style={{ fontSize: 12, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '5px 14px', color: copied ? 'var(--success)' : 'var(--muted)', cursor: 'pointer' }}>
                 {copied ? '✓ Copiado!' : '📋 Copiar código'}
               </button>
-              <button onClick={shareInvite} style={{ fontSize: 12, background: hexToRgba(mc, 0.12), border: `1px solid ${hexToRgba(mc, 0.4)}`, borderRadius: 8, padding: '5px 14px', color: inviteCopied ? '#7fd99a' : mc, cursor: 'pointer' }}>
+              <button onClick={shareInvite} style={{ fontSize: 12, background: hexToRgba(mc, 0.12), border: `1px solid ${hexToRgba(mc, 0.4)}`, borderRadius: 8, padding: '5px 14px', color: inviteCopied ? 'var(--success)' : mc, cursor: 'pointer' }}>
                 {inviteCopied ? '✓ Link copiado!' : '📤 Convidar amigos'}
               </button>
             </div>
@@ -8643,23 +8615,23 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             return (
               <div key={pid} style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 10,
-                border: `1px solid ${p.isAI ? 'rgba(255,255,255,0.1)' : hexToRgba(mc, 0.25)}`,
-                background: p.isAI ? 'rgba(255,255,255,0.03)' : hexToRgba(mc, 0.06),
+                border: `1px solid ${p.isAI ? 'var(--line)' : hexToRgba(mc, 0.25)}`,
+                background: p.isAI ? 'var(--surface)' : hexToRgba(mc, 0.06),
               }}>
                 {p.logo
-                  ? <img src={p.logo} alt="" style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'contain', background: 'rgba(255,255,255,0.05)', flexShrink: 0 }} />
+                  ? <img src={p.logo} alt="" style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'contain', background: 'var(--surface)', flexShrink: 0 }} />
                   : <div style={{ width: 28, height: 28, borderRadius: 7, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>⚽</div>
                 }
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
-                    fontSize: 12, fontWeight: 600, color: p.color || '#F4F1EA',
+                    fontSize: 12, fontWeight: 600, color: p.color || 'var(--ink)',
                     whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
                     opacity: isRevealing ? 0.55 : 1, transition: 'opacity 0.08s',
                   }}>
                     {displayName}
                   </div>
                   {p.isAI && !isRevealing && <div style={{ fontSize: 9.5, opacity: 0.4, letterSpacing: 0.5 }}>TIME SORTEADO</div>}
-                  {pid === roomData.leaderId && !p.isAI && <div style={{ fontSize: 9.5, color: '#d4a23c' }}>LÍDER</div>}
+                  {pid === roomData.leaderId && !p.isAI && <div style={{ fontSize: 9.5, color: 'var(--gold-ink)' }}>LÍDER</div>}
                 </div>
                 {!isRevealing && <span style={{ fontSize: 13, flexShrink: 0 }}>{p.ready ? '✅' : '⏳'}</span>}
               </div>
@@ -8668,7 +8640,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
           {Array.from({ length: emptySlots }).map((_, i) => (
             <div key={`empty-${i}`} style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '8px 10px',
-              borderRadius: 10, border: '1px dashed rgba(255,255,255,0.15)', minHeight: 44,
+              borderRadius: 10, border: '1px dashed var(--line-strong)', minHeight: 44,
             }}>
               <span style={{ fontSize: 11.5, opacity: 0.35 }}>Aguardando…</span>
             </div>
@@ -8681,7 +8653,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
         <button
           onClick={onStartSetup}
           disabled={players.length < 2}
-          style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12', opacity: players.length < 2 ? 0.5 : 1 }}
+          style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff', opacity: players.length < 2 ? 0.5 : 1 }}
         >
           {players.length < 2
             ? 'Aguardando mais jogadores... (mín. 2)'
@@ -8702,7 +8674,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
 }
 
 function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const players = Object.entries(roomData.players || {});
   const readyCount = players.filter(([, p]) => p.ready).length;
   const allReady = readyCount === players.length && players.length > 0;
@@ -8718,23 +8690,23 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
 
       <div style={{ marginBottom: 20 }}>
         {players.map(([pid, p]) => (
-          <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
             {p.logo
-              ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)' }} />
+              ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'var(--surface)' }} />
               : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚽</div>
             }
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: p.color || '#F4F1EA' }}>{p.name || 'Jogador'}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: p.color || 'var(--ink)' }}>{p.name || 'Jogador'}</div>
               {p.ovr > 0 && <div style={{ fontSize: 11, opacity: 0.5 }}>OVR {p.ovr}</div>}
             </div>
-            {pid === myId && <span style={{ fontSize: 10, color: '#aaa', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, padding: '1px 6px' }}>VOCÊ</span>}
+            {pid === myId && <span style={{ fontSize: 10, color: 'var(--muted)', border: '1px solid var(--line-strong)', borderRadius: 4, padding: '1px 6px' }}>VOCÊ</span>}
             <span style={{ fontSize: 16 }}>{p.ready ? '✅' : '⏳'}</span>
           </div>
         ))}
       </div>
 
       {isLeader && allReady && (
-        <button onClick={onSimulate} style={{ ...styles.btnPrimary, width: '100%', background: '#27ae60', color: '#fff' }}>
+        <button onClick={onSimulate} style={{ ...styles.btnPrimary, width: '100%', background: 'var(--success)', color: '#fff' }}>
           Todos prontos — Iniciar campeonato! →
         </button>
       )}
@@ -8768,13 +8740,13 @@ function MultiFormationWaitScreen({ roomData, myId }) {
 
       <div>
         {players.map(([pid, p]) => (
-          <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+          <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
             {p.logo
-              ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'rgba(255,255,255,0.05)' }} />
+              ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'var(--surface)' }} />
               : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚽</div>
             }
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: p.color || '#F4F1EA' }}>{p.name || 'Jogador'}</div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: p.color || 'var(--ink)' }}>{p.name || 'Jogador'}</div>
               {p.serieAtualTeamId && (
                 <div style={{ fontSize: 11, opacity: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {TEAMS.find(t => t.id === p.serieAtualTeamId)?.club || p.serieAtualTeamId}{p.formationReady && p.formationLabel ? ` · ${p.formationLabel}` : ''}
@@ -8784,7 +8756,7 @@ function MultiFormationWaitScreen({ roomData, myId }) {
                 <div style={{ fontSize: 11, opacity: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.formationLabel}</div>
               )}
             </div>
-            {pid === myId && <span style={{ fontSize: 10, color: '#aaa', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, padding: '1px 6px', flexShrink: 0 }}>VOCÊ</span>}
+            {pid === myId && <span style={{ fontSize: 10, color: 'var(--muted)', border: '1px solid var(--line-strong)', borderRadius: 4, padding: '1px 6px', flexShrink: 0 }}>VOCÊ</span>}
             <span style={{ fontSize: 16, flexShrink: 0 }}>{p.formationReady ? '✅' : '⏳'}</span>
           </div>
         ))}
@@ -8817,7 +8789,7 @@ function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGame
 
   return (
     <div style={styles.card} className="card-mob">
-      {onBack && <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 10px', margin: '0 0 0 -2px', minHeight: 32 }}>&#8592; Voltar</button>}
+      {onBack && <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 10px', margin: '0 0 0 -2px', minHeight: 32 }}>&#8592; Voltar</button>}
       {/* Quem chega direto aqui (primeira visita pula a home) nunca via o
           seletor de campeonato — sem isso, ficava preso no Brasileirão
           (o padrão) sem jeito nenhum de escolher a Copa do Brasil. */}
@@ -8834,9 +8806,9 @@ function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGame
               className="mode-card-hover"
               style={{
                 flex: 1, padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                border: `2px solid ${gameMode === m.id ? '#d4a23c' : 'rgba(255,255,255,0.12)'}`,
-                background: gameMode === m.id ? 'rgba(212,162,60,0.12)' : 'rgba(255,255,255,0.03)',
-                color: gameMode === m.id ? '#d4a23c' : '#F4F1EA', fontWeight: 700, fontSize: 13,
+                border: `2px solid ${gameMode === m.id ? 'var(--gold)' : 'var(--line-strong)'}`,
+                background: gameMode === m.id ? 'rgba(194,154,69,0.12)' : 'var(--surface)',
+                color: gameMode === m.id ? 'var(--gold-ink)' : 'var(--ink)', fontWeight: 700, fontSize: 13,
               }}
             >
               {m.label}
@@ -8857,12 +8829,12 @@ function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGame
           style={{
             width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10,
             padding: '12px 14px', borderRadius: 10, marginBottom: 24, cursor: 'pointer',
-            border: '1px dashed rgba(212,162,60,0.4)', background: 'rgba(212,162,60,0.06)', color: '#F4F1EA',
+            border: '1px dashed rgba(194,154,69,0.55)', background: 'rgba(194,154,69,0.1)', color: 'var(--ink)',
           }}
         >
           <span style={{ fontSize: 18 }}>🏆</span>
           <span style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#d4a23c' }}>Já sei qual time eu quero</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--gold-ink)' }}>Já sei qual time eu quero</div>
             <div style={{ fontSize: 11.5, opacity: 0.6, marginTop: 1 }}>Pula o sorteio — usa o elenco pronto de um time histórico</div>
           </span>
           <span style={{ fontSize: 14, opacity: 0.5 }}>→</span>
@@ -8881,12 +8853,12 @@ function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGame
           style={{
             width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10,
             padding: '12px 14px', borderRadius: 10, marginBottom: 24, cursor: 'pointer',
-            border: '1px dashed rgba(127,217,154,0.4)', background: 'rgba(127,217,154,0.06)', color: '#F4F1EA',
+            border: '1px dashed rgba(31,122,77,0.5)', background: 'rgba(31,122,77,0.1)', color: 'var(--ink)',
           }}
         >
           <span style={{ fontSize: 18 }}>🎨</span>
           <span style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: '#7fd99a' }}>Criar minha própria formação</div>
+            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--success)' }}>Criar minha própria formação</div>
             <div style={{ fontSize: 11.5, opacity: 0.6, marginTop: 1 }}>Arraste os jogadores pelo campinho e monte um esquema do seu jeito</div>
           </span>
           <span style={{ fontSize: 14, opacity: 0.5 }}>→</span>
@@ -8942,11 +8914,11 @@ function TeamPickerModal({ onClose, onPick, onlyIds = null, title = 'Escolha um 
   }, [sorted, query]);
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: '16px 16px 0 0', padding: 18 }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: '16px 16px 0 0', padding: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
           <div style={{ fontWeight: 700, fontSize: 14 }}>{title}</div>
-          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
+          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
         </div>
         <input
           autoFocus
@@ -8967,13 +8939,13 @@ function TeamPickerModal({ onClose, onPick, onlyIds = null, title = 'Escolha um 
                 onClick={() => onPick(team)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
-                  border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)',
-                  color: '#F4F1EA', textAlign: 'left', cursor: 'pointer',
+                  border: '1px solid var(--line)', background: 'var(--surface)',
+                  color: 'var(--ink)', textAlign: 'left', cursor: 'pointer',
                 }}
               >
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
-                  {achievement && <div style={{ fontSize: 11, color: '#d4a23c', marginTop: 1 }}>{achievement}</div>}
+                  {achievement && <div style={{ fontSize: 11, color: 'var(--gold-ink)', marginTop: 1 }}>{achievement}</div>}
                 </div>
                 <span style={{ fontSize: 14, opacity: 0.4, flexShrink: 0 }}>→</span>
               </button>
@@ -9025,12 +8997,12 @@ function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [], initia
   ];
 
   return (
-    <div onClick={onClose} className="livre-picker-wrap" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} className="livre-picker-panel" style={{ width: '100%', maxWidth: 760, maxHeight: '88vh', display: 'flex', flexDirection: 'row', gap: 20, background: '#0f1f15', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: 18 }}>
+    <div onClick={onClose} className="livre-picker-wrap" style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} className="livre-picker-panel" style={{ width: '100%', maxWidth: 760, maxHeight: '88vh', display: 'flex', flexDirection: 'row', gap: 20, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 16, padding: 18 }}>
         <div className="livre-picker-main" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
             <div style={{ fontWeight: 700, fontSize: 14 }}>🎯 Modo Livre — escolha {POOL_SIZE} times</div>
-            <button onClick={onClose} className="tap-target-sm livre-picker-close" style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
+            <button onClick={onClose} className="tap-target-sm livre-picker-close" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
           </div>
           <div style={{ fontSize: 11.5, opacity: 0.6, marginBottom: 10 }}>
             O draft vai sortear só entre os times marcados — nenhum outro time aparece.
@@ -9044,9 +9016,9 @@ function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [], initia
                 key={f.id}
                 onClick={() => setFormat(f.id)}
                 style={{
-                  flex: 1, padding: '9px 10px', borderRadius: 10, border: `1.5px solid ${format === f.id ? '#d4a23c' : 'rgba(255,255,255,0.12)'}`,
-                  background: format === f.id ? 'rgba(212,162,60,0.12)' : 'rgba(255,255,255,0.03)',
-                  color: format === f.id ? '#d4a23c' : '#F4F1EA', cursor: 'pointer', textAlign: 'center', fontSize: 11.5, fontWeight: 700,
+                  flex: 1, padding: '9px 10px', borderRadius: 10, border: `1.5px solid ${format === f.id ? 'var(--gold)' : 'var(--line-strong)'}`,
+                  background: format === f.id ? 'rgba(194,154,69,0.12)' : 'var(--surface)',
+                  color: format === f.id ? 'var(--gold-ink)' : 'var(--ink)', cursor: 'pointer', textAlign: 'center', fontSize: 11.5, fontWeight: 700,
                 }}
               >
                 {f.label}
@@ -9073,35 +9045,35 @@ function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [], initia
                   onClick={() => toggle(team.id)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10,
-                    border: `1.5px solid ${isSel ? '#7fd99a' : 'rgba(255,255,255,0.1)'}`,
-                    background: isSel ? 'rgba(127,217,154,0.12)' : 'rgba(255,255,255,0.03)',
-                    color: '#F4F1EA', textAlign: 'left', cursor: 'pointer',
+                    border: `1.5px solid ${isSel ? 'var(--success)' : 'var(--line)'}`,
+                    background: isSel ? 'rgba(31,122,77,0.12)' : 'var(--surface)',
+                    color: 'var(--ink)', textAlign: 'left', cursor: 'pointer',
                   }}
                 >
                   <div style={{
                     width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: `1.5px solid ${isSel ? '#7fd99a' : 'rgba(255,255,255,0.25)'}`, background: isSel ? '#7fd99a' : 'transparent',
-                    color: '#0B1A12', fontSize: 12, fontWeight: 900,
+                    border: `1.5px solid ${isSel ? 'var(--success)' : 'var(--line-strong)'}`, background: isSel ? 'var(--success)' : 'transparent',
+                    color: 'var(--ink)', fontSize: 12, fontWeight: 900,
                   }}>{isSel ? '✓' : ''}</div>
                   {CLUB_LOGOS[team.club] && (
                     <img src={CLUB_LOGOS[team.club]} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
                   )}
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: 13 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
-                    {achievement && <div style={{ fontSize: 11, color: '#d4a23c', marginTop: 1 }}>{achievement}</div>}
+                    {achievement && <div style={{ fontSize: 11, color: 'var(--gold-ink)', marginTop: 1 }}>{achievement}</div>}
                   </div>
                 </button>
               );
             })}
           </div>
-          <div style={{ paddingTop: 12, marginTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
+          <div style={{ paddingTop: 12, marginTop: 8, borderTop: '1px solid var(--line)', flexShrink: 0 }}>
             <button
               onClick={() => canConfirm && onConfirm([...selected], format)}
               disabled={!canConfirm}
               style={{
                 width: '100%', padding: '13px 16px', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700,
-                background: canConfirm ? '#d4a23c' : 'rgba(255,255,255,0.08)',
-                color: canConfirm ? '#0B1A12' : 'rgba(244,241,234,0.35)',
+                background: canConfirm ? 'var(--gold)' : 'var(--surface-2)',
+                color: canConfirm ? 'var(--ink)' : 'var(--muted)',
                 cursor: canConfirm ? 'pointer' : 'not-allowed',
               }}
             >
@@ -9118,9 +9090,9 @@ function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [], initia
               key={f.id}
               onClick={() => setFormat(f.id)}
               style={{
-                textAlign: 'left', padding: '12px 12px', borderRadius: 10, border: `1.5px solid ${format === f.id ? '#d4a23c' : 'rgba(255,255,255,0.12)'}`,
-                background: format === f.id ? 'rgba(212,162,60,0.12)' : 'rgba(255,255,255,0.03)',
-                color: format === f.id ? '#d4a23c' : '#F4F1EA', cursor: 'pointer',
+                textAlign: 'left', padding: '12px 12px', borderRadius: 10, border: `1.5px solid ${format === f.id ? 'var(--gold)' : 'var(--line-strong)'}`,
+                background: format === f.id ? 'rgba(194,154,69,0.12)' : 'var(--surface)',
+                color: format === f.id ? 'var(--gold-ink)' : 'var(--ink)', cursor: 'pointer',
               }}
             >
               <div style={{ fontWeight: 700, fontSize: 13 }}>{f.label}</div>
@@ -9153,7 +9125,7 @@ const POS_GROUP_COLOR = {
 function MiniPitchPreview({ formationKey }) {
   const slots = useMemo(() => buildPitchSlots(formationKey), [formationKey]);
   return (
-    <div style={styles.miniPitch}>
+    <div style={styles.miniPitch} className="on-dark">
       <div style={styles.miniPitchHalfLine} />
       <div style={styles.miniPitchCircle} />
       <div style={styles.miniPitchCenterDot} />
@@ -9163,7 +9135,7 @@ function MiniPitchPreview({ formationKey }) {
         <div
           key={i}
           title={s.realPos}
-          style={{ ...styles.miniDot, left: `${s.x}%`, top: `${s.y}%`, background: POS_GROUP_COLOR[s.realPos] || '#d4a23c' }}
+          style={{ ...styles.miniDot, left: `${s.x}%`, top: `${s.y}%`, background: POS_GROUP_COLOR[s.realPos] || 'var(--gold)' }}
         >
           <span style={styles.miniDotLabel}>{s.realPos}</span>
         </div>
@@ -9180,7 +9152,7 @@ function MiniPitchPreview({ formationKey }) {
 // describeCustomFormation — nenhum dos dois é hardcoded, vêm só da
 // posição de cada bolinha.
 function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const fieldRef = useRef(null);
   const dragState = useRef({ id: null });
 
@@ -9236,14 +9208,14 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
   };
 
   return (
-    <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, maxHeight: '94vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 20 }}>
-        <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 10px', margin: '0 0 0 -2px' }}>&#8592; Voltar</button>
+    <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, maxHeight: '94vh', overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 20 }}>
+        <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 10px', margin: '0 0 0 -2px' }}>&#8592; Voltar</button>
 
         <div style={styles.eyebrow}>Formação livre</div>
         <h2 style={styles.h2}>Arraste os jogadores</h2>
         <p style={{ fontSize: 12.5, opacity: 0.6, lineHeight: 1.5, marginBottom: 14 }}>
-          Arraste cada bolinha pra cima, pra baixo ou pros lados — ou toque nela (sem arrastar) pra avançar direto pro próximo tipo de posição. Passar da <span style={{ color: '#d4a23c', fontWeight: 700 }}>linha amarela</span> vira lateral/ponta; dentro dela fica central. O esquema e a leitura tática são recalculados ao vivo.
+          Arraste cada bolinha pra cima, pra baixo ou pros lados — ou toque nela (sem arrastar) pra avançar direto pro próximo tipo de posição. Passar da <span style={{ color: 'var(--gold-ink)', fontWeight: 700 }}>linha amarela</span> vira lateral/ponta; dentro dela fica central. O esquema e a leitura tática são recalculados ao vivo.
         </p>
 
         <div
@@ -9251,13 +9223,13 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
           style={{
             position: 'relative', width: '100%', maxWidth: 320, aspectRatio: '0.68', margin: '0 auto 16px',
             background: 'linear-gradient(180deg,#0f3d22 0%,#145c30 50%,#0f3d22 100%)',
-            border: '2px solid rgba(255,255,255,0.25)', borderRadius: 10, overflow: 'hidden', touchAction: 'none',
+            border: '2px solid var(--line-strong)', borderRadius: 10, overflow: 'hidden', touchAction: 'none',
           }}
         >
-          <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.15)' }} />
-          <div style={{ position: 'absolute', left: '50%', top: '50%', width: 60, height: 60, marginLeft: -30, marginTop: -30, border: '1px solid rgba(255,255,255,0.15)', borderRadius: '50%' }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '17%', border: '1px solid rgba(255,255,255,0.12)', borderTop: 'none' }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '17%', border: '1px solid rgba(255,255,255,0.12)', borderBottom: 'none' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--surface-2)' }} />
+          <div style={{ position: 'absolute', left: '50%', top: '50%', width: 60, height: 60, marginLeft: -30, marginTop: -30, border: '1px solid var(--line-strong)', borderRadius: '50%' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '17%', border: '1px solid var(--line-strong)', borderTop: 'none' }} />
+          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '17%', border: '1px solid var(--line-strong)', borderBottom: 'none' }} />
 
           {/* Linhas amarelas marcando o limite exato de WIDE_X_THRESHOLD —
               passar uma bolinha pra fora delas é o que vira LD/LE, MD/ME ou
@@ -9265,14 +9237,14 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
               (ZAG/VOL/MC/MEI/ATA). Sem essa marca, dar aquela "aberta de
               leve" pra virar ponta era surpresa — não dava pra saber onde
               exatamente ficava o limite antes de soltar. */}
-          <div style={{ position: 'absolute', left: `${WIDE_X_THRESHOLD}%`, top: 0, bottom: 0, borderLeft: '2px dashed rgba(212,162,60,0.55)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', left: `${100 - WIDE_X_THRESHOLD}%`, top: 0, bottom: 0, borderLeft: '2px dashed rgba(212,162,60,0.55)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: `${WIDE_X_THRESHOLD}%`, top: 0, bottom: 0, borderLeft: '2px dashed var(--gold)', pointerEvents: 'none' }} />
+          <div style={{ position: 'absolute', left: `${100 - WIDE_X_THRESHOLD}%`, top: 0, bottom: 0, borderLeft: '2px dashed var(--gold)', pointerEvents: 'none' }} />
 
           {/* Goleiro fixo — só ilustrativo, não arrasta (todo esquema tem 1 goleiro). */}
           <div style={{
             position: 'absolute', left: '50%', top: '92%', transform: 'translate(-50%,-50%)',
-            width: 30, height: 30, borderRadius: '50%', background: 'rgba(244,241,234,0.35)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: '#0B1A12',
+            width: 30, height: 30, borderRadius: '50%', background: 'var(--line-strong)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: 'var(--ink)',
           }}>GOL</div>
 
           {slots.map(s => {
@@ -9287,9 +9259,9 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
                 style={{
                   position: 'absolute', left: `${s.x}%`, top: `${s.y}%`, transform: 'translate(-50%,-50%)',
                   width: 36, height: 36, borderRadius: '50%', background: color,
-                  border: '2px solid rgba(255,255,255,0.5)', boxShadow: '0 2px 6px rgba(0,0,0,0.4)',
+                  border: '2px solid var(--line-strong)', boxShadow: 'var(--shadow)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 9, fontWeight: 800, color: needsDark(color) ? '#0B1A12' : '#fff',
+                  fontSize: 9, fontWeight: 800, color: needsDark(color) ? 'var(--ink)' : '#fff',
                   cursor: 'grab', touchAction: 'none', userSelect: 'none',
                 }}
               >
@@ -9300,15 +9272,15 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
         </div>
 
         <div style={{
-          background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, rgba(0,0,0,0.4))`,
+          background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, var(--surface))`,
           border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 14, padding: '14px 16px', marginBottom: 16,
         }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 800, color: mc, marginBottom: 4 }}>{shape}</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 800, color: mc, marginBottom: 4 }}>{shape}</div>
           <div style={{ fontSize: 12.5, opacity: 0.85, lineHeight: 1.5 }}>{description}</div>
         </div>
 
         {errors.length > 0 && (
-          <div style={{ background: 'rgba(224,89,63,0.12)', border: '1px solid rgba(224,89,63,0.4)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12.5, lineHeight: 1.5, color: '#e0593f' }}>
+          <div style={{ background: 'rgba(178,59,59,0.12)', border: '1px solid rgba(178,59,59,0.5)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12.5, lineHeight: 1.5, color: 'var(--danger)' }}>
             {errors.map((e, i) => <div key={i}>{e}</div>)}
           </div>
         )}
@@ -9318,8 +9290,8 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
           disabled={errors.length > 0}
           style={{
             ...styles.btnPrimary, width: '100%',
-            background: errors.length > 0 ? 'rgba(255,255,255,0.08)' : mc,
-            color: errors.length > 0 ? 'rgba(244,241,234,0.35)' : '#0B1A12',
+            background: errors.length > 0 ? 'var(--surface-2)' : mc,
+            color: errors.length > 0 ? 'var(--muted)' : 'var(--ink)',
             cursor: errors.length > 0 ? 'not-allowed' : 'pointer',
           }}
         >
@@ -9331,7 +9303,7 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
 }
 
 function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, myTeamColor, captainSlot, onSlotPointerDown, dragOverKey }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const dark = needsDark(mc);
   const highlightKeys = new Set(highlightSlots.map(s => s.key));
   const previewKeys = new Set(previewSlots.map(s => s.key));
@@ -9342,39 +9314,39 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
     <div style={styles.pitchWrap}>
       <div style={{
         ...styles.pitchField,
-        background: '#124d27',
-        backgroundImage: 'repeating-linear-gradient(to bottom, rgba(0,0,0,0.07) 0%, rgba(0,0,0,0.07) 14.3%, transparent 14.3%, transparent 28.6%)',
-      }} className="pitch-field">
+        background: 'var(--pitch)',
+        backgroundImage: 'repeating-linear-gradient(to bottom, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.035) 14.3%, transparent 14.3%, transparent 28.6%)',
+      }} className="pitch-field on-dark">
 
         {/* ── Marcações do campo ── */}
         {/* Linha do meio */}
-        {markLine({ left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.3)' })}
+        {markLine({ left: 0, right: 0, top: '50%', height: 1, background: 'var(--line-strong)' })}
         {/* Círculo central */}
-        {markLine({ left: '50%', top: '50%', width: 74, height: 74, border: '1.5px solid rgba(255,255,255,0.3)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
+        {markLine({ left: '50%', top: '50%', width: 74, height: 74, border: '1.5px solid var(--line-strong)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
         {/* Ponto central */}
-        {markLine({ left: '50%', top: '50%', width: 5, height: 5, background: 'rgba(255,255,255,0.45)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
+        {markLine({ left: '50%', top: '50%', width: 5, height: 5, background: 'var(--line-strong)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
 
         {/* Área penal superior */}
-        {markLine({ top: 0, left: '18%', width: '64%', height: '17%', border: '1.5px solid rgba(255,255,255,0.3)', borderTop: 'none', boxSizing: 'border-box' })}
+        {markLine({ top: 0, left: '18%', width: '64%', height: '17%', border: '1.5px solid var(--line-strong)', borderTop: 'none', boxSizing: 'border-box' })}
         {/* Pequena área superior */}
-        {markLine({ top: 0, left: '35%', width: '30%', height: '7%', border: '1.5px solid rgba(255,255,255,0.25)', borderTop: 'none', boxSizing: 'border-box' })}
+        {markLine({ top: 0, left: '35%', width: '30%', height: '7%', border: '1.5px solid var(--line-strong)', borderTop: 'none', boxSizing: 'border-box' })}
         {/* Gol superior */}
-        {markLine({ top: 0, left: '40.5%', width: '19%', height: '2.8%', background: 'rgba(255,255,255,0.08)', borderBottom: '1.5px solid rgba(255,255,255,0.35)', boxSizing: 'border-box' })}
+        {markLine({ top: 0, left: '40.5%', width: '19%', height: '2.8%', background: 'var(--surface-2)', borderBottom: '1.5px solid var(--line-strong)', boxSizing: 'border-box' })}
         {/* Ponto de pênalti superior */}
-        {markLine({ top: '10.5%', left: '50%', width: 5, height: 5, background: 'rgba(255,255,255,0.38)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
+        {markLine({ top: '10.5%', left: '50%', width: 5, height: 5, background: 'var(--line-strong)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
 
         {/* Área penal inferior */}
-        {markLine({ bottom: 0, left: '18%', width: '64%', height: '17%', border: '1.5px solid rgba(255,255,255,0.3)', borderBottom: 'none', boxSizing: 'border-box' })}
+        {markLine({ bottom: 0, left: '18%', width: '64%', height: '17%', border: '1.5px solid var(--line-strong)', borderBottom: 'none', boxSizing: 'border-box' })}
         {/* Pequena área inferior */}
-        {markLine({ bottom: 0, left: '35%', width: '30%', height: '7%', border: '1.5px solid rgba(255,255,255,0.25)', borderBottom: 'none', boxSizing: 'border-box' })}
+        {markLine({ bottom: 0, left: '35%', width: '30%', height: '7%', border: '1.5px solid var(--line-strong)', borderBottom: 'none', boxSizing: 'border-box' })}
         {/* Gol inferior */}
-        {markLine({ bottom: 0, left: '40.5%', width: '19%', height: '2.8%', background: 'rgba(255,255,255,0.08)', borderTop: '1.5px solid rgba(255,255,255,0.35)', boxSizing: 'border-box' })}
+        {markLine({ bottom: 0, left: '40.5%', width: '19%', height: '2.8%', background: 'var(--surface-2)', borderTop: '1.5px solid var(--line-strong)', boxSizing: 'border-box' })}
         {/* Ponto de pênalti inferior */}
-        {markLine({ top: '89.5%', left: '50%', width: 5, height: 5, background: 'rgba(255,255,255,0.38)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
+        {markLine({ top: '89.5%', left: '50%', width: 5, height: 5, background: 'var(--line-strong)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
 
         {/* Cantos */}
         {[{ top: -8, left: -8 }, { top: -8, right: -8 }, { bottom: -8, left: -8 }, { bottom: -8, right: -8 }].map((pos, i) =>
-          <div key={i} style={{ position: 'absolute', pointerEvents: 'none', ...pos, width: 16, height: 16, border: '1.5px solid rgba(255,255,255,0.28)', borderRadius: '50%' }} />
+          <div key={i} style={{ position: 'absolute', pointerEvents: 'none', ...pos, width: 16, height: 16, border: '1.5px solid var(--line-strong)', borderRadius: '50%' }} />
         )}
 
         {/* ── Jogadores ── */}
@@ -9471,19 +9443,19 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
                 transition: 'all 0.15s',
               }}>
                 {isCap && (
-                  <span style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>⭐</span>
+                  <span style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(15,31,23,0.18))' }}>⭐</span>
                 )}
                 {weeklyRing && (
-                  <span style={{ position: 'absolute', top: -7, right: -6, fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.6))' }}>
+                  <span style={{ position: 'absolute', top: -7, right: -6, fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(15,31,23,0.18))' }}>
                     {occupant.weeklyBoost === 5 ? '👑' : '🌟'}
                   </span>
                 )}
                 {occupant ? (
-                  <span style={{ fontSize: 8, fontWeight: 800, color: dark ? '#0a1a0f' : '#fff', textAlign: 'center', lineHeight: 1.15, padding: '0 3px', maxWidth: 40, wordBreak: 'break-word' }} className="pitch-spot-name">
+                  <span style={{ fontSize: 8, fontWeight: 800, color: dark ? 'var(--ink)' : '#fff', textAlign: 'center', lineHeight: 1.15, padding: '0 3px', maxWidth: 40, wordBreak: 'break-word' }} className="pitch-spot-name">
                     {shortName(occupant.name)}
                   </span>
                 ) : (
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 8, color: isHighlighted ? '#7fd99a' : isPreviewed ? '#d4a23c' : 'rgba(255,255,255,0.55)', lineHeight: 1 }}>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontSize: 8, color: isHighlighted ? 'var(--success)' : isPreviewed ? 'var(--gold-ink)' : 'var(--muted)', lineHeight: 1 }}>
                     {slot.label}
                   </span>
                 )}
@@ -9492,14 +9464,14 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
               {/* Badge OVR */}
               {occupant && (
                 <div style={{
-                  background: 'rgba(6,14,10,0.82)',
+                  background: 'var(--surface)',
                   borderRadius: 3,
                   padding: '1px 4px',
                   fontSize: 8,
                   fontWeight: 700,
-                  fontFamily: "'Space Mono', monospace",
+                  fontFamily: 'var(--font-mono)',
                   color: ovrColor(occupant.ovr),
-                  border: '1px solid rgba(255,255,255,0.12)',
+                  border: '1px solid var(--line-strong)',
                   lineHeight: 1.5,
                   marginTop: 1,
                 }}>
@@ -9516,15 +9488,15 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
 
 // Exibe os jogadores do banco de reservas (interativo durante o draft)
 function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, onSlotPointerDown, dragOverKey }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const benchSlots = pitchSlots.filter(s => s.isBench);
   const filled = benchSlots.filter(s => pitch[s.key]);
   const highlightKeys = new Set(highlightSlots.map(s => s.key));
   const previewKeys = new Set(previewSlots.map(s => s.key));
   if (benchSlots.length === 0) return null;
   return (
-    <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(255,255,255,0.03)', borderRadius: 10, border: '1px solid rgba(255,255,255,0.07)' }}>
-      <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, fontFamily: "'Space Mono', monospace", textTransform: 'uppercase', letterSpacing: 1 }}>
+    <div style={{ marginTop: 10, padding: '10px 14px', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--line)' }}>
+      <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: 1 }}>
         Banco ({filled.length}/{benchSlots.length})
       </div>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -9546,24 +9518,24 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], pre
               title={p ? (canPlace ? `Trocar de lugar com ${p.name}` : `${p.name} — clique ou arraste para mover`) : canPlace ? 'Colocar no banco' : slot.label}
               style={{
                 padding: '6px 10px', borderRadius: 8, fontSize: 12, minWidth: 80, textAlign: 'center',
-                background: isDropTarget ? 'rgba(127,217,154,0.22)' : canPlace ? 'rgba(127,217,154,0.12)' : isPreviewed ? 'rgba(212,162,60,0.1)' : p ? `${mc}22` : 'rgba(255,255,255,0.04)',
-                border: `1px ${isPreviewed ? 'dashed' : 'solid'} ${isDropTarget ? '#7fd99a' : canPlace ? '#7fd99a88' : isPreviewed ? '#d4a23c88' : p ? mc + '55' : 'rgba(255,255,255,0.1)'}`,
+                background: isDropTarget ? 'rgba(31,122,77,0.14)' : canPlace ? 'rgba(31,122,77,0.12)' : isPreviewed ? 'rgba(194,154,69,0.1)' : p ? `${mc}22` : 'var(--surface)',
+                border: `1px ${isPreviewed ? 'dashed' : 'solid'} ${isDropTarget ? 'var(--success)' : canPlace ? 'rgba(31,122,77,0.5)' : isPreviewed ? 'rgba(194,154,69,0.55)' : p ? mc + '55' : 'var(--line)'}`,
                 cursor: clickable ? 'pointer' : 'default',
                 touchAction: draggable ? 'none' : undefined,
                 transform: isDropTarget || canPlace ? 'scale(1.06)' : 'scale(1)',
                 transition: 'all 0.15s',
-                boxShadow: isDropTarget ? '0 0 12px rgba(127,217,154,0.4)' : canPlace ? '0 0 10px rgba(127,217,154,0.25)' : 'none',
+                boxShadow: isDropTarget ? '0 0 12px rgba(31,122,77,0.3)' : canPlace ? '0 0 10px rgba(31,122,77,0.25)' : 'none',
               }}
             >
               {p ? (
                 <>
-                  <div style={{ fontWeight: 600, color: p.weeklyBoost ? (p.weeklyBoost === 5 ? '#ffd700' : '#d4a23c') : mc }}>
+                  <div style={{ fontWeight: 600, color: p.weeklyBoost ? (p.weeklyBoost === 5 ? 'var(--gold-ink)' : 'var(--gold-ink)') : mc }}>
                     {p.weeklyBoost === 5 ? '👑 ' : p.weeklyBoost ? '🌟 ' : ''}{shortName(p.name)}
                   </div>
                   <div style={{ fontSize: 10, opacity: 0.5 }}>{p.pos[0]} · {p.ovr}</div>
                 </>
               ) : (
-                <div style={{ color: canPlace ? '#7fd99a' : isPreviewed ? '#d4a23c' : 'rgba(255,255,255,0.25)', fontSize: 11, fontWeight: (canPlace || isPreviewed) ? 600 : 400 }}>
+                <div style={{ color: canPlace ? 'var(--success)' : isPreviewed ? 'var(--gold-ink)' : 'var(--muted)', fontSize: 11, fontWeight: (canPlace || isPreviewed) ? 600 : 400 }}>
                   {canPlace ? '+ ' : ''}{slot.label}
                 </div>
               )}
@@ -9611,7 +9583,7 @@ const BK_PITCH = 58;   // distância entre os centros de dois blocos das 16 avos
 const BK_COL_W = 132;
 const BK_COL_GAP = 26;
 const BK_SIDE_ROUNDS = 4;
-const BK_GOLD = '#f0c040';
+const BK_GOLD = '#8A6A24';
 const BK_HEIGHT = BK_PITCH * 8;                     // 8 confrontos por lado
 const BK_WIDTH = 9 * BK_COL_W + 8 * BK_COL_GAP;
 // Abaixo desta escala os nomes dos times deixam de ser legíveis (no celular a
@@ -9632,7 +9604,7 @@ export function CupBracketModal({
   // { intoRoundIdx, winnerIds } numa fase comum; { championId } na final.
   advance = null, simActive = false, simStatus = '', onSimulateAll, onCancelSim,
 }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   // Vários clubes têm preto como cor primária (ex.: Santos) — nesse caso o
   // botão "Fechar" (fundo = mc) com o texto escuro padrão do btnPrimary
   // ficava ilegível (preto sobre quase-preto). Texto claro quando o fundo é
@@ -9732,15 +9704,15 @@ export function CupBracketModal({
     const key = `b${r}-${matchIdx}`;
     const box = {
       position: 'absolute', left: x, top: y - BK_BLOCK_H / 2, width: BK_COL_W, height: BK_BLOCK_H,
-      borderRadius: 7, overflow: 'hidden', background: 'rgba(0,0,0,0.3)',
+      borderRadius: 7, overflow: 'hidden', background: 'var(--surface-2)',
     };
 
     // Fase ainda não sorteada: bloco vazio, só pra manter o desenho do
     // chaveamento completo desde a primeira fase.
     if (!m) {
       return (
-        <div key={key} style={{ ...box, border: '1px dashed rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 10, opacity: 0.25, fontFamily: "'Space Mono', monospace" }}>a definir</span>
+        <div key={key} style={{ ...box, border: '1px dashed var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ fontSize: 10, opacity: 0.25, fontFamily: 'var(--font-mono)' }}>a definir</span>
         </div>
       );
     }
@@ -9765,7 +9737,7 @@ export function CupBracketModal({
     const hasMine = rows.some(row => row.id === myTeamId);
     const ring = isChampionBlock || isJustDecided
       ? BK_GOLD
-      : hasMine ? hexToRgba(mc, 0.55) : 'rgba(255,255,255,0.1)';
+      : hasMine ? hexToRgba(mc, 0.55) : 'var(--line)';
     return (
       <div
         key={key}
@@ -9789,7 +9761,7 @@ export function CupBracketModal({
           return (
             <div key={ti} className={flashing ? 'bk-flash' : undefined} style={{
               display: 'flex', alignItems: 'center', gap: 5, height: '50%', padding: '0 6px',
-              borderBottom: ti === 0 ? '1px solid rgba(255,255,255,0.07)' : 'none',
+              borderBottom: ti === 0 ? '1px solid var(--line)' : 'none',
               // Nunca usa a cor crua do clube se for escura demais pra ler
               // (vários têm preto/cinza-escuro como cor principal — Santos,
               // Botafogo-SP, Vasco, Operário etc. — bug real reportado pelo
@@ -9805,12 +9777,12 @@ export function CupBracketModal({
                 style={{
                   flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   fontSize: 10.5, cursor: mine ? 'default' : 'pointer',
-                  color: mine ? (mcIsDark ? BK_GOLD : mc) : won ? BK_GOLD : '#F4F1EA',
+                  color: mine ? (mcIsDark ? BK_GOLD : mc) : won ? BK_GOLD : 'var(--ink)',
                   fontWeight: won || mine ? 700 : 400,
                 }}
               >{team?.label || '?'}</span>
               {row.agg !== null && row.agg !== undefined && (
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10.5, fontWeight: 700, color: mine ? (mcIsDark ? BK_GOLD : mc) : won ? BK_GOLD : 'rgba(255,255,255,0.6)' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 700, color: mine ? (mcIsDark ? BK_GOLD : mc) : won ? BK_GOLD : 'var(--ink-2)' }}>
                   {row.agg}{out.onPens && won ? '*' : ''}
                 </span>
               )}
@@ -9862,7 +9834,7 @@ export function CupBracketModal({
         // história sem competir com o presente) e o que não foi jogado é
         // cinza. Antes toda linha decidida era ouro forte e a chave inteira
         // brigava por atenção.
-        const strokeCor = drawing ? BK_GOLD : lit ? hexToRgba(BK_GOLD, 0.4) : 'rgba(255,255,255,0.13)';
+        const strokeCor = drawing ? BK_GOLD : lit ? hexToRgba(BK_GOLD, 0.4) : '#CFC6B1';
         paths.push(
           <path
             key={`p${r}-${side}-${p}`}
@@ -9885,7 +9857,7 @@ export function CupBracketModal({
         <div key={`l${r}${side}`} style={{
           position: 'absolute', left: bkColX(bkColOf(r, side)), top: -22, width: BK_COL_W,
           textAlign: 'center', fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase',
-          fontFamily: "'Space Mono', monospace", opacity: 0.4,
+          fontFamily: 'var(--font-mono)', opacity: 0.4,
         }}>{CUP_ROUND_NAMES[r]}</div>
       );
     }
@@ -9894,7 +9866,7 @@ export function CupBracketModal({
     <div key="lfinal" style={{
       position: 'absolute', left: bkColX(4), top: -22, width: BK_COL_W,
       textAlign: 'center', fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase',
-      fontFamily: "'Space Mono', monospace", color: BK_GOLD, fontWeight: 700,
+      fontFamily: 'var(--font-mono)', color: BK_GOLD, fontWeight: 700,
     }}>🏆 Final</div>
   );
 
@@ -9920,12 +9892,12 @@ export function CupBracketModal({
           <div key={i} style={{
             display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
             padding: '6px 10px', borderRadius: 6,
-            background: mine ? hexToRgba(mc, 0.14) : 'rgba(255,255,255,0.04)',
-            border: `1px solid ${mine ? hexToRgba(mc, 0.4) : 'rgba(255,255,255,0.07)'}`,
+            background: mine ? hexToRgba(mc, 0.14) : 'var(--surface)',
+            border: `1px solid ${mine ? hexToRgba(mc, 0.4) : 'var(--line)'}`,
             fontWeight: mine ? 700 : 400,
           }}>
             <span style={{ flex: 1, minWidth: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h?.label || '?'}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10, opacity: 0.5, flexShrink: 0 }}>×</span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.5, flexShrink: 0 }}>×</span>
             <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a?.label || '?'}</span>
           </div>
         );
@@ -9953,23 +9925,23 @@ export function CupBracketModal({
   const closeOnBackdrop = !simActive && !isChampionMoment ? onClose : undefined;
 
   return (
-    <div onClick={closeOnBackdrop} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 1460, maxHeight: '94vh', overflowY: 'auto', background: '#0f1f15', border: `1px solid ${isChampionMoment ? hexToRgba(BK_GOLD, 0.45) : 'rgba(255,255,255,0.1)'}`, borderRadius: 16, padding: 20 }}>
+    <div onClick={closeOnBackdrop} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 1460, maxHeight: '94vh', overflowY: 'auto', background: 'var(--surface)', border: `1px solid ${isChampionMoment ? hexToRgba(BK_GOLD, 0.45) : 'var(--line)'}`, borderRadius: 16, padding: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: BK_GOLD, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: BK_GOLD, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {title}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {canZoom && (
               <button
                 onClick={() => setZoomed(z => !z)}
-                style={{ background: 'none', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, color: '#F4F1EA', fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}
+                style={{ background: 'none', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)', fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}
               >{zoomed ? '⤢ Ver inteiro' : '🔍 Ampliar'}</button>
             )}
             {/* Durante a simulação direta e no momento do campeão o ✕ sai de
                 cena: ali a ação certa é o botão embaixo, não abandonar. */}
             {!simActive && !isChampionMoment && (
-              <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
+              <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
             )}
           </div>
         </div>
@@ -9990,12 +9962,12 @@ export function CupBracketModal({
         <div style={{ marginTop: 14, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', fontSize: 10.5, opacity: 0.55 }}>
           <span><span style={{ color: BK_GOLD }}>▬</span> classificado</span>
           <span>times escurecidos foram eliminados</span>
-          <span><span style={{ fontFamily: "'Space Mono', monospace" }}>*</span> decidido nos pênaltis</span>
+          <span><span style={{ fontFamily: 'var(--font-mono)' }}>*</span> decidido nos pênaltis</span>
         </div>
 
         {simActive ? (
           <>
-            <div style={{ marginTop: 14, textAlign: 'center', fontSize: 12, color: BK_GOLD, fontFamily: "'Space Mono', monospace", minHeight: 18 }}>
+            <div style={{ marginTop: 14, textAlign: 'center', fontSize: 12, color: BK_GOLD, fontFamily: 'var(--font-mono)', minHeight: 18 }}>
               {simStatus || 'Simulando…'}
             </div>
             {onCancelSim && (
@@ -10016,7 +9988,7 @@ export function CupBracketModal({
                 dourado aqui também — um botão preto sólido (mesmo com texto
                 claro) lia como "quebrado" nesse tema escuro (bug real
                 reportado pelo usuário: "o botão tbm" tá preto). */}
-            <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', marginTop: advance ? 14 : 8, background: isChampionMoment || mcIsDark ? BK_GOLD : mc, color: '#0B1A12' }}>
+            <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', marginTop: advance ? 14 : 8, background: isChampionMoment || mcIsDark ? BK_GOLD : mc, color: 'var(--ink)' }}>
               {isChampionMoment ? 'Ver resultado final →' : advance ? 'Continuar →' : 'Fechar'}
             </button>
           </>
@@ -10116,7 +10088,7 @@ function SeasonStatsPanel({ scorers, assisters, cleanSheets, seasonRatings, card
                   <span style={styles.statRank}>{i + 1}.</span>
                   <span style={styles.statName}>{name}</span>
                   <span style={styles.statTeam}>{d.teamLabel} · {d.count}j</span>
-                  <span style={{ ...styles.statValue, color: avg >= 7.5 ? '#7fd99a' : avg < 5.5 ? '#e0593f' : mc }}>⭐ {avg.toFixed(1)}</span>
+                  <span style={{ ...styles.statValue, color: avg >= 7.5 ? 'var(--success)' : avg < 5.5 ? 'var(--danger)' : mc }}>⭐ {avg.toFixed(1)}</span>
                 </div>
               );
             })
@@ -10155,57 +10127,57 @@ function SeasonStatsPanel({ scorers, assisters, cleanSheets, seasonRatings, card
 // cabeçalho da partida ao vivo, resultado final). Importante sobretudo no
 // mobile, onde não dá pra "passar o olho" no elenco adversário sem um modal.
 function TeamViewModal({ team, onClose, myTeamColor, suspensions, injuries }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   if (!team) return null;
   const { starters, bench, unavailable } = buildSquadView(team, suspensions, injuries);
   const understaffed = unavailable.some(p => p.shortOnSubs);
   const players = team.players || [];
   const renderRow = (p, i) => (
-    <div key={`${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12 }}>
-      <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.[0] || '-'}</span>
+    <div key={`${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--line)', fontSize: 12 }}>
+      <span style={{ width: 36, fontSize: 10, color: 'var(--muted)' }}>{p.pos?.[0] || '-'}</span>
       <span style={{ flex: 1 }}>{p.name}</span>
-      <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
+      <span style={{ fontFamily: 'var(--font-mono)', color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
     </div>
   );
   const renderUnavailableRow = (p, i) => (
-    <div key={`${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12, opacity: 0.5 }}>
-      <span style={{ width: 36, fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>{p.pos?.[0] || '-'}</span>
+    <div key={`${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--line)', fontSize: 12, opacity: 0.5 }}>
+      <span style={{ width: 36, fontSize: 10, color: 'var(--muted)' }}>{p.pos?.[0] || '-'}</span>
       <span style={{ flex: 1 }}>
         {p.name}
         <span title={p.reason === 'suspenso' ? 'Suspenso' : 'Lesionado'} style={{ marginLeft: 6 }}>{p.reason === 'suspenso' ? '🟥' : '🩹'}</span>
         {p.replacementName && <span style={{ display: 'block', fontSize: 10, opacity: 0.8, marginTop: 1 }}>entra: {p.replacementName}</span>}
-        {p.shortOnSubs && <span style={{ display: 'block', fontSize: 10, color: '#e05050', marginTop: 1 }}>sem reserva na posição</span>}
+        {p.shortOnSubs && <span style={{ display: 'block', fontSize: 10, color: 'var(--danger)', marginTop: 1 }}>sem reserva na posição</span>}
       </span>
-      <span style={{ fontFamily: "'Space Mono', monospace", color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
+      <span style={{ fontFamily: 'var(--font-mono)', color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
     </div>
   );
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: '#0F2318', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 400, maxHeight: '85vh', overflowY: 'auto' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 400, maxHeight: '85vh', overflowY: 'auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
           <div>
             {team.clubLogo && <img src={team.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain', marginRight: 8, verticalAlign: 'middle' }} alt="" />}
-            <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 16, fontWeight: 700 }}>{team.label}</span>
+            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700 }}>{team.label}</span>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#888', cursor: 'pointer', fontSize: 20, padding: 6 }}>x</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 20, padding: 6 }}>x</button>
         </div>
-        <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc, marginBottom: 12 }}>OVR {team.ovr} · {players.length} jogadores</div>
+        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: mc, marginBottom: 12 }}>OVR {team.ovr} · {players.length} jogadores</div>
         {understaffed && (
-          <div style={{ background: 'rgba(224,80,80,0.12)', border: '1px solid rgba(224,80,80,0.35)', borderRadius: 8, padding: '8px 10px', fontSize: 11.5, color: '#e05050', marginBottom: 12 }}>
+          <div style={{ background: 'rgba(178,59,59,0.12)', border: '1px solid rgba(178,59,59,0.45)', borderRadius: 8, padding: '8px 10px', fontSize: 11.5, color: 'var(--danger)', marginBottom: 12 }}>
             ⚠️ Time desfalcado — sem reserva disponível pra uma posição.
           </div>
         )}
-        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginBottom: 4 }}>Titulares</div>
+        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 4 }}>Titulares</div>
         {starters.map(renderRow)}
         {bench.length > 0 && (
           <>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 14, marginBottom: 4 }}>Banco</div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginTop: 14, marginBottom: 4 }}>Banco</div>
             {bench.map(renderRow)}
           </>
         )}
         {unavailable.length > 0 && (
           <>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginTop: 14, marginBottom: 4 }}>Desfalques</div>
+            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginTop: 14, marginBottom: 4 }}>Desfalques</div>
             {unavailable.map(renderUnavailableRow)}
           </>
         )}
@@ -10216,10 +10188,10 @@ function TeamViewModal({ team, onClose, myTeamColor, suspensions, injuries }) {
 
 // Zonas da tabela do Brasileirão
 export function getZoneInfo(pos, total) {
-  if (pos <= 4) return { color: '#22c55e', label: 'G4', title: 'Libertadores - Fase de Grupos' };
-  if (pos <= 6) return { color: '#86efac', label: 'G6', title: 'Libertadores - Pre' };
-  if (pos <= 12) return { color: '#60a5fa', label: 'SA', title: 'Sul-Americana' };
-  if (pos >= total - 3) return { color: '#ef4444', label: 'Z4', title: 'Rebaixamento' };
+  if (pos <= 4) return { color: 'var(--success)', label: 'G4', title: 'Libertadores - Fase de Grupos' };
+  if (pos <= 6) return { color: 'var(--success)', label: 'G6', title: 'Libertadores - Pre' };
+  if (pos <= 12) return { color: 'var(--info)', label: 'SA', title: 'Sul-Americana' };
+  if (pos >= total - 3) return { color: 'var(--danger)', label: 'Z4', title: 'Rebaixamento' };
   return null;
 }
 
@@ -10233,11 +10205,11 @@ function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack,
     <div style={{ marginBottom: 16 }}>
       <div style={styles.draftTopRow}>
         <div>
-          {onBack && <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: "'Space Mono',monospace", fontSize: 11, color: 'rgba(255,255,255,0.5)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px', margin: '0 0 2px -2px', minHeight: 30, display: 'block' }}>&#8592; Voltar</button>}
+          {onBack && <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px', margin: '0 0 2px -2px', minHeight: 30, display: 'block' }}>&#8592; Voltar</button>}
           <div style={styles.eyebrow}>{formationLabel}</div>
           <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>{filled} de {total} posições preenchidas</div>
           {mustSkip && (
-            <div style={{ fontSize: 12, color: '#e0a03c', marginTop: 6, maxWidth: 340 }}>
+            <div style={{ fontSize: 12, color: 'var(--warning-ink)', marginTop: 6, maxWidth: 340 }}>
               Nenhum jogador deste time cabe nas vagas que sobraram — pule sem gastar seus pulos.
             </div>
           )}
@@ -10256,12 +10228,12 @@ function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack,
               cursor: canSkip ? 'pointer' : 'not-allowed',
               opacity: canSkip ? 1 : 0.4,
               background: 'none',
-              border: `1px solid ${canSkip ? 'rgba(212,162,60,0.4)' : 'rgba(255,255,255,0.12)'}`,
+              border: `1px solid ${canSkip ? 'rgba(194,154,69,0.55)' : 'var(--line-strong)'}`,
               transition: 'background 0.15s, border-color 0.15s',
             }}
           >
-            <span style={{ ...styles.skipsNum, color: canSkip ? '#d4a23c' : 'rgba(255,255,255,0.4)' }}>{mustSkip && skipsLeft <= 0 ? '↻' : skipsLeft}</span>
-            <span style={{ ...styles.skipsLabel, color: canSkip ? 'rgba(212,162,60,0.8)' : 'rgba(255,255,255,0.35)' }}>pular</span>
+            <span style={{ ...styles.skipsNum, color: canSkip ? 'var(--gold-ink)' : 'var(--muted)' }}>{mustSkip && skipsLeft <= 0 ? '↻' : skipsLeft}</span>
+            <span style={{ ...styles.skipsLabel, color: canSkip ? 'var(--gold-ink)' : 'var(--muted)' }}>pular</span>
           </button>
         )}
       </div>
@@ -10379,11 +10351,11 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
       {!selectedPlayer && (
         <div style={{ position: 'relative', height: 0, zIndex: 5 }}>
           {previewSlots.length > 0 && hoveredPlayer ? (
-            <div style={{ ...styles.selectedPlayerBanner, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none', background: '#1a2a12', boxShadow: '0 4px 14px rgba(0,0,0,0.45)', border: '1px solid rgba(212,162,60,0.5)' }}>
+            <div style={{ ...styles.selectedPlayerBanner, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none', background: 'var(--surface)', boxShadow: 'var(--shadow)', border: '1px solid var(--gold)' }}>
               👀 <b>{hoveredPlayer.name}</b> pode jogar em: {previewSlots.map(s => s.label).join(', ')}
             </div>
           ) : hoveredPlayer && isPlayerBlockedByFormation(hoveredPlayer) ? (
-            <div style={{ ...styles.selectedPlayerBanner, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none', background: '#2a1414', boxShadow: '0 4px 14px rgba(0,0,0,0.45)', border: '1px solid rgba(224,80,80,0.5)' }}>
+            <div style={{ ...styles.selectedPlayerBanner, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none', background: 'var(--surface)', boxShadow: 'var(--shadow)', border: '1px solid rgba(178,59,59,0.6)' }}>
               🔒 <b>{hoveredPlayer.name}</b> não tem posição compatível com o esquema atual
             </div>
           ) : null}
@@ -10434,7 +10406,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
               // seleção (+3), pra ficar claro quem é o destaque da rodada.
               const isWeeklyPick = !!p.weeklyBoost;
               const isCraque = p.weeklyBoost === 5;
-              const goldTone = isCraque ? '#ffd700' : '#d4a23c';
+              const goldTone = isCraque ? '#8A6A24' : '#C29A45';
               return (
                 <button
                   key={i}
@@ -10451,19 +10423,19 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                     borderRadius: 9,
                     border: '1px solid',
                     background: isSelected
-                      ? 'rgba(127,217,154,0.1)'
+                      ? 'var(--success-soft)'
                       : isWeeklyPick
                         ? hexToRgba(goldTone, isCraque ? 0.2 : 0.12)
-                        : canPick ? 'rgba(255,255,255,0.03)' : 'transparent',
+                        : canPick ? 'var(--surface)' : 'transparent',
                     borderColor: isSelected
-                      ? 'rgba(127,217,154,0.5)'
+                      ? 'rgba(31,122,77,0.45)'
                       : isWeeklyPick
                         ? hexToRgba(goldTone, isCraque ? 0.85 : 0.55)
-                        : canPick ? 'rgba(255,255,255,0.07)' : 'transparent',
+                        : canPick ? 'var(--line)' : 'transparent',
                     boxShadow: isWeeklyPick && !isSelected ? `0 0 12px ${hexToRgba(goldTone, isCraque ? 0.3 : 0.15)}` : 'none',
                     opacity: canPick ? 1 : 0.3,
                     cursor: canPick ? 'pointer' : 'not-allowed',
-                    color: '#F4F1EA',
+                    color: 'var(--ink)',
                     textAlign: 'left',
                     width: '100%',
                     transition: 'background 0.12s, border-color 0.12s',
@@ -10472,10 +10444,10 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                 >
                   <div style={{
                     width: 40, height: 40, borderRadius: 8, flexShrink: 0,
-                    background: isSelected ? 'rgba(127,217,154,0.2)' : isWeeklyPick ? hexToRgba(goldTone, 0.18) : 'rgba(255,255,255,0.06)',
-                    border: `1px solid ${isWeeklyPick ? goldTone : (POS_GROUP_COLOR[p.pos[0]] || 'rgba(255,255,255,0.15)')}55`,
+                    background: isSelected ? 'rgba(31,122,77,0.14)' : isWeeklyPick ? hexToRgba(goldTone, 0.18) : 'var(--surface)',
+                    border: `1px solid ${isWeeklyPick ? goldTone : (POS_GROUP_COLOR[p.pos[0]] || 'var(--line-strong)')}55`,
                     display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 14,
+                    fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14,
                     color: isWeeklyPick ? goldTone : ovrColor(p.ovr),
                   }}>
                     {p.ovr}
@@ -10484,34 +10456,34 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
                     <div style={{
                       fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden',
                       textOverflow: 'ellipsis', lineHeight: 1.2,
-                      color: isWeeklyPick ? goldTone : '#F4F1EA',
+                      color: isWeeklyPick ? goldTone : 'var(--ink)',
                     }}>
                       {isCraque ? '👑 ' : isWeeklyPick ? '🌟 ' : ''}{p.name}
                     </div>
                     <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', minHeight: 16 }}>
                       {p.pos.map((pos, pi) => {
-                        const c = POS_GROUP_COLOR[pos] || '#d4a23c';
+                        const c = teamInk(POS_GROUP_COLOR[pos] || '#C29A45');
                         const isPrimary = pi === 0;
                         return (
                           <span key={pos} style={{
-                            fontFamily: "'Space Mono', monospace", fontSize: 9, fontWeight: 800,
+                            fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 800,
                             padding: '2px 6px', borderRadius: 4, letterSpacing: 0.4, lineHeight: 1.4,
                             background: isPrimary ? c : `${c}22`,
-                            color: isPrimary ? '#0B1A12' : c,
+                            color: isPrimary ? 'var(--ink)' : c,
                             border: isPrimary ? 'none' : `1px solid ${c}88`,
                           }}>{pos}</span>
                         );
                       })}
                       {blockedByFormation && (
                         <span style={{
-                          fontFamily: "'Space Mono', monospace", fontSize: 9, fontWeight: 800,
+                          fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 800,
                           padding: '2px 6px', borderRadius: 4, letterSpacing: 0.4, lineHeight: 1.4,
-                          background: 'rgba(224,80,80,0.15)', color: '#e05050', border: '1px solid rgba(224,80,80,0.4)',
+                          background: 'rgba(178,59,59,0.14)', color: 'var(--danger)', border: '1px solid rgba(178,59,59,0.5)',
                         }}>🔒 FORA DO ESQUEMA</span>
                       )}
                     </div>
                   </div>
-                  {isSelected && <span style={{ flexShrink: 0, fontSize: 16, color: '#7fd99a' }}>→</span>}
+                  {isSelected && <span style={{ flexShrink: 0, fontSize: 16, color: 'var(--success)' }}>→</span>}
                 </button>
               );
             })}
@@ -10571,9 +10543,9 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
       ) : (
         <div style={{
           textAlign: 'center', fontSize: 12, padding: '8px 12px',
-          background: captainSlot ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.04)',
-          border: `1px solid ${captainSlot ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.08)'}`,
-          borderRadius: 8, marginBottom: 10, color: captainSlot ? '#d4a23c' : 'rgba(255,255,255,0.5)',
+          background: captainSlot ? 'rgba(194,154,69,0.1)' : 'var(--surface)',
+          border: `1px solid ${captainSlot ? 'rgba(194,154,69,0.5)' : 'var(--line)'}`,
+          borderRadius: 8, marginBottom: 10, color: captainSlot ? 'var(--gold-ink)' : 'var(--muted)',
         }}>
           {captainSlot
             ? `Capitao: ${pitch[captainSlot]?.name} — +2 OVR`
@@ -10612,20 +10584,20 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
               style={{
                 ...styles.squadRow,
                 cursor: 'pointer',
-                background: isCap ? 'rgba(212,162,60,0.12)' : 'transparent',
-                border: `1px solid ${isCap ? 'rgba(212,162,60,0.4)' : 'transparent'}`,
+                background: isCap ? 'rgba(194,154,69,0.12)' : 'transparent',
+                border: `1px solid ${isCap ? 'rgba(194,154,69,0.55)' : 'transparent'}`,
                 borderRadius: 8,
                 width: '100%',
                 textAlign: 'left',
-                color: '#F4F1EA',
+                color: 'var(--ink)',
               }}
             >
-              <span style={{ ...styles.squadPos, color: isCap ? '#d4a23c' : undefined }}>
+              <span style={{ ...styles.squadPos, color: isCap ? 'var(--gold-ink)' : undefined }}>
                 {isCap ? 'C' : slot.label}
               </span>
               <span style={{ ...styles.squadName, fontWeight: isCap ? 700 : 400 }}>{p.name}</span>
               <span style={styles.squadTeam}>{p.teamLabel}</span>
-              <span style={{ ...styles.squadOvr, color: isCap ? '#d4a23c' : undefined }}>
+              <span style={{ ...styles.squadOvr, color: isCap ? 'var(--gold-ink)' : undefined }}>
                 {isCap ? `${p.ovr} +2` : p.ovr}
               </span>
             </button>
@@ -10634,7 +10606,7 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
         {/* Banco */}
         {benchSlots.some(s => pitch[s.key]) && (
           <>
-            <div style={{ fontSize: 11, opacity: 0.4, padding: '8px 0 4px', fontFamily: "'Space Mono', monospace" }}>BANCO</div>
+            <div style={{ fontSize: 11, opacity: 0.4, padding: '8px 0 4px', fontFamily: 'var(--font-mono)' }}>BANCO</div>
             {benchSlots.map(slot => {
               const p = pitch[slot.key];
               if (!p) return null;
@@ -10674,7 +10646,7 @@ function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, o
 // elenco pra sortear substitutos (reaproveita o dado do draft original,
 // só que preenchendo apenas as vagas liberadas — sem orçamento).
 function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const [releasedKeys, setReleasedKeys] = useState([]);
   const starterSlots = pitchSlots.filter(s => !s.isBench).sort((a, b) => posOrderIndex(a.realPos) - posOrderIndex(b.realPos));
   const benchSlots = pitchSlots.filter(s => s.isBench);
@@ -10698,15 +10670,15 @@ function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
         style={{
           display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left',
           padding: '9px 12px', borderRadius: 9, marginBottom: 4,
-          border: `1px solid ${isReleased ? 'rgba(224,80,80,0.5)' : 'rgba(255,255,255,0.07)'}`,
-          background: isReleased ? 'rgba(224,80,80,0.12)' : 'rgba(255,255,255,0.03)',
-          color: '#F4F1EA', cursor: 'pointer',
+          border: `1px solid ${isReleased ? 'rgba(178,59,59,0.6)' : 'var(--line)'}`,
+          background: isReleased ? 'rgba(178,59,59,0.12)' : 'var(--surface)',
+          color: 'var(--ink)', cursor: 'pointer',
         }}
       >
-        <span style={{ width: 34, fontSize: 11, opacity: 0.6, fontFamily: "'Space Mono', monospace" }}>{slot.realPos === 'bench' ? (p.pos?.[0] || '-') : slot.realPos}</span>
+        <span style={{ width: 34, fontSize: 11, opacity: 0.6, fontFamily: 'var(--font-mono)' }}>{slot.realPos === 'bench' ? (p.pos?.[0] || '-') : slot.realPos}</span>
         <span style={{ flex: 1, minWidth: 0, fontWeight: 600, textDecoration: isReleased ? 'line-through' : 'none', opacity: isReleased ? 0.6 : 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-        <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: ovrColor(p.ovr), flexShrink: 0 }}>{p.ovr}</span>
-        {isReleased && <span style={{ color: '#e05050', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>LIBERADO</span>}
+        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ovrColor(p.ovr), flexShrink: 0 }}>{p.ovr}</span>
+        {isReleased && <span style={{ color: 'var(--danger)', fontSize: 11, fontWeight: 700, flexShrink: 0 }}>LIBERADO</span>}
       </button>
     );
   };
@@ -10725,7 +10697,7 @@ function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
       {benchSlots.map(renderRow)}
 
       <button
-        style={{ ...styles.btnPrimary, marginTop: 20, width: '100%', background: mc, color: '#0B1A12' }}
+        style={{ ...styles.btnPrimary, marginTop: 20, width: '100%', background: mc, color: '#fff' }}
         onClick={() => onConfirm(releasedKeys)}
       >
         {releasedKeys.length === 0
@@ -10742,7 +10714,7 @@ function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
 // embaixo depois de toda a tabela/estatísticas da liga.
 // ============================================================
 export function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, myTeamId, myTeamColor, onDismiss }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   if (!ratings?.length || !match) return null;
   const homeRatings = [...ratings].filter(r => r.teamId === match.homeId).sort((a, b) => b.rating - a.rating);
   const awayRatings = [...ratings].filter(r => r.teamId === match.awayId).sort((a, b) => b.rating - a.rating);
@@ -10752,11 +10724,11 @@ export function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, m
     <div style={{ flex: 1, minWidth: 0 }}>
       <div style={{ fontSize: 10, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 0.5, textAlign: side === 'away' ? 'right' : 'left', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel}</div>
       {list.map((r, i) => (
-        <div key={`${r.name}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12.5, padding: '4px 0', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+        <div key={`${r.name}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12.5, padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: side === 'away' ? 'right' : 'left', flex: 1 }}>{r.name}</span>
           <span style={{
-            fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0,
-            color: r.rating >= 7.5 ? '#7fd99a' : r.rating < 5.5 ? '#e0593f' : '#F4F1EA',
+            fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0,
+            color: r.rating >= 7.5 ? 'var(--success)' : r.rating < 5.5 ? 'var(--danger)' : 'var(--ink)',
           }}>{r.rating.toFixed(1)}</span>
         </div>
       ))}
@@ -10764,20 +10736,20 @@ export function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, m
   );
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 9200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: '#0F2318', border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 16, padding: 22, width: '100%', maxWidth: 460, maxHeight: '86vh', overflowY: 'auto' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div style={{ background: 'var(--surface)', border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 16, padding: 22, width: '100%', maxWidth: 460, maxHeight: '86vh', overflowY: 'auto' }}>
         <div style={{ textAlign: 'center', marginBottom: 14 }}>
           <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.6, marginBottom: 6 }}>Fim de jogo</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 17 }}>
-            <span className="match-summary-header-team" style={{ flex: 1, minWidth: 0, textAlign: 'right', color: match.homeId === myTeamId ? mc : '#F4F1EA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeam?.label || '?'}</span>
-            <span style={{ fontFamily: "'Space Mono', monospace", background: 'rgba(255,255,255,0.06)', borderRadius: 8, padding: '4px 12px', flexShrink: 0 }}>{score?.homeGoals ?? 0} - {score?.awayGoals ?? 0}</span>
-            <span className="match-summary-header-team" style={{ flex: 1, minWidth: 0, textAlign: 'left', color: match.awayId === myTeamId ? mc : '#F4F1EA', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeam?.label || '?'}</span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 17 }}>
+            <span className="match-summary-header-team" style={{ flex: 1, minWidth: 0, textAlign: 'right', color: match.homeId === myTeamId ? mc : 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeam?.label || '?'}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', background: 'var(--surface)', borderRadius: 8, padding: '4px 12px', flexShrink: 0 }}>{score?.homeGoals ?? 0} - {score?.awayGoals ?? 0}</span>
+            <span className="match-summary-header-team" style={{ flex: 1, minWidth: 0, textAlign: 'left', color: match.awayId === myTeamId ? mc : 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeam?.label || '?'}</span>
           </div>
         </div>
 
         {motm && (
           <div style={{ textAlign: 'center', background: hexToRgba(mc, 0.1), border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
-            🌟 Craque da partida: <b style={{ color: mc }}>{motm.name}</b> <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
+            🌟 Craque da partida: <b style={{ color: mc }}>{motm.name}</b> <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
           </div>
         )}
 
@@ -10786,7 +10758,7 @@ export function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, m
           {col(awayRatings, 'away', awayTeam?.label)}
         </div>
 
-        <button onClick={onDismiss} style={{ ...styles.btnPrimary, marginTop: 18, width: '100%', background: mc, color: '#0B1A12' }}>
+        <button onClick={onDismiss} style={{ ...styles.btnPrimary, marginTop: 18, width: '100%', background: mc, color: '#fff' }}>
           Continuar →
         </button>
       </div>
@@ -10801,7 +10773,7 @@ export function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, m
 // fecha no fim), senão o modo automático parava de vez na primeira decisão por
 // pênaltis esperando um clique que nunca vinha.
 function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const [inner, setInner] = React.useState(() => ({
     kickNum: 0,     // 0,1,...: even=home, odd=away
     // A cobrança 0 é sempre do time da casa — se eu sou o visitante, quem
@@ -10951,8 +10923,8 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
         {availablePlayers.map((p, i) => (
           <button key={i} onClick={() => startCountdown(p.name)} style={{
             display: 'block', width: '100%', textAlign: 'left', padding: '7px 10px',
-            background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: 7, color: '#F4F1EA', fontFamily: "'Space Mono',monospace",
+            background: 'var(--surface)', border: '1px solid var(--line-strong)',
+            borderRadius: 7, color: 'var(--ink)', fontFamily: 'var(--font-mono)',
             fontSize: 12, cursor: 'pointer', marginBottom: 4,
           }}>
             {p.name} <span style={{ opacity: 0.5, fontSize: 10 }}>{(p.pos || []).join('/')}</span>
@@ -10975,18 +10947,18 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 9999,
-      background: 'rgba(5,15,8,0.92)',
+      background: 'var(--surface)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: '20px 16px',
     }}>
       {/* Header */}
-      <div style={{ fontFamily: "'Fraunces',Georgia,serif", fontSize: 22, fontWeight: 700, color: '#F4F1EA', marginBottom: 4, textAlign: 'center' }}>
+      <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 4, textAlign: 'center' }}>
         ⚽ Disputa de Pênaltis
-        {isSuddenDeath && <span style={{ fontSize: 12, color: '#e05050', marginLeft: 8 }}>MORTE SÚBITA</span>}
+        {isSuddenDeath && <span style={{ fontSize: 12, color: 'var(--danger)', marginLeft: 8 }}>MORTE SÚBITA</span>}
       </div>
 
       {/* Score */}
-      <div style={{ fontFamily: "'Space Mono',monospace", fontSize: 28, fontWeight: 700, color: mc, marginBottom: 16, letterSpacing: 2 }}>
+      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 28, fontWeight: 700, color: mc, marginBottom: 16, letterSpacing: 2 }}>
         {myGoals} – {opGoals}
       </div>
 
@@ -11005,7 +10977,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
       {/* Main interaction area */}
       <div style={{
         width: '100%', maxWidth: 400,
-        background: 'rgba(255,255,255,0.04)', borderRadius: 14,
+        background: 'var(--surface)', borderRadius: 14,
         padding: '18px 16px', minHeight: 140,
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       }}>
@@ -11028,8 +11000,8 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
             )}
             <div style={{
               fontSize: countdown === 1 ? 72 : countdown === 2 ? 64 : 56,
-              fontFamily: "'Fraunces',Georgia,serif", fontWeight: 700,
-              color: countdown === 1 ? '#e05050' : countdown === 2 ? '#d4a23c' : '#F4F1EA',
+              fontFamily: 'var(--font-serif)', fontWeight: 700,
+              color: countdown === 1 ? 'var(--danger)' : countdown === 2 ? 'var(--gold-ink)' : 'var(--ink)',
               lineHeight: 1, transition: 'font-size 0.15s',
             }}>{countdown}</div>
           </div>
@@ -11039,9 +11011,9 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
           <div style={{ textAlign: 'center' }}>
             <div style={{
               fontSize: lastResult.scored ? 28 : 22, fontWeight: 700,
-              color: lastResult.scored && lastResult.isMyKick ? '#7fd99a'
-                : !lastResult.scored && !lastResult.isMyKick ? '#7fd99a' : '#e05050',
-              fontFamily: "'Fraunces',Georgia,serif",
+              color: lastResult.scored && lastResult.isMyKick ? 'var(--success)'
+                : !lastResult.scored && !lastResult.isMyKick ? 'var(--success)' : 'var(--danger)',
+              fontFamily: 'var(--font-serif)',
               marginBottom: 6,
             }}>{lastResult.resultText}</div>
             {lastResult.scorer && lastResult.scorer !== 'auto' && (
@@ -11052,16 +11024,16 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
 
         {phase === 'done' && (
           <div style={{ textAlign: 'center' }}>
-            <div style={{ fontSize: 22, fontWeight: 700, color: mc, fontFamily: "'Fraunces',Georgia,serif", marginBottom: 8 }}>
+            <div style={{ fontSize: 22, fontWeight: 700, color: mc, fontFamily: 'var(--font-serif)', marginBottom: 8 }}>
               {winner === '__myteam__' ? '🏆 Classificado nos pênaltis!' : '💔 Eliminado nos pênaltis'}
             </div>
             <div style={{ fontSize: 14, opacity: 0.7, marginBottom: 16 }}>
               {myTeamLabel} {myGoals} × {opGoals} {oppTeamLabel}
             </div>
             <button onClick={onDismiss} style={{
-              fontFamily: "'Space Mono',monospace", fontSize: 13, fontWeight: 700,
+              fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 700,
               padding: '10px 28px', borderRadius: 10, border: 'none',
-              background: mc, color: '#0B1A12', cursor: 'pointer',
+              background: mc, color: '#fff', cursor: 'pointer',
             }}>Continuar →</button>
           </div>
         )}
@@ -11069,7 +11041,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
 
       {/* Round indicator */}
       {phase !== 'done' && (
-        <div style={{ marginTop: 12, fontSize: 11, opacity: 0.45, fontFamily: "'Space Mono',monospace" }}>
+        <div style={{ marginTop: 12, fontSize: 11, opacity: 0.45, fontFamily: 'var(--font-mono)' }}>
           {isSuddenDeath ? 'MORTE SÚBITA' : `Cobrança ${pairIdx + 1} de ${kicks.length}`} · {isMyKick ? myTeamLabel : oppTeamLabel}
         </div>
       )}
@@ -11093,14 +11065,14 @@ function AchievementToast({ achievements, onClose }) {
         if (!a) return null;
         return (
           <div key={id} onClick={onClose} style={{
-            background: 'rgba(11,26,18,0.97)', border: '1px solid rgba(212,162,60,0.5)', borderRadius: 12,
+            background: 'var(--surface)', border: '1px solid var(--gold)', borderRadius: 12,
             padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.5)', minWidth: 240,
+            boxShadow: 'var(--shadow)', minWidth: 240,
           }}>
             <span style={{ fontSize: 24 }}>{a.icon}</span>
             <div>
-              <div style={{ fontSize: 10, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1, color: '#d4a23c' }}>Conquista desbloqueada</div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: '#F4F1EA' }}>{a.label}</div>
+              <div style={{ fontSize: 10, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--gold-ink)' }}>Conquista desbloqueada</div>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{a.label}</div>
               <div style={{ fontSize: 11, opacity: 0.6 }}>{a.desc}</div>
             </div>
           </div>
@@ -11127,7 +11099,7 @@ function PontosDoRanking() {
   const linha = (oQue, quanto) => (
     <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, padding: '3px 0' }}>
       <span style={{ flex: 1, minWidth: 0 }}>{oQue}</span>
-      <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: '#d4a23c', whiteSpace: 'nowrap' }}>{quanto}</span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--gold-ink)', whiteSpace: 'nowrap' }}>{quanto}</span>
     </div>
   );
   return (
@@ -11135,12 +11107,12 @@ function PontosDoRanking() {
       <button
         onClick={() => setAberto(a => !a)}
         className="tap-target-sm"
-        style={{ background: 'none', border: 'none', minHeight: 34, color: '#d4a23c', fontFamily: "'Space Mono', monospace", fontSize: 11.5, cursor: 'pointer', padding: '4px 0' }}
+        style={{ background: 'none', border: 'none', minHeight: 34, color: 'var(--gold-ink)', fontFamily: 'var(--font-mono)', fontSize: 11.5, cursor: 'pointer', padding: '4px 0' }}
       >
         {aberto ? 'v' : '>'} Como funcionam os pontos
       </button>
       {aberto && (
-        <div style={{ fontSize: 12, lineHeight: 1.55, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', marginTop: 4 }}>
+        <div style={{ fontSize: 12, lineHeight: 1.55, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 8, padding: '10px 12px', marginTop: 4 }}>
           <div style={{ fontSize: 10, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5, marginBottom: 6 }}>1 · Campanha</div>
           {linha('Campeão do Brasileirão', '50 pts')}
           {linha('Campeão da Copa do Brasil', '40 pts')}
@@ -11154,9 +11126,9 @@ function PontosDoRanking() {
           {linha('Cada gol que seu time marcou', '+1 pt')}
           {linha('Cada gol que seu time sofreu', '−1 pt')}
 
-          <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.08)', opacity: 0.8 }}>
+          <div style={{ marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--line)', opacity: 0.8 }}>
             Exemplo: campeão do Brasileirão no <b>Difícil</b>, com 60 gols marcados e 47 sofridos:{' '}
-            <b style={{ color: '#d4a23c' }}>50 × 1,75 + 60 − 47 = 101 pts</b>. O mesmo título no Fácil daria 38.
+            <b style={{ color: 'var(--gold-ink)' }}>50 × 1,75 + 60 − 47 = 101 pts</b>. O mesmo título no Fácil daria 38.
           </div>
           <div style={{ marginTop: 8, opacity: 0.8 }}>
             Numa temporada de 38 rodadas os gols pesam mais que a colocação — quem ataca sobe,
@@ -11195,7 +11167,7 @@ const RANKING_PERIODS = [
 // do jogador (com uma animação de contagem rápida até o número real, tipo
 // velocímetro) e destaca a linha dele.
 function RankingPage({ onBack, myUsername, myTeamColor }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const [period, setPeriod] = useState('geral');
   const [rows, setRows] = useState(null);
   const [baseOffset, setBaseOffset] = useState(0);
@@ -11307,21 +11279,21 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
   }, [rows, highlightRank]);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
       <button
         onClick={onBack}
         title="Voltar pro app"
         style={{
           position: 'fixed', top: 14, left: 14, zIndex: 10001,
           display: 'flex', alignItems: 'center', gap: 6,
-          background: 'rgba(15,31,21,0.95)', border: `1px solid ${hexToRgba(mc, 0.4)}`,
+          background: 'var(--surface)', border: `1px solid ${hexToRgba(mc, 0.4)}`,
           borderRadius: 999, padding: '8px 14px', color: mc,
           fontSize: 12.5, fontWeight: 600, cursor: 'pointer',
         }}
       >
         ← Voltar pro app
       </button>
-      <div style={{ width: '100%', maxWidth: 640, margin: '0 auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 24 }}>
+      <div style={{ width: '100%', maxWidth: 640, margin: '0 auto', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 24 }}>
         <div style={{ fontSize: 14, fontWeight: 700, color: mc, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>🏆 Ranking Global</div>
         <GameStatsBar style={{ fontSize: 11, opacity: 0.6, marginBottom: 14 }} />
 
@@ -11333,9 +11305,9 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
               aria-pressed={period === p.id}
               style={{
                 flex: '1 1 0%', minWidth: 76, padding: '8px 10px', borderRadius: 10, cursor: 'pointer',
-                border: `2px solid ${period === p.id ? mc : 'rgba(255,255,255,0.12)'}`,
-                background: period === p.id ? hexToRgba(mc, 0.12) : 'rgba(255,255,255,0.03)',
-                color: period === p.id ? mc : '#F4F1EA', fontWeight: 700, fontSize: 13,
+                border: `2px solid ${period === p.id ? mc : 'var(--line-strong)'}`,
+                background: period === p.id ? hexToRgba(mc, 0.12) : 'var(--surface)',
+                color: period === p.id ? mc : 'var(--ink)', fontWeight: 700, fontSize: 13,
               }}
             >
               {p.label}
@@ -11356,7 +11328,7 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
         {finding ? (
           <div style={{ textAlign: 'center', padding: '34px 0' }}>
             <div style={{ fontSize: 11, opacity: 0.5, marginBottom: 8, textTransform: 'uppercase', letterSpacing: 1 }}>Buscando sua posição...</div>
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 42, fontWeight: 700, color: mc }}>#{findDisplay}</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 42, fontWeight: 700, color: mc }}>#{findDisplay}</div>
           </div>
         ) : (
           <>
@@ -11422,22 +11394,22 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10, padding: '7px 6px',
                     borderRadius: 8,
-                    borderBottom: '1px solid rgba(255,255,255,0.06)',
+                    borderBottom: '1px solid var(--line)',
                     fontWeight: isMe ? 700 : 400,
-                    color: isMe ? mc : '#F4F1EA',
+                    color: isMe ? mc : 'var(--ink)',
                     background: isHighlighted ? hexToRgba(mc, 0.18) : 'transparent',
                     transition: 'background 0.4s ease',
                   }}
                 >
-                  <span style={{ width: 26, textAlign: 'right', opacity: 0.5, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{rank}.</span>
+                  <span style={{ width: 26, textAlign: 'right', opacity: 0.5, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{rank}.</span>
                   {r.team_logo
-                    ? <img src={r.team_logo} alt="" style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'contain', background: 'rgba(255,255,255,0.06)', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+                    ? <img src={r.team_logo} alt="" style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'contain', background: 'var(--surface)', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
                     : <span style={{ width: 22, height: 22, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, opacity: 0.35 }}>⚽</span>
                   }
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>{r.username}</span>
-                  {r.team_uf && !uf && <span style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace" }}>{r.team_uf}</span>}
+                  {r.team_uf && !uf && <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>{r.team_uf}</span>}
                   <span style={{ fontSize: 11, opacity: 0.6 }}>🏆{r.titles_brasileirao + r.titles_copa}</span>
-                  <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 13 }}>{r.ranking_points} pts</span>
+                  <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13 }}>{r.ranking_points} pts</span>
                 </div>
               );
             })}
@@ -11692,7 +11664,7 @@ function urlBase64ToUint8Array(base64String) {
 // novidade — vive dentro do mural (💡) porque é literalmente sobre a
 // própria lista abaixo: "quer saber quando isso mudar sem abrir o jogo?".
 function NewsNotifyPanel({ currentUser, myTeamColor }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const [pushEnabled, setPushEnabled] = useState(!!currentUser?.push_enabled);
   const [emailEnabled, setEmailEnabled] = useState(currentUser?.email_notifications_enabled !== false);
   const [busy, setBusy] = useState(false);
@@ -11740,14 +11712,14 @@ function NewsNotifyPanel({ currentUser, myTeamColor }) {
 
   if (!currentUser) {
     return (
-      <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, opacity: 0.6 }}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, opacity: 0.6 }}>
         🔔 Crie uma conta pra receber aviso (push ou email) toda vez que sair uma novidade.
       </div>
     );
   }
 
   return (
-    <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+    <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
       <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, opacity: 0.55, marginBottom: 8 }}>🔔 Avisar de novidade</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {supportsPush && (
@@ -11760,7 +11732,7 @@ function NewsNotifyPanel({ currentUser, myTeamColor }) {
           <input type="checkbox" checked={emailEnabled} disabled={busy} onChange={toggleEmail} style={{ accentColor: mc }} />
           Email pra {currentUser.email}
         </label>
-        {error && <div style={{ fontSize: 11, color: '#e05050' }}>{error}</div>}
+        {error && <div style={{ fontSize: 11, color: 'var(--danger)' }}>{error}</div>}
       </div>
     </div>
   );
@@ -11769,17 +11741,17 @@ function NewsNotifyPanel({ currentUser, myTeamColor }) {
 // Mural de novidades — acessado pelo ícone 💡 no header.
 function NewsModal({ onClose, currentUser, myTeamColor }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
-      <div style={{ background: '#0B1A12', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 460, maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+      <div style={{ background: 'var(--surface)', border: '1px solid var(--gold)', borderRadius: 14, padding: 20, width: '100%', maxWidth: 460, maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#d4a23c', letterSpacing: 1, textTransform: 'uppercase' }}>💡 Novidades</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#F4F1EA', fontSize: 18, cursor: 'pointer' }}>×</button>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold-ink)', letterSpacing: 1, textTransform: 'uppercase' }}>💡 Novidades</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 18, cursor: 'pointer' }}>×</button>
         </div>
         <NewsNotifyPanel currentUser={currentUser} myTeamColor={myTeamColor} />
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           {WHATS_NEW.map(item => (
-            <div key={item.id} style={{ borderLeft: '2px solid rgba(212,162,60,0.4)', paddingLeft: 12 }}>
-              <div style={{ fontSize: 10, opacity: 0.5, fontFamily: "'Space Mono', monospace", textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>{item.date}</div>
+            <div key={item.id} style={{ borderLeft: '2px solid var(--gold)', paddingLeft: 12 }}>
+              <div style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 3 }}>{item.date}</div>
               <div style={{ fontWeight: 700, fontSize: 13.5, marginBottom: 4 }}>{item.title}</div>
               <div style={{ fontSize: 12.5, opacity: 0.65, lineHeight: 1.55 }}>{item.desc}</div>
             </div>
@@ -11796,7 +11768,7 @@ const CHAT_QUICK_EMOJIS = ['⚽', '😱', '🔥', '👏', '😂', '😡', '💪'
 // enquanto existir uma sala (lobby, draft, ao vivo, resultado).
 function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, onSendReaction, myTeamColor }) {
   const [text, setText] = useState('');
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const listRef = useRef(null);
   useEffect(() => {
     if (open && listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight;
@@ -11811,20 +11783,20 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
   return (
     <div style={{ position: 'fixed', bottom: 12, right: 12, zIndex: 999, width: open ? 260 : 'auto' }}>
       {open && (
-        <div style={{ background: 'rgba(11,26,18,0.96)', border: `1px solid ${mc}55`, borderRadius: 12, marginBottom: 8, display: 'flex', flexDirection: 'column', maxHeight: 320 }}>
-          <div style={{ padding: '8px 10px', borderBottom: '1px solid rgba(255,255,255,0.08)', fontSize: 11, fontWeight: 700, color: mc, letterSpacing: 1, textTransform: 'uppercase' }}>
+        <div style={{ background: 'var(--surface)', border: `1px solid ${mc}55`, borderRadius: 12, marginBottom: 8, display: 'flex', flexDirection: 'column', maxHeight: 320 }}>
+          <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--line)', fontSize: 11, fontWeight: 700, color: mc, letterSpacing: 1, textTransform: 'uppercase' }}>
             Chat da sala
           </div>
           <div ref={listRef} style={{ overflowY: 'auto', flex: 1, padding: '6px 10px', display: 'flex', flexDirection: 'column', gap: 4, minHeight: 60 }}>
             {messages.length === 0 && <span style={{ fontSize: 12, opacity: 0.4 }}>Sem mensagens ainda.</span>}
             {messages.map((m, i) => (
-              <div key={i} style={{ fontSize: 12, color: '#F4F1EA' }}>
-                <b style={{ color: m.pid === myPid ? mc : '#8fb3d9' }}>{m.name}:</b>{' '}
+              <div key={i} style={{ fontSize: 12, color: 'var(--ink)' }}>
+                <b style={{ color: m.pid === myPid ? mc : 'var(--info)' }}>{m.name}:</b>{' '}
                 {m.type === 'reaction' ? <span style={{ fontSize: 16 }}>{m.emoji}</span> : m.text}
               </div>
             ))}
           </div>
-          <div style={{ display: 'flex', gap: 4, padding: '6px 8px', borderTop: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 4, padding: '6px 8px', borderTop: '1px solid var(--line)', flexWrap: 'wrap' }}>
             {CHAT_QUICK_EMOJIS.map(e => (
               <button key={e} onClick={() => onSendReaction(e)} style={{ background: 'none', border: 'none', fontSize: 16, cursor: 'pointer', padding: 2 }}>{e}</button>
             ))}
@@ -11833,18 +11805,18 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
             <input
               value={text} onChange={e => setText(e.target.value)} maxLength={200}
               placeholder="Mensagem..."
-              style={{ flex: 1, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, padding: '6px 8px', color: '#F4F1EA', fontSize: 12, fontFamily: "'Space Mono', monospace" }}
+              style={{ flex: 1, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '6px 8px', color: 'var(--ink)', fontSize: 12, fontFamily: 'var(--font-mono)' }}
             />
-            <button type="submit" style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '0 10px', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>▶</button>
+            <button type="submit" style={{ background: mc, color: '#fff', border: 'none', borderRadius: 8, padding: '0 10px', fontWeight: 700, cursor: 'pointer', fontSize: 12 }}>▶</button>
           </form>
         </div>
       )}
       <button
         onClick={onToggle}
         style={{
-          width: 48, height: 48, borderRadius: '50%', border: `1px solid ${mc}55`, background: 'rgba(11,26,18,0.96)',
+          width: 48, height: 48, borderRadius: '50%', border: `1px solid ${mc}55`, background: 'var(--surface)',
           color: mc, fontSize: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          marginLeft: 'auto', boxShadow: '0 2px 10px rgba(0,0,0,0.4)',
+          marginLeft: 'auto', boxShadow: 'var(--shadow)',
         }}
         title="Chat da sala"
       >💬</button>
@@ -11867,7 +11839,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
     <div style={styles.liveMatchBox} className="card-mob">
       {isClassico && (
         <div style={{ textAlign: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#e0a83c', background: 'rgba(224,168,60,0.12)', border: '1px solid rgba(224,168,60,0.35)', borderRadius: 999, padding: '3px 12px' }}>
+          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: '#e0a83c', background: 'rgba(183,121,31,0.12)', border: '1px solid rgba(183,121,31,0.45)', borderRadius: 999, padding: '3px 12px' }}>
             🔥 Clássico
           </span>
         </div>
@@ -11884,7 +11856,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
         <div
           onClick={() => homeTeam.id !== myTeamId && onViewTeam && onViewTeam(homeTeam)}
           title={homeTeam.id !== myTeamId ? 'Ver elenco' : undefined}
-          style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0, cursor: homeTeam.id !== myTeamId ? 'pointer' : 'default' }}
+          style={{ ...styles.liveTeamName, textAlign: 'right', fontWeight: homeTeam.id === myTeamId ? 700 : 400, color: homeTeam.id === myTeamId ? mc : 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0, cursor: homeTeam.id !== myTeamId ? 'pointer' : 'default' }}
           className="live-team-n"
         >
           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{homeTeam.label}</span>
@@ -11901,7 +11873,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
         <div
           onClick={() => awayTeam.id !== myTeamId && onViewTeam && onViewTeam(awayTeam)}
           title={awayTeam.id !== myTeamId ? 'Ver elenco' : undefined}
-          style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : '#F4F1EA', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6, minWidth: 0, cursor: awayTeam.id !== myTeamId ? 'pointer' : 'default' }}
+          style={{ ...styles.liveTeamName, textAlign: 'left', fontWeight: awayTeam.id === myTeamId ? 700 : 400, color: awayTeam.id === myTeamId ? mc : 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6, minWidth: 0, cursor: awayTeam.id !== myTeamId ? 'pointer' : 'default' }}
           className="live-team-n"
         >
           {awayTeam.id === myTeamId
@@ -11914,17 +11886,17 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
 
       {(isSimulating || roundDone) && (
         <div style={{ ...styles.clockRow, flexWrap: 'wrap', gap: 8 }}>
-          <div style={{ ...styles.clock, color: isSimulating ? '#7fd99a' : '#F4F1EA', minWidth: 52, textAlign: 'center' }}>{clockDisplay}</div>
+          <div style={{ ...styles.clock, color: isSimulating ? 'var(--success)' : 'var(--ink)', minWidth: 52, textAlign: 'center' }}>{clockDisplay}</div>
           {isSimulating && <div style={styles.clockPulse} />}
           {isSimulating && (
             <div style={{ display: 'flex', gap: 4, marginLeft: 6 }}>
               {[1, 1.5, 2].map(sp => (
                 <button key={sp} onClick={() => onSetSpeed(sp)} className="tap-target-sm" style={{
-                  fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: simSpeed === sp ? 700 : 400,
+                  fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: simSpeed === sp ? 700 : 400,
                   padding: '3px 8px', borderRadius: 6, border: '1px solid', cursor: 'pointer',
-                  borderColor: simSpeed === sp ? '#d4a23c' : 'rgba(255,255,255,0.2)',
-                  background: simSpeed === sp ? 'rgba(212,162,60,0.15)' : 'transparent',
-                  color: simSpeed === sp ? '#d4a23c' : 'rgba(255,255,255,0.6)',
+                  borderColor: simSpeed === sp ? 'var(--gold)' : 'var(--line-strong)',
+                  background: simSpeed === sp ? 'rgba(194,154,69,0.15)' : 'transparent',
+                  color: simSpeed === sp ? 'var(--gold-ink)' : 'var(--ink-2)',
                 }}>{sp}x</button>
               ))}
             </div>
@@ -11932,16 +11904,16 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           {roundDone && !isSimulating && <div style={styles.clockFull}>Tempo encerrado</div>}
           {isSimulating && !isPaused && (
             <button onClick={onPause} className="tap-target-sm" style={{
-              position: 'relative', fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
-              padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(255,140,0,0.5)',
-              background: 'rgba(255,140,0,0.1)', color: '#ffaa00', cursor: 'pointer', marginLeft: 6,
+              position: 'relative', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
+              padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(183,121,31,0.6)',
+              background: 'rgba(183,121,31,0.1)', color: 'var(--warning-ink)', cursor: 'pointer', marginLeft: 6,
             }}>⏸ Pausar</button>
           )}
           {isPaused && (
             <button onClick={onResume} className="tap-target-sm" style={{
-              position: 'relative', fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: 700,
-              padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(127,217,154,0.5)',
-              background: 'rgba(127,217,154,0.1)', color: '#7fd99a', cursor: 'pointer', marginLeft: 6,
+              position: 'relative', fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: 700,
+              padding: '3px 10px', borderRadius: 6, border: '1px solid rgba(31,122,77,0.6)',
+              background: 'rgba(31,122,77,0.1)', color: 'var(--success)', cursor: 'pointer', marginLeft: 6,
             }}>▶ Retomar</button>
           )}
         </div>
@@ -11995,13 +11967,13 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
 
       {/* Sub panel */}
       {showSubPanel && liveLineup && (
-        <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 12px' }}>
+        <div style={{ marginTop: 10, background: 'var(--surface)', borderRadius: 10, padding: '10px 12px' }}>
           {forcedSubReason && (
-            <div style={{ fontSize: 12, color: '#e0593f', marginBottom: 8, fontWeight: 700 }}>
+            <div style={{ fontSize: 12, color: 'var(--danger)', marginBottom: 8, fontWeight: 700 }}>
               🩹 {forcedSubReason} se machucou! Escolha um substituto (ou retome jogando com um a menos).
             </div>
           )}
-          <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || '#d4a23c', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || 'var(--gold-ink)', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>
             ↕ Substituição
             {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o reserva</span>}
             {!subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o titular</span>}
@@ -12016,10 +11988,10 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
                   <button key={k} onClick={() => onSelectSubStarter(subSelectStarter === k ? null : k)}
                     style={{
                       display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                      background: subSelectStarter === k ? 'rgba(127,217,154,0.15)' : 'rgba(255,255,255,0.04)',
-                      border: subSelectStarter === k ? '1px solid rgba(127,217,154,0.5)' : '1px solid rgba(255,255,255,0.08)',
-                      borderRadius: 6, color: '#F4F1EA',
-                      fontFamily: "'Space Mono',monospace", fontSize: 10, cursor: 'pointer', marginBottom: 3,
+                      background: subSelectStarter === k ? 'rgba(31,122,77,0.14)' : 'var(--surface)',
+                      border: subSelectStarter === k ? '1px solid rgba(31,122,77,0.6)' : '1px solid var(--line)',
+                      borderRadius: 6, color: 'var(--ink)',
+                      fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer', marginBottom: 3,
                     }}
                   >
                     {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
@@ -12047,10 +12019,10 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
                           title={reason}
                           style={{
                             display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                            background: blocked ? 'rgba(224,80,80,0.06)' : 'rgba(255,255,255,0.04)',
-                            border: blocked ? '1px solid rgba(224,80,80,0.25)' : '1px solid rgba(255,255,255,0.08)',
-                            borderRadius: 6, color: blocked ? 'rgba(244,241,234,0.35)' : '#F4F1EA',
-                            fontFamily: "'Space Mono',monospace", fontSize: 10,
+                            background: blocked ? 'rgba(178,59,59,0.1)' : 'var(--surface)',
+                            border: blocked ? '1px solid rgba(178,59,59,0.35)' : '1px solid var(--line)',
+                            borderRadius: 6, color: blocked ? 'var(--muted)' : 'var(--ink)',
+                            fontFamily: 'var(--font-mono)', fontSize: 10,
                             cursor: blocked ? 'not-allowed' : 'pointer', marginBottom: 3, opacity: blocked ? 0.6 : 1,
                           }}
                         >
@@ -12064,8 +12036,8 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           </div>
 
           {onLiveSlotPointerDown && (
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || '#d4a23c', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' }}>
+            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || 'var(--gold-ink)', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' }}>
                 ↔ Ajuste tático
               </div>
               <div style={{ fontSize: 10.5, opacity: 0.5, marginBottom: 6 }}>
@@ -12088,11 +12060,11 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
         <div style={{ display: 'flex', gap: 4 }}>
           {['manual', 'auto'].map(m => (
             <button key={m} onClick={() => onSetSimMode(m)} className="tap-target-sm" style={{
-              fontFamily: "'Space Mono', monospace", fontSize: 11,
+              fontFamily: 'var(--font-mono)', fontSize: 11,
               padding: '4px 10px', borderRadius: 6, border: '1px solid', cursor: 'pointer',
-              borderColor: simMode === m ? mc : 'rgba(255,255,255,0.18)',
+              borderColor: simMode === m ? mc : 'var(--line-strong)',
               background: simMode === m ? `${mc}22` : 'transparent',
-              color: simMode === m ? mc : 'rgba(255,255,255,0.45)',
+              color: simMode === m ? mc : 'var(--muted)',
               fontWeight: simMode === m ? 700 : 400,
             }}>
               {m === 'manual' ? 'Manual' : 'Auto'}
@@ -12105,7 +12077,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           </button>
         )}
         {!isSimulating && !roundDone && isAuto && autoCountdown !== null && (
-          <div style={{ flex: 1, textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc }}>
+          <div style={{ flex: 1, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, color: mc }}>
             Iniciando em {autoCountdown}s…
           </div>
         )}
@@ -12115,8 +12087,8 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           onClick={onSimulateAll}
           title="Avança todas as rodadas restantes (inclusive as suas) sem parar pra jogar cada uma"
           style={{
-            width: '100%', marginTop: 8, background: 'none', border: '1px solid rgba(212,162,60,0.35)',
-            borderRadius: 8, padding: '7px 10px', color: '#d4a23c', fontFamily: "'Space Mono', monospace",
+            width: '100%', marginTop: 8, background: 'none', border: '1px solid var(--gold)',
+            borderRadius: 8, padding: '7px 10px', color: 'var(--gold-ink)', fontFamily: 'var(--font-mono)',
             fontSize: 12, fontWeight: 600, cursor: 'pointer',
           }}
         >
@@ -12138,7 +12110,7 @@ function userRoundResult(roundResults, myTeamId) {
   const ga = isHome ? m.awayGoals : m.homeGoals;
   return { res: gf > ga ? 'V' : gf < ga ? 'D' : 'E', gf, ga };
 }
-const RESULT_COLORS = { V: '#7fd99a', D: '#e05050', E: 'rgba(255,255,255,0.45)' };
+const RESULT_COLORS = { V: '#1F7A4D', D: '#B23B3B', E: '#8A938C' };
 
 // Calendário da temporada — grade do mês com as rodadas marcadas, resultado
 // de cada uma (selo V/D/E + placar) e a simulação "dia a dia" até a rodada
@@ -12160,7 +12132,7 @@ function TinyCrest({ team, size = 20, ring = null, title }) {
   };
   if (src && !failed) {
     return (
-      <span style={{ ...box, overflow: 'hidden', background: 'rgba(255,255,255,0.06)' }} title={title}>
+      <span style={{ ...box, overflow: 'hidden', background: 'var(--surface)' }} title={title}>
         <img
           src={src} alt={team?.club || ''} onError={() => setFailed(true)}
           style={{ width: size - (ring ? 6 : 2), height: size - (ring ? 6 : 2), objectFit: 'contain' }}
@@ -12174,7 +12146,7 @@ function TinyCrest({ team, size = 20, ring = null, title }) {
       title={title}
       style={{
         ...box, background: hexToRgba(team?.color || '#9fb3a8', 0.22),
-        color: team?.color || '#cfd8d2', fontFamily: "'Space Mono', monospace",
+        color: teamInk(team?.color || '#69736B'), fontFamily: 'var(--font-mono)',
         fontSize: Math.max(7, Math.round(size * 0.4)), fontWeight: 700, letterSpacing: -0.3,
       }}
     >{nome.slice(0, 3).toUpperCase()}</span>
@@ -12185,7 +12157,7 @@ function SeasonCalendarModal({
   fixtures, seasonDates, currentRound, roundHistory, leagueTeams, myTeamId, myTeamColor,
   simActive, cursorDate, speed, onSetSpeed, onSimulateTo, onSimulateAll, onStop, onClose,
 }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const dateMap = useMemo(() => roundDateMap(seasonDates), [seasonDates]);
   const refDate = seasonDates[Math.min(currentRound, seasonDates.length - 1)] || new Date();
   const [view, setView] = useState({ year: refDate.getFullYear(), month: refDate.getMonth() });
@@ -12257,28 +12229,28 @@ function SeasonCalendarModal({
   const cursorKey = cursorDate ? dateKey(cursorDate) : null;
 
   return (
-    <div onClick={simActive ? undefined : onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.9)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 760, maxHeight: '94vh', overflowY: 'auto', background: '#0f1f15', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 22, position: 'relative' }}>
+    <div onClick={simActive ? undefined : onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
+      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 760, maxHeight: '94vh', overflowY: 'auto', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 22, position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>
             📅 Calendário de jogos
           </div>
           {!simActive && (
-            <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
+            <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
           )}
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
-          <button onClick={() => shiftMonth(-1)} disabled={simActive} aria-label="Mês anterior" className="tap-target-sm" style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#F4F1EA', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>‹</button>
-          <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 15, fontWeight: 700, minWidth: 150, textAlign: 'center' }}>
+          <button onClick={() => shiftMonth(-1)} disabled={simActive} aria-label="Mês anterior" className="tap-target-sm" style={{ background: 'none', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>‹</button>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700, minWidth: 150, textAlign: 'center' }}>
             {MONTH_NAMES[view.month]} {view.year}
           </div>
-          <button onClick={() => shiftMonth(1)} disabled={simActive} aria-label="Próximo mês" className="tap-target-sm" style={{ background: 'none', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#F4F1EA', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>›</button>
+          <button onClick={() => shiftMonth(1)} disabled={simActive} aria-label="Próximo mês" className="tap-target-sm" style={{ background: 'none', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>›</button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
           {WEEKDAY_LABELS.map(w => (
-            <div key={w} style={{ textAlign: 'center', fontSize: 10.5, fontFamily: "'Space Mono', monospace", opacity: 0.45, letterSpacing: 0.5 }}>{w}</div>
+            <div key={w} style={{ textAlign: 'center', fontSize: 10.5, fontFamily: 'var(--font-mono)', opacity: 0.45, letterSpacing: 0.5 }}>{w}</div>
           ))}
         </div>
 
@@ -12300,12 +12272,12 @@ function SeasonCalendarModal({
                 title={hasRound ? `Rodada ${round + 1}` : 'Sem jogo'}
                 style={{
                   minHeight: 70, padding: '5px 3px', borderRadius: 8, textAlign: 'center', cursor: simActive ? 'default' : 'pointer',
-                  border: `1px solid ${isCursor ? mc : isSelected ? hexToRgba(mc, 0.5) : hasRound ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.04)'}`,
-                  background: isCursor ? hexToRgba(mc, 0.22) : hasRound ? 'rgba(255,255,255,0.04)' : 'transparent',
-                  color: '#F4F1EA', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
+                  border: `1px solid ${isCursor ? mc : isSelected ? hexToRgba(mc, 0.5) : hasRound ? 'var(--line-strong)' : 'var(--line)'}`,
+                  background: isCursor ? hexToRgba(mc, 0.22) : hasRound ? 'var(--surface)' : 'transparent',
+                  color: 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
                 }}
               >
-                <span style={{ fontSize: 12, fontFamily: "'Space Mono', monospace", opacity: hasRound ? 0.85 : 0.35 }}>{day.getDate()}</span>
+                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', opacity: hasRound ? 0.85 : 0.35 }}>{day.getDate()}</span>
                 {/* O escudo do adversário vale mais que o número da rodada:
                     diz de cara contra quem é o jogo. O anel em volta carrega o
                     resultado, o que evita gastar uma linha só com o selo V/D/E
@@ -12321,7 +12293,7 @@ function SeasonCalendarModal({
                   />
                 )}
                 {hasRound && !result && (
-                  <span style={{ fontSize: 9, color: mc, fontWeight: 700, lineHeight: 1, fontFamily: "'Space Mono', monospace" }}>
+                  <span style={{ fontSize: 9, color: mc, fontWeight: 700, lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
                     {/* Tinha um "@" aqui pra marcar jogo fora. A 9px, em Space
                         Mono, ele lia como "a" — "a R2" em vez de "@ R2". Mando
                         fica no tooltip do dia e na lista de jogos abaixo, que é
@@ -12330,7 +12302,7 @@ function SeasonCalendarModal({
                   </span>
                 )}
                 {result && (
-                  <span style={{ fontSize: 9.5, fontFamily: "'Space Mono', monospace", lineHeight: 1, display: 'flex', gap: 3 }}>
+                  <span style={{ fontSize: 9.5, fontFamily: 'var(--font-mono)', lineHeight: 1, display: 'flex', gap: 3 }}>
                     <span style={{ fontWeight: 800, color: RESULT_COLORS[result.res] }}>{result.res}</span>
                     <span style={{ opacity: 0.6 }}>{result.gf}-{result.ga}</span>
                   </span>
@@ -12341,10 +12313,10 @@ function SeasonCalendarModal({
         </div>
 
         {emptyMsg && (
-          <div style={{ marginTop: 8, textAlign: 'center', fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>{emptyMsg}</div>
+          <div style={{ marginTop: 8, textAlign: 'center', fontSize: 11.5, color: 'var(--muted)' }}>{emptyMsg}</div>
         )}
 
-        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
           <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.45, marginBottom: 6 }}>
             Jogos da rodada {selectedRound + 1}
             {seasonDates[selectedRound] && ` · ${seasonDates[selectedRound].toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`}
@@ -12355,7 +12327,7 @@ function SeasonCalendarModal({
             return (
               <div key={`${m.homeId}-${m.awayId}`} style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px', fontSize: 11.5,
-                borderBottom: '1px solid rgba(255,255,255,0.05)',
+                borderBottom: '1px solid var(--line)',
                 background: isMine ? hexToRgba(mc, 0.08) : 'transparent',
                 fontWeight: isMine ? 700 : 400,
               }}>
@@ -12363,7 +12335,7 @@ function SeasonCalendarModal({
                   <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel(m.homeId)}</span>
                   <TinyCrest team={teamById(m.homeId)} size={16} />
                 </span>
-                <span style={{ fontFamily: "'Space Mono', monospace", minWidth: 34, textAlign: 'center', flexShrink: 0, color: r ? mc : 'rgba(255,255,255,0.3)' }}>
+                <span style={{ fontFamily: 'var(--font-mono)', minWidth: 34, textAlign: 'center', flexShrink: 0, color: r ? mc : 'var(--muted)' }}>
                   {r ? `${r.homeGoals}-${r.awayGoals}` : 'x'}
                 </span>
                 <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -12379,24 +12351,24 @@ function SeasonCalendarModal({
           {/* Velocidade da passagem dos dias — sempre visível (dá pra trocar
               no meio da simulação, o loop lê o valor a cada passo). */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 2 }}>
-            <span style={{ fontSize: 10.5, opacity: 0.45, fontFamily: "'Space Mono', monospace" }}>VELOCIDADE</span>
+            <span style={{ fontSize: 10.5, opacity: 0.45, fontFamily: 'var(--font-mono)' }}>VELOCIDADE</span>
             {CALENDAR_SPEEDS.map(s => (
               <button
                 key={s}
                 onClick={() => onSetSpeed(s)}
                 className="tap-target-sm"
                 style={{
-                  fontFamily: "'Space Mono', monospace", fontSize: 11, fontWeight: speed === s ? 700 : 400,
+                  fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: speed === s ? 700 : 400,
                   padding: '3px 10px', borderRadius: 6, cursor: 'pointer',
-                  border: `1px solid ${speed === s ? mc : 'rgba(255,255,255,0.2)'}`,
+                  border: `1px solid ${speed === s ? mc : 'var(--line-strong)'}`,
                   background: speed === s ? hexToRgba(mc, 0.15) : 'transparent',
-                  color: speed === s ? mc : 'rgba(255,255,255,0.6)',
+                  color: speed === s ? mc : 'var(--ink-2)',
                 }}
               >{s}x</button>
             ))}
           </div>
           {simActive ? (
-            <button onClick={onStop} style={{ ...styles.btnPrimary, width: '100%', background: '#e05050', color: '#fff' }}>
+            <button onClick={onStop} style={{ ...styles.btnPrimary, width: '100%', background: 'var(--danger)', color: '#fff' }}>
               ⏸ Parar no próximo jogo
             </button>
           ) : (
@@ -12407,7 +12379,7 @@ function SeasonCalendarModal({
               <button onClick={onSimulateAll} style={{ ...styles.btnGhost, marginTop: 0, width: '100%' }}>
                 ⏭ Simular até o fim da temporada
               </button>
-              <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }}>
+              <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }}>
                 Ir pra minha liga
               </button>
             </>
@@ -12419,7 +12391,7 @@ function SeasonCalendarModal({
 }
 
 function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
   // de pênalti na tela ao vivo, pra não deixar escalar/selecionar quem está
@@ -12485,7 +12457,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
       <div style={styles.card} className="card-mob">
         <div style={{ textAlign: 'center', padding: '54px 20px' }}>
           <div style={{ fontSize: 42, marginBottom: 16 }}>⏭️</div>
-          <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 19, fontWeight: 700, color: mc, marginBottom: 10, minHeight: 26 }}>
+          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 700, color: mc, marginBottom: 10, minHeight: 26 }}>
             {fastSimStatusMsg || 'Simulando...'}
           </div>
           {(gameMode === 'brasileirao' || gameMode === 'serieab') && (
@@ -12564,16 +12536,16 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           <div style={styles.card} className="card-mob">
             <div style={{ textAlign: 'center', padding: '24px 0 16px' }}>
               <div style={{ fontSize: 40, marginBottom: 10 }}>😔</div>
-              <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Eliminado nas {elimRoundName}</div>
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Eliminado nas {elimRoundName}</div>
               <div style={{ fontSize: 13, opacity: 0.55, marginBottom: 20 }}>O torneio continua sem voce.</div>
               {simMode === 'manual' && <button style={styles.btnSmall} onClick={onStartRound}>Simular proxima fase</button>}
               {simMode === 'manual' && onSimulateAll && (
-                <button style={{ ...styles.btnPrimary, background: '#d4a23c', color: '#0B1A12', margin: '8px auto', display: 'block' }} onClick={onSimulateAll}>
+                <button style={{ ...styles.btnPrimary, background: 'var(--gold)', color: 'var(--ink)', margin: '8px auto', display: 'block' }} onClick={onSimulateAll}>
                   Simular ate o campeao
                 </button>
               )}
               {simMode === 'auto' && autoCountdown !== null && (
-                <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#d4a23c' }}>Simulando em {autoCountdown}s...</div>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold-ink)' }}>Simulando em {autoCountdown}s...</div>
               )}
             </div>
             {cupExtras}
@@ -12593,21 +12565,21 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         <div style={styles.card} className="card-mob">
           <div style={{ textAlign: 'center', padding: '20px 0 10px' }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>😔</div>
-            <div style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Eliminado!</div>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Eliminado!</div>
             <div style={{ fontSize: 14, opacity: 0.6, marginBottom: 6 }}>Seu time foi eliminado nas {elimRoundName}.</div>
             {elimUserAgg !== null && elimOppAgg !== null && (
-              <div style={{ fontSize: 13, fontFamily: "'Space Mono', monospace", color: '#e05050', marginBottom: 20 }}>
+              <div style={{ fontSize: 13, fontFamily: 'var(--font-mono)', color: 'var(--danger)', marginBottom: 20 }}>
                 Agregado: {elimUserAgg} x {elimOppAgg}
               </div>
             )}
             {simMode === 'manual' && <button style={styles.btnSmall} onClick={onNextRound}>Ver campeao</button>}
             {simMode === 'manual' && onSimulateAll && (
-              <button style={{ ...styles.btnPrimary, background: '#d4a23c', color: '#0B1A12', margin: '8px auto', display: 'block' }} onClick={onSimulateAll}>
+              <button style={{ ...styles.btnPrimary, background: 'var(--gold)', color: 'var(--ink)', margin: '8px auto', display: 'block' }} onClick={onSimulateAll}>
                 Simular ate o campeao
               </button>
             )}
             {simMode === 'auto' && autoCountdown !== null && (
-              <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, color: '#d4a23c' }}>Avancando em {autoCountdown}s...</div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 13, color: 'var(--gold-ink)' }}>Avancando em {autoCountdown}s...</div>
             )}
           </div>
           {roundResults && cupRound.matches && leg1Results && (
@@ -12624,10 +12596,10 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                 const aw = aggAway > aggHome;
                 const isUserRow = origM.homeId === myTeamId || origM.awayId === myTeamId;
                 return (
-                  <div key={i} style={{ ...styles.otherMatchRow, background: isUserRow ? 'rgba(224,80,80,0.07)' : undefined }}>
-                    <span style={{ ...styles.otherTeam, fontWeight: hw ? 700 : 400, color: hw ? '#7fd99a' : undefined }}>{h?.label}</span>
+                  <div key={i} style={{ ...styles.otherMatchRow, background: isUserRow ? 'rgba(178,59,59,0.1)' : undefined }}>
+                    <span style={{ ...styles.otherTeam, fontWeight: hw ? 700 : 400, color: hw ? 'var(--success)' : undefined }}>{h?.label}</span>
                     <span style={styles.otherScore}>{aggHome} - {aggAway}</span>
-                    <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: aw ? 700 : 400, color: aw ? '#7fd99a' : undefined }}>{a?.label}</span>
+                    <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: aw ? 700 : 400, color: aw ? 'var(--success)' : undefined }}>{a?.label}</span>
                   </div>
                 );
               })}
@@ -12644,17 +12616,17 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           <div>
             <div style={styles.eyebrow}>Copa do Brasil · {legLabel}</div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
-              <span style={{ fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700 }}>{roundName}</span>
+              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700 }}>{roundName}</span>
               <DifficultyBadge difficulty={difficulty} />
             </div>
           </div>
           {roundDone && userInCup && simMode === 'manual' && (
-            <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12' }} onClick={onNextRound}>
+            <button style={{ ...styles.btnSmall, background: mc, color: '#fff' }} onClick={onNextRound}>
               {isFinal ? '🏆 Ver campeão →' : (isLastCupRound && cupLeg === 2 ? '🏆 Ver campeão →' : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →')}
             </button>
           )}
           {roundDone && userInCup && simMode === 'auto' && autoCountdown !== null && (
-            <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc }}>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: mc }}>
               Avançando em {autoCountdown}s…
             </div>
           )}
@@ -12673,12 +12645,12 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           const myAggLive = myLeg1 + myLeg2Live;
           const oppAggLive = oppLeg1 + oppLeg2Live;
           return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '8px 14px', background: 'rgba(0,0,0,0.25)', borderRadius: 10, marginBottom: 12, fontSize: 12, flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '8px 14px', background: 'var(--surface-2)', borderRadius: 10, marginBottom: 12, fontSize: 12, flexWrap: 'wrap' }}>
               <span style={{ opacity: 0.55 }}>1º jogo:</span>
-              <span style={{ fontWeight: 700, fontFamily: 'monospace', color: '#F4F1EA' }}>{myLeg1} × {oppLeg1}</span>
+              <span style={{ fontWeight: 700, fontFamily: 'monospace', color: 'var(--ink)' }}>{myLeg1} × {oppLeg1}</span>
               <span style={{ opacity: 0.4 }}>·</span>
               <span style={{ opacity: 0.55 }}>Agregado:</span>
-              <span style={{ fontWeight: 700, fontFamily: 'monospace', color: myAggLive > oppAggLive ? '#7fd99a' : myAggLive < oppAggLive ? '#e05050' : mc }}>{myAggLive} × {oppAggLive}</span>
+              <span style={{ fontWeight: 700, fontFamily: 'monospace', color: myAggLive > oppAggLive ? 'var(--success)' : myAggLive < oppAggLive ? 'var(--danger)' : mc }}>{myAggLive} × {oppAggLive}</span>
             </div>
           );
         })()}
@@ -12710,11 +12682,11 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           return (
             <div style={{ textAlign: 'center', padding: '10px 0 4px', fontSize: 13 }}>
               <span style={{ opacity: 0.55, marginRight: 8 }}>Placar agregado:</span>
-              <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 16, color: userAgg > oppAgg ? '#7fd99a' : userAgg < oppAgg ? '#e05050' : mc }}>
+              <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 16, color: userAgg > oppAgg ? 'var(--success)' : userAgg < oppAgg ? 'var(--danger)' : mc }}>
                 {userAgg} × {oppAgg}
               </span>
-              {userAgg > oppAgg && <span style={{ marginLeft: 8, color: '#7fd99a', fontSize: 12 }}>✓ Classificado</span>}
-              {userAgg < oppAgg && <span style={{ marginLeft: 8, color: '#e05050', fontSize: 12 }}>✗ Eliminado</span>}
+              {userAgg > oppAgg && <span style={{ marginLeft: 8, color: 'var(--success)', fontSize: 12 }}>✓ Classificado</span>}
+              {userAgg < oppAgg && <span style={{ marginLeft: 8, color: 'var(--danger)', fontSize: 12 }}>✗ Eliminado</span>}
               {userAgg === oppAgg && <span style={{ marginLeft: 8, opacity: 0.6, fontSize: 12 }}>Pênaltis</span>}
             </div>
           );
@@ -12739,9 +12711,9 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                   const winH = aggHome > aggAway, winA = aggAway > aggHome;
                   return (
                     <div key={i} style={styles.otherMatchRow}>
-                      <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined }}>{h?.label}</span>
+                      <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? 'var(--success)' : undefined }}>{h?.label}</span>
                       <span style={styles.otherScore}>{aggHome} – {aggAway}</span>
-                      <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined }}>{a?.label}</span>
+                      <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? 'var(--success)' : undefined }}>{a?.label}</span>
                     </div>
                   );
                 })
@@ -12751,9 +12723,9 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                 const winH = r.homeGoals > r.awayGoals, winA = r.awayGoals > r.homeGoals;
                 return (
                   <div key={i} style={styles.otherMatchRow}>
-                    <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? '#7fd99a' : undefined }}>{h?.label}</span>
+                    <span style={{ ...styles.otherTeam, fontWeight: winH ? 700 : 400, color: winH ? 'var(--success)' : undefined }}>{h?.label}</span>
                     <span style={styles.otherScore}>{r.homeGoals} – {r.awayGoals}</span>
-                    <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? '#7fd99a' : undefined }}>{a?.label}</span>
+                    <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: winA ? 700 : 400, color: winA ? 'var(--success)' : undefined }}>{a?.label}</span>
                   </div>
                 );
               })
@@ -12766,7 +12738,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           const penRes = cupRound.penaltyResults || [];
           if (!penRes.length) return null;
           return (
-            <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(255,255,255,0.04)', borderRadius: 10 }}>
+            <div style={{ marginTop: 12, padding: '10px 14px', background: 'var(--surface)', borderRadius: 10 }}>
               <div style={styles.sectionLabel}>Penaltis</div>
               {penRes.map((pr, pi) => {
                 const hTeam = leagueTeams.find(t => t.id === cupRound.matches[pr.matchIdx]?.homeId);
@@ -12846,12 +12818,12 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           )}
         </div>
         {roundDone && simMode === 'manual' && (
-          <button style={{ ...styles.btnSmall, background: mc, color: '#0B1A12' }} onClick={onNextRound}>
+          <button style={{ ...styles.btnSmall, background: mc, color: '#fff' }} onClick={onNextRound}>
             {isLastRound ? 'Ver resultado final →' : inPromotionTie ? 'Jogo de Volta →' : 'Próxima rodada →'}
           </button>
         )}
         {roundDone && simMode === 'auto' && autoCountdown !== null && (
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: mc, fontWeight: isLastRound ? 700 : 400 }}>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: mc, fontWeight: isLastRound ? 700 : 400 }}>
             {/* Era o mesmo texto genérico de qualquer rodada ("Avançando em
                 3s...") bem na hora de revelar o campeão — sem clima nenhum
                 pro momento mais importante da temporada. */}
@@ -12860,7 +12832,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         )}
       </div>
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid rgba(255,255,255,0.08)' }} className="tab-bar-scroll">
+      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)' }} className="tab-bar-scroll">
         {TABS.map(t => (
           <button
             key={t.id}
@@ -12868,7 +12840,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             style={{
               flex: '1 1 0%', minWidth: 0, background: 'none', border: 'none', cursor: 'pointer',
               padding: '10px 6px 12px', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap',
-              color: activeTab === t.id ? mc : 'rgba(244,241,234,0.45)',
+              color: activeTab === t.id ? mc : 'var(--muted)',
               borderBottom: `2px solid ${activeTab === t.id ? mc : 'transparent'}`,
               marginBottom: -1, transition: 'color 0.12s, border-color 0.12s',
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
@@ -12932,7 +12904,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             <span style={styles.tableCell} className="table-col-hide-mobile">GP</span>
             <span style={styles.tableCell} className="table-col-hide-mobile">GC</span>
             <span style={styles.tableCell}>SG</span>
-            <span style={{ ...styles.tableCell, color: '#d4a23c', fontWeight: 700 }}>PTS</span>
+            <span style={{ ...styles.tableCell, color: 'var(--gold-ink)', fontWeight: 700 }}>PTS</span>
             <span style={{ width: 28 }} className="table-col-hide-mobile"></span>
           </div>
           {leagueTable.map((row, i) => {
@@ -12942,13 +12914,13 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             return (
               <div key={row.id} style={{
                 ...styles.tableRow,
-                background: isMe ? hexToRgba(mc, 0.1) : i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
+                background: isMe ? hexToRgba(mc, 0.1) : i % 2 === 0 ? 'var(--surface)' : 'transparent',
                 borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
               }}>
                 <span style={styles.tablePos}>{i + 1}</span>
                 <span
                   onClick={() => !isMe && onViewTeam && onViewTeam(leagueTeams.find(t => t.id === row.id))}
-                  style={{ flex: 1, minWidth: 0, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, cursor: isMe ? 'default' : 'pointer' }}
+                  style={{ flex: 1, minWidth: 0, fontWeight: isMe ? 700 : 400, color: isMe ? mc : 'var(--ink)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, cursor: isMe ? 'default' : 'pointer' }}
                 >
                   {isMe
                     ? (myTeamLogo ? <img src={myTeamLogo} style={styles.tableCrestImg} alt="" /> : (myTeamBadge && <span style={styles.tableCrestEmoji}>{myTeamBadge}</span>))
@@ -12960,29 +12932,29 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                       {teamForm[row.id].map((r, fi) => (
                         <span key={fi} style={{
                           width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                          background: r === 'V' ? '#7fd99a' : r === 'D' ? '#e0593f' : '#d4a23c',
+                          background: r === 'V' ? 'var(--success)' : r === 'D' ? 'var(--danger)' : 'var(--gold)',
                         }} />
                       ))}
                     </span>
                   )}
                 </span>
                 <span style={styles.tableCell}>{row.pj}</span>
-                <span style={{ ...styles.tableCell, color: row.v > 0 ? '#7fd99a' : undefined }}>{row.v}</span>
+                <span style={{ ...styles.tableCell, color: row.v > 0 ? 'var(--success)' : undefined }}>{row.v}</span>
                 <span style={styles.tableCell}>{row.e}</span>
-                <span style={{ ...styles.tableCell, color: row.d > 0 ? '#e0593f' : undefined }}>{row.d}</span>
+                <span style={{ ...styles.tableCell, color: row.d > 0 ? 'var(--danger)' : undefined }}>{row.d}</span>
                 <span style={styles.tableCell} className="table-col-hide-mobile">{row.gp}</span>
                 <span style={styles.tableCell} className="table-col-hide-mobile">{row.gc}</span>
-                <span style={{ ...styles.tableCell, color: sg > 0 ? '#7fd99a' : sg < 0 ? '#e0593f' : undefined }}>{sg >= 0 ? `+${sg}` : sg}</span>
-                <span style={{ ...styles.tableCell, fontWeight: 700, color: '#d4a23c' }}>{row.pts}</span>
+                <span style={{ ...styles.tableCell, color: sg > 0 ? 'var(--success)' : sg < 0 ? 'var(--danger)' : undefined }}>{sg >= 0 ? `+${sg}` : sg}</span>
+                <span style={{ ...styles.tableCell, fontWeight: 700, color: 'var(--gold-ink)' }}>{row.pts}</span>
                 <span style={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="table-col-hide-mobile">
-                  {zone && !isMe && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{zone.label}</span>}
+                  {zone && !isMe && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{zone.label}</span>}
                 </span>
               </div>
             );
           })}
           {/* Legenda de zonas */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontSize: 11, opacity: 0.6 }}>
-            {[['#22c55e', 'G4 Libertadores (grupos)'], ['#86efac', 'G6 Libertadores (pre)'], ['#60a5fa', 'SA Sul-Americana'], ['#ef4444', 'Z4 Rebaixamento']].map(([c, l]) => (
+            {[['#1F7A4D', 'G4 Libertadores (grupos)'], ['#5FAE84', 'G6 Libertadores (pré)'], ['#2F6FA8', 'SA Sul-Americana'], ['#B23B3B', 'Z4 Rebaixamento']].map(([c, l]) => (
               <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                 <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: 'inline-block' }} />{l}
               </span>
@@ -13009,7 +12981,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             <span style={styles.tableCell} className="table-col-hide-mobile">GP</span>
             <span style={styles.tableCell} className="table-col-hide-mobile">GC</span>
             <span style={styles.tableCell}>SG</span>
-            <span style={{ ...styles.tableCell, color: '#d4a23c', fontWeight: 700 }}>PTS</span>
+            <span style={{ ...styles.tableCell, color: 'var(--gold-ink)', fontWeight: 700 }}>PTS</span>
             <span style={{ width: 28 }} className="table-col-hide-mobile"></span>
           </div>
           {otherDivision.table.map((row, i) => {
@@ -13018,7 +12990,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             return (
               <div key={row.id} style={{
                 ...styles.tableRow,
-                background: i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
+                background: i % 2 === 0 ? 'var(--surface)' : 'transparent',
                 borderLeft: zone ? `3px solid ${zone.color}` : '3px solid transparent',
               }}>
                 <span style={styles.tablePos}>{i + 1}</span>
@@ -13027,15 +12999,15 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                   <span style={{ flex: '1 1 0%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
                 </span>
                 <span style={styles.tableCell}>{row.pj}</span>
-                <span style={{ ...styles.tableCell, color: row.v > 0 ? '#7fd99a' : undefined }}>{row.v}</span>
+                <span style={{ ...styles.tableCell, color: row.v > 0 ? 'var(--success)' : undefined }}>{row.v}</span>
                 <span style={styles.tableCell}>{row.e}</span>
-                <span style={{ ...styles.tableCell, color: row.d > 0 ? '#e0593f' : undefined }}>{row.d}</span>
+                <span style={{ ...styles.tableCell, color: row.d > 0 ? 'var(--danger)' : undefined }}>{row.d}</span>
                 <span style={styles.tableCell} className="table-col-hide-mobile">{row.gp}</span>
                 <span style={styles.tableCell} className="table-col-hide-mobile">{row.gc}</span>
-                <span style={{ ...styles.tableCell, color: sg > 0 ? '#7fd99a' : sg < 0 ? '#e0593f' : undefined }}>{sg >= 0 ? `+${sg}` : sg}</span>
-                <span style={{ ...styles.tableCell, fontWeight: 700, color: '#d4a23c' }}>{row.pts}</span>
+                <span style={{ ...styles.tableCell, color: sg > 0 ? 'var(--success)' : sg < 0 ? 'var(--danger)' : undefined }}>{sg >= 0 ? `+${sg}` : sg}</span>
+                <span style={{ ...styles.tableCell, fontWeight: 700, color: 'var(--gold-ink)' }}>{row.pts}</span>
                 <span style={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="table-col-hide-mobile">
-                  {zone && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{zone.label}</span>}
+                  {zone && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{zone.label}</span>}
                 </span>
               </div>
             );
@@ -13065,10 +13037,10 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           const posLabel = assignedPos || p.pos?.[0] || '-';
           return (
             <div key={`${p.name}-${i}`} style={styles.squadRow}>
-              <span style={{ ...styles.squadPos, color: p.isCaptain ? '#d4a23c' : undefined }}>{p.isCaptain ? 'C' : posLabel}</span>
+              <span style={{ ...styles.squadPos, color: p.isCaptain ? 'var(--gold-ink)' : undefined }}>{p.isCaptain ? 'C' : posLabel}</span>
               <span style={styles.squadName}>{p.name}</span>
               <span style={styles.squadTeam}>{p.club || ''}</span>
-              <span style={{ ...styles.squadOvr, color: p.isCaptain ? '#d4a23c' : undefined }}>{p.isCaptain ? `${p.ovr} +2` : p.ovr}</span>
+              <span style={{ ...styles.squadOvr, color: p.isCaptain ? 'var(--gold-ink)' : undefined }}>{p.isCaptain ? `${p.ovr} +2` : p.ovr}</span>
             </div>
           );
         };
@@ -13079,7 +13051,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               {p.name}
               <span title={p.reason === 'suspenso' ? 'Suspenso' : 'Lesionado'} style={{ marginLeft: 6 }}>{p.reason === 'suspenso' ? '🟥' : '🩹'}</span>
               {p.replacementName && <span style={{ display: 'block', fontSize: 10, opacity: 0.8, marginTop: 1 }}>entra: {p.replacementName}</span>}
-              {p.shortOnSubs && <span style={{ display: 'block', fontSize: 10, color: '#e05050', marginTop: 1 }}>sem reserva na posição</span>}
+              {p.shortOnSubs && <span style={{ display: 'block', fontSize: 10, color: 'var(--danger)', marginTop: 1 }}>sem reserva na posição</span>}
             </span>
             <span style={styles.squadTeam}>{p.club || ''}</span>
             <span style={styles.squadOvr}>{p.ovr}</span>
@@ -13088,7 +13060,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         return (
           <div style={styles.squadList}>
             {understaffed && (
-              <div style={{ background: 'rgba(224,80,80,0.12)', border: '1px solid rgba(224,80,80,0.35)', borderRadius: 8, padding: '8px 10px', fontSize: 11.5, color: '#e05050', marginBottom: 12 }}>
+              <div style={{ background: 'rgba(178,59,59,0.12)', border: '1px solid rgba(178,59,59,0.45)', borderRadius: 8, padding: '8px 10px', fontSize: 11.5, color: 'var(--danger)', marginBottom: 12 }}>
                 ⚠️ Time desfalcado — sem reserva disponível pra uma posição.
               </div>
             )}
@@ -13128,8 +13100,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             if (desfalques.length === 0) return null;
             const hasInjury = desfalques.some(d => d.reason === 'lesionado');
             return (
-              <div style={{ marginTop: 14, background: 'rgba(224,80,80,0.08)', border: '1px solid rgba(224,80,80,0.3)', borderRadius: 10, padding: '10px 12px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#e05050', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
+              <div style={{ marginTop: 14, background: 'rgba(178,59,59,0.1)', border: '1px solid rgba(178,59,59,0.4)', borderRadius: 10, padding: '10px 12px' }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
                   Desfalques no seu time{hasInjury && <span style={{ textTransform: 'none', fontWeight: 400, opacity: 0.7 }}> — boletim de {MEDICAL_CHIEF_NAME}</span>}
                 </div>
                 {desfalques.map((d, i) => (
@@ -13141,7 +13113,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
 
           {lastMatchRatings?.length > 0 && (
             <div style={{ marginTop: 14 }}>
-              <button onClick={() => setShowRatings(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+              <button onClick={() => setShowRatings(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
                 {showRatings ? 'v' : '>'} Notas da última partida
               </button>
               {showRatings && (
@@ -13149,11 +13121,11 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                   {[activeUserMatch?.homeId, activeUserMatch?.awayId].map((tid, side) => (
                     <div key={side}>
                       {[...lastMatchRatings].filter(r => r.teamId === tid).sort((a, b) => b.rating - a.rating).map((r, i) => (
-                        <div key={`${r.name}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12, padding: '3px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                        <div key={`${r.name}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12, padding: '3px 0', borderBottom: '1px solid var(--line)' }}>
                           <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
                           <span style={{
-                            fontFamily: "'Space Mono', monospace", fontWeight: 700, flexShrink: 0,
-                            color: r.rating >= 7.5 ? '#7fd99a' : r.rating < 5.5 ? '#e0593f' : '#F4F1EA',
+                            fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0,
+                            color: r.rating >= 7.5 ? 'var(--success)' : r.rating < 5.5 ? 'var(--danger)' : 'var(--ink)',
                           }}>{r.rating.toFixed(1)}</span>
                         </div>
                       ))}
@@ -13167,7 +13139,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           {/* Historico de partidas */}
           {matchHistory && matchHistory.length > 0 && (
             <div style={{ marginTop: 12 }}>
-              <button onClick={() => setShowHistory(h => !h)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+              <button onClick={() => setShowHistory(h => !h)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
                 {showHistory ? 'v' : '>'} Historico ({matchHistory.length} partida{matchHistory.length !== 1 ? 's' : ''})
               </button>
               {showHistory && (
@@ -13186,22 +13158,22 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
                     return (
                       <div key={i} style={{
                         display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
-                        borderRadius: 8, background: 'rgba(255,255,255,0.03)',
+                        borderRadius: 8, background: 'var(--surface)',
                         border: `1px solid ${hexToRgba(RESULT_COLORS[res], 0.28)}`, fontSize: 12.5,
                       }}>
-                        <span style={{ fontSize: 9.5, opacity: 0.4, fontFamily: "'Space Mono', monospace", width: 30, flexShrink: 0 }}>
+                        <span style={{ fontSize: 9.5, opacity: 0.4, fontFamily: 'var(--font-mono)', width: 30, flexShrink: 0 }}>
                           {m.gameMode === 'copa' ? (m.legLabel || '').slice(0, 5) : `R${m.round}`}
                         </span>
                         <span style={{
                           width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          background: RESULT_COLORS[res], color: '#0B1A12', fontSize: 11, fontWeight: 800,
+                          background: RESULT_COLORS[res], color: 'var(--ink)', fontSize: 11, fontWeight: 800,
                         }}>{res}</span>
                         <span style={{ fontSize: 10, opacity: 0.4, width: 16, flexShrink: 0, textAlign: 'center' }}>{isHome ? 'vs' : '@'}</span>
                         <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opponent}</span>
                         <span style={{
-                          fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 13, flexShrink: 0,
-                          color: RESULT_COLORS[res] === RESULT_COLORS.E ? '#F4F1EA' : RESULT_COLORS[res],
+                          fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, flexShrink: 0,
+                          color: RESULT_COLORS[res] === RESULT_COLORS.E ? 'var(--ink)' : RESULT_COLORS[res],
                         }}>{gf}-{ga}</span>
                       </div>
                     );
@@ -13253,7 +13225,7 @@ function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamC
     ctx.textAlign = 'center';
 
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '600 22px "Space Mono", monospace';
+    ctx.font = '600 22px "JetBrains Mono", monospace';
     ctx.fillText('BRASILEIRÃO LENDÁRIO', 450, 90);
 
     if (!teamLogo) {
@@ -13271,7 +13243,7 @@ function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamC
 
     if (subtitle) {
       ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.font = '400 26px "Space Mono", monospace';
+      ctx.font = '400 26px "JetBrains Mono", monospace';
       ctx.fillText(subtitle, 450, 465);
     }
 
@@ -13281,10 +13253,10 @@ function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamC
       stats.forEach((s, i) => {
         const x = 60 + spacing * i + spacing / 2;
         ctx.fillStyle = mc;
-        ctx.font = '700 44px "Space Mono", monospace';
+        ctx.font = '700 44px "JetBrains Mono", monospace';
         ctx.fillText(String(s.value), x, statY);
         ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        ctx.font = '400 18px "Space Mono", monospace';
+        ctx.font = '400 18px "JetBrains Mono", monospace';
         ctx.fillText(s.label, x, statY + 30);
       });
     }
@@ -13295,7 +13267,7 @@ function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamC
       ctx.font = '700 22px Georgia, serif';
       ctx.fillText('🏅 Prêmios da Temporada', 450, y);
       ctx.fillStyle = '#F4F1EA';
-      ctx.font = '400 20px "Space Mono", monospace';
+      ctx.font = '400 20px "JetBrains Mono", monospace';
       const shownAwards = awards.slice(0, 4);
       shownAwards.forEach((a, i) => ctx.fillText(a, 450, y + 40 + i * 32));
       y += 40 + shownAwards.length * 32 + 30;
@@ -13306,7 +13278,7 @@ function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamC
       ctx.font = '700 22px Georgia, serif';
       ctx.fillText('📋 Campanha Completa', 450, y);
       y += 36;
-      ctx.font = '400 18px "Space Mono", monospace';
+      ctx.font = '400 18px "JetBrains Mono", monospace';
       campaign.forEach(line => {
         ctx.fillStyle = line.result === 'v' ? '#7fd99a' : line.result === 'd' ? '#e0593f' : 'rgba(255,255,255,0.75)';
         ctx.fillText(line.text, 450, y);
@@ -13315,7 +13287,7 @@ function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamC
     }
 
     ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.font = '400 16px "Space Mono", monospace';
+    ctx.font = '400 16px "JetBrains Mono", monospace';
     ctx.fillText('monte · escale · seja campeão', 450, height - 40);
 
     const finish = () => resolve(canvas);
@@ -13474,7 +13446,7 @@ function AnthemPlayer({ club }) {
 
   if (!videoId || status === 'error') return null;
   return (
-    <div style={{ marginTop: 24, borderRadius: 12, border: '1px solid rgba(212,162,60,0.3)', background: '#0a1a0f', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
+    <div style={{ marginTop: 24, borderRadius: 12, border: '1px solid var(--gold)', background: 'var(--surface)', padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 14 }}>
       {/* Player de verdade, escondido — só áudio */}
       <div style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', opacity: 0, pointerEvents: 'none' }}>
         <div ref={containerRef} />
@@ -13483,12 +13455,12 @@ function AnthemPlayer({ club }) {
       {/* Indicador visual */}
       <div style={{ fontSize: 28 }}>🎵</div>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 700, color: '#d4a23c' }}>Hino do Campeão</div>
+        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold-ink)' }}>Hino do Campeão</div>
         <div style={{ fontSize: 12, opacity: 0.6, marginTop: 2 }}>{club}{playing && muted ? ' · mudo até você ativar o som' : ''}</div>
         {playing && (
           <div style={{ display: 'flex', gap: 3, marginTop: 6, alignItems: 'flex-end', height: 16 }}>
             {[8, 14, 10, 16, 6, 12, 10, 14, 8].map((h, i) => (
-              <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: '#d4a23c', animation: `pulse ${0.6 + i * 0.1}s ease-in-out infinite alternate`, opacity: muted ? 0.35 : 0.8 }} />
+              <div key={i} style={{ width: 3, height: h, borderRadius: 2, background: 'var(--gold)', animation: `pulse ${0.6 + i * 0.1}s ease-in-out infinite alternate`, opacity: muted ? 0.35 : 0.8 }} />
             ))}
           </div>
         )}
@@ -13499,14 +13471,14 @@ function AnthemPlayer({ club }) {
       {status === 'ready' && muted && playing ? (
         <button
           onClick={activate}
-          style={{ background: 'rgba(212,162,60,0.15)', border: '1px solid rgba(212,162,60,0.5)', borderRadius: 8, color: '#d4a23c', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 700 }}
+          style={{ background: 'rgba(194,154,69,0.15)', border: '1px solid var(--gold)', borderRadius: 8, color: 'var(--gold-ink)', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 700 }}
         >
           🔊 Ativar som
         </button>
       ) : status === 'ready' && (
         <button
           onClick={togglePause}
-          style={{ background: playing ? 'rgba(212,162,60,0.15)' : 'rgba(255,255,255,0.06)', border: `1px solid ${playing ? 'rgba(212,162,60,0.5)' : 'rgba(255,255,255,0.2)'}`, borderRadius: 8, color: playing ? '#d4a23c' : '#aaa', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 600 }}
+          style={{ background: playing ? 'rgba(194,154,69,0.15)' : 'var(--surface)', border: `1px solid ${playing ? 'var(--gold)' : 'var(--line-strong)'}`, borderRadius: 8, color: playing ? 'var(--gold-ink)' : 'var(--muted)', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 600 }}
         >
           {playing ? '⏸ Pausar' : '▶ Tocar'}
         </button>
@@ -13551,12 +13523,12 @@ function ChampionMarquee({ teamLabel, color }) {
     const t = setTimeout(() => setRevealed(true), 700);
     return () => clearTimeout(t);
   }, []);
-  const mc = color || '#d4a23c';
+  const mc = teamInk(color || '#C29A45');
   const phrase = `PUTA QUE PARIU, É O MELHOR TIME DO BRASIL: ${(teamLabel || '').toUpperCase()}!`;
 
   if (!revealed) {
     return (
-      <div className="champion-suspense" style={{ textAlign: 'center', padding: '10px 0 18px', fontFamily: "'Space Mono', monospace", fontSize: 13, letterSpacing: 3, color: mc, textTransform: 'uppercase' }}>
+      <div className="champion-suspense" style={{ textAlign: 'center', padding: '10px 0 18px', fontFamily: 'var(--font-mono)', fontSize: 13, letterSpacing: 3, color: mc, textTransform: 'uppercase' }}>
         🏆 revelando o campeão...
       </div>
     );
@@ -13571,7 +13543,7 @@ function ChampionMarquee({ teamLabel, color }) {
     }}>
       <div className="champion-marquee-track" style={{ display: 'flex', width: 'max-content' }}>
         {[0, 1].map(i => (
-          <span key={i} style={{ whiteSpace: 'nowrap', fontFamily: "'Fraunces', Georgia, serif", fontWeight: 800, fontSize: 18, color: mc, paddingRight: 48 }}>
+          <span key={i} style={{ whiteSpace: 'nowrap', fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: 18, color: mc, paddingRight: 48 }}>
             {phrase} &nbsp;🏆&nbsp; {phrase} &nbsp;🏆&nbsp;
           </span>
         ))}
@@ -13586,7 +13558,7 @@ function ChampionMarquee({ teamLabel, color }) {
 // sessão (sem localStorage) — não é a mesma decisão "definitiva" do modal
 // de primeira visita, então pode aparecer de novo numa próxima temporada.
 function GuestConversionBanner({ myTeamColor, onOpenAccount }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
   return (
@@ -13598,10 +13570,10 @@ function GuestConversionBanner({ myTeamColor, onOpenAccount }) {
       <div style={{ flex: 1, fontSize: 12.5, lineHeight: 1.4 }}>
         <b>Curtiu a temporada?</b> Crie uma conta pra salvar seu time, entrar no Ranking Global e não perder esse progresso.
       </div>
-      <button onClick={onOpenAccount} style={{ background: mc, color: '#0B1A12', border: 'none', borderRadius: 8, padding: '7px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
+      <button onClick={onOpenAccount} style={{ background: mc, color: '#fff', border: 'none', borderRadius: 8, padding: '7px 12px', fontWeight: 700, fontSize: 12, cursor: 'pointer', flexShrink: 0, whiteSpace: 'nowrap' }}>
         Criar conta
       </button>
-      <button onClick={() => setDismissed(true)} title="Dispensar" aria-label="Dispensar" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, lineHeight: 1, cursor: 'pointer', flexShrink: 0, padding: 0, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+      <button onClick={() => setDismissed(true)} title="Dispensar" aria-label="Dispensar" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, lineHeight: 1, cursor: 'pointer', flexShrink: 0, padding: 0, width: 40, height: 40, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
     </div>
   );
 }
@@ -13614,13 +13586,13 @@ function GuestConversionBanner({ myTeamColor, onOpenAccount }) {
 function ResultSection({ icon, label, mc, children, style }) {
   return (
     <div style={{
-      background: `linear-gradient(135deg, ${hexToRgba(mc, 0.1)}, rgba(0,0,0,0.35))`,
+      background: `linear-gradient(135deg, ${hexToRgba(mc, 0.1)}, var(--surface))`,
       border: `1px solid ${hexToRgba(mc, 0.28)}`,
       borderRadius: 14, padding: '16px 18px', marginTop: 16,
       ...style,
     }}>
       {label && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.3, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1.3, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>
           {icon && <span style={{ fontSize: 14 }}>{icon}</span>}{label}
         </div>
       )}
@@ -13648,11 +13620,11 @@ function ResultStatsTabs({ mc, title, categories }) {
             onClick={() => setTabId(c.id)}
             className="tap-target-sm"
             style={{
-              fontFamily: "'Space Mono', monospace", fontSize: 11.5, fontWeight: 700,
+              fontFamily: 'var(--font-mono)', fontSize: 11.5, fontWeight: 700,
               padding: '6px 11px', borderRadius: 999, cursor: 'pointer',
-              border: `1px solid ${active.id === c.id ? mc : 'rgba(255,255,255,0.15)'}`,
-              background: active.id === c.id ? hexToRgba(mc, 0.16) : 'rgba(255,255,255,0.03)',
-              color: active.id === c.id ? mc : 'rgba(244,241,234,0.6)',
+              border: `1px solid ${active.id === c.id ? mc : 'var(--line-strong)'}`,
+              background: active.id === c.id ? hexToRgba(mc, 0.16) : 'var(--surface)',
+              color: active.id === c.id ? mc : 'var(--ink-2)',
             }}
           >
             {c.icon} {c.label}
@@ -13679,7 +13651,7 @@ function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart, isLea
     <div style={{ marginTop: 22, display: 'flex', flexDirection: 'column', gap: 10 }}>
       {onNewSeason ? (
         <>
-          <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onNewSeason}>
+          <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }} onClick={onNewSeason}>
             ▶ Nova temporada com o mesmo elenco
           </button>
           {onOpenTransferMarket && (
@@ -13699,7 +13671,7 @@ function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart, isLea
         // volta pra sala sozinho assim que o líder confirma).
         isLeader ? (
           <>
-            <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRematch}>
+            <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }} onClick={onRematch}>
               🔁 Jogar de novo com o mesmo grupo
             </button>
             <button style={{ ...styles.btnGhost, width: '100%', marginTop: 0, opacity: 0.75 }} onClick={onRestart}>
@@ -13717,7 +13689,7 @@ function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart, isLea
           </>
         )
       ) : (
-        <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onRestart}>
+        <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }} onClick={onRestart}>
           Jogar de novo
         </button>
       )}
@@ -13731,7 +13703,7 @@ function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart, isLea
 function ResultStatRow({ rank, name, team, value, mc }) {
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13 }}>
-      <span style={{ width: 20, flexShrink: 0, opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 }}>{rank}.</span>
+      <span style={{ width: 20, flexShrink: 0, opacity: 0.4, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{rank}.</span>
       {/* O nome do jogador tem prioridade: quem encolhe primeiro é o nome do
           time, que só está aqui pra desempatar homônimos. */}
       <span style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 6, overflow: 'hidden' }}>
@@ -13740,7 +13712,7 @@ function ResultStatRow({ rank, name, team, value, mc }) {
           <span style={{ opacity: 0.45, fontSize: 11, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team}</span>
         )}
       </span>
-      <span style={{ fontFamily: "'Space Mono', monospace", fontWeight: 700, color: mc, flexShrink: 0, whiteSpace: 'nowrap' }}>{value}</span>
+      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: mc, flexShrink: 0, whiteSpace: 'nowrap' }}>{value}</span>
     </div>
   );
 }
@@ -13750,7 +13722,7 @@ function ResultStatRow({ rank, name, team, value, mc }) {
 // uma partida avulsa só pra divertir, então o placar e um "volte amanhã"
 // já contam a história inteira.
 function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, leagueTeams, currentUser, onExit }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const myRow = leagueTable.find(t => t.id === myTeamId) || {};
   const oppRow = leagueTable.find(t => t.id !== myTeamId) || {};
   const oppTeam = leagueTeams?.find(t => t.id !== myTeamId);
@@ -13774,7 +13746,7 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
       <h1 style={styles.h1} className="h1-mob">
         {result === 'win' ? 'VITÓRIA!' : result === 'draw' ? 'EMPATE' : 'DERROTA'}
       </h1>
-      <div style={{ textAlign: 'center', fontSize: 26, fontWeight: 700, margin: '10px 0 4px', fontFamily: "'Space Mono', monospace", color: mc }}>
+      <div style={{ textAlign: 'center', fontSize: 26, fontWeight: 700, margin: '10px 0 4px', fontFamily: 'var(--font-mono)', color: mc }}>
         {myGoals} × {oppGoals}
       </div>
       <div style={{ textAlign: 'center', fontSize: 13, opacity: 0.6, marginBottom: 20 }}>vs {oppTeam?.label}</div>
@@ -13791,7 +13763,7 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
       <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.5, marginBottom: 22 }}>
         Só dá pra jogar a Supercopa do Brasil uma vez por dia — volta amanhã pra outro time lendário.
       </div>
-      <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#0B1A12' }} onClick={onExit}>
+      <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }} onClick={onExit}>
         Voltar à home →
       </button>
     </div>
@@ -13799,7 +13771,7 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
 }
 
 function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision, cupRounds }) {
-  const mc = myTeamColor || '#d4a23c';
+  const mc = teamInk(myTeamColor || '#C29A45');
   const [showCampaign, setShowCampaign] = useState(false);
   const [showOtherDivision, setShowOtherDivision] = useState(false);
   // A Copa terminada (manual ou via "Simular tudo") não deixava rever o
@@ -13872,13 +13844,13 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         <div style={{ textAlign: 'center', padding: '12px 0 28px' }}>
           <ChampionCrest logoUrl={championLogo} badgeEmoji={userWon ? myTeamBadge : null} fallback={userWon ? '🏆' : wasRunnerUp ? '🥈' : '⚽'} mc={mc} />
           <div style={styles.eyebrow}>Copa do Brasil — Resultado Final</div>
-          <h1 style={{ ...styles.h1, color: userWon ? mc : '#F4F1EA', marginTop: 8 }}>
+          <h1 style={{ ...styles.h1, color: userWon ? mc : 'var(--ink)', marginTop: 8 }}>
             {userWon ? 'CAMPEAO!' : wasRunnerUp ? 'VICE-CAMPEAO' : 'Copa encerrada'}
           </h1>
           <div style={{ fontSize: 15, opacity: 0.7, marginBottom: 20 }}>
             {userWon
               ? `${myTeamBadge || ''} ${myTeamBadge ? ' ' : ''}Seu time conquistou a Copa do Brasil!`
-              : <>Campeao: <b style={{ color: '#d4a23c' }}>{winner?.label ?? '-'}</b></>
+              : <>Campeao: <b style={{ color: 'var(--gold-ink)' }}>{winner?.label ?? '-'}</b></>
             }
           </div>
           {!userWon && myTeamBadge && (
@@ -13932,11 +13904,11 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
 
         {campaignLines.length > 0 && (
           <ResultSection icon="📋" label="Campanha" mc={mc}>
-            <button onClick={() => setShowCampaign(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+            <button onClick={() => setShowCampaign(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
               {showCampaign ? '▾' : '▸'} Ver todas as partidas ({campaignLines.length})
             </button>
             {showCampaign && campaignLines.map((l, i) => (
-              <div key={i} style={{ fontSize: 13, padding: '3px 0', color: l.result === 'v' ? '#7fd99a' : l.result === 'd' ? '#e0593f' : '#F4F1EA' }}>{l.text}</div>
+              <div key={i} style={{ fontSize: 13, padding: '3px 0', color: l.result === 'v' ? 'var(--success)' : l.result === 'd' ? 'var(--danger)' : 'var(--ink)' }}>{l.text}</div>
             ))}
           </ResultSection>
         )}
@@ -14026,24 +13998,24 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
                 <span style={styles.tablePos}>#</span>
                 <span style={{ flex: 1 }}>Time</span>
                 <span style={styles.tableCell}>PJ</span>
-                <span style={{ ...styles.tableCell, color: '#d4a23c', fontWeight: 700 }}>PTS</span>
+                <span style={{ ...styles.tableCell, color: 'var(--gold-ink)', fontWeight: 700 }}>PTS</span>
               </div>
               {otherDivision.table.map((row, i) => {
                 const zone = getZoneInfo(i + 1, otherDivision.table.length);
                 return (
                   <div key={row.id} style={{
                     ...styles.tableRow,
-                    background: i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
+                    background: i % 2 === 0 ? 'var(--surface)' : 'transparent',
                     borderLeft: zone ? `3px solid ${zone.color}` : '3px solid transparent',
                   }}>
                     <span style={styles.tablePos}>{i + 1}</span>
                     <span style={{ flex: 1, minWidth: 0, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
                       {row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />}
                       <span style={{ flex: '1 1 0%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
-                      {zone && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: "'Space Mono', monospace", flexShrink: 0 }}>{zone.label}</span>}
+                      {zone && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{zone.label}</span>}
                     </span>
                     <span style={styles.tableCell}>{row.pj}</span>
-                    <span style={{ ...styles.tableCell, fontWeight: 700, color: '#d4a23c' }}>{row.pts}</span>
+                    <span style={{ ...styles.tableCell, fontWeight: 700, color: 'var(--gold-ink)' }}>{row.pts}</span>
                   </div>
                 );
               })}
@@ -14097,7 +14069,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           <span style={styles.tableCell} className="table-col-hide-mobile">GP</span>
           <span style={styles.tableCell} className="table-col-hide-mobile">GC</span>
           <span style={styles.tableCell}>SG</span>
-          <span style={{ ...styles.tableCell, color: '#d4a23c', fontWeight: 700 }}>PTS</span>
+          <span style={{ ...styles.tableCell, color: 'var(--gold-ink)', fontWeight: 700 }}>PTS</span>
         </div>
         {leagueTable.map((row, i) => {
           const isMe = row.id === myTeamId;
@@ -14106,13 +14078,13 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           return (
             <div key={row.id} style={{
               ...styles.tableRow,
-              background: isMe ? hexToRgba(mc, 0.1) : i % 2 === 0 ? 'rgba(255,255,255,0.025)' : 'transparent',
+              background: isMe ? hexToRgba(mc, 0.1) : i % 2 === 0 ? 'var(--surface)' : 'transparent',
               borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
             }}>
               <span style={styles.tablePos}>{i + 1}</span>
               <span
                 onClick={() => !isMe && onViewTeam && onViewTeam(leagueTeams.find(t => t.id === row.id))}
-                style={{ flex: 1, minWidth: 0, fontWeight: isMe ? 700 : 400, color: isMe ? mc : '#F4F1EA', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: isMe ? 'default' : 'pointer' }}
+                style={{ flex: 1, minWidth: 0, fontWeight: isMe ? 700 : 400, color: isMe ? mc : 'var(--ink)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: isMe ? 'default' : 'pointer' }}
               >
                 {isMe
                   ? (myTeamLogo
@@ -14129,7 +14101,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               <span style={styles.tableCell} className="table-col-hide-mobile">{row.gp}</span>
               <span style={styles.tableCell} className="table-col-hide-mobile">{row.gc}</span>
               <span style={styles.tableCell}>{sg >= 0 ? `+${sg}` : sg}</span>
-              <span style={{ ...styles.tableCell, fontWeight: 700, color: '#d4a23c' }}>{row.pts}</span>
+              <span style={{ ...styles.tableCell, fontWeight: 700, color: 'var(--gold-ink)' }}>{row.pts}</span>
             </div>
           );
         })}
@@ -14138,11 +14110,11 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
 
       {campaignLines.length > 0 && (
         <ResultSection icon="📋" label="Campanha" mc={mc}>
-          <button onClick={() => setShowCampaign(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: "'Space Mono', monospace", fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
+          <button onClick={() => setShowCampaign(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
             {showCampaign ? '▾' : '▸'} Ver todas as partidas ({campaignLines.length})
           </button>
           {showCampaign && campaignLines.map((l, i) => (
-            <div key={i} style={{ fontSize: 13, padding: '3px 0', color: l.result === 'v' ? '#7fd99a' : l.result === 'd' ? '#e0593f' : '#F4F1EA' }}>{l.text}</div>
+            <div key={i} style={{ fontSize: 13, padding: '3px 0', color: l.result === 'v' ? 'var(--success)' : l.result === 'd' ? 'var(--danger)' : 'var(--ink)' }}>{l.text}</div>
           ))}
         </ResultSection>
       )}
@@ -14184,7 +14156,9 @@ const globalCss = `
   * { box-sizing: border-box; }
   body { margin: 0; }
   button { cursor: pointer; font-family: inherit; }
-  button:focus-visible { outline: 2px solid #d4a23c; outline-offset: 2px; }
+  button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+  button, input, select, textarea { font-family: inherit; }
+  h1, h2, h3 { font-weight: 500; letter-spacing: -0.01em; }
   button:disabled { cursor: not-allowed; }
   @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
@@ -14195,14 +14169,8 @@ const globalCss = `
      --rise-delay (inline, por item), em vez de tudo aparecer estático de
      uma vez — pedido do usuário pra tirar a cara de "tela morta/padrão". */
   .anim-rise { animation: fadeSlideIn 0.5s ease-out both; animation-delay: var(--rise-delay, 0ms); }
-  @keyframes cardGlowPulse {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(212,162,60,0); }
-    50% { box-shadow: 0 0 22px 2px rgba(212,162,60,0.22); }
-  }
-  .card-glow-pulse { animation: cardGlowPulse 3.2s ease-in-out infinite; }
   @media (prefers-reduced-motion: reduce) {
     .anim-rise { animation: none !important; }
-    .card-glow-pulse { animation: none !important; }
   }
 
   /* ── Transição do chaveamento ────────────────────────────────
@@ -14217,8 +14185,8 @@ const globalCss = `
     100% { opacity: 1; transform: scale(1); }
   }
   @keyframes bkFlash {
-    0%, 100% { box-shadow: inset 0 0 0 1.5px ${'#f0c040'}; }
-    50%      { box-shadow: inset 0 0 0 2.5px ${'#f0c040'}, 0 0 16px ${'rgba(240,192,64,0.65)'}; }
+    0%, 100% { box-shadow: inset 0 0 0 1.5px ${'#C29A45'}; }
+    50%      { box-shadow: inset 0 0 0 2.5px ${'#C29A45'}, 0 0 16px ${'rgba(194,154,69,0.45)'}; }
   }
   @keyframes bkTrophy {
     0%   { opacity: 0; transform: translateY(10px) scale(0.7); }
@@ -14237,11 +14205,11 @@ const globalCss = `
   .marquee-track:hover { animation-play-state: paused; }
   .champion-marquee-track { animation: marquee 10s linear infinite; will-change: transform; }
   @keyframes suspensePulse {
-    0%, 100% { opacity: 0.55; transform: scale(0.97); text-shadow: 0 0 0 rgba(212,162,60,0); }
-    50% { opacity: 1; transform: scale(1.04); text-shadow: 0 0 20px rgba(212,162,60,0.65); }
+    0%, 100% { opacity: 0.55; transform: scale(0.97); }
+    50% { opacity: 1; transform: scale(1.04); }
   }
   .champion-suspense { animation: suspensePulse 0.65s ease-in-out infinite; }
-  .feat-card-hover:hover { border-color: rgba(212,162,60,0.4) !important; transform: translateY(-2px); }
+  .feat-card-hover:hover { border-color: var(--line-strong) !important; transform: translateY(-2px); }
   /* Rótulo dos ícones do cabeçalho (Compartilhar/Áudio/Ranking/Novidades) só
      aparece com bastante espaço sobrando — abaixo disso vira só ícone (com
      tooltip via title) pra não espremer contra "Continuar"/"Desafio do Dia"
@@ -14324,20 +14292,20 @@ const globalCss = `
     .intro-marquee-chip { font-size: 9.5px !important; padding: 4px 9px 4px 5px !important; gap: 4px !important; }
     .intro-marquee-chip-crest { width: 13px !important; height: 13px !important; }
   }
-  input::placeholder { color: rgba(255,255,255,0.2); }
-  input:focus { border-color: rgba(212,162,60,0.5) !important; outline: none; }
+  input::placeholder, textarea::placeholder { color: var(--muted); opacity: 0.8; }
+  input:focus, select:focus, textarea:focus { border-color: var(--gold) !important; outline: none; box-shadow: 0 0 0 3px rgba(194,154,69,0.18); }
   /* Barra de rolagem discreta em todo o app — a padrão do Chrome/Windows é
      larga e cinza-claro, e ficava gritando dentro dos modais escuros. */
-  * { scrollbar-width: thin; scrollbar-color: rgba(212,162,60,0.32) transparent; }
+  * { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: transparent; }
-  ::-webkit-scrollbar-thumb { background: rgba(212,162,60,0.3); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
-  ::-webkit-scrollbar-thumb:hover { background: rgba(212,162,60,0.55); background-clip: padding-box; border: 2px solid transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 999px; border: 2px solid transparent; background-clip: padding-box; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); background-clip: padding-box; border: 2px solid transparent; }
   ::-webkit-scrollbar-corner { background: transparent; }
   .draft-left::-webkit-scrollbar { width: 3px; }
-  .formation-card:hover { background: rgba(212,162,60,0.09) !important; border-color: rgba(212,162,60,0.45) !important; transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0,0,0,0.35); }
+  .formation-card:hover { background: var(--surface) !important; border-color: var(--gold) !important; transform: translateY(-3px); box-shadow: var(--shadow); }
   .formation-card:active { transform: translateY(0); }
-  .mode-card-hover:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.3); }
+  .mode-card-hover:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
   .mode-card-hover:active { transform: translateY(0); }
   /* Setinha dos cards da home desliza levemente e acende ao passar o mouse
      — reforça o "isso é clicável" sem precisar de mais nenhum elemento. */
@@ -14346,27 +14314,26 @@ const globalCss = `
 `;
 
 const styles = {
-  page: { minHeight: '100vh', background: '#0B1A12', color: '#F4F1EA', fontFamily: "'Source Sans 3', system-ui, sans-serif", position: 'relative', overflow: 'hidden' },
-  bgTexture: { position: 'fixed', inset: 0, opacity: 0.05, background: 'repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 1px,transparent 40px)', pointerEvents: 'none' },
-  header: { borderBottom: '1px solid rgba(255,255,255,0.1)', position: 'relative', zIndex: 1 },
-  headerInner: { maxWidth: 760, margin: '0 auto', padding: '20px 24px', display: 'flex', alignItems: 'center', gap: 14 },
-  crest: { fontSize: 28 },
-  title: { fontFamily: "'Fraunces', Georgia, serif", fontSize: 20, fontWeight: 700, letterSpacing: 0.5 },
-  subtitle: { fontFamily: "'Space Mono', monospace", fontSize: 11, opacity: 0.6, letterSpacing: 1, textTransform: 'uppercase' },
+  page: { minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font-body)', position: 'relative', overflowX: 'clip' },
+  header: { borderBottom: '1px solid var(--line)', position: 'relative', zIndex: 1, background: 'var(--bg)' },
+  headerInner: { maxWidth: 1240, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 12 },
+  crest: { width: 36, height: 36, borderRadius: 10, background: 'var(--green)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' },
+  title: { fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--ink)' },
+  subtitle: { fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' },
   main: { maxWidth: 760, margin: '0 auto', padding: '32px 24px 80px', position: 'relative', zIndex: 1 },
-  card: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: 28 },
-  h1: { fontFamily: "'Fraunces', Georgia, serif", fontSize: 34, lineHeight: 1.15, margin: '0 0 16px' },
-  h2: { fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, margin: '4px 0 20px' },
-  lead: { fontSize: 16, lineHeight: 1.6, opacity: 0.85, marginBottom: 28 },
-  eyebrow: { fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: '#d4a23c' },
-  skipsBadge: { fontSize: 12, padding: '6px 12px', background: 'rgba(255,255,255,0.06)', borderRadius: 999 },
+  card: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: 28, boxShadow: 'var(--shadow-sm)' },
+  h1: { fontFamily: 'var(--font-serif)', fontSize: 34, lineHeight: 1.15, margin: '0 0 16px' },
+  h2: { fontFamily: 'var(--font-serif)', fontSize: 22, margin: '4px 0 20px' },
+  lead: { fontSize: 16, lineHeight: 1.6, color: 'var(--ink-2)', marginBottom: 28 },
+  eyebrow: { fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--gold-ink)' },
+  skipsBadge: { fontSize: 12, padding: '6px 12px', background: 'var(--surface)', borderRadius: 999 },
   draftTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
-  btnPrimary: { background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 10, padding: '14px 28px', fontSize: 16, fontWeight: 700 },
-  btnGhost: { background: 'transparent', color: '#F4F1EA', border: '1px solid rgba(255,255,255,0.25)', borderRadius: 10, padding: '12px 24px', fontSize: 14, marginTop: 16, width: '100%' },
-  btnSmall: { background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 8, padding: '8px 16px', fontSize: 13, fontWeight: 700 },
-  btnDisabled: { opacity: 0.35 },
+  btnPrimary: { background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 999, padding: '14px 28px', minHeight: 48, fontSize: 15, fontWeight: 600 },
+  btnGhost: { background: 'transparent', color: 'var(--ink)', border: '1px solid var(--line-strong)', borderRadius: 999, padding: '12px 24px', minHeight: 44, fontSize: 14, fontWeight: 500, marginTop: 16, width: '100%' },
+  btnSmall: { background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 16px', minHeight: 40, fontSize: 13, fontWeight: 600 },
+  btnDisabled: { background: 'var(--surface-2)', color: 'var(--muted)', boxShadow: 'none', cursor: 'not-allowed' },
   btnRow: { display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' },
-  emptyState: { background: 'rgba(224,89,63,0.1)', border: '1px solid rgba(224,89,63,0.4)', borderRadius: 10, padding: '16px 18px', fontSize: 14, lineHeight: 1.5 },
+  emptyState: { background: 'rgba(178,59,59,0.1)', border: '1px solid rgba(178,59,59,0.5)', borderRadius: 10, padding: '16px 18px', fontSize: 14, lineHeight: 1.5 },
 
   formationIntro: { fontSize: 13, opacity: 0.6, lineHeight: 1.5, marginBottom: 24, maxWidth: 520 },
   // minmax era 200px com um campinho de aspect-ratio 0.66 (mais alto que
@@ -14377,21 +14344,20 @@ const styles = {
   // visíveis de uma vez, sem precisar rolar tanto.
   formationGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(132px, 1fr))', gap: 10 },
   formationCard: {
-    background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12,
-    padding: '12px 10px', color: '#F4F1EA', textAlign: 'center', cursor: 'pointer',
+    background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 12,
+    padding: '12px 10px', color: 'var(--ink)', textAlign: 'center', cursor: 'pointer',
     transition: 'background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s',
   },
-  formationName: { fontSize: 13, fontWeight: 700, marginBottom: 10, fontFamily: "'Space Mono', monospace" },
-  formationShapeNum: { fontSize: 18, fontWeight: 800, fontFamily: "'Space Mono', monospace", letterSpacing: 0.3, color: '#F4F1EA' },
+  formationName: { fontSize: 13, fontWeight: 700, marginBottom: 10, fontFamily: 'var(--font-mono)' },
+  formationShapeNum: { fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)', letterSpacing: 0.3, color: 'var(--ink)' },
   formationShapeDesc: { fontSize: 10.5, opacity: 0.55, marginTop: 2, marginBottom: 8, lineHeight: 1.3 },
-  formationSectionHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.08)', flexWrap: 'wrap' },
-  formationSectionTitle: { display: 'flex', alignItems: 'center', gap: 8, fontFamily: "'Space Mono', monospace", fontSize: 12.5, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', color: '#d4a23c' },
+  formationSectionHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' },
+  formationSectionTitle: { display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', color: 'var(--gold-ink)' },
   formationSectionHint: { fontSize: 11.5, opacity: 0.45, fontStyle: 'italic' },
   miniPitch: {
     position: 'relative', width: '100%', aspectRatio: '0.66',
-    background: 'linear-gradient(180deg,#0f3d22,#145c30)', borderRadius: 10,
-    border: '1px solid rgba(255,255,255,0.2)', overflow: 'hidden',
-    boxShadow: 'inset 0 0 18px rgba(0,0,0,0.35)',
+    background: 'repeating-linear-gradient(180deg,var(--pitch) 0 14%,var(--pitch-2) 14% 28%)', borderRadius: 10,
+    border: '1px solid rgba(15,31,23,0.15)', overflow: 'hidden',
   },
   miniPitchHalfLine: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' },
   miniPitchCircle: { position: 'absolute', left: '50%', top: '50%', width: 30, height: 30, marginLeft: -15, marginTop: -15, border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', pointerEvents: 'none' },
@@ -14401,46 +14367,46 @@ const styles = {
   miniDot: {
     position: 'absolute', width: 22, height: 22, borderRadius: '50%', transform: 'translate(-50%,-50%)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
-    border: '1px solid rgba(0,0,0,0.45)', boxShadow: '0 1px 4px rgba(0,0,0,0.5)', zIndex: 2,
+    border: '1px solid rgba(0,0,0,0.3)', boxShadow: '0 1px 3px rgba(0,0,0,0.35)', zIndex: 2,
   },
-  miniDotLabel: { fontSize: 7.5, fontWeight: 800, color: '#0B1A12', fontFamily: "'Space Mono', monospace", lineHeight: 1, letterSpacing: -0.2 },
+  miniDotLabel: { fontSize: 7.5, fontWeight: 800, color: '#0F1F17', fontFamily: 'var(--font-mono)', lineHeight: 1, letterSpacing: -0.2 },
 
   pitchWrap: { margin: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
-  pitchField: { position: 'relative', width: '100%', maxWidth: 380, aspectRatio: '0.68', background: 'linear-gradient(180deg,#0f3d22 0%,#145c30 50%,#0f3d22 100%)', border: '2px solid rgba(255,255,255,0.3)', borderRadius: 8, overflow: 'hidden' },
+  pitchField: { position: 'relative', width: '100%', maxWidth: 380, aspectRatio: '0.68', background: 'repeating-linear-gradient(180deg,var(--pitch) 0 10%,var(--pitch-2) 10% 20%)', border: 'none', borderRadius: 16, overflow: 'hidden', boxShadow: 'var(--shadow)' },
 
   rolledTeamBox: { marginTop: 24 },
   rolledTeamHeader: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '2px solid', borderRadius: 12, marginBottom: 16 },
   diceIcon: { fontSize: 24 },
   diceIconSpin: { fontSize: 40, animation: 'spin 0.5s linear infinite' },
-  rolledTeamLabel: { fontFamily: "'Fraunces', Georgia, serif", fontSize: 18, fontWeight: 700 },
+  rolledTeamLabel: { fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700 },
   rolledTeamCoach: { fontSize: 12, opacity: 0.6 },
   rollingBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '32px 16px', marginTop: 8 },
-  rollingName: { fontFamily: "'Fraunces', Georgia, serif", fontSize: 22, fontWeight: 700, minHeight: 30 },
-  rollingHint: { fontSize: 12, opacity: 0.5, fontFamily: "'Space Mono', monospace", letterSpacing: 1, textTransform: 'uppercase' },
-  selectedPlayerBanner: { textAlign: 'center', fontSize: 13, padding: '10px 14px', background: 'rgba(127,217,154,0.12)', border: '1px solid rgba(127,217,154,0.4)', borderRadius: 8, margin: '12px 0' },
+  rollingName: { fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, minHeight: 30 },
+  rollingHint: { fontSize: 12, opacity: 0.5, fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase' },
+  selectedPlayerBanner: { textAlign: 'center', fontSize: 13, padding: '10px 14px', background: 'rgba(31,122,77,0.12)', border: '1px solid rgba(31,122,77,0.5)', borderRadius: 8, margin: '12px 0' },
   elevenGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 },
-  elevenCard: { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '12px 10px', textAlign: 'center', color: '#F4F1EA', fontFamily: 'inherit' },
-  elevenOvr: { fontFamily: "'Space Mono', monospace", fontSize: 18, fontWeight: 700, color: '#d4a23c' },
+  elevenCard: { background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 10, padding: '12px 10px', textAlign: 'center', color: 'var(--ink)', fontFamily: 'inherit' },
+  elevenOvr: { fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--gold-ink)' },
   elevenName: { fontSize: 13, fontWeight: 600, margin: '4px 0 2px', minHeight: 32 },
-  elevenPos: { fontSize: 10, opacity: 0.5, marginBottom: 4, fontFamily: "'Space Mono', monospace" },
+  elevenPos: { fontSize: 10, opacity: 0.5, marginBottom: 4, fontFamily: 'var(--font-mono)' },
   elevenBlocked: { fontSize: 10, opacity: 0.5, fontStyle: 'italic', padding: '6px 0' },
   elevenMultiHint: { fontSize: 9, opacity: 0.55, marginTop: 2, lineHeight: 1.3 },
-  elevenSelectedHint: { fontSize: 10, color: '#7fd99a', fontWeight: 700, marginTop: 2 },
+  elevenSelectedHint: { fontSize: 10, color: 'var(--success)', fontWeight: 700, marginTop: 2 },
 
   squadList: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 20 },
-  squadRow: { display: 'grid', gridTemplateColumns: '50px 1fr auto 40px', gap: 12, alignItems: 'center', padding: '10px 12px', background: 'rgba(255,255,255,0.04)', borderRadius: 8 },
-  squadPos: { fontFamily: "'Space Mono', monospace", fontSize: 11, opacity: 0.6 },
+  squadRow: { display: 'grid', gridTemplateColumns: '50px 1fr auto 40px', gap: 12, alignItems: 'center', padding: '10px 12px', background: 'var(--surface)', borderRadius: 8 },
+  squadPos: { fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6 },
   squadName: { fontWeight: 600, fontSize: 15 },
   squadTeam: { fontSize: 12, opacity: 0.5 },
-  squadOvr: { fontFamily: "'Space Mono', monospace", fontWeight: 700, color: '#d4a23c', textAlign: 'right' },
+  squadOvr: { fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--gold-ink)', textAlign: 'right' },
 
   // Jogo ao vivo
-  liveMatchBox: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 14, padding: '20px 16px', marginBottom: 20 },
-  statRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 },
-  statRank: { width: 20, textAlign: 'right', opacity: 0.4, fontFamily: "'Space Mono', monospace", fontSize: 11 },
+  liveMatchBox: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 16px', marginBottom: 20 },
+  statRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid var(--line)', fontSize: 13 },
+  statRank: { width: 20, textAlign: 'right', opacity: 0.4, fontFamily: 'var(--font-mono)', fontSize: 11 },
   statName: { flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
   statTeam: { fontSize: 11, opacity: 0.5, flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  statValue: { fontFamily: "'Space Mono', monospace", fontWeight: 700 },
+  statValue: { fontFamily: 'var(--font-mono)', fontWeight: 700 },
   bracketCrestSlot: { width: 20, height: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
   bracketCrestImg: { width: 20, height: 20, objectFit: 'contain', flexShrink: 0, borderRadius: 4, background: 'rgba(255,255,255,0.9)', padding: 1 },
   bracketCrestEmoji: { fontSize: 16, lineHeight: 1 },
@@ -14448,92 +14414,92 @@ const styles = {
   tableCrestEmoji: { fontSize: 17, lineHeight: 1, flexShrink: 0 },
   liveTeamsRow: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: 12, marginBottom: 12 },
   liveTeamName: { fontSize: 14, lineHeight: 1.3 },
-  liveScoreBlock: { display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(0,0,0,0.35)', borderRadius: 10, padding: '8px 16px' },
-  liveScoreNum: { fontFamily: "'Space Mono', monospace", fontSize: 28, fontWeight: 700, color: '#F4F1EA', minWidth: 24, textAlign: 'center' },
-  liveScoreDash: { fontFamily: "'Space Mono', monospace", fontSize: 20, opacity: 0.5 },
+  liveScoreBlock: { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-2)', borderRadius: 10, padding: '8px 16px' },
+  liveScoreNum: { fontFamily: 'var(--font-mono)', fontSize: 28, fontWeight: 700, color: 'var(--ink)', minWidth: 24, textAlign: 'center' },
+  liveScoreDash: { fontFamily: 'var(--font-mono)', fontSize: 20, opacity: 0.5 },
   clockRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 },
-  clock: { fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700 },
-  clockPulse: { width: 8, height: 8, borderRadius: '50%', background: '#7fd99a', animation: 'pulse 1s ease-in-out infinite' },
-  clockFull: { fontSize: 12, opacity: 0.5, fontFamily: "'Space Mono', monospace" },
+  clock: { fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700 },
+  clockPulse: { width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', animation: 'pulse 1s ease-in-out infinite' },
+  clockFull: { fontSize: 12, opacity: 0.5, fontFamily: 'var(--font-mono)' },
   matchCenter: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 },
   matchCenterRow: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 52px minmax(0,1fr)', alignItems: 'center', gap: 6 },
   matchCenterSide: { display: 'flex', minWidth: 0, overflow: 'hidden' },
   matchCenterCard: { display: 'flex', alignItems: 'center', gap: 7, padding: '6px 9px', borderRadius: 8, border: '1px solid', maxWidth: '100%', minWidth: 0 },
   matchCenterInfo: { display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 },
   matchCenterMinuteCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 },
-  goalMinute: { fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, color: '#d4a23c' },
+  goalMinute: { fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--gold-ink)' },
   goalScorer: { fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
   goalTeam: { fontSize: 11, opacity: 0.55, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  goalScore: { fontFamily: "'Space Mono', monospace", fontSize: 11, opacity: 0.6, whiteSpace: 'nowrap' },
+  goalScore: { fontFamily: 'var(--font-mono)', fontSize: 11, opacity: 0.6, whiteSpace: 'nowrap' },
   noGoalsMsg: { textAlign: 'center', opacity: 0.5, fontSize: 13, padding: '12px 0' },
 
   // Outros jogos da rodada
-  otherMatchesBox: { background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 12, padding: '16px', marginBottom: 20 },
+  otherMatchesBox: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '16px', marginBottom: 20 },
   otherMatchRow: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', gap: 8, alignItems: 'center', padding: '6px 4px', fontSize: 13 },
   otherTeam: { textAlign: 'right', opacity: 0.8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 },
-  otherScore: { fontFamily: "'Space Mono', monospace", fontWeight: 700, textAlign: 'center', minWidth: 48, flexShrink: 0, background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: '2px 6px' },
+  otherScore: { fontFamily: 'var(--font-mono)', fontWeight: 700, textAlign: 'center', minWidth: 48, flexShrink: 0, background: 'var(--surface)', borderRadius: 6, padding: '2px 6px' },
 
   // Tabela de classificação
   tableSection: { marginTop: 8 },
-  sectionLabel: { fontFamily: "'Space Mono', monospace", fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: '#d4a23c', marginBottom: 8, marginTop: 20 },
-  tableHeaderRow: { display: 'flex', alignItems: 'center', padding: '6px 10px', fontSize: 11, opacity: 0.5, fontFamily: "'Space Mono', monospace", letterSpacing: 0.5, borderBottom: '1px solid rgba(255,255,255,0.08)' },
-  tableRow: { display: 'flex', alignItems: 'center', padding: '7px 10px', fontSize: 12, borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.15s' },
-  tablePos: { width: 22, fontSize: 11, opacity: 0.5, fontFamily: "'Space Mono', monospace", textAlign: 'center', flexShrink: 0 },
-  tableCell: { width: 32, textAlign: 'center', fontFamily: "'Space Mono', monospace", fontSize: 12, flexShrink: 0 },
+  sectionLabel: { fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--gold-ink)', marginBottom: 8, marginTop: 20 },
+  tableHeaderRow: { display: 'flex', alignItems: 'center', padding: '6px 10px', fontSize: 11, opacity: 0.5, fontFamily: 'var(--font-mono)', letterSpacing: 0.5, borderBottom: '1px solid var(--line)' },
+  tableRow: { display: 'flex', alignItems: 'center', padding: '7px 10px', fontSize: 12, borderBottom: '1px solid var(--line)', transition: 'background 0.15s' },
+  tablePos: { width: 22, fontSize: 11, opacity: 0.5, fontFamily: 'var(--font-mono)', textAlign: 'center', flexShrink: 0 },
+  tableCell: { width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, flexShrink: 0 },
 
   // Resultado final
   finalStats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20, marginTop: 8 },
-  statBox: { background: 'rgba(255,255,255,0.05)', borderRadius: 10, padding: '14px 10px', textAlign: 'center' },
-  finalStatValue: { fontFamily: "'Space Mono', monospace", fontSize: 22, fontWeight: 700, color: '#d4a23c' },
+  statBox: { background: 'var(--surface)', borderRadius: 10, padding: '14px 10px', textAlign: 'center' },
+  finalStatValue: { fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: 'var(--gold-ink)' },
   statLabel: { fontSize: 11, opacity: 0.6, marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  badge: { background: 'rgba(212,162,60,0.15)', border: '1px solid #d4a23c', borderRadius: 10, padding: '14px 18px', marginBottom: 16, fontWeight: 600 },
-  badgeInfo: { background: 'rgba(127,217,154,0.08)', border: '1px solid rgba(127,217,154,0.3)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, fontSize: 14 },
-  badgeMuted: { background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, opacity: 0.7, fontSize: 14 },
-  championBox: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 14 },
+  badge: { background: 'rgba(194,154,69,0.15)', border: '1px solid var(--gold)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, fontWeight: 600 },
+  badgeInfo: { background: 'rgba(31,122,77,0.1)', border: '1px solid rgba(31,122,77,0.4)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, fontSize: 14 },
+  badgeMuted: { background: 'var(--surface)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, opacity: 0.7, fontSize: 14 },
+  championBox: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 14 },
 
   // Editor de time
-  teamEditCard: { background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '20px', marginBottom: 28, textAlign: 'left' },
+  teamEditCard: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px', marginBottom: 28, textAlign: 'left' },
   teamEditPreview: { display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 },
-  teamEditSep: { height: 1, background: 'rgba(255,255,255,0.07)', margin: '0 0 16px' },
+  teamEditSep: { height: 1, background: 'var(--surface)', margin: '0 0 16px' },
   teamEditSection: { marginBottom: 14 },
-  teamEditLabel: { display: 'block', fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', opacity: 0.45, marginBottom: 8 },
+  teamEditLabel: { display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', opacity: 0.45, marginBottom: 8 },
   badgeGrid: { display: 'flex', flexWrap: 'wrap', gap: 6 },
   colorGrid: { display: 'flex', gap: 8, flexWrap: 'wrap' },
-  teamInput: { width: '100%', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '9px 12px', color: '#F4F1EA', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' },
+  teamInput: { width: '100%', background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '9px 12px', color: 'var(--ink)', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' },
   // O popup nativo de <option> ignora o background semi-transparente do
   // <select> pai (a maioria dos navegadores desenha a lista com o fundo
   // padrão do sistema) — sem uma cor sólida explícita aqui, o texto claro
   // herdado ficava quase ilegível em cima de um fundo claro.
-  selectOption: { background: '#14261a', color: '#F4F1EA' },
+  selectOption: { background: 'var(--surface)', color: 'var(--ink)' },
   gameStatsBar: {
     display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap',
     gap: '6px 0', fontSize: 11.5, marginBottom: 22,
   },
   gameStatsPill: {
     display: 'inline-flex', alignItems: 'center', gap: 5,
-    padding: '4px 12px', color: 'rgba(244,241,234,0.75)',
+    padding: '4px 12px', color: 'var(--ink-2)',
   },
-  gameStatsDivider: { width: 3, height: 3, borderRadius: '50%', background: 'rgba(212,162,60,0.4)', flexShrink: 0 },
+  gameStatsDivider: { width: 3, height: 3, borderRadius: '50%', background: 'rgba(194,154,69,0.2)', flexShrink: 0 },
 
   // Intro screen
   introCard: { textAlign: 'center', padding: '44px 28px 36px', position: 'relative', overflow: 'hidden' },
   introGlow: {
     position: 'absolute', top: '-18%', left: '50%', transform: 'translateX(-50%)',
     width: 560, height: 360, borderRadius: '50%', pointerEvents: 'none', zIndex: 0,
-    background: 'radial-gradient(circle, rgba(212,162,60,0.16), rgba(212,162,60,0) 70%)',
+    background: 'radial-gradient(circle, rgba(194,154,69,0.16), rgba(194,154,69,0.1) 70%)',
   },
   introTopBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-  introBadge: { display: 'inline-block', fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: '#d4a23c', background: 'rgba(212,162,60,0.12)', border: '1px solid rgba(212,162,60,0.35)', borderRadius: 999, padding: '5px 14px', marginBottom: 22 },
-  introTitle: { fontFamily: "'Fraunces', Georgia, serif", fontSize: 42, fontWeight: 700, lineHeight: 1.12, letterSpacing: '-0.01em', margin: '0 0 16px' },
+  introBadge: { display: 'inline-block', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold-ink)', background: 'rgba(194,154,69,0.12)', border: '1px solid var(--gold)', borderRadius: 999, padding: '5px 14px', marginBottom: 22 },
+  introTitle: { fontFamily: 'var(--font-serif)', fontSize: 42, fontWeight: 700, lineHeight: 1.12, letterSpacing: '-0.01em', margin: '0 0 16px' },
   introTitleAccent: {
-    background: 'linear-gradient(135deg, #f0c868, #d4a23c 60%, #a87a28)',
+    background: 'linear-gradient(135deg, var(--gold), var(--gold) 60%, #a87a28)',
     WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
   },
   introLead: { fontSize: 16, lineHeight: 1.65, opacity: 0.72, maxWidth: 480, margin: '0 auto 36px' },
   featGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 36 },
-  featCard: { background: 'rgba(255,255,255,0.035)', border: '1px solid rgba(255,255,255,0.09)', borderRadius: 16, padding: '24px 16px 20px', position: 'relative', transition: 'border-color 0.15s, transform 0.15s, background 0.15s' },
+  featCard: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '24px 16px 20px', position: 'relative', transition: 'border-color 0.15s, transform 0.15s, background 0.15s' },
   featIconWrap: { width: 52, height: 52, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: 23 },
-  featIndex: { position: 'absolute', top: 12, right: 14, fontFamily: "'Space Mono', monospace", fontSize: 10, opacity: 0.3, fontWeight: 700 },
+  featIndex: { position: 'absolute', top: 12, right: 14, fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.3, fontWeight: 700 },
   featIcon: { fontSize: 24, marginBottom: 8 },
   featTitle: { fontWeight: 700, fontSize: 13.5, marginBottom: 7, letterSpacing: 0.1 },
   featDesc: { fontSize: 11.5, opacity: 0.58, lineHeight: 1.55 },
@@ -14542,11 +14508,11 @@ const styles = {
   // os blocos da home sem precisar de uma borda/divisória cheia.
   introSectionLabel: {
     display: 'flex', alignItems: 'center', gap: 14, justifyContent: 'center',
-    fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 11, letterSpacing: 2,
-    textTransform: 'uppercase', opacity: 0.55, marginBottom: 16, color: '#F4F1EA',
+    fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, letterSpacing: 2,
+    textTransform: 'uppercase', opacity: 0.55, marginBottom: 16, color: 'var(--ink)',
   },
-  introSectionLabelLine: { flex: '0 1 48px', height: 1, background: 'linear-gradient(90deg, transparent, rgba(212,162,60,0.4))' },
-  introSectionLabelLineR: { flex: '0 1 48px', height: 1, background: 'linear-gradient(90deg, rgba(212,162,60,0.4), transparent)' },
+  introSectionLabelLine: { flex: '0 1 48px', height: 1, background: 'linear-gradient(90deg, transparent, rgba(194,154,69,0.2))' },
+  introSectionLabelLineR: { flex: '0 1 48px', height: 1, background: 'linear-gradient(90deg, rgba(194,154,69,0.2), transparent)' },
   // Título de seção da home (Conquistas em destaque, Escolha o modo) — bem
   // maior/mais chamativo que teamEditLabel (que é um rótulo de campo
   // pequeno, usado em formulário/dificuldade/etc e não pode crescer senão
@@ -14554,24 +14520,24 @@ const styles = {
   // de cada seção (pedido: layout mais moderno/limpo pra home).
   homeSectionTitle: {
     display: 'flex', alignItems: 'center', gap: 10,
-    fontFamily: "'Fraunces', Georgia, serif", fontWeight: 700, fontSize: 18, letterSpacing: 0.2,
-    opacity: 0.95, marginBottom: 14, color: '#F4F1EA',
+    fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 18, letterSpacing: 0.2,
+    opacity: 0.95, marginBottom: 14, color: 'var(--ink)',
   },
-  homeSectionTitleBar: { width: 4, height: 18, borderRadius: 2, background: '#d4a23c', flexShrink: 0 },
+  homeSectionTitleBar: { width: 4, height: 18, borderRadius: 2, background: 'var(--gold)', flexShrink: 0 },
   introMarqueeWrap: {
     overflow: 'hidden', marginBottom: 36,
     maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
     WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
   },
   introMarqueeTrack: { display: 'flex', gap: 10, width: 'max-content' },
-  introTeamChip: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap', opacity: 0.75, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 999, padding: '5px 14px 5px 8px' },
+  introTeamChip: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap', opacity: 0.75, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 999, padding: '5px 14px 5px 8px' },
   introTeamChipCrest: { width: 16, height: 16, objectFit: 'contain', borderRadius: '50%', flexShrink: 0 },
   // Card base reusada por todo mode-card/spotlight/social da home — ícone
   // num badge quadrado arredondado (em vez do emoji solto flutuando), pra
   // ler como um sistema de cards único em vez de botões com estilos soltos.
   modeIconBadge: { width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, flexShrink: 0 },
   modeCardArrow: { fontSize: 16, opacity: 0.4, flexShrink: 0, transition: 'transform 0.15s, opacity 0.15s' },
-  btnIntro: { background: '#d4a23c', color: '#0B1A12', border: 'none', borderRadius: 12, padding: '16px 40px', fontSize: 17, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3 },
+  btnIntro: { background: 'var(--gold)', color: 'var(--ink)', border: 'none', borderRadius: 12, padding: '16px 40px', fontSize: 17, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3 },
 
   // Draft side-by-side layout
   // 380px = o maxWidth do próprio campinho (`pitchField`) — dar mais que
@@ -14579,18 +14545,18 @@ const styles = {
   draftLayout: { display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, marginTop: 16, alignItems: 'start' },
   draftLeft: { display: 'flex', flexDirection: 'column', gap: 0, maxHeight: '72vh', overflowY: 'auto', paddingRight: 4 },
   draftRight: { position: 'sticky', top: 16 },
-  teamHeaderCard: { background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '14px 16px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 },
+  teamHeaderCard: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '14px 16px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 },
   playersList: { display: 'flex', flexDirection: 'column', gap: 2 },
-  playerRow: { display: 'grid', gridTemplateColumns: '38px 1fr auto', gap: 10, alignItems: 'center', padding: '9px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid transparent', cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s' },
-  playerOvr: { fontFamily: "'Space Mono', monospace", fontWeight: 700, fontSize: 14, textAlign: 'center' },
+  playerRow: { display: 'grid', gridTemplateColumns: '38px 1fr auto', gap: 10, alignItems: 'center', padding: '9px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid transparent', cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s' },
+  playerOvr: { fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, textAlign: 'center' },
   playerInfo: { display: 'flex', flexDirection: 'column', gap: 1 },
   playerName: { fontSize: 13, fontWeight: 600 },
-  playerPos: { fontFamily: "'Space Mono', monospace", fontSize: 10, opacity: 0.5 },
-  playerHint: { fontSize: 10, color: '#7fd99a', fontStyle: 'italic' },
-  skipsBox: { background: 'rgba(212,162,60,0.12)', border: '1px solid rgba(212,162,60,0.3)', borderRadius: 10, padding: '8px 14px', textAlign: 'center', minWidth: 54 },
-  skipsNum: { fontFamily: "'Space Mono', monospace", fontSize: 20, fontWeight: 700, color: '#d4a23c', display: 'block' },
+  playerPos: { fontFamily: 'var(--font-mono)', fontSize: 10, opacity: 0.5 },
+  playerHint: { fontSize: 10, color: 'var(--success)', fontStyle: 'italic' },
+  skipsBox: { background: 'rgba(194,154,69,0.12)', border: '1px solid var(--gold)', borderRadius: 10, padding: '8px 14px', textAlign: 'center', minWidth: 54 },
+  skipsNum: { fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: 'var(--gold-ink)', display: 'block' },
   skipsLabel: { fontSize: 10, opacity: 0.7, textTransform: 'uppercase', letterSpacing: 0.5 },
-  progressBar: { height: 4, background: 'rgba(255,255,255,0.1)', borderRadius: 999, overflow: 'hidden' },
-  progressFill: { height: '100%', background: '#d4a23c', borderRadius: 999, transition: 'width 0.3s ease' },
-  btnSkip: { background: 'transparent', color: '#F4F1EA', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer', marginTop: 8, width: '100%' },
+  progressBar: { height: 4, background: 'var(--surface-2)', borderRadius: 999, overflow: 'hidden' },
+  progressFill: { height: '100%', background: 'var(--gold)', borderRadius: 999, transition: 'width 0.3s ease' },
+  btnSkip: { background: 'transparent', color: 'var(--ink)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer', marginTop: 8, width: '100%' },
 };
