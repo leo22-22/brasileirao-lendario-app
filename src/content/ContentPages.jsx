@@ -46,7 +46,7 @@ export function EmailLink({ subject, style, label }) {
 export function InfoPage({ tab, onNavigate, onClose, myTeamColor }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
       <button
         onClick={onClose}
         title="Voltar pro app"
@@ -168,7 +168,7 @@ export function TeamsIndexPage({ onBack, onOpenTeam, myTeamColor }) {
     return sortTeams(base, sortMode);
   }, [query, sortMode]);
   return (
-    <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
+    <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
       <button
         onClick={onBack}
         title="Voltar pro app"
@@ -251,7 +251,7 @@ export function TeamDetailPage({ team, onBack, onOpenIndex, myTeamColor, onPlayW
   const starters = [...team.players.slice(0, 11)].sort((a, b) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]));
   const bench = team.players.slice(11);
   return (
-    <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
+    <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
       <button
         onClick={onBack}
         title="Voltar pro app"

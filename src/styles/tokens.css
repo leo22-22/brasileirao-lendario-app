@@ -71,6 +71,8 @@
   color: var(--ink);
 }
 
+*, *::before, *::after { box-sizing: border-box; }
+
 html, body {
   background: var(--bg);
   color: var(--ink);
