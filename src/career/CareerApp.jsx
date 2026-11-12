@@ -454,7 +454,7 @@ export function CareerApp({ onExit, onHudChange }) {
 
   const back = () => setScreen('hub');
   let body;
-  if (screen === 'squad') body = <CareerSquadScreen save={save} onToggleListed={handleToggleListed} onBack={back} />;
+  if (screen === 'squad') body = <CareerSquadScreen save={save} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onOpenFormation={() => setScreen('formation')} onOpenMarket={() => setScreen('market')} onBack={back} />;
   else if (screen === 'formation') body = <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onSaveFormationPreset={handleSaveFormationPreset} onDeleteFormationPreset={handleDeleteFormationPreset} onRenameFormationPreset={handleRenameFormationPreset} onBack={back} />;
   else if (screen === 'table') body = <CareerTableScreen save={save} onBack={back} />;
   else if (screen === 'calendar') body = <CareerCalendarScreen save={save} onBack={back} />;

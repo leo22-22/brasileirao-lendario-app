@@ -11388,6 +11388,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-carreira-elenco',
+    date: 'Novembro de 2026',
+    title: 'Elenco do Modo Carreira redesenhado',
+    desc: 'O Elenco ganhou resumo do time (titulares, banco, OVR, valor, idade), profundidade por posição com alerta onde só tem 1 jogador, destaques da temporada (artilheiro, garçom, mais jogos e goleiro menos vazado), tabela agrupada por setor com jogos, gols e assistências, ordenação por OVR/idade/valor/potencial/gols/jogos e um painel com os detalhes do jogador. Dá pra listar para venda e listar para empréstimo direto dali.',
+  },
+  {
     id: '2026-11-carreira-formacao',
     date: 'Novembro de 2026',
     title: 'Formação do Modo Carreira redesenhada',
