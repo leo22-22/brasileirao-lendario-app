@@ -9995,7 +9995,13 @@ export function CupBracketModal({
             <div key={ti} className={flashing ? 'bk-flash' : undefined} style={{
               display: 'flex', alignItems: 'center', gap: 5, height: '50%', padding: '0 6px',
               borderBottom: ti === 0 ? '1px solid rgba(255,255,255,0.07)' : 'none',
-              background: mine ? hexToRgba(mc, 0.16) : won ? hexToRgba(BK_GOLD, isJustDecided ? 0.16 : 0.07) : 'transparent',
+              // Nunca usa a cor crua do clube se for escura demais pra ler
+              // (vários têm preto/cinza-escuro como cor principal — Santos,
+              // Botafogo-SP, Vasco, Operário etc. — bug real reportado pelo
+              // usuário: "meu nome ali tá preto"): cai pro dourado do
+              // chaveamento nesse caso, mesma convenção já usada no resto do
+              // app (ver comentário em "Orçamento do X no Modo Carreira").
+              background: mine ? hexToRgba(mcIsDark ? BK_GOLD : mc, 0.16) : won ? hexToRgba(BK_GOLD, isJustDecided ? 0.16 : 0.07) : 'transparent',
               opacity: lost ? 0.32 : 1,
             }}>
               <span style={{ ...styles.bracketCrestSlot, width: 16, height: 16 }}>{crestOf(team, row.id)}</span>
@@ -10004,12 +10010,12 @@ export function CupBracketModal({
                 style={{
                   flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   fontSize: 10.5, cursor: mine ? 'default' : 'pointer',
-                  color: mine ? mc : won ? BK_GOLD : '#F4F1EA',
+                  color: mine ? (mcIsDark ? BK_GOLD : mc) : won ? BK_GOLD : '#F4F1EA',
                   fontWeight: won || mine ? 700 : 400,
                 }}
               >{team?.label || '?'}</span>
               {row.agg !== null && row.agg !== undefined && (
-                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10.5, fontWeight: 700, color: mine ? mc : won ? BK_GOLD : 'rgba(255,255,255,0.6)' }}>
+                <span style={{ fontFamily: "'Space Mono', monospace", fontSize: 10.5, fontWeight: 700, color: mine ? (mcIsDark ? BK_GOLD : mc) : won ? BK_GOLD : 'rgba(255,255,255,0.6)' }}>
                   {row.agg}{out.onPens && won ? '*' : ''}
                 </span>
               )}
@@ -10211,7 +10217,11 @@ export function CupBracketModal({
                 ⏭ Simular até o campeão
               </button>
             )}
-            <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', marginTop: advance ? 14 : 8, background: isChampionMoment ? BK_GOLD : mc, color: isChampionMoment ? '#0B1A12' : mcIsDark ? '#F4F1EA' : '#0B1A12' }}>
+            {/* Clube com cor principal preta/cinza-escura (ex.: Santos) cai pro
+                dourado aqui também — um botão preto sólido (mesmo com texto
+                claro) lia como "quebrado" nesse tema escuro (bug real
+                reportado pelo usuário: "o botão tbm" tá preto). */}
+            <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', marginTop: advance ? 14 : 8, background: isChampionMoment || mcIsDark ? BK_GOLD : mc, color: '#0B1A12' }}>
               {isChampionMoment ? 'Ver resultado final →' : advance ? 'Continuar →' : 'Fechar'}
             </button>
           </>
