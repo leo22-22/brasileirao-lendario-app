@@ -10,6 +10,7 @@ import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { posColor, ovrColor, posOrderIndex } from '../../lib/format.js';
 import { teamForSim, clubForm } from '../engine/simHelpers.js';
 import { matchOutcomeProbabilities } from '../../App.jsx';
+import { displayName } from '../../lib/displayName.js';
 
 // Cópia local de TeamCrest/FormDots (CareerHub.jsx) — evita import
 // circular entre a tela e este modal (o hub é quem abre o modal).
@@ -19,12 +20,12 @@ function TeamCrest({ teamId, size }) {
   const team = TEAMS.find(t => t.id === teamId);
   const logo = team && CLUB_LOGOS[team.club];
   return logo
-    ? <img src={logo} alt={team.club} style={{ width: size, height: size, objectFit: 'contain' }} />
+    ? <img src={logo} alt={displayName(team.club)} style={{ width: size, height: size, objectFit: 'contain' }} />
     : <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surface-2)' }} />;
 }
 
 function FormDots({ form }) {
-  if (!form.length) return <span style={{ fontSize: 9.5, opacity: 0.35 }}>sem jogos</span>;
+  if (!form.length) return <span style={{ fontSize: 9.5, color: 'var(--muted)' }}>sem jogos</span>;
   return (
     <div style={{ display: 'flex', gap: 3 }}>
       {form.map((r, i) => (
@@ -42,7 +43,7 @@ function LineupColumn({ label, players, mc }) {
   const sorted = [...players].sort((a, b) => posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]));
   return (
     <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, opacity: 0.6, marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
+      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', marginBottom: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{label}</div>
       <div style={{ display: 'grid', gap: 5 }}>
         {sorted.map(p => (
           <div key={p.name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11.5 }}>
@@ -92,41 +93,41 @@ export function MatchPreviewModal({ save, division, homeId, awayId, onClose }) {
           }}
         >✕</button>
 
-        <div style={{ fontSize: 10.5, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>Prévia do confronto</div>
+        <div style={{ fontSize: 10.5, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 14 }}>Prévia do confronto</div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, marginBottom: 18 }}>
           <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
             <TeamCrest teamId={homeId} size={56} />
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeam.club}</div>
-            <div style={{ fontSize: 10.5, opacity: 0.5, marginTop: 1 }}>{homePos}º lugar · Casa</div>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(homeTeam.club)}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>{homePos}º lugar · Casa</div>
             <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center' }}><FormDots form={homeForm} /></div>
           </div>
-          <div style={{ fontSize: 13, opacity: 0.4, fontWeight: 700, flexShrink: 0 }}>×</div>
+          <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 700, flexShrink: 0 }}>×</div>
           <div style={{ textAlign: 'center', flex: 1, minWidth: 0 }}>
             <TeamCrest teamId={awayId} size={56} />
-            <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeam.club}</div>
-            <div style={{ fontSize: 10.5, opacity: 0.5, marginTop: 1 }}>{awayPos}º lugar · Fora</div>
+            <div style={{ fontWeight: 700, fontSize: 13.5, marginTop: 8, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(awayTeam.club)}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>{awayPos}º lugar · Fora</div>
             <div style={{ marginTop: 6, display: 'flex', justifyContent: 'center' }}><FormDots form={awayForm} /></div>
           </div>
         </div>
 
         <div style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 18 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10.5, fontWeight: 600, opacity: 0.85, marginBottom: 6 }}>
-            <span style={{ color: 'var(--ink)' }}>Vitória {homeTeam.club} {homeWinPct}%</span>
+            <span style={{ color: 'var(--ink)' }}>Vitória {displayName(homeTeam.club)} {homeWinPct}%</span>
             <span style={{ opacity: 0.6 }}>Empate {drawPct}%</span>
-            <span style={{ color: 'var(--gold-ink)' }}>Vitória {awayTeam.club} {awayWinPct}%</span>
+            <span style={{ color: 'var(--gold-ink)' }}>Vitória {displayName(awayTeam.club)} {awayWinPct}%</span>
           </div>
           <div style={{ width: '100%', height: 8, borderRadius: 999, background: 'var(--surface-2)', overflow: 'hidden', display: 'flex' }}>
             <div style={{ width: `${homeWinPct}%`, background: 'var(--line-strong)' }} />
             <div style={{ width: `${drawPct}%`, background: 'var(--surface-2)' }} />
             <div style={{ width: `${awayWinPct}%`, background: 'linear-gradient(90deg, var(--gold), var(--gold))' }} />
           </div>
-          <div style={{ fontSize: 10, opacity: 0.4, marginTop: 6, textAlign: 'center' }}>Chance calculada a partir da força de cada elenco (já considera a fase recente/moral) e do fator casa.</div>
+          <div style={{ fontSize: 10, color: 'var(--muted)', marginTop: 6, textAlign: 'center' }}>Chance calculada a partir da força de cada elenco (já considera a fase recente/moral) e do fator casa.</div>
         </div>
 
         <div style={{ display: 'flex', gap: 20 }}>
-          <LineupColumn label={`${homeTeam.club} — titulares previstos`} players={homeStarters} mc={mc} />
-          <LineupColumn label={`${awayTeam.club} — titulares previstos`} players={awayStarters} mc={mc} />
+          <LineupColumn label={`${displayName(homeTeam.club)} — titulares previstos`} players={homeStarters} mc={mc} />
+          <LineupColumn label={`${displayName(awayTeam.club)} — titulares previstos`} players={awayStarters} mc={mc} />
         </div>
       </div>
     </div>

@@ -6,6 +6,7 @@ import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { posColor, posOrderIndex, ovrColor } from '../../lib/format.js';
 import { buildPitchSlots } from '../engine/formations.js';
 import { teamForSim } from '../engine/simHelpers.js';
+import { displayName } from '../../lib/displayName.js';
 
 const SIM_MINUTES_PER_TICK = 2;
 // Velocidade da simulação ao vivo (pedido explícito do usuário 2026-11-11,
@@ -71,11 +72,11 @@ export function TeamBadge({ team }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 96 }}>
       {logo ? (
-        <img src={logo} alt={team.club} style={{ width: 42, height: 42, objectFit: 'contain' }} />
+        <img src={logo} alt={displayName(team.club)} style={{ width: 42, height: 42, objectFit: 'contain' }} />
       ) : (
         <div style={{ width: 42, height: 42, borderRadius: '50%', background: team.color || '#333' }} />
       )}
-      <div style={{ fontSize: 11.5, fontWeight: 600, textAlign: 'center', lineHeight: 1.2 }}>{team.club}</div>
+      <div style={{ fontSize: 11.5, fontWeight: 600, textAlign: 'center', lineHeight: 1.2 }}>{displayName(team.club)}</div>
     </div>
   );
 }
@@ -86,7 +87,7 @@ export function RatingsList({ ratings, homeTeam, awayTeam }) {
     const list = ratings.filter(r => r.teamId === team.id).sort((a, b) => b.rating - a.rating);
     return (
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 6, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.club}</div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(team.club)}</div>
         {list.map(p => (
           <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 11.5, marginBottom: 3 }}>
             <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
@@ -193,8 +194,8 @@ export function useLiveMatchPlayer(sim, homeTeam, awayTeam) {
 
 export const wrapStyle = { width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' };
 export const cardStyle = { padding: '14px 12px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--line)' };
-export const labelStyle = { fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 4 };
-export const primaryBtnStyle = { width: '100%', padding: '13px 0', borderRadius: 10, border: 'none', background: 'var(--gold)', color: 'var(--ink)', fontSize: 14, fontWeight: 700, cursor: 'pointer' };
+export const labelStyle = { fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 4 };
+export const primaryBtnStyle = { width: '100%', padding: '13px 0', borderRadius: 999, border: 'none', background: 'var(--green)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' };
 export const secondaryBtnStyle = { width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 8 };
 const pauseBtnStyle = { width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(183,121,31,0.5)', background: 'rgba(183,121,31,0.1)', color: 'var(--warning-ink)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', marginBottom: 8 };
 
@@ -248,8 +249,8 @@ function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, onApplySub, o
 
       {selectedSlot && (
         <>
-          <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>Banco — toque pra substituir por {selectedPlayer.name}</div>
-          {eligibleBench.length === 0 && <p style={{ fontSize: 11.5, opacity: 0.5, marginBottom: 8 }}>Ninguém do banco joga em {selectedSlot.realPos}.</p>}
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Banco — toque pra substituir por {selectedPlayer.name}</div>
+          {eligibleBench.length === 0 && <p style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8 }}>Ninguém do banco joga em {selectedSlot.realPos}.</p>}
           <div style={{ display: 'grid', gap: 4, marginBottom: eligibleStarterSlots.length > 0 ? 10 : 0 }}>
             {eligibleBench.map(p => (
               <button
@@ -265,7 +266,7 @@ function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, onApplySub, o
           </div>
           {eligibleStarterSlots.length > 0 && (
             <>
-              <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>Ou reposicionar (troca de posição, sem mexer no banco)</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Ou reposicionar (troca de posição, sem mexer no banco)</div>
               <div style={{ display: 'grid', gap: 4 }}>
                 {eligibleStarterSlots.map(s => (
                   <button
@@ -352,7 +353,7 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
           <div style={labelStyle}>{label}</div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 0 24px' }}>
             <TeamBadge team={homeTeam} />
-            <div style={{ fontSize: 13, opacity: 0.4, fontWeight: 700 }}>x</div>
+            <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 700 }}>x</div>
             <TeamBadge team={awayTeam} />
           </div>
         </div>
@@ -371,7 +372,7 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
           <TeamBadge team={awayTeam} />
         </div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.6, fontFamily: 'var(--font-mono)' }}>
+          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
             {phase === 'playing' ? (isPaused ? 'Pausado' : `${minute}'`) : 'Fim de jogo'}
           </div>
           {phase === 'playing' && !isPaused && <MatchSpeedPicker speedKey={speedKey} onChange={changeSpeed} />}
@@ -380,11 +381,11 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
 
       <div style={{ minHeight: 140, marginBottom: 16, display: 'grid', gap: 6, padding: 10, borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)' }}>
         {shownEvents.length === 0 && phase === 'playing' && (
-          <div style={{ textAlign: 'center', fontSize: 12, opacity: 0.4, padding: '20px 0' }}>Bola rolando...</div>
+          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', padding: '20px 0' }}>Bola rolando...</div>
         )}
         {[...shownEvents].reverse().map((ev, i) => (
           <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, padding: '5px 8px', borderRadius: 8, background: 'var(--surface)' }}>
-            <span style={{ width: 28, opacity: 0.5, fontFamily: 'var(--font-mono)', fontSize: 11 }}>{ev.minute}'</span>
+            <span style={{ width: 28, color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{ev.minute}'</span>
             <span>{eventIcon(ev)}</span>
             <span style={{ flex: 1 }}>{eventText(ev)}</span>
           </div>

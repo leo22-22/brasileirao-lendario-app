@@ -19,6 +19,7 @@ import { LOAN_DURATIONS } from '../engine/loans.js';
 import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
 import { backButtonStyle } from '../components/styles.js';
 import { ovrColor, posOrderIndex, posColor, POS_ORDER } from '../../lib/format.js';
+import { displayName } from '../../lib/displayName.js';
 
 // Reaproveita POS_ORDER (lib/format.js) em vez de manter uma lista própria
 // — já cobre os 12 códigos de posição que existem nos dados (inclusive MD/
@@ -100,18 +101,18 @@ function AdvancedFilters({ adv, setAdv }) {
       {open && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)' }}>
           <div>
-            <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Idade</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Idade</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <input value={adv.ageMin} onChange={e => update('ageMin', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-              <span style={{ opacity: 0.4, fontSize: 11, flexShrink: 0 }}>até</span>
+              <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>até</span>
               <input value={adv.ageMax} onChange={e => update('ageMax', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Valor de mercado (R$)</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Valor de mercado (R$)</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <input value={adv.valueMin ? Number(adv.valueMin).toLocaleString('pt-BR') : ''} onChange={e => update('valueMin', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-              <span style={{ opacity: 0.4, fontSize: 11, flexShrink: 0 }}>até</span>
+              <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>até</span>
               <input value={adv.valueMax ? Number(adv.valueMax).toLocaleString('pt-BR') : ''} onChange={e => update('valueMax', e.target.value.replace(/\D/g, '').slice(0, 10))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
             </div>
           </div>
@@ -139,7 +140,7 @@ function PlayerSearchBar({ query, setQuery, pos, setPos, resultCount, adv, setAd
         </select>
       </div>
       {adv && setAdv && <AdvancedFilters adv={adv} setAdv={setAdv} />}
-      {(query || pos || advActive) && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 5 }}>{resultCount} jogador{resultCount === 1 ? '' : 'es'} encontrado{resultCount === 1 ? '' : 's'}</div>}
+      {(query || pos || advActive) && <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 5 }}>{resultCount} jogador{resultCount === 1 ? '' : 'es'} encontrado{resultCount === 1 ? '' : 's'}</div>}
     </div>
   );
 }
@@ -220,11 +221,11 @@ function MyRosterTab({ save, onToggleListed, onToggleLoanList, windowOpen }) {
   const filtered = filterPlayers(roster, query, pos, advParsed);
   return (
     <div>
-      {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — pode listar jogadores agora, mas as propostas só chegam quando ela abrir (janeiro, ou julho).</p>}
+      {!windowOpen && <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Janela fechada — pode listar jogadores agora, mas as propostas só chegam quando ela abrir (janeiro, ou julho).</p>}
       {roster.length <= MIN_SQUAD_SIZE && <p style={{ fontSize: 12, color: 'var(--warning-ink)', marginBottom: 10 }}>Elenco no mínimo de {MIN_SQUAD_SIZE} jogadores — mesmo que venha proposta, não vai dar pra vender/emprestar até o elenco crescer.</p>}
-      <p style={{ fontSize: 11.5, opacity: 0.55, marginBottom: 10, lineHeight: 1.4 }}>📋 Não dá pra vender direto — coloque o jogador na lista de transferências (aumenta em 50% a chance de vir proposta por ele) e aguarde alguém se interessar. 🔁 Empréstimo funciona igual: colocar na lista de empréstimo não empresta ninguém sozinho, só sinaliza que o jogador tá disponível — uma proposta de empréstimo (com a duração que o clube propôs) pode ou não aparecer depois. Aceite ou rejeite as duas na aba Propostas.</p>
+      <p style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10, lineHeight: 1.4 }}>📋 Não dá pra vender direto — coloque o jogador na lista de transferências (aumenta em 50% a chance de vir proposta por ele) e aguarde alguém se interessar. 🔁 Empréstimo funciona igual: colocar na lista de empréstimo não empresta ninguém sozinho, só sinaliza que o jogador tá disponível — uma proposta de empréstimo (com a duração que o clube propôs) pode ou não aparecer depois. Aceite ou rejeite as duas na aba Propostas.</p>
       <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} adv={adv} setAdv={setAdv} />
-      {filtered.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
+      {filtered.length === 0 && <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
       {filtered.map(p => {
         const value = computePlayerValue(p, save.myClubId);
         const listed = transferList.includes(p.name);
@@ -239,7 +240,7 @@ function MyRosterTab({ save, onToggleListed, onToggleLoanList, windowOpen }) {
               <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ovrColor(p.ovr), fontSize: 13 }}>{p.ovr}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.7 }}>{formatMoney(value)}</span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-2)' }}>{formatMoney(value)}</span>
               <div style={{ display: 'flex', gap: 6 }}>
                 {!borrowed && (
                   <button
@@ -308,7 +309,7 @@ function ProposeRow({ player, price, enabled, disabledReason, onPropose, onReque
       </div>
       {mode === null && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, opacity: 0.7 }}>Valor de mercado: {formatMoney(price)}</span>
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--ink-2)' }}>Valor de mercado: {formatMoney(price)}</span>
           <div style={{ display: 'flex', gap: 6 }}>
             {!borrowed && (
               <button
@@ -332,7 +333,7 @@ function ProposeRow({ player, price, enabled, disabledReason, onPropose, onReque
       )}
       {mode === 'buy' && (
         <div>
-          <p style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>Quanto menor que {formatMoney(price)}, menor a chance do clube aceitar.</p>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Quanto menor que {formatMoney(price)}, menor a chance do clube aceitar.</p>
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               value={amountInput ? Number(amountInput).toLocaleString('pt-BR') : ''}
@@ -357,7 +358,7 @@ function ProposeRow({ player, price, enabled, disabledReason, onPropose, onReque
           </div>
         ) : (
           <div>
-            <p style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>Pedir {player.name} emprestado por:</p>
+            <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Pedir {player.name} emprestado por:</p>
             <DurationPicker kind={loanKind} setKind={setLoanKind} />
             <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
               <button onClick={handleSendLoan} disabled={!loanKind} style={{ flex: 1, padding: '7px 0', borderRadius: 8, border: 'none', background: loanKind ? 'var(--info)' : 'rgba(47,111,168,0.14)', color: 'var(--ink)', fontWeight: 700, fontSize: 12, cursor: loanKind ? 'pointer' : 'default' }}>Enviar pedido</button>
@@ -399,9 +400,9 @@ function ClubRosterList({ save, clubId, onPropose, onRequestLoan, windowOpen }) 
     <div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
         {logo && <img src={logo} alt="" style={{ width: 28, height: 28, objectFit: 'contain' }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
-        <div style={{ fontWeight: 700, fontSize: 15 }}>{team.club}</div>
+        <div style={{ fontWeight: 700, fontSize: 15 }}>{displayName(team.club)}</div>
       </div>
-      {!windowOpen && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Janela fechada — só dá pra consultar os preços, não propor.</p>}
+      {!windowOpen && <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Janela fechada — só dá pra consultar os preços, não propor.</p>}
       {lastResult && (
         <div style={{
           padding: '9px 12px', borderRadius: 8, marginBottom: 10, fontSize: 12.5,
@@ -417,7 +418,7 @@ function ClubRosterList({ save, clubId, onPropose, onRequestLoan, windowOpen }) 
         </div>
       )}
       <PlayerSearchBar query={query} setQuery={setQuery} pos={pos} setPos={setPos} resultCount={filtered.length} adv={adv} setAdv={setAdv} />
-      {filtered.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
+      {filtered.length === 0 && <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '12px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
       {filtered.map(p => {
         const price = computePlayerValue(p, clubId);
         const canAfford = myBudget >= price * 0.5; // precisa dar pra propor pelo menos um valor com chance real
@@ -468,18 +469,18 @@ function ClubAdvancedFilters({ adv, setAdv }) {
       {open && (
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginTop: 8, padding: '10px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid var(--line)' }}>
           <div>
-            <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Força do elenco (OVR)</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Força do elenco (OVR)</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <input value={adv.strengthMin} onChange={e => update('strengthMin', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-              <span style={{ opacity: 0.4, fontSize: 11, flexShrink: 0 }}>até</span>
+              <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>até</span>
               <input value={adv.strengthMax} onChange={e => update('strengthMax', e.target.value.replace(/\D/g, '').slice(0, 2))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 10, opacity: 0.5, marginBottom: 4 }}>Valor total do elenco (R$)</div>
+            <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Valor total do elenco (R$)</div>
             <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
               <input value={adv.valueMin ? Number(adv.valueMin).toLocaleString('pt-BR') : ''} onChange={e => update('valueMin', e.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="min" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
-              <span style={{ opacity: 0.4, fontSize: 11, flexShrink: 0 }}>até</span>
+              <span style={{ color: 'var(--muted)', fontSize: 11, flexShrink: 0 }}>até</span>
               <input value={adv.valueMax ? Number(adv.valueMax).toLocaleString('pt-BR') : ''} onChange={e => update('valueMax', e.target.value.replace(/\D/g, '').slice(0, 12))} placeholder="max" inputMode="numeric" style={{ ...inputStyle, width: '100%', padding: '6px 8px', boxSizing: 'border-box' }} />
             </div>
           </div>
@@ -557,7 +558,7 @@ function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
         ))}
       </div>
       <ClubAdvancedFilters adv={clubAdv} setAdv={setClubAdv} />
-      {filteredIds.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum clube encontrado com esse filtro.</p>}
+      {filteredIds.length === 0 && <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '12px 0' }}>Nenhum clube encontrado com esse filtro.</p>}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
         {filteredIds.map(id => {
           const team = TEAMS.find(t => t.id === id);
@@ -565,7 +566,7 @@ function OtherClubsTab({ save, onPropose, onRequestLoan, windowOpen }) {
           return (
             <button key={id} onClick={() => setClubId(id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line)', background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer', textAlign: 'left' }} className="mode-card-hover">
               {logo && <img src={logo} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
-              <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team.club}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(team.club)}</span>
             </button>
           );
         })}
@@ -604,9 +605,9 @@ function OfferCard({ offer, idx, onRespond, onCounterOffer, onResult }) {
   return (
     <div style={{ padding: '10px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 8 }}>
       {isLoan ? (
-        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{buyerTeam?.club}</b> quer pegar <b>{offer.playerName}</b> emprestado por <b style={{ color: 'var(--info)' }}>{loanLabel}</b></div>
+        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{displayName(buyerTeam?.club)}</b> quer pegar <b>{offer.playerName}</b> emprestado por <b style={{ color: 'var(--info)' }}>{loanLabel}</b></div>
       ) : (
-        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{buyerTeam?.club}</b> oferece <b style={{ color: 'var(--gold-ink)' }}>{formatMoney(offer.amount)}</b> por <b>{offer.playerName}</b></div>
+        <div style={{ fontSize: 13, marginBottom: 6 }}><b>{displayName(buyerTeam?.club)}</b> oferece <b style={{ color: 'var(--gold-ink)' }}>{formatMoney(offer.amount)}</b> por <b>{offer.playerName}</b></div>
       )}
       {!countering ? (
         <div style={{ display: 'flex', gap: 8 }}>
@@ -616,7 +617,7 @@ function OfferCard({ offer, idx, onRespond, onCounterOffer, onResult }) {
         </div>
       ) : (
         <div>
-          <p style={{ fontSize: 11, opacity: 0.6, marginBottom: 6 }}>Peça um valor maior — se o clube topar pagar, a venda sai nesse valor; se achar caro demais, desiste e a proposta cai.</p>
+          <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Peça um valor maior — se o clube topar pagar, a venda sai nesse valor; se achar caro demais, desiste e a proposta cai.</p>
           <div style={{ display: 'flex', gap: 6 }}>
             <input
               value={counterInput ? Number(counterInput).toLocaleString('pt-BR') : ''}
@@ -666,7 +667,7 @@ function OffersTab({ save, onRespond, onCounterOffer }) {
             }}>{msg.text}</div>
           );
         })()}
-        <p style={{ fontSize: 13, opacity: 0.6 }}>Nenhuma proposta por enquanto — elas podem surgir durante uma janela de transferências aberta (janeiro, ou julho), quando um clube de IA se interessa por algum jogador seu (pra comprar ou pra pegar emprestado). Colocar o jogador na lista de transferências ou na lista de empréstimo (aba "Meu elenco") aumenta a chance.</p>
+        <p style={{ fontSize: 13, color: 'var(--muted)' }}>Nenhuma proposta por enquanto — elas podem surgir durante uma janela de transferências aberta (janeiro, ou julho), quando um clube de IA se interessa por algum jogador seu (pra comprar ou pra pegar emprestado). Colocar o jogador na lista de transferências ou na lista de empréstimo (aba "Meu elenco") aumenta a chance.</p>
       </div>
     );
   }
@@ -708,13 +709,13 @@ function historyLine(entry, myClubId) {
   const otherTeam = TEAMS.find(t => t.id === otherId);
   switch (entry.type) {
     case 'user-buy':
-      return { icon: '📥', color: 'var(--success)', text: `Comprado — ${entry.playerName} do ${otherTeam?.club} por ${formatMoney(entry.amount)}` };
+      return { icon: '📥', color: 'var(--success)', text: `Comprado — ${entry.playerName} do ${displayName(otherTeam?.club)} por ${formatMoney(entry.amount)}` };
     case 'user-sell':
-      return { icon: '📤', color: 'var(--warning-ink)', text: `Vendido — ${entry.playerName} para o ${otherTeam?.club} por ${formatMoney(entry.amount)}` };
+      return { icon: '📤', color: 'var(--warning-ink)', text: `Vendido — ${entry.playerName} para o ${displayName(otherTeam?.club)} por ${formatMoney(entry.amount)}` };
     case 'loan-out':
-      return { icon: '🔁', color: 'var(--info)', text: `Emprestado — ${entry.playerName} para o ${otherTeam?.club}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
+      return { icon: '🔁', color: 'var(--info)', text: `Emprestado — ${entry.playerName} para o ${displayName(otherTeam?.club)}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
     case 'loan-in':
-      return { icon: '🔁', color: 'var(--info)', text: `Pego emprestado — ${entry.playerName} do ${otherTeam?.club}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
+      return { icon: '🔁', color: 'var(--info)', text: `Pego emprestado — ${entry.playerName} do ${displayName(otherTeam?.club)}${entry.durationLabel ? ` por ${entry.durationLabel}` : ''}` };
     case 'retired':
       return { icon: '🏁', color: 'var(--ink-2)', text: `Aposentado — ${entry.playerName}` };
     default:
@@ -743,14 +744,14 @@ function HistoryTab({ save }) {
           >{f.label}</button>
         ))}
       </div>
-      {filtered.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '12px 0' }}>Nenhum registro {filter ? 'desse tipo ' : ''}ainda.</p>}
+      {filtered.length === 0 && <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '12px 0' }}>Nenhum registro {filter ? 'desse tipo ' : ''}ainda.</p>}
       {filtered.map((entry, i) => {
         const line = historyLine(entry, myId);
         return (
           <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 6 }}>
             <span style={{ fontSize: 15, flexShrink: 0 }}>{line.icon}</span>
             <span style={{ flex: 1, fontSize: 12.5, color: line.color }}>{line.text}</span>
-            <span style={{ fontSize: 10.5, opacity: 0.4, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>T{entry.season} · d{entry.day}</span>
+            <span style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>T{entry.season} · d{entry.day}</span>
           </div>
         );
       })}
@@ -764,8 +765,8 @@ export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounte
   return (
     <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 4 }}>Mercado de Transferências</h2>
-      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>Orçamento: <b style={{ color: 'var(--gold-ink)' }}>{formatMoney(save.clubs[save.myClubId].budget)}</b></p>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 4 }}>Mercado de Transferências</h2>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>Orçamento: <b style={{ color: 'var(--gold-ink)' }}>{formatMoney(save.clubs[save.myClubId].budget)}</b></p>
       <TransferWindowBadge day={save.calendarDay} style={{ marginBottom: 12 }} />
       <TabBar tab={tab} setTab={setTab} offerCount={save.pendingOffers?.length || 0} />
       {tab === 'mine' && <MyRosterTab save={save} onToggleListed={onToggleListed} onToggleLoanList={onToggleLoanList} windowOpen={windowOpen} />}

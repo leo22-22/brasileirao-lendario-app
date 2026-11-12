@@ -106,8 +106,8 @@ export function CareerCalendarScreen({ save, onBack }) {
   return (
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 4 }}>Calendário da temporada {save.season}</h2>
-      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 16 }}>Série {save.clubs[save.myClubId].division} · {division.round}/{division.fixtures.length} rodadas jogadas.</p>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 4 }}>Calendário da temporada {save.season}</h2>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>Série {save.clubs[save.myClubId].division} · {division.round}/{division.fixtures.length} rodadas jogadas.</p>
 
       <div style={{ padding: '14px 12px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
@@ -118,7 +118,7 @@ export function CareerCalendarScreen({ save, onBack }) {
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
           {WEEKDAY_LABELS.map(w => (
-            <div key={w} style={{ textAlign: 'center', fontSize: 10, fontFamily: 'var(--font-mono)', opacity: 0.45, letterSpacing: 0.5 }}>{w}</div>
+            <div key={w} style={{ textAlign: 'center', fontSize: 10, fontFamily: 'var(--font-mono)', color: 'var(--muted)', letterSpacing: 0.5 }}>{w}</div>
           ))}
         </div>
 
@@ -152,7 +152,7 @@ export function CareerCalendarScreen({ save, onBack }) {
                 color: 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
               }}
             >
-              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', opacity: hasAny ? 0.85 : 0.3 }}>{dayOfMonth}</span>
+              <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: hasAny ? 'var(--ink)' : 'var(--muted)', fontWeight: hasAny ? 600 : 400 }}>{dayOfMonth}</span>
               {hasRound && <TinyCrest team={opponent?.team} ring={result ? RESULT_COLORS[result.res] : null} />}
               {hasRound && !result && (
                 <span style={{ fontSize: 8.5, color: 'var(--gold-ink)', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>R{round + 1}</span>
@@ -177,7 +177,7 @@ export function CareerCalendarScreen({ save, onBack }) {
 
       {selected.type === 'round' && (
         <div style={{ padding: '12px 12px 4px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--line)' }}>
-          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.45, marginBottom: 6 }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 6 }}>
             Jogos da rodada {selected.idx + 1}{selectedDay ? ` · ${formatCalendarDay(selectedDay)}` : ''}
           </div>
           {selectedMatches.map((m, i) => {
@@ -209,14 +209,14 @@ export function CareerCalendarScreen({ save, onBack }) {
 
       {selected.type === 'copa' && (
         <div style={{ padding: '12px 12px 4px', borderRadius: 14, background: 'var(--surface)', border: '1px solid var(--line)' }}>
-          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, opacity: 0.45, marginBottom: 6 }}>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 6 }}>
             🏆 Copa do Brasil — {COPA_ROUND_LABELS[selected.idx]}{selectedDay ? ` · ${formatCalendarDay(selectedDay)}` : ''}
           </div>
           {!selectedCopa && (
-            <p style={{ fontSize: 12, opacity: 0.5, paddingBottom: 10 }}>Essa fase ainda não foi disputada.</p>
+            <p style={{ fontSize: 12, color: 'var(--muted)', paddingBottom: 10 }}>Essa fase ainda não foi disputada.</p>
           )}
           {selectedCopa && selectedCopa.isCurrent && (
-            <p style={{ fontSize: 12, opacity: 0.6, paddingBottom: 10 }}>
+            <p style={{ fontSize: 12, color: 'var(--muted)', paddingBottom: 10 }}>
               Fase em andamento — avance o calendário até lá pra disputar{selectedCopa.myTie ? ' o seu confronto' : ''}.
             </p>
           )}

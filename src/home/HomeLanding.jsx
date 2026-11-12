@@ -10,7 +10,9 @@ import { useState, useMemo } from 'react';
 import { TEAMS } from '../data/teams.js';
 import { CLUB_LOGOS } from '../data/club-logos.js';
 import { hexToRgba, parseTeamLabel } from '../lib/format.js';
+import { ERA_BUCKETS, YEAR_RANGE_LABEL, FIRST_YEAR } from '../lib/eras.js';
 import './home.css';
+import { displayName } from '../lib/displayName.js';
 
 function ArrowIcon({ color }) {
   return (
@@ -37,16 +39,6 @@ function ModeIcon({ id, color = '#0D3A29', size = 22 }) {
   );
 }
 
-const ERA_BUCKETS = [
-  { key: 'all', label: 'Todas as eras', test: () => true },
-  { key: '60s', label: 'Anos 60', test: y => y < 1970 },
-  { key: '70s', label: 'Anos 70', test: y => y >= 1970 && y < 1980 },
-  { key: '80s', label: 'Anos 80', test: y => y >= 1980 && y < 1990 },
-  { key: '90s', label: 'Anos 90', test: y => y >= 1990 && y < 2000 },
-  { key: '2000s', label: 'Anos 2000', test: y => y >= 2000 && y < 2010 },
-  { key: '2010s', label: 'Anos 2010', test: y => y >= 2010 && y < 2020 },
-  { key: '2020s', label: '2020 — 2026', test: y => y >= 2020 },
-];
 const TEAMS_PER_ERA = 8;
 
 // Mesma lógica de posicionamento do campinho do WeeklyTeamModal (App.jsx) —
@@ -102,7 +94,7 @@ export function HomeLanding({
       {/* ── Hero ── */}
       <div className="hl-hero">
         <div>
-          <span className="hl-eyebrow hl-mono"><i /> Futebol brasileiro · 1959 — 2026</span>
+          <span className="hl-eyebrow hl-mono"><i /> Futebol brasileiro · {YEAR_RANGE_LABEL}</span>
           <h1 className="hl-h1">Monte o time <em>lendário</em> dos seus sonhos.</h1>
           <p className="hl-lead">
             Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
@@ -190,7 +182,7 @@ export function HomeLanding({
             <span className="hl-eyebrow hl-mono"><i /> Escolha o modo</span>
             <h2 className="hl-h2">Sete jeitos de<br />fazer <em>história</em>.</h2>
           </div>
-          <p>Do draft clássico com lendas de 1959 à temporada atual do Brasileirão — sozinho ou com até 32 amigos.</p>
+          <p>Do draft clássico com lendas de {FIRST_YEAR} à temporada atual do Brasileirão — sozinho ou com até 32 amigos.</p>
         </div>
 
         <div className="hl-modes">
@@ -344,7 +336,7 @@ export function HomeLanding({
                     <span className="hl-yr">{t.year}</span>
                   </div>
                   <div className="hl-body">
-                    <h4>{t.club}</h4>
+                    <h4>{displayName(t.club)}</h4>
                     <p>{achievement || ' '}</p>
                   </div>
                 </div>

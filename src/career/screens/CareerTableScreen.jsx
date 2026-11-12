@@ -55,7 +55,7 @@ export function CareerTableScreen({ save, onBack }) {
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 12 }}>Tabela</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 12 }}>Tabela</h2>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
         {['A', 'B'].map(d => (
@@ -111,7 +111,7 @@ export function CareerTableScreen({ save, onBack }) {
 
       <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
         {(division === 'A' ? SERIE_A_LEGEND : SERIE_B_LEGEND).map(l => (
-          <div key={l.text} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, opacity: 0.6 }}>
+          <div key={l.text} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)' }}>
             <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, flexShrink: 0 }} />
             {l.text}
           </div>

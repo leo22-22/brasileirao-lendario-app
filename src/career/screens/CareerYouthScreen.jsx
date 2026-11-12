@@ -35,13 +35,13 @@ export function CareerYouthScreen({ save, onPromote, onBack }) {
   return (
     <div style={{ width: '100%', maxWidth: 520, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 4 }}>🌱 Categoria de Base</h2>
-      <p style={{ fontSize: 11.5, opacity: 0.55, marginBottom: 16, lineHeight: 1.4 }}>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 4 }}>Categoria de base</h2>
+      <p style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.4 }}>
         Jovens revelados pela base ficam aqui — não entram em campo nem podem ser negociados até você promover pro elenco profissional, ou automaticamente quando completam 20 anos.
       </p>
 
       {academy.length === 0 && (
-        <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '24px 0' }}>Nenhum jovem na base agora — todo fim de temporada o clube revela 2 ou 3 novos.</p>
+        <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>Nenhum jovem na base agora — todo fim de temporada o clube revela 2 ou 3 novos.</p>
       )}
 
       {academy.map(p => {
@@ -58,12 +58,12 @@ export function CareerYouthScreen({ save, onPromote, onBack }) {
                 <div style={{ fontSize: 13.5, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {p.name}{p.isStar && <span title="Joia rara" style={{ marginLeft: 5 }}>💎</span>}
                 </div>
-                <div style={{ fontSize: 11, opacity: 0.55 }}>{p.age} anos</div>
+                <div style={{ fontSize: 11, color: 'var(--muted)' }}>{p.age} anos</div>
               </div>
               <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ovrColor(p.ovr), fontSize: 15 }}>{p.ovr}</span>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: 11.5, opacity: 0.75 }}>
+              <span style={{ fontSize: 11.5, color: 'var(--ink-2)' }}>
                 {range ? <>Potencial: <b style={{ color: 'var(--gold-ink)' }}>{range.low}-{range.high}</b></> : 'Sem potencial de crescimento'}
               </span>
               <button

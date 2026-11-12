@@ -44,10 +44,10 @@ export default function ContentApp() {
   };
 
   if (infoPage) {
-    return <InfoPage tab={infoPage} onNavigate={navigateToInfo} onClose={goHome} />;
+    return <InfoPage tab={infoPage} onNavigate={navigateToInfo} onClose={goHome} onNavigateTeams={navigateToTeamsIndex} />;
   }
   if (teamsPage === 'index') {
-    return <TeamsIndexPage onBack={goHome} onOpenTeam={navigateToTeam} />;
+    return <TeamsIndexPage onBack={goHome} onOpenTeam={navigateToTeam} onNavigateInfo={navigateToInfo} onNavigateTeams={navigateToTeamsIndex} />;
   }
   if (teamsPage) {
     const team = TEAMS.find(t => t.id === teamsPage);
@@ -56,7 +56,7 @@ export default function ContentApp() {
         team={team}
         onBack={goHome}
         onOpenIndex={navigateToTeamsIndex}
-        onPlayWithTeam={goHome}
+        onNavigateInfo={navigateToInfo}
       />
     );
   }

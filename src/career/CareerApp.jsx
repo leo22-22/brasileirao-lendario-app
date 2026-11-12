@@ -32,6 +32,7 @@ import { COPA_ROUND_LABELS } from './engine/copaEngine.js';
 import { proposeTransfer, promoteYouthPlayer } from './engine/rosterStore.js';
 import { toggleLoanList, requestLoanIn } from './engine/loans.js';
 import { applyCareerLineupChange } from './engine/simHelpers.js';
+import { displayName } from '../lib/displayName.js';
 
 export function CareerApp({ onExit, onHudChange }) {
   const [save, setSave] = useState(() => loadCareerSave());
@@ -383,7 +384,7 @@ export function CareerApp({ onExit, onHudChange }) {
     return (
       <CareerTwoLegScreen
         title="Mata-mata de acesso"
-        subtitle={`Ida e volta contra ${oppTeam?.club} — quem passar garante vaga na Série A.`}
+        subtitle={`Ida e volta contra ${displayName(oppTeam?.club)} — quem passar garante vaga na Série A.`}
         winLabel="🏆 Vaga garantida na Série A!"
         loseLabel="Eliminado — segue na Série B"
         prepare={() => simulateUserTie(save)}

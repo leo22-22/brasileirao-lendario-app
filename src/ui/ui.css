@@ -1,0 +1,176 @@
+/* Componentes base (src/ui/) — classes com prefixo ui-, tokens de tokens.css. */
+
+/* ── Botão ─────────────────────────────────────────────── */
+.ui-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  border-radius: 999px; border: 1px solid transparent; cursor: pointer;
+  font-family: var(--font-body); font-weight: 500; white-space: nowrap;
+  transition: transform .15s ease, box-shadow .15s ease, background .15s ease, border-color .15s ease;
+  text-decoration: none; line-height: 1;
+}
+.ui-btn-sm { height: 40px; padding: 0 14px; font-size: 13px; }
+.ui-btn-md { height: 44px; padding: 0 20px; font-size: 14px; }
+.ui-btn-lg { height: 52px; padding: 0 26px; font-size: 15.5px; }
+.ui-btn-block { width: 100%; }
+.ui-btn-dark { background: var(--green); color: #fff; }
+.ui-btn-gold { background: var(--gold); color: #fff; }
+.ui-btn-ghost { background: transparent; color: var(--ink); border-color: var(--line-strong); }
+.ui-btn-soft { background: var(--surface-2); color: var(--ink); }
+.ui-btn-danger { background: transparent; color: var(--danger); border-color: rgba(178,59,59,.4); }
+.ui-btn:disabled, .ui-btn[aria-disabled="true"] {
+  background: var(--surface-2); color: var(--muted); border-color: var(--line); cursor: not-allowed; box-shadow: none; transform: none;
+}
+@media (hover: hover) {
+  .ui-btn:not(:disabled):hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  .ui-btn-ghost:not(:disabled):hover { border-color: var(--ink-2); }
+}
+
+/* ── Card ──────────────────────────────────────────────── */
+.ui-card { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 22px; }
+.ui-card-flat { box-shadow: none; }
+.ui-card-raised { box-shadow: var(--shadow); }
+.ui-card-dark { background: var(--green); border-color: transparent; }
+
+/* ── Tag / Pill ────────────────────────────────────────── */
+.ui-tag {
+  display: inline-flex; align-items: center; gap: 5px; border-radius: 999px; padding: 4px 10px;
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; font-weight: 600;
+  background: var(--surface-2); color: var(--ink-2); white-space: nowrap;
+}
+.ui-tag-gold { background: var(--gold-soft); color: #6E531A; }
+.ui-tag-success { background: var(--success-soft); color: var(--success); }
+.ui-tag-info { background: var(--info-soft); color: var(--info); }
+.ui-tag-warning { background: var(--warning-soft); color: var(--warning-ink); }
+.ui-tag-danger { background: var(--danger-soft); color: var(--danger); }
+.ui-tag-purple { background: var(--purple-soft); color: var(--purple); }
+.ui-tag-dark { background: var(--green); color: #fff; }
+
+/* ── Tabs ──────────────────────────────────────────────── */
+.ui-tabs { display: flex; gap: 6px; padding: 4px; background: var(--surface-2); border-radius: 999px; overflow-x: auto; scrollbar-width: none; }
+.ui-tabs::-webkit-scrollbar { display: none; }
+.ui-tab {
+  flex: 1 0 auto; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  min-height: 40px; padding: 0 16px; border-radius: 999px; border: none; background: transparent;
+  color: var(--ink-2); font-family: var(--font-body); font-size: 13.5px; font-weight: 500; cursor: pointer; white-space: nowrap;
+}
+.ui-tab[aria-selected="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 1px 3px rgba(15,31,23,.12); }
+
+/* ── Modal ─────────────────────────────────────────────── */
+.ui-overlay {
+  position: fixed; inset: 0; z-index: 9000; background: var(--overlay);
+  display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto;
+  animation: uiFade .15s ease-out;
+}
+.ui-modal {
+  position: relative; width: 100%; max-width: 520px; max-height: calc(100vh - 32px); overflow-y: auto;
+  background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 20px;
+  padding: 24px; box-shadow: 0 30px 60px -20px rgba(15,31,23,.35);
+}
+.ui-modal-close {
+  position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: 999px;
+  border: none; background: transparent; color: var(--muted); cursor: pointer; display: grid; place-items: center;
+}
+.ui-modal-close:hover { background: var(--surface-2); color: var(--ink); }
+@keyframes uiFade { from { opacity: 0; } to { opacity: 1; } }
+@media (max-width: 560px) {
+  .ui-overlay { align-items: flex-end; padding: 0; }
+  .ui-modal { border-radius: 20px 20px 0 0; max-height: 92vh; }
+}
+
+/* ── SectionHeader ─────────────────────────────────────── */
+.ui-eyebrow { display: inline-flex; align-items: center; gap: 10px; font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--green-2); }
+.ui-eyebrow i { width: 24px; height: 1px; background: var(--gold); display: inline-block; }
+.ui-title { font-family: var(--font-serif); font-weight: 400; letter-spacing: -.02em; line-height: 1.08; margin: 8px 0 0; color: var(--ink); }
+.ui-title em { font-style: italic; color: var(--gold-ink); }
+.ui-title-lg { font-size: 36px; }
+.ui-title-md { font-size: 26px; }
+.ui-title-sm { font-size: 20px; }
+.ui-sh { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; margin-bottom: 20px; }
+.ui-sh p { color: var(--muted); font-size: 14px; line-height: 1.55; margin: 6px 0 0; max-width: 520px; }
+@media (max-width: 640px) { .ui-title-lg { font-size: 28px; } .ui-title-md { font-size: 22px; } }
+
+/* ── Input / Select ────────────────────────────────────── */
+.ui-field { display: flex; flex-direction: column; gap: 6px; }
+.ui-label { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ui-input, .ui-select {
+  width: 100%; min-height: 44px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line-strong);
+  background: var(--surface); color: var(--ink); font-family: var(--font-body); font-size: 14px;
+}
+.ui-input-wrap { position: relative; }
+.ui-input-wrap .ui-input { padding-left: 40px; }
+.ui-input-wrap > svg { position: absolute; left: 13px; top: 50%; transform: translateY(-50%); color: var(--muted); pointer-events: none; }
+
+/* ── StatTile ──────────────────────────────────────────── */
+.ui-stat { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; min-width: 0; }
+.ui-stat .ui-stat-k { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ui-stat .ui-stat-v { font-family: var(--font-serif); font-size: 28px; letter-spacing: -.02em; line-height: 1.1; margin-top: 4px; color: var(--ink); }
+.ui-stat .ui-stat-s { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+/* ── PlayerRow ─────────────────────────────────────────── */
+.ui-prow { display: grid; grid-template-columns: 44px minmax(0,1fr) auto; gap: 12px; align-items: center; padding: 10px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; min-height: 56px; }
+.ui-prow .ui-prow-name { font-weight: 600; font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ui-prow .ui-prow-sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ui-ovr { font-family: var(--font-mono); font-weight: 600; font-size: 14px; min-width: 36px; height: 36px; border-radius: 999px; display: grid; place-items: center; background: var(--surface-2); }
+
+/* ── TeamBadge ─────────────────────────────────────────── */
+.ui-badge { display: inline-grid; place-items: center; flex-shrink: 0; border-radius: 10px; overflow: hidden; }
+.ui-badge img { width: 100%; height: 100%; object-fit: contain; }
+.ui-badge-fallback { font-family: var(--font-mono); font-weight: 600; color: #fff; }
+
+/* ── Alerta ────────────────────────────────────────────── */
+.ui-alert { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; font-size: 13.5px; line-height: 1.45; border: 1px solid; }
+.ui-alert-warning { background: var(--warning-soft); border-color: rgba(183,121,31,.35); color: var(--warning-ink); }
+.ui-alert-info { background: var(--info-soft); border-color: rgba(47,111,168,.3); color: var(--info); }
+.ui-alert-success { background: var(--success-soft); border-color: rgba(31,122,77,.3); color: var(--success); }
+.ui-alert-danger { background: var(--danger-soft); border-color: rgba(178,59,59,.3); color: var(--danger); }
+button.ui-alert { width: 100%; text-align: left; cursor: pointer; font-family: var(--font-body); }
+
+/* ── Header do site ────────────────────────────────────── */
+.ui-header { position: relative; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line); }
+.ui-header-inner { max-width: 1240px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 12px; min-height: 64px; }
+.ui-brand { display: flex; align-items: center; gap: 12px; background: none; border: none; padding: 0; cursor: pointer; color: var(--ink); text-align: left; min-width: 0; text-decoration: none; }
+.ui-brand-mark { width: 36px; height: 36px; border-radius: 10px; background: var(--green); display: grid; place-items: center; flex-shrink: 0; color: var(--gold); }
+.ui-brand-name { display: block; font-family: var(--font-serif); font-size: 19px; font-weight: 500; letter-spacing: -.01em; line-height: 1.1; white-space: nowrap; }
+.ui-brand-sub { display: block; font-family: var(--font-mono); font-size: 10px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-top: 2px; white-space: nowrap; }
+.ui-header-actions { margin-left: auto; display: flex; align-items: center; gap: 8px; min-width: 0; }
+.ui-hbtn {
+  position: relative; display: inline-flex; align-items: center; gap: 7px; height: 40px; min-width: 40px; padding: 0 12px;
+  border-radius: 999px; border: 1px solid var(--line-strong); background: transparent; color: var(--ink-2);
+  font-family: var(--font-body); font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap; justify-content: center;
+}
+.ui-hbtn:hover { border-color: var(--ink-2); color: var(--ink); }
+.ui-hbtn-gold { border-color: rgba(194,154,69,.55); background: rgba(194,154,69,.1); color: var(--gold-ink); }
+.ui-hbtn-dark { background: var(--green); color: #fff; border-color: transparent; }
+.ui-hbtn-dark:hover { color: #fff; border-color: transparent; filter: brightness(1.15); }
+.ui-hbtn-icon { padding: 0; width: 40px; }
+.ui-hbtn .ui-dot { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: var(--danger); color: #fff; font-size: 9.5px; font-weight: 700; display: grid; place-items: center; font-family: var(--font-mono); }
+.ui-hsep { width: 1px; height: 22px; background: var(--line); flex-shrink: 0; }
+.ui-hlabel { display: none; }
+@media (min-width: 1280px) { .ui-hlabel { display: inline; } }
+.ui-hmenu-wrap { position: relative; }
+.ui-hmenu {
+  position: absolute; right: 0; top: calc(100% + 8px); min-width: 230px; z-index: 50;
+  background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 6px; box-shadow: var(--shadow);
+}
+.ui-hmenu button { display: flex; width: 100%; align-items: center; gap: 10px; min-height: 44px; padding: 0 12px; border: none; background: none; border-radius: 10px; color: var(--ink); font-family: var(--font-body); font-size: 14px; cursor: pointer; text-align: left; }
+.ui-hmenu button:hover { background: var(--surface-2); }
+.ui-hmenu hr { border: none; border-top: 1px solid var(--line); margin: 6px 4px; }
+/* No desktop o menu "⋯" some: as ações ficam todas à vista. */
+.ui-only-mobile { display: none !important; }
+@media (max-width: 860px) {
+  .ui-header-inner { padding: 10px 14px; gap: 8px; min-height: 60px; }
+  .ui-brand-sub { display: none; }
+  .ui-brand-name { font-size: 16px; }
+  .ui-brand-mark { width: 34px; height: 34px; }
+  .ui-hide-mobile { display: none !important; }
+  .ui-only-mobile { display: inline-flex !important; }
+  .ui-header-actions { gap: 6px; }
+}
+@media (max-width: 380px) { .ui-brand-name { font-size: 14.5px; } }
+
+/* ── Rodapé do site ────────────────────────────────────── */
+.ui-footer { max-width: 1240px; margin: 0 auto; display: flex; justify-content: space-between; align-items: center; padding: 40px 24px 48px; color: var(--muted); font-size: 13.5px; gap: 12px; flex-wrap: wrap; border-top: 1px solid var(--line); }
+.ui-footer nav { display: flex; gap: 6px 22px; flex-wrap: wrap; }
+.ui-footer a, .ui-footer button { background: none; border: none; color: var(--muted); font-size: 13.5px; cursor: pointer; padding: 10px 0; font-family: var(--font-body); text-decoration: none; }
+.ui-footer a:hover, .ui-footer button:hover { color: var(--ink); }
+@media (max-width: 640px) { .ui-footer { flex-direction: column; align-items: flex-start; padding: 28px 16px 40px; } }

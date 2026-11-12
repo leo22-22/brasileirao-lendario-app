@@ -11,6 +11,7 @@ import { formatCalendarDay } from '../engine/calendar.js';
 import { COPA_ROUND_LABELS, copaCurrentDay } from '../engine/copaEngine.js';
 import { backButtonStyle } from '../components/styles.js';
 import { CupBracketModal } from '../../App.jsx';
+import { displayName } from '../../lib/displayName.js';
 
 // `leagueTeams` que o CupBracketModal clássico (App.jsx) espera — só precisa
 // de {id,label,clubLogo}; o Modo Carreira guarda o escudo num mapa separado
@@ -64,11 +65,11 @@ export function CareerCopaScreen({ save, onBack }) {
       <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
         {bracket}
         <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-        <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 16 }}>Copa do Brasil</h2>
+        <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 16 }}>Copa do Brasil</h2>
         <div style={{ textAlign: 'center', padding: '32px 16px', borderRadius: 14, background: iAmChampion ? 'rgba(194,154,69,0.1)' : 'var(--surface)', border: iAmChampion ? '1px solid var(--gold)' : '1px solid var(--line)' }}>
           <div style={{ fontSize: 40, marginBottom: 8 }}>🏆</div>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{championTeam?.club}</div>
-          <div style={{ fontSize: 13, opacity: 0.7 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{displayName(championTeam?.club)}</div>
+          <div style={{ fontSize: 13, color: 'var(--ink-2)' }}>
             {iAmChampion ? 'Você é o campeão da Copa do Brasil desta temporada!' : 'Campeão da Copa do Brasil desta temporada.'}
           </div>
         </div>
@@ -89,8 +90,8 @@ export function CareerCopaScreen({ save, onBack }) {
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
       {bracket}
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 4 }}>Copa do Brasil</h2>
-      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 16 }}>{roundLabel} · {formatCalendarDay(copaCurrentDay(copa))}</p>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 4 }}>Copa do Brasil</h2>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>{roundLabel} · {formatCalendarDay(copaCurrentDay(copa))}</p>
 
       {hasBracket && (
         <button onClick={() => setShowBracket(true)} style={{ width: '100%', marginBottom: 14, padding: '10px 0', borderRadius: 10, border: '1px solid var(--gold)', background: 'rgba(194,154,69,0.1)', color: 'var(--gold-ink)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer' }}>
@@ -116,7 +117,7 @@ export function CareerCopaScreen({ save, onBack }) {
               border: isMine ? '1px solid rgba(194,154,69,0.6)' : '1px solid var(--line)',
               background: isMine ? 'rgba(194,154,69,0.1)' : 'var(--surface)',
             }}>
-              {aTeam?.club} <span style={{ opacity: 0.5, fontWeight: 400 }}>x</span> {bTeam?.club}
+              {displayName(aTeam?.club)} <span style={{ opacity: 0.5, fontWeight: 400 }}>x</span> {displayName(bTeam?.club)}
             </div>
           );
         })}

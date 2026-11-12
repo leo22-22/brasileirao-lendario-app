@@ -97,7 +97,7 @@ function PitchSlotCircle({ slot, player, pending, suspended, onClick }) {
       {filled && (
         <div style={{
           fontSize: 9.5, fontWeight: 600, color: suspended ? 'var(--danger)' : 'var(--ink)', textAlign: 'center', lineHeight: 1.1,
-          textShadow: 'var(--shadow)', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          textShadow: '0 1px 3px rgba(0,0,0,0.7)', maxWidth: 60, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>{player.name}</div>
       )}
     </div>
@@ -107,11 +107,11 @@ function PitchSlotCircle({ slot, player, pending, suspended, onClick }) {
 function PitchField({ slots, starters, roster, pendingSlotKey, suspendedSet, onSlotClick }) {
   const byName = useMemo(() => Object.fromEntries(roster.map(p => [p.name, p])), [roster]);
   return (
-    <div style={{
-      position: 'relative', width: '100%', aspectRatio: '0.68', borderRadius: 12, overflow: 'hidden',
-      background: '#124d27',
-      backgroundImage: 'repeating-linear-gradient(to bottom, var(--surface-2) 0%, var(--surface-2) 14.3%, transparent 14.3%, transparent 28.6%)',
-      border: '1px solid var(--line)', marginBottom: 12,
+    <div className="on-dark" style={{
+      position: 'relative', width: '100%', aspectRatio: '0.68', borderRadius: 16, overflow: 'hidden',
+      background: 'var(--pitch)',
+      backgroundImage: 'repeating-linear-gradient(to bottom, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.035) 14.3%, transparent 14.3%, transparent 28.6%)',
+      border: 'none', boxShadow: 'var(--shadow)', marginBottom: 12,
     }}>
       <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--line-strong)' }} />
       <div style={{ position: 'absolute', left: '50%', top: '50%', width: 60, height: 60, border: '1.5px solid var(--line-strong)', borderRadius: '50%', transform: 'translate(-50%,-50%)' }} />
@@ -196,8 +196,8 @@ function PlayerPoolPicker({ pos, pool, suspendedSet, onPick, onCancel }) {
         <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--gold-ink)' }}>Quem joga em {pos}?</div>
         <button onClick={onCancel} style={{ background: 'none', border: 'none', color: 'var(--ink-2)', fontSize: 12, cursor: 'pointer' }}>Cancelar</button>
       </div>
-      {sorted.length === 0 && <p style={{ fontSize: 12, opacity: 0.5 }}>Todo mundo já tá escalado em outra vaga.</p>}
-      {usingFallback && <p style={{ fontSize: 11, opacity: 0.55, marginBottom: 6 }}>Ninguém do banco joga de {pos} — mostrando o banco inteiro.</p>}
+      {sorted.length === 0 && <p style={{ fontSize: 12, color: 'var(--muted)' }}>Todo mundo já tá escalado em outra vaga.</p>}
+      {usingFallback && <p style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Ninguém do banco joga de {pos} — mostrando o banco inteiro.</p>}
       <div style={{ display: 'grid', gap: 4, maxHeight: 260, overflowY: 'auto' }}>
         {sorted.map(p => {
           const suspended = suspendedSet.has(p.name);
@@ -301,7 +301,7 @@ function SavePresetPanel({ onSave, onCancel }) {
 function LoadPresetPanel({ presets, onLoad, onDelete, onCancel }) {
   return (
     <div style={{ marginBottom: 12, padding: '10px 12px', borderRadius: 8, background: 'rgba(47,111,168,0.1)', border: '1px solid rgba(47,111,168,0.3)' }}>
-      {presets.length === 0 && <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 8 }}>Nenhuma formação salva ainda — use "Criar formação" pra guardar a de agora.</p>}
+      {presets.length === 0 && <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 8 }}>Nenhuma formação salva ainda — use "Criar formação" pra guardar a de agora.</p>}
       {presets.map(preset => (
         <div key={preset.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '7px 8px', borderRadius: 6, marginBottom: 4, background: 'var(--surface)' }}>
           <button onClick={() => onLoad(preset)} style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', color: 'var(--ink)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', padding: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -475,8 +475,8 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
   return (
     <div style={{ width: '100%', maxWidth: 480, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 18, marginBottom: 4 }}>Formação</h2>
-      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 12 }}>Clique numa vaga do campinho pra escalar ou tirar um jogador — edite quantas vezes quiser durante a temporada. OVR titular médio {avgOvr}. Escolha também até 12 reservas no banco mais abaixo — quem não for titular nem estiver no banco não entra em campo.</p>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 4 }}>Formação</h2>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 12 }}>Clique numa vaga do campinho pra escalar ou tirar um jogador — edite quantas vezes quiser durante a temporada. OVR titular médio {avgOvr}. Escolha também até 12 reservas no banco mais abaixo — quem não for titular nem estiver no banco não entra em campo.</p>
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
         <select
@@ -545,7 +545,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
         </>
       )}
 
-      <div style={{ fontSize: 11, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
+      <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>
         Banco: <span style={{ color: benchSelected.length === 12 ? 'var(--success)' : 'var(--gold-ink)' }}>{benchSelected.length}/12</span> · reserva dos reservas: {Math.max(0, bench.length - benchSelected.length)}
       </div>
       {hasSuspendedBench && (

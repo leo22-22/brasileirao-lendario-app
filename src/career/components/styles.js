@@ -5,7 +5,8 @@
 // tem a cara de botão mesmo, mantendo o mesmo lugar/tamanho de texto.
 export const backButtonStyle = {
   display: 'inline-flex', alignItems: 'center', gap: 6,
-  padding: '7px 14px', borderRadius: 8,
-  border: '1px solid rgba(194,154,69,0.5)', background: 'rgba(194,154,69,0.1)',
-  color: 'var(--gold-ink)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 12,
+  height: 40, padding: '0 14px', borderRadius: 999,
+  border: '1px solid var(--line-strong)', background: 'transparent',
+  color: 'var(--ink-2)', fontSize: 13, fontWeight: 500, cursor: 'pointer', marginBottom: 16,
+  fontFamily: 'var(--font-body)',
 };

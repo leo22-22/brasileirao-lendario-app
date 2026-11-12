@@ -4,7 +4,7 @@
 // sem precisar carregar React/JSX. Dado puro - sem imports, sem logica.
 export const TEAMS = [
   {
-    id: 'bahia1959', club: 'Bahia', year: 1959, label: 'Bahia 1959 (Taca Brasil)', coach: 'Gradim',
+    id: 'bahia1959', club: 'Bahia', year: 1959, label: 'Bahia 1959 (Taça Brasil)', coach: 'Gradim',
     colors: { p: '#003399', s: '#C8102E' },
     players: [
       { name: 'Nadinho', pos: ['GOL'], ovr: 85 },
@@ -30,7 +30,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'santos1961', club: 'Santos', year: 1961, label: 'Santos 1961 (Taca Brasil)', coach: 'Lula',
+    id: 'santos1961', club: 'Santos', year: 1961, label: 'Santos 1961 (Taça Brasil)', coach: 'Lula',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Laercio', pos: ['GOL'], ovr: 81 },
@@ -56,7 +56,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'santos1962', club: 'Santos', year: 1962, label: 'Santos 1962 (Campeao do Mundo)', coach: 'Lula',
+    id: 'santos1962', club: 'Santos', year: 1962, label: 'Santos 1962 (Campeão do Mundo)', coach: 'Lula',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Gylmar', pos: ['GOL'], ovr: 91 },
@@ -82,7 +82,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'santos1963', club: 'Santos', year: 1963, label: 'Santos 1963 (Bicampeao do Mundo)', coach: 'Lula',
+    id: 'santos1963', club: 'Santos', year: 1963, label: 'Santos 1963 (Bicampeão do Mundo)', coach: 'Lula',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Gylmar', pos: ['GOL'], ovr: 91 },
@@ -108,7 +108,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'cruzeiro1966', club: 'Cruzeiro', year: 1966, label: 'Cruzeiro 1966 (Taca Brasil)', coach: 'Ayrton Moreira',
+    id: 'cruzeiro1966', club: 'Cruzeiro', year: 1966, label: 'Cruzeiro 1966 (Taça Brasil)', coach: 'Ayrton Moreira',
     colors: { p: '#0033A0', s: '#ffffff' },
     players: [
       { name: 'Raul', pos: ['GOL'], ovr: 86 },
@@ -160,7 +160,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'botafogo1968', club: 'Botafogo', year: 1968, label: 'Botafogo 1968 (Robertao)', coach: 'Zagallo',
+    id: 'botafogo1968', club: 'Botafogo', year: 1968, label: 'Botafogo 1968 (Robertão)', coach: 'Zagallo',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Cao', pos: ['GOL'], ovr: 79 },
@@ -186,7 +186,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'santos1968', club: 'Santos', year: 1968, label: 'Santos 1968 (Robertao)', coach: 'Antoninho',
+    id: 'santos1968', club: 'Santos', year: 1968, label: 'Santos 1968 (Robertão)', coach: 'Antoninho',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Cejas', pos: ['GOL'], ovr: 84 },
@@ -238,7 +238,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticomg1971', club: 'Atletico-MG', year: 1971, label: 'Atletico-MG 1971 (1o Brasileirao)', coach: 'Telê Santana',
+    id: 'atleticomg1971', club: 'Atletico-MG', year: 1971, label: 'Atlético-MG 1971 (1º Brasileirão)', coach: 'Telê Santana',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Renato', pos: ['GOL'], ovr: 82 },
@@ -290,7 +290,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'palmeiras1973', club: 'Palmeiras', year: 1973, label: 'Palmeiras 1973 (Bicampeao)', coach: 'Osvaldo Brandao',
+    id: 'palmeiras1973', club: 'Palmeiras', year: 1973, label: 'Palmeiras 1973 (Bicampeão)', coach: 'Osvaldo Brandao',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Ademir da Guia', pos: ['MC', 'MEI'], ovr: 96 },
@@ -316,7 +316,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'vasco1974', club: 'Vasco', year: 1974, label: 'Vasco 1974 (Campeao Brasileiro)', coach: 'Mario Travaglini',
+    id: 'vasco1974', club: 'Vasco', year: 1974, label: 'Vasco 1974 (Campeão Brasileiro)', coach: 'Mario Travaglini',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Roberto Dinamite', pos: ['ATA'], ovr: 94 },
@@ -394,7 +394,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'fluminense1976', club: 'Fluminense', year: 1976, label: 'Fluminense 1976 (Maquina Tricolor)', coach: 'Duque',
+    id: 'fluminense1976', club: 'Fluminense', year: 1976, label: 'Fluminense 1976 (Máquina Tricolor)', coach: 'Duque',
     colors: { p: '#7A1921', s: '#006633' },
     players: [
       { name: 'Felix', pos: ['GOL'], ovr: 84 },
@@ -446,7 +446,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo1977', club: 'Sao Paulo', year: 1977, label: 'Sao Paulo 1977 (1o Brasileirao)', coach: 'Rubens Minelli',
+    id: 'saopaulo1977', club: 'Sao Paulo', year: 1977, label: 'São Paulo 1977 (1º Brasileirão)', coach: 'Rubens Minelli',
     colors: { p: '#C8102E', s: '#ffffff' },
     players: [
       { name: 'Waldir Peres', pos: ['GOL'], ovr: 86 },
@@ -472,7 +472,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'guarani1978', club: 'Guarani', year: 1978, label: 'Guarani 1978 (Campeao Brasileiro)', coach: 'Carlos Alberto Silva',
+    id: 'guarani1978', club: 'Guarani', year: 1978, label: 'Guarani 1978 (Campeão Brasileiro)', coach: 'Carlos Alberto Silva',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Careca', pos: ['ATA'], ovr: 94 },
@@ -524,7 +524,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'flamengo1980', club: 'Flamengo', year: 1980, label: 'Flamengo 1980 (Campeao Brasileiro)', coach: 'Claudio Coutinho',
+    id: 'flamengo1980', club: 'Flamengo', year: 1980, label: 'Flamengo 1980 (Campeão Brasileiro)', coach: 'Claudio Coutinho',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Raul Plassmann', pos: ['GOL'], ovr: 85 },
@@ -576,7 +576,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio1981', club: 'Gremio', year: 1981, label: 'Gremio 1981 (Campeao Brasileiro)', coach: 'Enio Andrade',
+    id: 'gremio1981', club: 'Gremio', year: 1981, label: 'Grêmio 1981 (Campeão Brasileiro)', coach: 'Enio Andrade',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Mazaropi', pos: ['GOL'], ovr: 85 },
@@ -602,7 +602,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'flamengo1982', club: 'Flamengo', year: 1982, label: 'Flamengo 1982 (Bicampeao Brasileiro)', coach: 'Paulo Cesar Carpegiani',
+    id: 'flamengo1982', club: 'Flamengo', year: 1982, label: 'Flamengo 1982 (Bicampeão Brasileiro)', coach: 'Paulo Cesar Carpegiani',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Zico', pos: ['MEI', 'MC'], ovr: 99 },
@@ -628,7 +628,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'flamengo1983', club: 'Flamengo', year: 1983, label: 'Flamengo 1983 (Tricampeao Brasileiro)', coach: 'Carlinhos',
+    id: 'flamengo1983', club: 'Flamengo', year: 1983, label: 'Flamengo 1983 (Tricampeão Brasileiro)', coach: 'Carlinhos',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Cantarele', pos: ['GOL'], ovr: 84 },
@@ -654,7 +654,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio1983', club: 'Gremio', year: 1983, label: 'Gremio 1983 (Campeao do Mundo)', coach: 'Valdir Espinosa',
+    id: 'gremio1983', club: 'Gremio', year: 1983, label: 'Grêmio 1983 (Campeão do Mundo)', coach: 'Valdir Espinosa',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Mazaropi', pos: ['GOL'], ovr: 87 },
@@ -680,7 +680,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'fluminense1984', club: 'Fluminense', year: 1984, label: 'Fluminense 1984 (Campeao Brasileiro)', coach: 'Carlos Alberto Parreira',
+    id: 'fluminense1984', club: 'Fluminense', year: 1984, label: 'Fluminense 1984 (Campeão Brasileiro)', coach: 'Carlos Alberto Parreira',
     colors: { p: '#7A1921', s: '#006633' },
     players: [
       { name: 'Paulo Vítor', pos: ['GOL'], ovr: 84 },
@@ -706,7 +706,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'coritiba1985', club: 'Coritiba', year: 1985, label: 'Coritiba 1985 (Campeao Brasileiro)', coach: 'Enio Andrade',
+    id: 'coritiba1985', club: 'Coritiba', year: 1985, label: 'Coritiba 1985 (Campeão Brasileiro)', coach: 'Enio Andrade',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Rafael Cammarota', pos: ['GOL'], ovr: 86 },
@@ -758,7 +758,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'flamengo1987', club: 'Flamengo', year: 1987, label: 'Flamengo 1987 (Copa Uniao)', coach: 'Carlinhos',
+    id: 'flamengo1987', club: 'Flamengo', year: 1987, label: 'Flamengo 1987 (Copa União)', coach: 'Carlinhos',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Zetti', pos: ['GOL'], ovr: 84 },
@@ -862,7 +862,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'corinthians1990', club: 'Corinthians', year: 1990, label: 'Corinthians 1990 (Primeiro Titulo)', coach: 'Nelsinho Baptista',
+    id: 'corinthians1990', club: 'Corinthians', year: 1990, label: 'Corinthians 1990 (Primeiro Título)', coach: 'Nelsinho Baptista',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Neto', pos: ['MEI', 'MC'], ovr: 93 },
@@ -940,7 +940,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo1992', club: 'Sao Paulo', year: 1992, label: 'Sao Paulo 1992 (Campeao do Mundo)', coach: 'Tele Santana',
+    id: 'saopaulo1992', club: 'Sao Paulo', year: 1992, label: 'São Paulo 1992 (Campeão do Mundo)', coach: 'Tele Santana',
     colors: { p: '#C8102E', s: '#ffffff' },
     players: [
       { name: 'Zetti', pos: ['GOL'], ovr: 91 },
@@ -992,7 +992,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo1993', club: 'Sao Paulo', year: 1993, label: 'Sao Paulo 1993 (Bicampeao do Mundo)', coach: 'Tele Santana',
+    id: 'saopaulo1993', club: 'Sao Paulo', year: 1993, label: 'São Paulo 1993 (Bicampeão do Mundo)', coach: 'Tele Santana',
     colors: { p: '#C8102E', s: '#ffffff' },
     players: [
       { name: 'Zetti', pos: ['GOL'], ovr: 92 },
@@ -1070,7 +1070,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio1995', club: 'Gremio', year: 1995, label: 'Gremio 1995 (Libertadores)', coach: 'Luiz Felipe Scolari',
+    id: 'gremio1995', club: 'Gremio', year: 1995, label: 'Grêmio 1995 (Libertadores)', coach: 'Luiz Felipe Scolari',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Danrlei', pos: ['GOL'], ovr: 87 },
@@ -1096,7 +1096,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio1996', club: 'Gremio', year: 1996, label: 'Gremio 1996', coach: 'Luiz Felipe Scolari',
+    id: 'gremio1996', club: 'Gremio', year: 1996, label: 'Grêmio 1996', coach: 'Luiz Felipe Scolari',
     colors: { p: '#1c3f94', s: '#000000' },
     players: [
       { name: 'Danrlei', pos: ['GOL'], ovr: 88 },
@@ -1174,7 +1174,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'corinthians1998', club: 'Corinthians', year: 1998, label: 'Corinthians 1998 (Bicampeao)', coach: 'Vanderlei Luxemburgo',
+    id: 'corinthians1998', club: 'Corinthians', year: 1998, label: 'Corinthians 1998 (Bicampeão)', coach: 'Vanderlei Luxemburgo',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Nei', pos: ['GOL'], ovr: 77 },
@@ -1226,7 +1226,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'corinthians1999', club: 'Corinthians', year: 1999, label: 'Corinthians 1999 (Tricampeao)', coach: 'Oswaldo de Oliveira',
+    id: 'corinthians1999', club: 'Corinthians', year: 1999, label: 'Corinthians 1999 (Tricampeão)', coach: 'Oswaldo de Oliveira',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Dida', pos: ['GOL'], ovr: 88 },
@@ -1356,7 +1356,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio2001', club: 'Gremio', year: 2001, label: 'Gremio 2001 (Copa do Brasil)', coach: 'Tite',
+    id: 'gremio2001', club: 'Gremio', year: 2001, label: 'Grêmio 2001 (Copa do Brasil)', coach: 'Tite',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Danrlei', pos: ['GOL'], ovr: 84 },
@@ -1382,7 +1382,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saocaetano2001', club: 'Sao Caetano', year: 2001, label: 'Sao Caetano 2001 (Vice-campeao Brasileiro)', coach: 'Jair Picerni',
+    id: 'saocaetano2001', club: 'Sao Caetano', year: 2001, label: 'São Caetano 2001 (Vice-campeão Brasileiro)', coach: 'Jair Picerni',
     colors: { p: '#003399', s: '#ffffff' },
     players: [
       { name: 'Silvio Luiz', pos: ['GOL'], ovr: 84 },
@@ -1434,7 +1434,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'cruzeiro2003', club: 'Cruzeiro', year: 2003, label: 'Cruzeiro 2003 (Triplice Coroa)', coach: 'Vanderlei Luxemburgo',
+    id: 'cruzeiro2003', club: 'Cruzeiro', year: 2003, label: 'Cruzeiro 2003 (Tríplice Coroa)', coach: 'Vanderlei Luxemburgo',
     colors: { p: '#1c3f94', s: '#ffffff' },
     players: [
       { name: 'Gomes', pos: ['GOL'], ovr: 86 },
@@ -1512,7 +1512,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo2005', club: 'Sao Paulo', year: 2005, label: 'Sao Paulo 2005 (Libertadores + Mundial)', coach: 'Paulo Autuori',
+    id: 'saopaulo2005', club: 'Sao Paulo', year: 2005, label: 'São Paulo 2005 (Libertadores + Mundial)', coach: 'Paulo Autuori',
     colors: { p: '#C8102E', s: '#ffffff' },
     players: [
       { name: 'Rogerio Ceni', pos: ['GOL'], ovr: 94 },
@@ -1564,7 +1564,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo2006', club: 'Sao Paulo', year: 2006, label: 'Sao Paulo 2006', coach: 'Muricy Ramalho',
+    id: 'saopaulo2006', club: 'Sao Paulo', year: 2006, label: 'São Paulo 2006', coach: 'Muricy Ramalho',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
       { name: 'Rogerio Ceni', pos: ['GOL'], ovr: 96 },
@@ -1590,7 +1590,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo2007', club: 'Sao Paulo', year: 2007, label: 'Sao Paulo 2007 (Bicampeonato)', coach: 'Muricy Ramalho',
+    id: 'saopaulo2007', club: 'Sao Paulo', year: 2007, label: 'São Paulo 2007 (Bicampeonato)', coach: 'Muricy Ramalho',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
       { name: 'Rogério Ceni', pos: ['GOL'], ovr: 96 },
@@ -1616,7 +1616,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo2008', club: 'Sao Paulo', year: 2008, label: 'Sao Paulo 2008 (Tricampeonato)', coach: 'Muricy Ramalho',
+    id: 'saopaulo2008', club: 'Sao Paulo', year: 2008, label: 'São Paulo 2008 (Tricampeonato)', coach: 'Muricy Ramalho',
     colors: { p: '#c8102e', s: '#000000' },
     players: [
       { name: 'Rogerio Ceni', pos: ['GOL'], ovr: 95 },
@@ -1902,7 +1902,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticomg2013', club: 'Atletico-MG', year: 2013, label: 'Atletico-MG 2013 (Libertadores)', coach: 'Cuca',
+    id: 'atleticomg2013', club: 'Atletico-MG', year: 2013, label: 'Atlético-MG 2013 (Libertadores)', coach: 'Cuca',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Victor', pos: ['GOL'], ovr: 91 },
@@ -2032,7 +2032,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'santos2015', club: 'Santos', year: 2015, label: 'Santos 2015 (Paulistao + Vice Copa BR)', coach: 'Dorival Junior',
+    id: 'santos2015', club: 'Santos', year: 2015, label: 'Santos 2015 (Paulistão + Vice Copa BR)', coach: 'Dorival Junior',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Vanderlei', pos: ['GOL'], ovr: 88 },
@@ -2058,7 +2058,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio2016', club: 'Gremio', year: 2016, label: 'Gremio 2016 (Copa do Brasil)', coach: 'Renato Portaluppi',
+    id: 'gremio2016', club: 'Gremio', year: 2016, label: 'Grêmio 2016 (Copa do Brasil)', coach: 'Renato Portaluppi',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Marcelo Grohe', pos: ['GOL'], ovr: 86 },
@@ -2136,7 +2136,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio2017', club: 'Gremio', year: 2017, label: 'Gremio 2017 (Tri da Libertadores)', coach: 'Renato Portaluppi',
+    id: 'gremio2017', club: 'Gremio', year: 2017, label: 'Grêmio 2017 (Tri da Libertadores)', coach: 'Renato Portaluppi',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Marcelo Grohe', pos: ['GOL'], ovr: 88 },
@@ -2344,7 +2344,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'santos2020', club: 'Santos', year: 2020, label: 'Santos 2020 (Vice-Campeao da Libertadores)', coach: 'Cuca',
+    id: 'santos2020', club: 'Santos', year: 2020, label: 'Santos 2020 (Vice-Campeão da Libertadores)', coach: 'Cuca',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'John', pos: ['GOL'], ovr: 84 },
@@ -2370,7 +2370,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticomg2021', club: 'Atletico-MG', year: 2021, label: 'Atletico-MG 2021 (Brasileiro + Copa do Brasil)', coach: 'Cuca',
+    id: 'atleticomg2021', club: 'Atletico-MG', year: 2021, label: 'Atlético-MG 2021 (Brasileiro + Copa do Brasil)', coach: 'Cuca',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Everson', pos: ['GOL'], ovr: 88 },
@@ -2474,7 +2474,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'palmeiras2022', club: 'Palmeiras', year: 2022, label: 'Palmeiras 2022 (81 pontos RECORDE historico)', coach: 'Abel Ferreira',
+    id: 'palmeiras2022', club: 'Palmeiras', year: 2022, label: 'Palmeiras 2022 (81 pontos RECORDE histórico)', coach: 'Abel Ferreira',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Weverton', pos: ['GOL'], ovr: 92 },
@@ -2578,7 +2578,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'botafogo2024', club: 'Botafogo', year: 2024, label: 'Botafogo 2024 (Brasileirao + Libertadores)', coach: 'Artur Jorge',
+    id: 'botafogo2024', club: 'Botafogo', year: 2024, label: 'Botafogo 2024 (Brasileirão + Libertadores)', coach: 'Artur Jorge',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'John', pos: ['GOL'], ovr: 87 },
@@ -2869,7 +2869,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo2026', club: 'Sao Paulo', year: 2026, label: 'Sao Paulo 2026', coach: 'Dorival Junior',
+    id: 'saopaulo2026', club: 'Sao Paulo', year: 2026, label: 'São Paulo 2026', coach: 'Dorival Junior',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Carlos Coronel', pos: ['GOL'], ovr: 76, age: 29 },
@@ -2995,7 +2995,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio2026', club: 'Gremio', year: 2026, label: 'Gremio 2026', coach: 'Luiz Castro',
+    id: 'gremio2026', club: 'Gremio', year: 2026, label: 'Grêmio 2026', coach: 'Luiz Castro',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Gabriel Grando', pos: ['GOL'], ovr: 74, age: 26 },
@@ -3078,7 +3078,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticomg2026', club: 'Atletico-MG', year: 2026, label: 'Atletico-MG 2026', coach: 'Eduardo Dominguez',
+    id: 'atleticomg2026', club: 'Atletico-MG', year: 2026, label: 'Atlético-MG 2026', coach: 'Eduardo Dominguez',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Gabriel Delfim', pos: ['GOL'], ovr: 72, age: 24 },
@@ -3197,7 +3197,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'vitoria2026', club: 'Vitoria', year: 2026, label: 'Vitoria 2026', coach: 'Jair Ventura',
+    id: 'vitoria2026', club: 'Vitoria', year: 2026, label: 'Vitória 2026', coach: 'Jair Ventura',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Lucas Arcanjo', pos: ['GOL'], ovr: 79, age: 28 },
@@ -3397,7 +3397,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'palmeiras1960', club: 'Palmeiras', year: 1960, label: 'Palmeiras 1960 (Taca Brasil)', coach: 'Vicente Feola',
+    id: 'palmeiras1960', club: 'Palmeiras', year: 1960, label: 'Palmeiras 1960 (Taça Brasil)', coach: 'Vicente Feola',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Valdir de Moraes', pos: ['GOL'], ovr: 84 },
@@ -3423,7 +3423,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'botafogo1962', club: 'Botafogo', year: 1962, label: 'Botafogo 1962 (Taca Brasil)', coach: 'Paulo Amaral',
+    id: 'botafogo1962', club: 'Botafogo', year: 1962, label: 'Botafogo 1962 (Taça Brasil)', coach: 'Paulo Amaral',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Manga', pos: ['GOL'], ovr: 88 },
@@ -3449,7 +3449,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'botafogo1964', club: 'Botafogo', year: 1964, label: 'Botafogo 1964 (Taca Brasil)', coach: 'Paulo Amaral',
+    id: 'botafogo1964', club: 'Botafogo', year: 1964, label: 'Botafogo 1964 (Taça Brasil)', coach: 'Paulo Amaral',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Manga', pos: ['GOL'], ovr: 88 },
@@ -3475,7 +3475,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'santos1964', club: 'Santos', year: 1964, label: 'Santos 1964 (Tetracampeao Taca Brasil)', coach: 'Lula',
+    id: 'santos1964', club: 'Santos', year: 1964, label: 'Santos 1964 (Tetracampeão Taça Brasil)', coach: 'Lula',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Gylmar', pos: ['GOL'], ovr: 89 },
@@ -3501,7 +3501,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'santos1965', club: 'Santos', year: 1965, label: 'Santos 1965 (Pentacampeao Taca Brasil)', coach: 'Lula',
+    id: 'santos1965', club: 'Santos', year: 1965, label: 'Santos 1965 (Pentacampeão Taça Brasil)', coach: 'Lula',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Gylmar', pos: ['GOL'], ovr: 88 },
@@ -3527,7 +3527,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'cruzeiro1969', club: 'Cruzeiro', year: 1969, label: 'Cruzeiro 1969 (Era Tostao)', coach: 'Yustrich',
+    id: 'cruzeiro1969', club: 'Cruzeiro', year: 1969, label: 'Cruzeiro 1969 (Era Tostão)', coach: 'Yustrich',
     colors: { p: '#0033A0', s: '#ffffff' },
     players: [
       { name: 'Raul', pos: ['GOL'], ovr: 86 },
@@ -3553,7 +3553,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'santos1969', club: 'Santos', year: 1969, label: 'Santos 1969 (O milesimo gol de Pele)', coach: 'Antoninho',
+    id: 'santos1969', club: 'Santos', year: 1969, label: 'Santos 1969 (O milésimo gol de Pelé)', coach: 'Antoninho',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Cejas', pos: ['GOL'], ovr: 82 },
@@ -3579,7 +3579,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'palmeiras1969', club: 'Palmeiras', year: 1969, label: 'Palmeiras 1969 (Robertao)', coach: 'Filpo Nunez',
+    id: 'palmeiras1969', club: 'Palmeiras', year: 1969, label: 'Palmeiras 1969 (Robertão)', coach: 'Filpo Nunez',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Emerson Leao', pos: ['GOL'], ovr: 88 },
@@ -3605,7 +3605,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'botafogo1972', club: 'Botafogo', year: 1972, label: 'Botafogo 1972 (Vice-campeao brasileiro)', coach: 'Zagallo',
+    id: 'botafogo1972', club: 'Botafogo', year: 1972, label: 'Botafogo 1972 (Vice-campeão brasileiro)', coach: 'Zagallo',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Ubirajara', pos: ['GOL'], ovr: 80 },
@@ -3657,7 +3657,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'fluminense1975', club: 'Fluminense', year: 1975, label: 'Fluminense 1975 (Maquina Tricolor)', coach: 'Osvaldo Brandao',
+    id: 'fluminense1975', club: 'Fluminense', year: 1975, label: 'Fluminense 1975 (Máquina Tricolor)', coach: 'Osvaldo Brandao',
     colors: { p: '#7A1921', s: '#006633' },
     players: [
       { name: 'Felix', pos: ['GOL'], ovr: 82 },
@@ -3683,7 +3683,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'palmeiras1976', club: 'Palmeiras', year: 1976, label: 'Palmeiras 1976 (Vice-campeao brasileiro)', coach: 'Osvaldo Brandao',
+    id: 'palmeiras1976', club: 'Palmeiras', year: 1976, label: 'Palmeiras 1976 (Vice-campeão brasileiro)', coach: 'Osvaldo Brandao',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Leao', pos: ['GOL'], ovr: 89 },
@@ -3709,7 +3709,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticomg1977', club: 'Atletico-MG', year: 1977, label: 'Atletico-MG 1977 (Reinaldo no auge)', coach: 'Telê Santana',
+    id: 'atleticomg1977', club: 'Atletico-MG', year: 1977, label: 'Atlético-MG 1977 (Reinaldo no auge)', coach: 'Telê Santana',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Joao Leite', pos: ['GOL'], ovr: 82 },
@@ -3735,7 +3735,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'pontepreta1977', club: 'Ponte Preta', year: 1977, label: 'Ponte Preta 1977 (Vice-campea brasileira)', coach: 'Jose Maria Rodrigues',
+    id: 'pontepreta1977', club: 'Ponte Preta', year: 1977, label: 'Ponte Preta 1977 (Vice-campeã brasileira)', coach: 'Jose Maria Rodrigues',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Carlos', pos: ['GOL'], ovr: 80 },
@@ -3787,7 +3787,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'flamengo1978', club: 'Flamengo', year: 1978, label: 'Flamengo 1978 (Zico e a base do titulo)', coach: 'Claudio Coutinho',
+    id: 'flamengo1978', club: 'Flamengo', year: 1978, label: 'Flamengo 1978 (Zico e a base do título)', coach: 'Claudio Coutinho',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Cantareli', pos: ['GOL'], ovr: 80 },
@@ -3813,7 +3813,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'internacional1978', club: 'Internacional', year: 1978, label: 'Internacional 1978 (Falcao no auge)', coach: 'Enio Andrade',
+    id: 'internacional1978', club: 'Internacional', year: 1978, label: 'Internacional 1978 (Falcão no auge)', coach: 'Enio Andrade',
     colors: { p: '#D2122E', s: '#ffffff' },
     players: [
       { name: 'Benitez', pos: ['GOL'], ovr: 82 },
@@ -3839,7 +3839,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'corinthians1979', club: 'Corinthians', year: 1979, label: 'Corinthians 1979 (Socrates e a base da Democracia)', coach: 'Jorge Vieira',
+    id: 'corinthians1979', club: 'Corinthians', year: 1979, label: 'Corinthians 1979 (Sócrates e a base da Democracia)', coach: 'Jorge Vieira',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Tobi', pos: ['GOL'], ovr: 80 },
@@ -3865,7 +3865,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticomg1980', club: 'Atletico-MG', year: 1980, label: 'Atletico-MG 1980 (Vice-campeao brasileiro)', coach: 'Barbatana',
+    id: 'atleticomg1980', club: 'Atletico-MG', year: 1980, label: 'Atlético-MG 1980 (Vice-campeão brasileiro)', coach: 'Barbatana',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Joao Leite', pos: ['GOL'], ovr: 83 },
@@ -3943,7 +3943,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'vasco1987', club: 'Vasco', year: 1987, label: 'Vasco 1987 (Romario, Bebeto e Geovani)', coach: 'Nelsinho Baptista',
+    id: 'vasco1987', club: 'Vasco', year: 1987, label: 'Vasco 1987 (Romário, Bebeto e Geovani)', coach: 'Nelsinho Baptista',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Acacio', pos: ['GOL'], ovr: 84 },
@@ -3969,7 +3969,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'bangu1985', club: 'Bangu', year: 1985, label: 'Bangu 1985 (Vice-campeao brasileiro)', coach: 'Moises Matias de Andrade',
+    id: 'bangu1985', club: 'Bangu', year: 1985, label: 'Bangu 1985 (Vice-campeão brasileiro)', coach: 'Moises Matias de Andrade',
     colors: { p: '#C8102E', s: '#ffffff' },
     players: [
       { name: 'Wilson', pos: ['GOL'], ovr: 78 },
@@ -3995,7 +3995,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'guarani1986', club: 'Guarani', year: 1986, label: 'Guarani 1986 (Vice-campeao brasileiro)', coach: 'Carlos Alberto Silva',
+    id: 'guarani1986', club: 'Guarani', year: 1986, label: 'Guarani 1986 (Vice-campeão brasileiro)', coach: 'Carlos Alberto Silva',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Ze Carlos', pos: ['GOL'], ovr: 78 },
@@ -4047,7 +4047,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'internacional1988', club: 'Internacional', year: 1988, label: 'Internacional 1988 (Vice-campeao brasileiro)', coach: 'Enio Andrade',
+    id: 'internacional1988', club: 'Internacional', year: 1988, label: 'Internacional 1988 (Vice-campeão brasileiro)', coach: 'Enio Andrade',
     colors: { p: '#D2122E', s: '#ffffff' },
     players: [
       { name: 'Taffarel', pos: ['GOL'], ovr: 88 },
@@ -4073,7 +4073,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio1989', club: 'Gremio', year: 1989, label: 'Gremio 1989 (Primeira Copa do Brasil)', coach: 'Valdir Espinosa',
+    id: 'gremio1989', club: 'Gremio', year: 1989, label: 'Grêmio 1989 (Primeira Copa do Brasil)', coach: 'Valdir Espinosa',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Mazaropi', pos: ['GOL'], ovr: 82 },
@@ -4151,7 +4151,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'criciuma1991', club: 'Criciuma', year: 1991, label: 'Criciuma 1991 (Copa do Brasil)', coach: 'Luiz Felipe Scolari',
+    id: 'criciuma1991', club: 'Criciuma', year: 1991, label: 'Criciúma 1991 (Copa do Brasil)', coach: 'Luiz Felipe Scolari',
     colors: { p: '#FFD700', s: '#000000' },
     players: [
       { name: 'Nivaldo', pos: ['GOL'], ovr: 78 },
@@ -4229,7 +4229,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'vitoria1993', club: 'Vitoria', year: 1993, label: 'Vitoria 1993 (Vice-campeao brasileiro)', coach: 'Evaristo de Macedo',
+    id: 'vitoria1993', club: 'Vitoria', year: 1993, label: 'Vitória 1993 (Vice-campeão brasileiro)', coach: 'Evaristo de Macedo',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Dida', pos: ['GOL'], ovr: 84 },
@@ -4255,7 +4255,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio1994', club: 'Gremio', year: 1994, label: 'Gremio 1994 (Copa do Brasil de Felipao)', coach: 'Luiz Felipe Scolari',
+    id: 'gremio1994', club: 'Gremio', year: 1994, label: 'Grêmio 1994 (Copa do Brasil de Felipão)', coach: 'Luiz Felipe Scolari',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Danrlei', pos: ['GOL'], ovr: 84 },
@@ -4281,7 +4281,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo1994', club: 'Sao Paulo', year: 1994, label: 'Sao Paulo 1994 (Fim do ciclo de Tele)', coach: 'Telê Santana',
+    id: 'saopaulo1994', club: 'Sao Paulo', year: 1994, label: 'São Paulo 1994 (Fim do ciclo de Tele)', coach: 'Telê Santana',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Zetti', pos: ['GOL'], ovr: 86 },
@@ -4333,7 +4333,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'flamengo1995', club: 'Flamengo', year: 1995, label: 'Flamengo 1995 (Romario, Savio e Edmundo)', coach: 'Edinho',
+    id: 'flamengo1995', club: 'Flamengo', year: 1995, label: 'Flamengo 1995 (Romário, Sávio e Edmundo)', coach: 'Edinho',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Gilmar Rinaldi', pos: ['GOL'], ovr: 82 },
@@ -4411,7 +4411,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'palmeiras1996', club: 'Palmeiras', year: 1996, label: 'Palmeiras 1996 (102 gols no Paulistao)', coach: 'Vanderlei Luxemburgo',
+    id: 'palmeiras1996', club: 'Palmeiras', year: 1996, label: 'Palmeiras 1996 (102 gols no Paulistão)', coach: 'Vanderlei Luxemburgo',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Velloso', pos: ['GOL'], ovr: 80 },
@@ -4437,7 +4437,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'portuguesa1996', club: 'Portuguesa', year: 1996, label: 'Portuguesa 1996 (Vice-campea brasileira)', coach: 'Candinho',
+    id: 'portuguesa1996', club: 'Portuguesa', year: 1996, label: 'Portuguesa 1996 (Vice-campeã brasileira)', coach: 'Candinho',
     colors: { p: '#C8102E', s: '#006437' },
     players: [
       { name: 'Ze Carlos', pos: ['GOL'], ovr: 80 },
@@ -4567,7 +4567,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saocaetano2002', club: 'Sao Caetano', year: 2002, label: 'Sao Caetano 2002 (Vice da Libertadores)', coach: 'Jair Picerni',
+    id: 'saocaetano2002', club: 'Sao Caetano', year: 2002, label: 'São Caetano 2002 (Vice da Libertadores)', coach: 'Jair Picerni',
     colors: { p: '#0033A0', s: '#ffffff' },
     players: [
       { name: 'Silvio Luiz', pos: ['GOL'], ovr: 80 },
@@ -4645,7 +4645,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'goias2005', club: 'Goias', year: 2005, label: 'Goias 2005 (Vice-campeao brasileiro)', coach: 'Helio dos Anjos',
+    id: 'goias2005', club: 'Goias', year: 2005, label: 'Goiás 2005 (Vice-campeão brasileiro)', coach: 'Helio dos Anjos',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Harlei', pos: ['GOL'], ovr: 82 },
@@ -4697,7 +4697,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio2007', club: 'Gremio', year: 2007, label: 'Gremio 2007 (Vice da Libertadores)', coach: 'Mano Menezes',
+    id: 'gremio2007', club: 'Gremio', year: 2007, label: 'Grêmio 2007 (Vice da Libertadores)', coach: 'Mano Menezes',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Saja', pos: ['GOL'], ovr: 80 },
@@ -4827,7 +4827,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'palmeiras2009', club: 'Palmeiras', year: 2009, label: 'Palmeiras 2009 (Vice-campeao brasileiro)', coach: 'Vanderlei Luxemburgo',
+    id: 'palmeiras2009', club: 'Palmeiras', year: 2009, label: 'Palmeiras 2009 (Vice-campeão brasileiro)', coach: 'Vanderlei Luxemburgo',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Marcos', pos: ['GOL'], ovr: 84 },
@@ -4879,7 +4879,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'coritiba2011', club: 'Coritiba', year: 2011, label: 'Coritiba 2011 (Recorde mundial de vitorias seguidas)', coach: 'Marcelo Oliveira',
+    id: 'coritiba2011', club: 'Coritiba', year: 2011, label: 'Coritiba 2011 (Recorde mundial de vitórias seguidas)', coach: 'Marcelo Oliveira',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Vanderlei', pos: ['GOL'], ovr: 80 },
@@ -4957,7 +4957,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticomg2014', club: 'Atletico-MG', year: 2014, label: 'Atletico-MG 2014 (Copa do Brasil)', coach: 'Levir Culpi',
+    id: 'atleticomg2014', club: 'Atletico-MG', year: 2014, label: 'Atlético-MG 2014 (Copa do Brasil)', coach: 'Levir Culpi',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Victor', pos: ['GOL'], ovr: 85 },
@@ -5009,7 +5009,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'chapecoense2016', club: 'Chapecoense', year: 2016, label: 'Chapecoense 2016 (Campea da Sul-Americana)', coach: 'Caio Junior',
+    id: 'chapecoense2016', club: 'Chapecoense', year: 2016, label: 'Chapecoense 2016 (Campeã da Sul-Americana)', coach: 'Caio Junior',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Danilo', pos: ['GOL'], ovr: 80 },
@@ -5113,7 +5113,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'internacional2020', club: 'Internacional', year: 2020, label: 'Internacional 2020 (Vice-campeao brasileiro)', coach: 'Abel Braga',
+    id: 'internacional2020', club: 'Internacional', year: 2020, label: 'Internacional 2020 (Vice-campeão brasileiro)', coach: 'Abel Braga',
     colors: { p: '#D2122E', s: '#ffffff' },
     players: [
       { name: 'Marcelo Lomba', pos: ['GOL'], ovr: 80 },
@@ -5139,7 +5139,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo2021', club: 'Sao Paulo', year: 2021, label: 'Sao Paulo 2021 (Fim do jejum de 9 anos)', coach: 'Hernan Crespo',
+    id: 'saopaulo2021', club: 'Sao Paulo', year: 2021, label: 'São Paulo 2021 (Fim do jejum de 9 anos)', coach: 'Hernan Crespo',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Tiago Volpi', pos: ['GOL'], ovr: 80 },
@@ -5243,7 +5243,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'fluminense2022', club: 'Fluminense', year: 2022, label: 'Fluminense 2022 (Dinizismo no Maracana)', coach: 'Fernando Diniz',
+    id: 'fluminense2022', club: 'Fluminense', year: 2022, label: 'Fluminense 2022 (Dinizismo no Maracanã)', coach: 'Fernando Diniz',
     colors: { p: '#7A1921', s: '#006633' },
     players: [
       { name: 'Fabio', pos: ['GOL'], ovr: 84 },
@@ -5295,7 +5295,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'gremio2023', club: 'Gremio', year: 2023, label: 'Gremio 2023 (Suarez no Olimpico)', coach: 'Renato Gaucho',
+    id: 'gremio2023', club: 'Gremio', year: 2023, label: 'Grêmio 2023 (Suárez no Olímpico)', coach: 'Renato Gaucho',
     colors: { p: '#0D80BF', s: '#000000' },
     players: [
       { name: 'Gabriel Grando', pos: ['GOL'], ovr: 79 },
@@ -5321,7 +5321,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saopaulo2023', club: 'Sao Paulo', year: 2023, label: 'Sao Paulo 2023 (Copa do Brasil inedita)', coach: 'Dorival Junior',
+    id: 'saopaulo2023', club: 'Sao Paulo', year: 2023, label: 'São Paulo 2023 (Copa do Brasil inédita)', coach: 'Dorival Junior',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Rafael', pos: ['GOL'], ovr: 83 },
@@ -5347,7 +5347,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'palmeiras2024', club: 'Palmeiras', year: 2024, label: 'Palmeiras 2024 (Vice-campeao brasileiro)', coach: 'Abel Ferreira',
+    id: 'palmeiras2024', club: 'Palmeiras', year: 2024, label: 'Palmeiras 2024 (Vice-campeão brasileiro)', coach: 'Abel Ferreira',
     colors: { p: '#006437', s: '#ffffff' },
     players: [
       { name: 'Weverton', pos: ['GOL'], ovr: 83 },
@@ -5373,7 +5373,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticomg2024', club: 'Atletico-MG', year: 2024, label: 'Atletico-MG 2024 (Vice da Libertadores)', coach: 'Gabriel Milito',
+    id: 'atleticomg2024', club: 'Atletico-MG', year: 2024, label: 'Atlético-MG 2024 (Vice da Libertadores)', coach: 'Gabriel Milito',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Everson', pos: ['GOL'], ovr: 82 },
@@ -5451,7 +5451,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'flamengo2025', club: 'Flamengo', year: 2025, label: 'Flamengo 2025 (Brasileirao e Libertadores)', coach: 'Filipe Luis',
+    id: 'flamengo2025', club: 'Flamengo', year: 2025, label: 'Flamengo 2025 (Brasileirão e Libertadores)', coach: 'Filipe Luis',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Rossi', pos: ['GOL'], ovr: 85 },
@@ -5599,7 +5599,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'ceara2026', club: 'Ceara', year: 2026, label: 'Ceara 2026', coach: 'Leon Denis',
+    id: 'ceara2026', club: 'Ceara', year: 2026, label: 'Ceará 2026', coach: 'Leon Denis',
     colors: { p: '#000000', s: '#ffffff' },
     players: [
       { name: 'Matheus Nogueira', pos: ['GOL'], ovr: 66, age: 29 },
@@ -5636,7 +5636,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'goias2026', club: 'Goias', year: 2026, label: 'Goias 2026', coach: 'Nicolas Larcamon',
+    id: 'goias2026', club: 'Goias', year: 2026, label: 'Goiás 2026', coach: 'Nicolas Larcamon',
     colors: { p: '#00923F', s: '#ffffff' },
     players: [
       { name: 'Tadeu', pos: ['GOL'], ovr: 71, age: 34 },
@@ -5754,7 +5754,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'criciuma2026', club: 'Criciuma', year: 2026, label: 'Criciuma 2026', coach: 'Cristovao Borges',
+    id: 'criciuma2026', club: 'Criciuma', year: 2026, label: 'Criciúma 2026', coach: 'Cristovao Borges',
     colors: { p: '#FFD700', s: '#000000' },
     players: [
       { name: 'Alisson', pos: ['GOL'], ovr: 68, age: 31 },
@@ -5871,7 +5871,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'cuiaba2026', club: 'Cuiaba', year: 2026, label: 'Cuiaba 2026', coach: 'Claudinei Oliveira',
+    id: 'cuiaba2026', club: 'Cuiaba', year: 2026, label: 'Cuiabá 2026', coach: 'Claudinei Oliveira',
     colors: { p: '#FFD700', s: '#006633' },
     players: [
       { name: 'Marcelo Carne', pos: ['GOL'], ovr: 63, age: 36 },
@@ -5910,7 +5910,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'atleticogo2026', club: 'Atletico Goianiense', year: 2026, label: 'Atletico Goianiense 2026', coach: 'Claudinei Oliveira',
+    id: 'atleticogo2026', club: 'Atletico Goianiense', year: 2026, label: 'Atlético Goianiense 2026', coach: 'Claudinei Oliveira',
     colors: { p: '#C8102E', s: '#000000' },
     players: [
       { name: 'Paulo Vitor', pos: ['GOL'], ovr: 62, age: 37 },
@@ -5946,7 +5946,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'operario2026', club: 'Operario-PR', year: 2026, label: 'Operario-PR 2026', coach: 'Matheus Trindade',
+    id: 'operario2026', club: 'Operario-PR', year: 2026, label: 'Operário-PR 2026', coach: 'Matheus Trindade',
     colors: { p: '#00843D', s: '#ffffff' },
     players: [
       { name: 'Elias Curzel', pos: ['GOL'], ovr: 62, age: 31 },
@@ -5985,7 +5985,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'avai2026', club: 'Avai', year: 2026, label: 'Avai 2026', coach: 'Claudio Tencati',
+    id: 'avai2026', club: 'Avai', year: 2026, label: 'Avaí 2026', coach: 'Claudio Tencati',
     colors: { p: '#0033A0', s: '#ffffff' },
     players: [
       { name: 'Igor Bohn', pos: ['GOL'], ovr: 65, age: 30 },
@@ -6023,7 +6023,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'saobernardo2026', club: 'Sao Bernardo', year: 2026, label: 'Sao Bernardo 2026', coach: 'Marcelo Vilar',
+    id: 'saobernardo2026', club: 'Sao Bernardo', year: 2026, label: 'São Bernardo 2026', coach: 'Marcelo Vilar',
     colors: { p: '#C8102E', s: '#ffffff' },
     players: [
       { name: 'Alex Alves', pos: ['GOL'], ovr: 62, age: 40 },
@@ -6101,7 +6101,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'americamg2026', club: 'America-MG', year: 2026, label: 'America-MG 2026', coach: 'Lisca',
+    id: 'americamg2026', club: 'America-MG', year: 2026, label: 'América-MG 2026', coach: 'Lisca',
     colors: { p: '#00843D', s: '#ffffff' },
     players: [
       { name: 'Gustavo', pos: ['GOL'], ovr: 64, age: 33 },
@@ -6222,7 +6222,7 @@ export const TEAMS = [
     ]
   },
   {
-    id: 'nautico2026', club: 'Nautico', year: 2026, label: 'Nautico 2026', coach: 'Marcelo Martelotte',
+    id: 'nautico2026', club: 'Nautico', year: 2026, label: 'Náutico 2026', coach: 'Marcelo Martelotte',
     colors: { p: '#C8102E', s: '#FFFFFF' },
     players: [
       { name: 'Gaston Guruceaga', pos: ['GOL'], ovr: 64, age: 31 },

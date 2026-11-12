@@ -46,7 +46,7 @@ export function TinyCrest({ team, ring, emoji }) {
       width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
       border: ring ? `2px solid ${ring}` : '1px solid var(--line-strong)', background: 'var(--surface)', overflow: 'hidden', flexShrink: 0,
     }}>
-      {emoji ? <span style={{ fontSize: 11 }}>{emoji}</span> : logo ? <img src={logo} alt="" style={{ width: '72%', height: '72%', objectFit: 'contain' }} /> : <span style={{ fontSize: 9, opacity: 0.4 }}>?</span>}
+      {emoji ? <span style={{ fontSize: 11 }}>{emoji}</span> : logo ? <img src={logo} alt="" style={{ width: '72%', height: '72%', objectFit: 'contain' }} /> : <span style={{ fontSize: 9, color: 'var(--muted)' }}>?</span>}
     </div>
   );
 }

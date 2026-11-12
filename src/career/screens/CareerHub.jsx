@@ -8,6 +8,7 @@
 // número aqui vem de algo que o save realmente guarda (força de elenco por
 // OVR médio, valor de mercado somado, retrospecto real das últimas 3
 // rodadas, etc.).
+import { Icon, Alert } from '../../ui/index.jsx';
 import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
@@ -20,6 +21,7 @@ import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
 import { isTransferWindowOpen } from '../engine/calendar.js';
 import { backButtonStyle } from '../components/styles.js';
 import { MatchPreviewModal } from '../components/MatchPreviewModal.jsx';
+import { displayName } from '../../lib/displayName.js';
 
 function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
@@ -54,7 +56,7 @@ export function eventLine(ev, myClubId) {
   if (ev.type === 'transfer-ai') {
     const from = TEAMS.find(t => t.id === ev.fromClubId);
     const to = TEAMS.find(t => t.id === ev.toClubId);
-    return `🔄 ${from?.club} comprou ${ev.playerName} do ${to?.club} por ${formatMoney(ev.amount)}`;
+    return `🔄 ${displayName(from?.club)} comprou ${ev.playerName} do ${displayName(to?.club)} por ${formatMoney(ev.amount)}`;
   }
   if (ev.type === 'offer') {
     return ev.offerKind === 'loan'
@@ -123,21 +125,21 @@ function zoneStatus(divisionKey, pos, total) {
 const cardStyle = {
   padding: '16px', borderRadius: 16,
   background: 'var(--surface)',
-  border: '1px solid var(--line)', boxShadow: '0 10px 28px rgba(15,31,23,0.14)',
+  border: '1px solid var(--line)', boxShadow: 'var(--shadow-sm)', borderRadius: 20,
 };
-const cardLabelStyle = { fontSize: 10.5, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 };
+const cardLabelStyle = { fontSize: 10.5, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 500, fontFamily: 'var(--font-mono)' };
 const RESULT_COLORS = { V: '#1F7A4D', D: '#B23B3B', E: '#CFC6B1' };
 
 function TeamCrest({ teamId, size }) {
   const team = TEAMS.find(t => t.id === teamId);
   const logo = team && CLUB_LOGOS[team.club];
   return logo
-    ? <img src={logo} alt={team.club} style={{ width: size, height: size, objectFit: 'contain' }} />
+    ? <img src={logo} alt={displayName(team.club)} style={{ width: size, height: size, objectFit: 'contain' }} />
     : <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surface-2)' }} />;
 }
 
 function FormDots({ form }) {
-  if (!form.length) return <span style={{ fontSize: 9.5, opacity: 0.35 }}>sem jogos</span>;
+  if (!form.length) return <span style={{ fontSize: 9.5, color: 'var(--muted)' }}>sem jogos</span>;
   return (
     <div style={{ display: 'flex', gap: 3 }}>
       {form.map((r, i) => (
@@ -175,10 +177,10 @@ function NextMatchCard({ save, division, seasonOver, nextMatch, onOpenPreview })
     >
       <div style={{ ...cardLabelStyle, textAlign: 'center', marginBottom: 12, color: 'var(--gold-ink)', opacity: 0.85, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
         ⚽ Próximo jogo
-        {clickable && <span style={{ fontSize: 9, opacity: 0.6, textTransform: 'none', fontWeight: 600, letterSpacing: 0 }}>· toque pra ver prévia</span>}
+        {clickable && <span style={{ fontSize: 9, color: 'var(--muted)', textTransform: 'none', fontWeight: 600, letterSpacing: 0 }}>· toque pra ver prévia</span>}
       </div>
       {seasonOver ? (
-        <div style={{ fontSize: 12.5, opacity: 0.7, textAlign: 'center', padding: '10px 0' }}>Temporada {save.season} terminada.</div>
+        <div style={{ fontSize: 12.5, color: 'var(--ink-2)', textAlign: 'center', padding: '10px 0' }}>Temporada {save.season} terminada.</div>
       ) : nextMatch ? (
         <>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'center', gap: 14, position: 'relative' }}>
@@ -189,18 +191,18 @@ function NextMatchCard({ save, division, seasonOver, nextMatch, onOpenPreview })
             <div style={{ textAlign: 'center', flex: 1, minWidth: 0, position: 'relative' }}>
               <TeamCrest teamId={nextMatch.homeId} size={56} />
               <div style={{ fontSize: 11, fontWeight: 700, marginTop: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{TEAMS.find(t => t.id === nextMatch.homeId)?.club}</div>
-              <div style={{ fontSize: 9, opacity: 0.45, marginBottom: 4 }}>{nextMatch.homeId === save.myClubId ? 'Seu time' : 'Casa'}</div>
+              <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 4 }}>{nextMatch.homeId === save.myClubId ? 'Seu time' : 'Casa'}</div>
               <FormDots form={clubForm(division, nextMatch.homeId)} />
             </div>
-            <div style={{ fontSize: 12, opacity: 0.45, fontWeight: 700, flexShrink: 0, position: 'relative', marginTop: 20 }}>×</div>
+            <div style={{ fontSize: 12, color: 'var(--muted)', fontWeight: 700, flexShrink: 0, position: 'relative', marginTop: 20 }}>×</div>
             <div style={{ textAlign: 'center', flex: 1, minWidth: 0, position: 'relative' }}>
               <TeamCrest teamId={nextMatch.awayId} size={56} />
               <div style={{ fontSize: 11, fontWeight: 700, marginTop: 7, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{TEAMS.find(t => t.id === nextMatch.awayId)?.club}</div>
-              <div style={{ fontSize: 9, opacity: 0.45, marginBottom: 4 }}>{nextMatch.awayId === save.myClubId ? 'Seu time' : 'Fora'}</div>
+              <div style={{ fontSize: 9, color: 'var(--muted)', marginBottom: 4 }}>{nextMatch.awayId === save.myClubId ? 'Seu time' : 'Fora'}</div>
               <FormDots form={clubForm(division, nextMatch.awayId)} />
             </div>
           </div>
-          <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.55, margin: '12px 0 10px', fontFamily: 'var(--font-mono)' }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
+          <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)', margin: '12px 0 10px', fontFamily: 'var(--font-mono)' }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
           <div style={{ paddingTop: 10, borderTop: '1px solid var(--line)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, fontWeight: 600, opacity: 0.8, marginBottom: 4 }}>
               <span style={{ color: 'var(--ink)' }}>Vitória {homeWinPct}%</span>
@@ -215,7 +217,7 @@ function NextMatchCard({ save, division, seasonOver, nextMatch, onOpenPreview })
           </div>
         </>
       ) : (
-        <div style={{ fontSize: 12.5, opacity: 0.6, textAlign: 'center', padding: '10px 0' }}>Sem jogo seu nesta rodada.</div>
+        <div style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '10px 0' }}>Sem jogo seu nesta rodada.</div>
       )}
     </div>
   );
@@ -275,7 +277,7 @@ function MoneyMeter({ save }) {
         <text x={cx} y={cy - 2} textAnchor="middle" fontSize="9" fontWeight="700" fill={health.color}>{health.text}</text>
       </svg>
       <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 10, background: 'var(--surface)', border: '1px solid var(--line)', textAlign: 'center' }}>
-        <div style={{ fontSize: 9.5, opacity: 0.5, textTransform: 'uppercase', letterSpacing: 0.4 }}>Valor do elenco</div>
+        <div style={{ fontSize: 9.5, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.4 }}>Valor do elenco</div>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>{formatMoneyShort(squadValue)}</div>
       </div>
     </div>
@@ -287,7 +289,7 @@ function NovidadesCard({ dayEventsRich }) {
     <div className="career-hub-card" style={cardStyle}>
       <div style={cardLabelStyle}>📰 O que aconteceu</div>
       {dayEventsRich.length === 0 ? (
-        <div style={{ fontSize: 12, opacity: 0.45, marginTop: 8 }}>Nada de novo por enquanto.</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>Nada de novo por enquanto.</div>
       ) : (
         <div style={{ marginTop: 8, display: 'grid', gap: 7 }}>
           {dayEventsRich.map((ev, i) => {
@@ -319,7 +321,7 @@ function TopTransfersCard({ save }) {
     <div className="career-hub-card" style={cardStyle}>
       <div style={cardLabelStyle}>🔥 Top transferências na liga</div>
       {top.length === 0 ? (
-        <div style={{ fontSize: 12, opacity: 0.45, marginTop: 8 }}>Nenhuma negociação ainda nesta temporada.</div>
+        <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>Nenhuma negociação ainda nesta temporada.</div>
       ) : (
         <div style={{ marginTop: 8, display: 'grid', gap: 7 }}>
           {top.map((t, i) => {
@@ -330,7 +332,7 @@ function TopTransfersCard({ save }) {
                 <TeamCrest teamId={t.toClubId} size={22} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 12, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{t.playerName}</div>
-                  <div style={{ fontSize: 9.5, opacity: 0.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{fromTeam?.club} ➔ {toTeam?.club}</div>
+                  <div style={{ fontSize: 9.5, color: 'var(--muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(fromTeam?.club)} ➔ {displayName(toTeam?.club)}</div>
                 </div>
                 <span style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--gold-ink)', fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{formatMoneyShort(t.amount)}</span>
               </div>
@@ -355,7 +357,7 @@ function MiniTableCard({ division, divisionKey, myClubId, myPos }) {
     <div className="career-hub-card" style={cardStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={cardLabelStyle}>📊 Tabela rápida</div>
-        <span style={{ fontSize: 10, opacity: 0.45, fontFamily: 'var(--font-mono)' }}>Série {divisionKey} · R{division.round}/{division.fixtures.length}</span>
+        <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>Série {divisionKey} · R{division.round}/{division.fixtures.length}</span>
       </div>
       <div style={{ marginTop: 8, display: 'grid', gap: 4 }}>
         {sortedRows.map(([clubId, pos]) => {
@@ -370,8 +372,8 @@ function MiniTableCard({ division, divisionKey, myClubId, myPos }) {
             }}>
               <span style={{ width: 16, fontSize: 11, fontWeight: 800, color: mine ? 'var(--gold-ink)' : 'var(--success)', fontFamily: 'var(--font-mono)' }}>{pos}</span>
               <TeamCrest teamId={clubId} size={16} />
-              <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: mine ? 700 : 500, color: mine ? 'var(--gold-ink)' : 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team?.club}</span>
-              <span style={{ fontSize: 10, opacity: 0.5, fontFamily: 'var(--font-mono)' }}>{row?.pj ?? 0}J</span>
+              <span style={{ flex: 1, minWidth: 0, fontSize: 11.5, fontWeight: mine ? 700 : 500, color: mine ? 'var(--gold-ink)' : 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(team?.club)}</span>
+              <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{row?.pj ?? 0}J</span>
               <span style={{ fontSize: 12, fontWeight: 800, fontFamily: 'var(--font-mono)', color: mine ? 'var(--gold-ink)' : 'var(--ink)' }}>{row?.pts ?? 0}</span>
             </div>
           );
@@ -385,11 +387,11 @@ function NavButton({ icon, label, sub, onClick, accent, style }) {
   return (
     <button className="career-nav-btn" onClick={onClick} style={{ ...navBtnStyle, ...style }}>
       <span style={{
-        width: 36, height: 36, borderRadius: 10, display: 'flex', alignItems: 'center', justifyContent: 'center',
-        fontSize: 16, marginBottom: 6, background: accent ? 'rgba(194,154,69,0.12)' : 'rgba(31,122,77,0.1)',
-      }}>{icon}</span>
-      <span style={{ fontWeight: 700, fontSize: 12.5 }}>{label}</span>
-      <span style={{ fontSize: 9.5, opacity: 0.55, marginTop: 2, color: accent ? 'var(--gold-ink)' : 'var(--muted)', fontWeight: accent ? 700 : 400 }}>{sub}</span>
+        width: 40, height: 40, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center',
+        marginBottom: 10, background: accent ? 'var(--gold-soft)' : 'var(--surface-2)', color: accent ? 'var(--gold-ink)' : 'var(--green)',
+      }}><Icon name={icon} size={20} /></span>
+      <span style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 16 }}>{label}</span>
+      <span style={{ fontSize: 12, marginTop: 2, color: accent ? 'var(--gold-ink)' : 'var(--muted)', fontWeight: accent ? 600 : 400 }}>{sub}</span>
     </button>
   );
 }
@@ -466,24 +468,24 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
       )}
 
       <div className="career-hub-col">
-        <button onClick={onExit} style={backButtonStyle}>← Sair da carreira</button>
+        <button onClick={onExit} style={{ ...backButtonStyle, marginBottom: 0, justifySelf: 'start' }}><Icon name="arrowLeft" size={15} /> Sair da carreira</button>
 
         <div className="career-hub-card" style={{ ...cardStyle }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ position: 'relative', flexShrink: 0 }}>
-              {logo && <img src={logo} alt={team.club} style={{ width: 52, height: 52, objectFit: 'contain' }} />}
+              {logo && <img src={logo} alt={displayName(team.club)} style={{ width: 52, height: 52, objectFit: 'contain' }} />}
               <span style={{
                 position: 'absolute', bottom: -4, right: -8, minWidth: 22, height: 20, padding: '0 4px', borderRadius: 999,
-                background: 'var(--gold)', color: 'var(--ink)', fontSize: 10, fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                border: '2px solid var(--line)',
+                background: 'var(--green)', color: '#fff', fontSize: 10, fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                border: '2px solid var(--surface)', fontFamily: 'var(--font-mono)',
               }}>{myPos}º</span>
             </div>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                {team.club}
+              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 24, letterSpacing: '-0.01em', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                {displayName(team.club)}
                 <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--gold-ink)', background: 'rgba(194,154,69,0.12)', border: '1px solid var(--gold)', borderRadius: 999, padding: '2px 7px' }}>Série {divisionKey}</span>
               </div>
-              <div style={{ fontSize: 11.5, opacity: 0.6, marginTop: 2 }}>
+              <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>
                 {formatCalendarDay(save.calendarDay)} · Temporada {save.season}
                 {zone && <span style={{ color: zone.color, fontWeight: 700 }}> · {zone.text}</span>}
               </div>
@@ -501,56 +503,59 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
         </div>
 
         {offerCount > 0 && (
-          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)', fontSize: 12, color: 'var(--gold-ink)', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('market')}>
-            📨 {offerCount} proposta{offerCount > 1 ? 's' : ''} esperando resposta — toque pra ver
-          </div>
+          <Alert tone="info" icon="chat" onClick={() => onNavigate('market')}>
+            <b>{offerCount} proposta{offerCount > 1 ? 's' : ''}</b> esperando resposta — toque pra ver
+          </Alert>
         )}
         {offerCount === 0 && noFormation && (
-          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(178,59,59,0.1)', border: '1px solid rgba(178,59,59,0.4)', fontSize: 12, color: 'var(--danger)', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('formation')}>
-            🧩 Defina sua formação antes de jogar — toque pra escalar
-          </div>
+          <Alert tone="warning" icon="formation" onClick={() => onNavigate('formation')}>
+            <b>Defina sua formação</b> antes de jogar — toque pra escalar
+          </Alert>
         )}
         {offerCount === 0 && !noFormation && hasSuspendedStarter && (
-          <div style={{ padding: '8px 12px', borderRadius: 10, background: 'rgba(178,59,59,0.1)', border: '1px solid rgba(178,59,59,0.4)', fontSize: 12, color: 'var(--danger)', fontWeight: 600, cursor: 'pointer' }} onClick={() => onNavigate('formation')}>
-            🟥 {suspendedStarters.join(', ')} suspenso{suspendedStarters.length > 1 ? 's' : ''} — ajuste a formação antes de jogar
-          </div>
+          <Alert tone="danger" onClick={() => onNavigate('formation')}>
+            <b>{suspendedStarters.join(', ')}</b> suspenso{suspendedStarters.length > 1 ? 's' : ''} — ajuste a formação antes de jogar
+          </Alert>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-          <NavButton icon="👕" label="Elenco" sub={`${rosterCount} jogadores`} onClick={() => onNavigate('squad')} />
-          <NavButton icon="🧩" label="Formação" sub={save.myFormationLabel || 'Não definida'} onClick={() => onNavigate('formation')} />
-          <NavButton icon="💰" label="Mercado" sub={windowOpen ? 'Janela aberta' : 'Janela fechada'} accent={offerCount > 0 || windowOpen} onClick={() => onNavigate('market')} />
-          <NavButton icon="📊" label="Tabela" sub={`${myPos}º lugar`} onClick={() => onNavigate('table')} />
-          <NavButton icon="📅" label="Calendário" sub={`${division.fixtures.length} rodadas`} onClick={() => onNavigate('calendar')} />
-          <NavButton icon="🏆" label="Copa do Brasil" sub={copaStatus} accent={save.copa?.phase === 'done' && save.copa.champion === save.myClubId} onClick={() => onNavigate('copa')} />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10 }}>
+          <NavButton icon="shirt" label="Elenco" sub={`${rosterCount} jogadores`} onClick={() => onNavigate('squad')} />
+          <NavButton icon="formation" label="Formação" sub={save.myFormationLabel || 'Não definida'} onClick={() => onNavigate('formation')} />
+          <NavButton icon="market" label="Mercado" sub={windowOpen ? 'Janela aberta' : 'Janela fechada'} accent={offerCount > 0 || windowOpen} onClick={() => onNavigate('market')} />
+          <NavButton icon="table" label="Tabela" sub={`${myPos}º lugar`} onClick={() => onNavigate('table')} />
+          <NavButton icon="calendar" label="Calendário" sub={`${division.fixtures.length} rodadas`} onClick={() => onNavigate('calendar')} />
+          <NavButton icon="cup" label="Copa do Brasil" sub={copaStatus} accent={save.copa?.phase === 'done' && save.copa.champion === save.myClubId} onClick={() => onNavigate('copa')} />
         </div>
 
         <button className="career-nav-btn" onClick={() => onNavigate('youth')} style={{
-          width: '100%', padding: '11px 14px', borderRadius: 12, border: '1px solid var(--line-strong)',
+          width: '100%', padding: '0 16px', minHeight: 52, borderRadius: 16, border: '1px solid var(--line)',
           background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+          display: 'flex', alignItems: 'center', gap: 10, fontFamily: 'var(--font-body)',
         }}>
-          <span>🌱</span>
-          <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Categoria de Base</span>
+          <span style={{ color: 'var(--green)', display: 'flex' }}><Icon name="sprout" size={20} /></span>
+          <span style={{ fontSize: 14, fontWeight: 600, flex: 1, textAlign: 'left' }}>Categoria de base</span>
           {academyCount > 0 && <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--success)', background: 'rgba(31,122,77,0.12)', border: '1px solid rgba(31,122,77,0.4)', borderRadius: 999, padding: '2px 8px' }}>{academyCount} promessa{academyCount > 1 ? 's' : ''}</span>}
         </button>
 
         <div style={{ paddingTop: 4 }}>
           <button className="career-advance-btn" onClick={onAdvanceDay} disabled={advanceBlocked} style={{
-            width: '100%', padding: '18px 0', borderRadius: 14, border: advanceBlocked ? 'none' : '2px solid var(--gold)', cursor: advanceBlocked ? 'default' : 'pointer',
-            background: advanceBlocked ? 'rgba(194,154,69,0.2)' : 'linear-gradient(135deg, var(--gold), var(--gold), var(--gold))',
-            color: 'var(--ink)', fontSize: 17, fontWeight: 800, letterSpacing: 0.4,
+            width: '100%', minHeight: 56, padding: '0 20px', borderRadius: 999, border: advanceBlocked ? '1px dashed var(--line-strong)' : 'none', cursor: advanceBlocked ? 'not-allowed' : 'pointer',
+            background: advanceBlocked ? 'var(--surface-2)' : 'var(--green)',
+            color: advanceBlocked ? 'var(--muted)' : '#fff', fontSize: 16, fontWeight: 600, fontFamily: 'var(--font-body)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
           }}>
-            {offerCount > 0 ? 'Responda as propostas primeiro' : noFormation ? 'Defina a formação primeiro' : hasSuspendedStarter ? 'Tire o suspenso da escalação' : seasonOver ? 'Encerrar temporada →' : '▶ Avançar rodada'}
+            {advanceBlocked ? <Icon name="lock" size={17} /> : seasonOver ? null : <Icon name="play" size={15} />}
+            {offerCount > 0 ? 'Responda as propostas primeiro' : noFormation ? 'Defina a formação primeiro' : hasSuspendedStarter ? 'Tire o suspenso da escalação' : seasonOver ? 'Encerrar temporada →' : 'Avançar rodada'}
           </button>
         </div>
         {!seasonOver && (
           <div style={{ display: 'flex', justifyContent: 'center' }}>
             <button className="career-simulate-btn" onClick={onSimulateSeason} disabled={advanceBlocked} style={{
-              padding: '9px 20px', borderRadius: 999, cursor: advanceBlocked ? 'default' : 'pointer',
-              border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink-2)', fontSize: 12, fontWeight: 600,
+              minHeight: 44, padding: '0 20px', borderRadius: 999, cursor: advanceBlocked ? 'not-allowed' : 'pointer',
+              border: '1px solid var(--line-strong)', background: 'transparent', color: advanceBlocked ? 'var(--muted)' : 'var(--ink-2)', fontSize: 13, fontWeight: 500,
+              display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-body)', opacity: advanceBlocked ? 0.6 : 1,
             }}>
-              ⏩ Simular temporada até o fim
+              <Icon name="forward" size={15} /> Simular temporada até o fim
             </button>
           </div>
         )}
@@ -566,7 +571,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
 }
 
 const navBtnStyle = {
-  padding: '12px 8px', borderRadius: 12, border: '1px solid var(--line-strong)',
-  background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer',
-  display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center',
+  padding: '16px 14px', borderRadius: 18, border: '1px solid var(--line)',
+  background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer', minHeight: 112,
+  display: 'flex', flexDirection: 'column', alignItems: 'flex-start', textAlign: 'left', fontFamily: 'var(--font-body)',
 };

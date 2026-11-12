@@ -10,6 +10,7 @@ import { posColor, ovrColor } from '../../lib/format.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { backButtonStyle } from '../components/styles.js';
 import { primaryBtnStyle } from '../components/liveMatchUI.jsx';
+import { displayName } from '../../lib/displayName.js';
 
 const cardStyle = {
   padding: '14px', borderRadius: 14,
@@ -26,9 +27,9 @@ const TABS = [
 function StatCard({ label, value, sub, accent }) {
   return (
     <div style={cardStyle}>
-      <div style={{ fontSize: 10, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>{label}</div>
+      <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 24, fontWeight: 800, color: accent || 'var(--ink)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{value}</div>
-      {sub && <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 2 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
@@ -37,7 +38,7 @@ function ClubRow({ club, move }) {
   const logo = club ? CLUB_LOGOS[club.club] : null;
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: 'var(--surface)' }}>
-      {logo ? <img src={logo} alt={club?.club} style={{ width: 26, height: 26, objectFit: 'contain' }} /> : <div style={{ width: 26, height: 26, borderRadius: '50%', background: club?.colors?.p || '#333' }} />}
+      {logo ? <img src={logo} alt={displayName(club?.club)} style={{ width: 26, height: 26, objectFit: 'contain' }} /> : <div style={{ width: 26, height: 26, borderRadius: '50%', background: club?.colors?.p || '#333' }} />}
       <span style={{ fontSize: 13, fontWeight: 600, flex: 1 }}>{club?.club || '?'}</span>
       <span style={{ fontSize: 14 }}>{move === 'promoted' ? '↑' : '↓'}</span>
     </div>
@@ -57,7 +58,7 @@ function PlayerRow({ p }) {
       }}>{p.pos?.[0]}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
-        <div style={{ fontSize: 10.5, opacity: 0.6, fontFamily: 'var(--font-mono)' }}>
+        <div style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
           {p.stats.matches}j · {p.stats.goals}g · {p.stats.assists}a{isGk ? ` · ${p.stats.cleanSheets} sg` : ''} · 🟨{p.stats.yellows} 🟥{p.stats.reds}
         </div>
       </div>
@@ -84,8 +85,8 @@ export function CareerSeasonReportScreen({ report, onAdvance, onBack }) {
   return (
     <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
       {onBack && <button onClick={onBack} style={backButtonStyle}>← Voltar</button>}
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, marginBottom: 2 }}>Fim da Temporada {season}</h2>
-      <p style={{ fontSize: 12, opacity: 0.6, marginBottom: 16 }}>{teamLabel} — como foi a temporada</p>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 2 }}>Fim da Temporada {season}</h2>
+      <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>{teamLabel} — como foi a temporada</p>
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
         {TABS.map(t => (
@@ -120,7 +121,7 @@ export function CareerSeasonReportScreen({ report, onAdvance, onBack }) {
           {playerRows.map(p => <PlayerRow key={p.name} p={p} />)}
           {retired.length > 0 && (
             <>
-              <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10, marginBottom: 2 }}>Se aposentaram</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10, marginBottom: 2 }}>Se aposentaram</div>
               {retired.map(d => (
                 <div key={d.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(178,59,59,0.1)' }}>
                   <span style={{ fontSize: 13, flex: 1 }}>{d.name}</span>
@@ -135,15 +136,15 @@ export function CareerSeasonReportScreen({ report, onAdvance, onBack }) {
       {tab === 'moves' && (
         <div style={{ display: 'grid', gap: 16 }}>
           <div>
-            <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>Subiram pra Série A</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>Subiram pra Série A</div>
             <div style={{ display: 'grid', gap: 5 }}>
-              {promoted.length ? promoted.map(m => <ClubRow key={m.clubId} club={m.club} move={m.move} />) : <div style={{ fontSize: 12, opacity: 0.5 }}>Nenhum.</div>}
+              {promoted.length ? promoted.map(m => <ClubRow key={m.clubId} club={m.club} move={m.move} />) : <div style={{ fontSize: 12, color: 'var(--muted)' }}>Nenhum.</div>}
             </div>
           </div>
           <div>
-            <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>Caíram pra Série B</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 6 }}>Caíram pra Série B</div>
             <div style={{ display: 'grid', gap: 5 }}>
-              {relegated.length ? relegated.map(m => <ClubRow key={m.clubId} club={m.club} move={m.move} />) : <div style={{ fontSize: 12, opacity: 0.5 }}>Nenhum.</div>}
+              {relegated.length ? relegated.map(m => <ClubRow key={m.clubId} club={m.club} move={m.move} />) : <div style={{ fontSize: 12, color: 'var(--muted)' }}>Nenhum.</div>}
             </div>
           </div>
         </div>

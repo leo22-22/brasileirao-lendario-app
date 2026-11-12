@@ -9,6 +9,7 @@
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { backButtonStyle } from '../components/styles.js';
+import { displayName } from '../../lib/displayName.js';
 
 function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
@@ -22,17 +23,17 @@ export function CareerStartScreen({ save, onContinue, onNewCareer, onOpenLoad, o
   return (
     <div style={{ width: '100%', maxWidth: 420, margin: '0 auto', padding: '24px 16px' }}>
       <button onClick={onBack} style={{ ...backButtonStyle, marginBottom: 20 }}>← Voltar ao menu</button>
-      <h1 style={{ fontFamily: 'var(--font-serif)', fontSize: 22, marginBottom: 20, textAlign: 'center' }}>Modo Carreira</h1>
+      <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 20, textAlign: 'center' }}>Modo Carreira</h1>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', borderRadius: 14, background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)', marginBottom: 20 }}>
-        {logo && <img src={logo} alt={team.club} style={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
+        {logo && <img src={logo} alt={displayName(team.club)} style={{ width: 40, height: 40, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>{team.club}</div>
-          <div style={{ fontSize: 12, opacity: 0.65 }}>Temporada {save.season} · {formatMoney(club.budget)}</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>{displayName(team.club)}</div>
+          <div style={{ fontSize: 12, color: 'var(--ink-2)' }}>Temporada {save.season} · {formatMoney(club.budget)}</div>
         </div>
       </div>
 
-      <button onClick={onContinue} style={{ width: '100%', padding: '14px 0', borderRadius: 10, border: 'none', background: 'var(--gold)', color: 'var(--ink)', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
+      <button onClick={onContinue} style={{ width: '100%', padding: '14px 0', borderRadius: 999, border: 'none', background: 'var(--green)', color: '#fff', fontSize: 15, fontWeight: 700, cursor: 'pointer', marginBottom: 10 }}>
         ▶ Continuar carreira
       </button>
 

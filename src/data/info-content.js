@@ -2,6 +2,8 @@
 // Contato) + escudo→estádio — extraído de App.jsx pra ser compartilhado
 // entre o jogo (App.jsx) e o bundle de conteúdo (src/content/), sem
 // duplicar texto entre os dois.
+import { FIRST_YEAR, LAST_YEAR } from '../lib/eras.js';
+
 export const CONTACT_EMAIL = 'leonardoranuci@brasileiraolendario.com.br';
 
 export const INFO_TABS = [
@@ -20,7 +22,7 @@ export const INFO_ROUTES = {
 };
 
 export const HOW_TO_PLAY_STEPS = [
-  { icon: '🎲', title: 'Monte seu elenco no draft', text: 'A cada rodada do draft, você sorteia um time histórico do Brasileirão (1959–2024) e escolhe UM jogador dele pra preencher uma vaga da sua formação. Não gostou do time sorteado? Você tem até 3 pulos pra tentar outro.' },
+  { icon: '🎲', title: 'Monte seu elenco no draft', text: `A cada rodada do draft, você sorteia um time histórico do Brasileirão (${FIRST_YEAR}–${LAST_YEAR}) e escolhe UM jogador dele pra preencher uma vaga da sua formação. Não gostou do time sorteado? Você tem até 3 pulos pra tentar outro.` },
   { icon: '🧩', title: 'Escolha a formação e o capitão', text: 'Antes do draft, escolha entre várias formações táticas (4-4-2, 4-3-3, 3-5-2 e outras). Depois de montar os 11 titulares e o banco, escolha um capitão — ele ganha +2 de overall fixo pra temporada inteira.' },
   { icon: '⚙️', title: 'Escolha a dificuldade certa', text: 'Fácil, Normal, Difícil ou Lendário ajustam o nível dos adversários controlados pela IA. Lendário é pensado pra quem já manja do jogo — os rivais jogam bem acima do overall de papel deles.' },
   { icon: '🏆', title: 'Brasileirão ou Copa do Brasil', text: 'No Brasileirão, são 20 times em pontos corridos (38 rodadas, todos contra todos). Na Copa do Brasil, é mata-mata com ida e volta entre 32 times até sair um campeão.' },

@@ -52,9 +52,9 @@ const cardStyle = {
 function StatCard({ label, value, sub, accent }) {
   return (
     <div className="squad-card" style={cardStyle}>
-      <div style={{ fontSize: 10, opacity: 0.55, textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>{label}</div>
+      <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6, fontWeight: 700 }}>{label}</div>
       <div style={{ fontSize: 22, fontWeight: 800, color: accent || 'var(--ink)', fontFamily: 'var(--font-mono)', marginTop: 4 }}>{value}</div>
-      {sub && <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 2 }}>{sub}</div>}
+      {sub && <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 2 }}>{sub}</div>}
     </div>
   );
 }
@@ -130,11 +130,11 @@ function PlayerRow({ p, clubId, listed, expanded, onToggleExpand, onToggleListed
             {p.isStar && <span title="Joia">⭐</span>}
             {p.name}
           </div>
-          <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 1 }}>
+          <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 1 }}>
             {p.age != null ? `${p.age} anos · ` : ''}{p.pos.join('/')}
           </div>
         </div>
-        <span style={{ fontSize: 11, opacity: 0.6, fontFamily: 'var(--font-mono)', display: 'none' }} className="squad-value-wide">{formatMoneyShort(computePlayerValue(p, clubId))}</span>
+        <span style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)', display: 'none' }} className="squad-value-wide">{formatMoneyShort(computePlayerValue(p, clubId))}</span>
         <OvrBadge ovr={p.ovr} />
         <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
           <button onClick={onToggleExpand} title="Ver detalhes" style={iconBtnStyle}>👁</button>
@@ -162,7 +162,7 @@ function PlayerMiniCard({ p, clubId, listed, expanded, onToggleListed, onExpand 
       <div style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4 }}>
         {p.isYouth && '🌱'}{p.isStar && '⭐'} {p.name}
       </div>
-      <div style={{ fontSize: 10.5, opacity: 0.55, marginTop: 2 }}>{p.age != null ? `${p.age} anos · ` : ''}{p.pos.join('/')}</div>
+      <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 2 }}>{p.age != null ? `${p.age} anos · ` : ''}{p.pos.join('/')}</div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10, paddingTop: 8, borderTop: '1px solid var(--line)' }}>
         <span style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--gold-ink)' }}>{formatMoneyShort(value)}</span>
         <button
@@ -242,7 +242,7 @@ export function CareerSquadScreen({ save, onToggleListed, onBack }) {
       `}</style>
 
       <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontSize: 20, margin: '4px 0 0' }}>👕 Elenco</h2>
+      <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, margin: '4px 0 0' }}>Elenco</h2>
 
       <div className="squad-stats">
         <StatCard label="Total de jogadores" value={roster.length} />
@@ -272,14 +272,14 @@ export function CareerSquadScreen({ save, onToggleListed, onBack }) {
         </div>
       </div>
 
-      {groups.length === 0 && <p style={{ fontSize: 12.5, opacity: 0.5, textAlign: 'center', padding: '24px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
+      {groups.length === 0 && <p style={{ fontSize: 12.5, color: 'var(--muted)', textAlign: 'center', padding: '24px 0' }}>Nenhum jogador encontrado com esse filtro.</p>}
 
       {groups.map(g => (
         <div key={g.label} style={{ marginBottom: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
             <span style={{ width: 8, height: 8, borderRadius: 2, background: g.color }} />
-            <div style={{ fontSize: 11, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1 }}>{g.label}</div>
-            <div style={{ fontSize: 10.5, opacity: 0.4 }}>({g.players.length})</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1 }}>{g.label}</div>
+            <div style={{ fontSize: 10.5, color: 'var(--muted)' }}>({g.players.length})</div>
           </div>
           {view === 'table' ? (
             <div className="squad-group-grid">
