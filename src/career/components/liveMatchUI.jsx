@@ -323,7 +323,6 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
   }, [sim]);
 
   const myTeamObj = mySide === 'home' ? homeTeam : mySide === 'away' ? awayTeam : null;
-  const DEBUG = `DBG|home=${homeTeam.id}|away=${awayTeam.id}|myClubId=${save?.myClubId}|mySide=${mySide}|myTeamFull=${!!myTeamFull}|liveStarters=${!!liveStarters}|slots=${mySlots.length}`;
 
   const applySub = (slotKey, benchPlayerName) => {
     if (!liveStarters) return;
@@ -406,7 +405,6 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
 
       {phase === 'playing' && !isPaused && (
         <>
-          <div style={{ fontSize: 9, opacity: 0.6, wordBreak: 'break-all' }}>{DEBUG}</div>
           <button onClick={skipToEnd} style={secondaryBtnStyle}>⏭ Pular pro resultado</button>
           {mySide && liveStarters && <button onClick={pause} style={pauseBtnStyle}>⏸ Pausar e trocar</button>}
         </>
