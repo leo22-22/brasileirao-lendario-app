@@ -15,6 +15,7 @@ import { INFO_TABS, INFO_ROUTES, CLUB_STADIUMS } from './data/info-content.js';
 import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from './lib/format.js';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
+import { HomeLanding } from './home/HomeLanding.jsx';
 
 // Wrapper de eventos do Analytics (gtag já é carregado no index.html) — só
 // eventos de conversão que interessam pra marketing, não todo clique.
@@ -2135,28 +2136,31 @@ function getAchievementProgress(id, user) {
 // desbloqueada) — compartilhado entre a galeria completa (AchievementsModal) e
 // o showcase de objetivos em destaque na Intro, pra não duplicar o mesmo JSX
 // em dois lugares.
-function AchievementProgressCard({ id, user, unlockedSet }) {
+function AchievementProgressCard({ id, user, unlockedSet, light }) {
   const a = ACHIEVEMENT_CATALOG[id];
   if (!a) return null;
   const isUnlocked = unlockedSet.has(id);
   const progress = !isUnlocked ? getAchievementProgress(id, user) : null;
   const pct = progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : 0;
+  // `light`: só a home (tema claro) usa — o resto do app (AchievementsModal
+  // incluso, que sempre fica escuro) chama este componente sem a prop e
+  // mantém a aparência de sempre.
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10,
-      background: isUnlocked ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.03)',
-      border: `1px solid ${isUnlocked ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.07)'}`,
+      background: light ? (isUnlocked ? 'rgba(194,154,69,0.12)' : '#FBF9F4') : (isUnlocked ? 'rgba(212,162,60,0.1)' : 'rgba(255,255,255,0.03)'),
+      border: light ? `1px solid ${isUnlocked ? 'rgba(194,154,69,0.4)' : '#E3DCCB'}` : `1px solid ${isUnlocked ? 'rgba(212,162,60,0.35)' : 'rgba(255,255,255,0.07)'}`,
     }}>
       <span style={{ fontSize: 22, flexShrink: 0, filter: isUnlocked ? 'none' : 'grayscale(1)', opacity: isUnlocked ? 1 : 0.4 }}>{a.icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: isUnlocked ? '#F4F1EA' : 'rgba(244,241,234,0.6)' }}>{a.label}</div>
-        <div style={{ fontSize: 11, opacity: 0.5, lineHeight: 1.3 }}>{a.desc}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: light ? (isUnlocked ? '#0F1F17' : '#69736B') : (isUnlocked ? '#F4F1EA' : 'rgba(244,241,234,0.6)') }}>{a.label}</div>
+        <div style={{ fontSize: 11, opacity: light ? 0.65 : 0.5, lineHeight: 1.3, color: light ? '#69736B' : undefined }}>{a.desc}</div>
         {progress && (
           <div style={{ marginTop: 6 }}>
-            <div style={{ height: 4, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: '#d4a23c', borderRadius: 999, transition: 'width 0.3s' }} />
+            <div style={{ height: 4, borderRadius: 999, background: light ? '#E3DCCB' : 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
+              <div style={{ height: '100%', width: `${pct}%`, background: light ? '#C29A45' : '#d4a23c', borderRadius: 999, transition: 'width 0.3s' }} />
             </div>
-            <div style={{ fontSize: 9.5, opacity: 0.45, marginTop: 3, fontFamily: "'Space Mono', monospace" }}>
+            <div style={{ fontSize: 9.5, opacity: light ? 0.6 : 0.45, marginTop: 3, fontFamily: "'Space Mono', monospace", color: light ? '#69736B' : undefined }}>
               {Math.min(progress.current, progress.target).toLocaleString('pt-BR')}/{progress.target.toLocaleString('pt-BR')}
             </div>
           </div>
@@ -2387,6 +2391,21 @@ const MAX_SKIPS = 3;
 // sem erros, com todos os 40 clubes (Série A e B) já com elenco 100% real
 // e atualizado do Transfermarkt (ver `teams.js`/`market-values.js`).
 const CAREER_MODE_LOCKED = false;
+
+// Overrides de tema claro pro cabeçalho/página quando a home (fase 'intro')
+// está em tela — o resto do app (header incluso, fora da home) continua
+// escuro exatamente como sempre foi. Ver HOME_LIGHT em `isHomeLight` no App.
+// Sem `color` aqui de propósito: a cor de texto clara fica só dentro de
+// `.hl-home` (home/home.css) e dos estilos inline do cabeçalho — setar
+// cor escura na página inteira vazava (herança de CSS) pros modais que
+// continuam escuros (ModeDifficultyModal, WeeklyTeamModal, etc.), já que
+// eles não fixam a própria cor de texto e dependiam da cor do `styles.page`.
+const HOME_LIGHT_PAGE = { background: '#F5F1E8' };
+const HOME_LIGHT_HEADER = { borderBottom: '1px solid #E3DCCB', background: 'transparent' };
+const HOME_LIGHT_MARK = { width: 36, height: 36, borderRadius: 10, background: '#0D3A29', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 };
+const HOME_LIGHT_TITLE = { color: '#0F1F17' };
+const HOME_LIGHT_SUBTITLE = { color: '#69736B', opacity: 1 };
+const HOME_LIGHT_PILL = { border: '1px solid #D6CEBB', color: '#3A463F' };
 
 export default function App() {
   // ── Modo Carreira ──────────────────────────────────────────
@@ -6263,12 +6282,16 @@ export default function App() {
   // PC) — revertido depois a pedido do próprio usuário: "mais centralizado
   // e bonito" fica melhor numa coluna mais estreita, igual à maioria dos
   // sites desse estilo (menu/dashboard, não uma landing page larga).
-  const wideMainMaxWidth = multiPhase ? null : phase === 'intro' ? 880 : ['draft', 'squad', 'transfer'].includes(phase) ? 1100 : null;
+  const wideMainMaxWidth = multiPhase ? null : phase === 'intro' ? 1240 : ['draft', 'squad', 'transfer'].includes(phase) ? 1100 : null;
+  // Tema claro só vale na home (pedido do usuário no redesign da home,
+  // 2026-11-12: "O tema claro vale SÓ na home"). Nenhuma outra tela
+  // (draft/formação/carreira/simulador) muda de tema.
+  const isHomeLight = phase === 'intro' && !multiPhase;
 
   return (
-    <div style={styles.page}>
+    <div style={{ ...styles.page, ...(isHomeLight ? HOME_LIGHT_PAGE : null) }} className={isHomeLight ? 'hl-theme' : undefined}>
       <style>{globalCss}</style>
-      <div style={styles.bgTexture} />
+      {!isHomeLight && <div style={styles.bgTexture} />}
       {roomSnap && (
         <MultiplayerChatWidget
           messages={chatMessages}
@@ -6280,20 +6303,28 @@ export default function App() {
           myTeamColor={myTeamColor}
         />
       )}
-      <header style={styles.header}>
+      <header style={{ ...styles.header, ...(isHomeLight ? HOME_LIGHT_HEADER : null) }}>
         {/* Header sempre em largura total, em toda tela (diferente do `main`
             abaixo, que ainda varia por fase via wideMainMaxWidth) — pedido
             explícito pra não ficar com uma faixa estreita centralizada. */}
         <div style={{ ...styles.headerInner, maxWidth: 'none' }} className="header-inner-pad">
-          <div style={styles.crest}>🏆</div>
+          {isHomeLight ? (
+            <div style={HOME_LIGHT_MARK}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#C29A45" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M7 4h10v4a5 5 0 0 1-10 0V4z" /><path d="M7 6H4a3 3 0 0 0 3 3M17 6h3a3 3 0 0 1-3 3" /><path d="M12 13v4M8.5 20h7M10 17h4" />
+              </svg>
+            </div>
+          ) : (
+            <div style={styles.crest}>🏆</div>
+          )}
           <div>
             <div
-              style={{ ...styles.title, cursor: 'pointer' }}
+              style={{ ...styles.title, cursor: 'pointer', ...(isHomeLight ? HOME_LIGHT_TITLE : null) }}
               className="header-title-h"
               title="Voltar ao menu inicial"
               onClick={requestGoHome}
             >BRASILEIRÃO LENDÁRIO</div>
-            <div style={styles.subtitle} className="header-subtitle-h">monte · escale · seja campeão</div>
+            <div style={{ ...styles.subtitle, ...(isHomeLight ? HOME_LIGHT_SUBTITLE : null) }} className="header-subtitle-h">monte · escale · seja campeão</div>
           </div>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }} className="header-actions-h">
             {/* "Continuar"/"Desafio do Dia" só fazem sentido na home (o resto
@@ -6354,7 +6385,7 @@ export default function App() {
                       : <>🏆 Supercopa <span className="header-supercopa-tail">do Brasil</span></>}
                   </button>
                 )}
-                <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
+                <div style={{ width: 1, height: 20, background: isHomeLight ? '#E3DCCB' : 'rgba(255,255,255,0.12)', flexShrink: 0 }} />
               </>
             )}
             {careerHud?.active && (
@@ -6389,6 +6420,7 @@ export default function App() {
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: appShareCopied ? '#7fd99a' : '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
+                ...(isHomeLight && !appShareCopied ? HOME_LIGHT_PILL : null),
               }}
             >
               {appShareCopied ? '✓' : '📤'} <span className="header-action-label">Compartilhar</span>
@@ -6402,6 +6434,7 @@ export default function App() {
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
+                ...(isHomeLight ? HOME_LIGHT_PILL : null),
               }}
             >
               🎙️ <span className="header-action-label">Áudio</span>
@@ -6421,6 +6454,7 @@ export default function App() {
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
+                ...(isHomeLight ? HOME_LIGHT_PILL : null),
               }}
             >🏆 <span className="header-action-label">Ranking</span></button>
             <button
@@ -6432,6 +6466,7 @@ export default function App() {
                 background: 'none', border: '1px solid rgba(212,162,60,0.35)',
                 borderRadius: 999, padding: '6px 10px', cursor: 'pointer',
                 color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace",
+                ...(isHomeLight ? HOME_LIGHT_PILL : null),
               }}
             >
               💡 <span className="header-action-label">Novidades</span>
@@ -6456,6 +6491,7 @@ export default function App() {
                   borderRadius: 999, padding: '6px 12px', cursor: 'pointer',
                   color: '#F4F1EA', fontSize: 12, fontFamily: "'Space Mono', monospace",
                   maxWidth: 180, whiteSpace: 'nowrap',
+                  ...(isHomeLight ? { background: '#FBF9F4', border: '1px solid #E3DCCB', color: '#0F1F17' } : null),
                 }}
                 title="Minha Conta"
               >
@@ -6472,6 +6508,7 @@ export default function App() {
                   // 30px de altura no celular — abaixo do que o dedo acerta bem.
                   borderRadius: 999, padding: '8px 14px', minHeight: 36, cursor: 'pointer',
                   color: '#d4a23c', fontSize: 12, fontFamily: "'Space Mono', monospace", fontWeight: 600,
+                  ...(isHomeLight ? { background: '#0D3A29', border: 'none', color: '#fff' } : null),
                 }}
               >
                 Entrar / Criar conta
@@ -7322,9 +7359,8 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, onOpenSimulator2026, livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer }) {
+function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, onOpenSimulator2026, livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer, dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge }) {
   const mc = myTeamColor || '#d4a23c';
-  const carouselTeams = [...TEAMS, ...TEAMS]; // duplicado pra loop contínuo do carrossel
   const [showClub, setShowClub] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showWeeklyTeam, setShowWeeklyTeam] = useState(false);
@@ -7343,288 +7379,47 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
     try { localStorage.setItem('brl_career_launch_dismissed', '1'); } catch { /* ignora */ }
   };
 
+  // A home em si (hero em diante) foi reconstruída no redesign de tema claro
+  // (2026-11-12) e vive em src/home/HomeLanding.jsx — o Intro continua só
+  // dono do estado dos modais abaixo (nenhum deles mudou de comportamento),
+  // repassando pra lá só os callbacks pra abri-los.
   return (
     <>
-      <div style={styles.introCard} className="intro-card-mob">
-        <div style={{ ...styles.introTopBar, background: `linear-gradient(90deg, transparent, ${mc}, transparent)` }} />
-        <div style={styles.introGlow} />
-        {/* "Continuar"/"Desafio do Dia" moraram aqui antes — foram pro
-            cabeçalho (só aparecem na home) pra não competir com o título de
-            marketing logo abaixo, deixando esse topo só com o selo do jogo. */}
-        <div style={{ position: 'relative', zIndex: 1 }}>
-        <div style={styles.introBadge}>⚽ Futebol Brasileiro · 1959–2024</div>
-        <GameStatsBar style={styles.gameStatsBar} />
-        <h1 style={styles.introTitle} className="intro-title-h">Monte o time <span style={styles.introTitleAccent}>lendário</span> dos seus sonhos.</h1>
-        <p style={styles.introLead}>
-          Sorteie os maiores times campeões do Brasileirão, escolha os melhores jogadores de cada era
-          e dispute uma liga completa com cronômetro ao vivo.
-        </p>
-
-        {/* Banner de lançamento do Modo Carreira — primeira coisa clicável
-            da home (antes até da Seleção da Semana), com glow pulsante
-            (card-glow-pulse) pra chamar atenção de verdade. Some pra sempre
-            assim que o usuário fechar ou clicar (ver estado acima). */}
-        {!CAREER_MODE_LOCKED && !careerLaunchDismissed && (
-          <div
-            className="career-launch-banner card-glow-pulse"
-            style={{
-              position: 'relative', width: '100%', marginBottom: 20,
-              display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px',
-              borderRadius: 16, border: '2px solid rgba(212,162,60,0.65)',
-              background: 'linear-gradient(135deg, rgba(212,162,60,0.24), rgba(255,215,0,0.08))',
-            }}
-          >
-            <span style={{
-              position: 'absolute', top: -10, left: 14, fontSize: 9.5, fontWeight: 800, letterSpacing: 0.5,
-              padding: '3px 9px', borderRadius: 999, background: '#d4a23c', color: '#0B1A12',
-            }}>🎉 NO AR AGORA</span>
-            <button
-              onClick={dismissCareerLaunch}
-              aria-label="Fechar aviso"
-              style={{ position: 'absolute', top: 6, right: 8, background: 'none', border: 'none', color: 'rgba(244,241,234,0.5)', fontSize: 18, lineHeight: 1, cursor: 'pointer', padding: 4 }}
-            >×</button>
-            <span style={{ ...styles.modeIconBadge, width: 48, height: 48, fontSize: 24, background: 'rgba(212,162,60,0.18)', border: '1px solid rgba(212,162,60,0.4)' }}>💼</span>
-            <button
-              onClick={onOpenCareer}
-              className="mode-card-hover"
-              style={{ flex: 1, minWidth: 0, textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              <div style={{ fontWeight: 800, fontSize: 14.5, color: '#d4a23c', marginBottom: 2 }}>Modo Carreira está no ar!</div>
-              <div style={{ fontSize: 11.5, opacity: 0.8, color: '#F4F1EA', lineHeight: 1.4 }}>
-                Elencos 100% reais e atualizados dos 40 clubes da Série A e B — orçamento, transferências, Copa do Brasil e categoria de base.
-              </div>
-            </button>
-            <span style={{ ...styles.modeCardArrow, opacity: 0.6, color: '#F4F1EA' }}>→</span>
-          </div>
-        )}
-
-        {/* Seleção da Semana — upgrade real (notas Sofascore) pros craques da
-            rodada mais recente do Brasileirão 2026 de verdade. Fica logo
-            abaixo do hero, ainda bem visível, mas sem brigar com o título de
-            marketing acima. */}
-        <button
-          onClick={() => setShowWeeklyTeam(true)}
-          className="mode-card-hover"
-          style={{
-            width: '100%', textAlign: 'left', cursor: 'pointer', marginBottom: 24,
-            display: 'flex', alignItems: 'center', gap: 14, padding: '14px 16px',
-            borderRadius: 16, border: '2px solid rgba(255,215,0,0.4)',
-            background: 'linear-gradient(135deg, rgba(255,215,0,0.14), rgba(212,162,60,0.05))',
-          }}
-        >
-          <span style={{ ...styles.modeIconBadge, width: 48, height: 48, fontSize: 24, background: 'rgba(255,215,0,0.16)', border: '1px solid rgba(255,215,0,0.35)' }}>🌟</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 13.5, color: '#ffd700' }}>Seleção da {WEEKLY_TEAM_OF_THE_WEEK.label}</div>
-            <div style={{ fontSize: 11.5, opacity: 0.75, color: '#F4F1EA', lineHeight: 1.4 }}>
-              {weeklyCraque ? <>👑 <b>{weeklyCraque.name}</b> é o craque da rodada — </> : null}
-              os 11 melhores da rodada real do Brasileirão 2026 entram no draft com o card dourado
-            </div>
-          </div>
-          <span className="mode-card-arrow-el" style={{ ...styles.modeCardArrow, color: '#F4F1EA' }}>→</span>
-        </button>
-
-        {/* Cada passo com uma cor própria (azul → âmbar → dourado) em vez
-            dos 3 cards idênticos de antes — dá uma leitura de progressão
-            (sorteio → montagem → conquista) só pela cor, e entram em
-            cascata (anim-rise + delay crescente) em vez de surgirem
-            estáticos de uma vez. */}
-        <div style={styles.featGrid} className="feat-grid-3">
-          {[
-            { num: '01', icon: '🎲', color: '#5dade2', title: 'Role o dado', desc: 'Sorteie times campeões lendários. Recuse até 3 que não te interessar.' },
-            { num: '02', icon: '🏟️', color: '#e8a33d', title: 'Monte o Plantel', desc: 'Escolha 11 titulares e 5 reservas entre os maiores craques de cada era.' },
-            { num: '03', icon: '🏆', color: mc, title: 'Dispute o título', desc: 'Liga com 20 times, 38 rodadas e gols aparecendo minuto a minuto.' },
-          ].map((f, i) => (
-            <div
-              key={f.num}
-              style={{ ...styles.featCard, '--rise-delay': `${i * 90}ms` }}
-              className="feat-card-hover anim-rise"
-            >
-              <span style={{ ...styles.featIndex, color: f.color, opacity: 0.55 }}>{f.num}</span>
-              <div style={{ ...styles.featIconWrap, background: hexToRgba(f.color, 0.16), border: `1px solid ${hexToRgba(f.color, 0.4)}` }}>{f.icon}</div>
-              <div style={styles.featTitle}>{f.title}</div>
-              <div style={styles.featDesc}>{f.desc}</div>
-            </div>
-          ))}
-        </div>
-
-        <div style={styles.introSectionLabel}>
-          <span style={styles.introSectionLabelLine} />
-          {TEAMS.length} times lendários no elenco
-          <span style={styles.introSectionLabelLineR} />
-        </div>
-        <div style={styles.introMarqueeWrap}>
-          <div style={styles.introMarqueeTrack} className="marquee-track">
-            {carouselTeams.map((t, i) => (
-              <div key={`${t.id}-${i}`} style={styles.introTeamChip} className="intro-marquee-chip">
-                {CLUB_LOGOS[t.club] && (
-                  <img src={CLUB_LOGOS[t.club]} alt="" style={styles.introTeamChipCrest} className="intro-marquee-chip-crest" onError={e => { e.currentTarget.style.display = 'none'; }} />
-                )}
-                {t.label}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Clube + objetivos de carreira — só pra quem tem conta (é o que
-            persiste entre sessões); convidado vê uma chamada pra criar conta. */}
-        {currentUser ? (
-          <div style={{ marginBottom: 28 }}>
-            <button
-              onClick={() => setShowClub(true)}
-              className="mode-card-hover"
-              style={{
-                width: '100%', display: 'flex', alignItems: 'center', gap: 14, textAlign: 'left',
-                padding: '14px 16px', marginBottom: 14, borderRadius: 16, color: '#F4F1EA',
-                border: `2px solid ${hexToRgba(mc, 0.4)}`, background: hexToRgba(mc, 0.08), cursor: 'pointer',
-              }}
-            >
-              {myTeamLogo
-                ? <img src={myTeamLogo} alt="" style={{ width: 48, height: 48, borderRadius: 12, objectFit: 'cover', flexShrink: 0 }} />
-                : <span style={{ ...styles.modeIconBadge, width: 48, height: 48, fontSize: 24, background: hexToRgba(mc, 0.16), border: `1px solid ${hexToRgba(mc, 0.35)}` }}>{myTeamBadge || '⭐'}</span>
-              }
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 700, fontSize: 14, color: mc }}>Ver meu Clube</div>
-                <div style={{ fontSize: 11, opacity: 0.6, color: '#F4F1EA' }}>
-                  {(currentUser.titles_brasileirao || 0) + (currentUser.titles_copa || 0)} títulos · {currentUser.seasons_played || 0} temporadas · histórico completo
-                </div>
-              </div>
-              <span className="mode-card-arrow-el" style={{ ...styles.modeCardArrow, color: '#F4F1EA' }}>→</span>
-            </button>
-
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-              <div style={styles.homeSectionTitle}><span style={styles.homeSectionTitleBar} />Conquistas em destaque</div>
-              <button onClick={() => setShowAchievements(true)} style={{ background: 'none', border: 'none', color: mc, fontSize: 11, cursor: 'pointer', padding: 0 }}>
-                Ver todas ({Object.keys(ACHIEVEMENT_CATALOG).length}) →
-              </button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {FEATURED_ACHIEVEMENT_IDS.map(id => (
-                <AchievementProgressCard key={id} id={id} user={currentUser} unlockedSet={new Set(currentUser.achievements || [])} />
-              ))}
-            </div>
-          </div>
-        ) : (
-          <div style={{
-            marginBottom: 28, padding: '14px 16px', borderRadius: 16,
-            border: '1px dashed rgba(255,255,255,0.15)', background: 'rgba(255,255,255,0.02)',
-            fontSize: 12, opacity: 0.6, textAlign: 'center',
-          }}>
-            Crie uma conta pra acompanhar seus objetivos de carreira e o histórico do seu clube.
-          </div>
-        )}
-
-        {/* Modos de jogo — todos à vista direto na home (era um botão-
-            resumo que abria um modal listando os modos; o usuário pediu pra
-            inverter: mostrar tudo aqui, e só abrir modal na hora de escolher
-            a DIFICULDADE de cada modo). Modo Carreira em destaque numa linha
-            própria (não usa dificuldade — vai direto); os outros 4 abrem
-            ModeDifficultyModal, que já escolhe a dificuldade E entra no modo
-            num só passo. */}
-        <div style={{ marginBottom: 18 }}>
-          <div style={styles.homeSectionTitle}><span style={styles.homeSectionTitleBar} />Escolha o modo</div>
-          <button
-            onClick={() => onOpenCareer()}
-            className={CAREER_MODE_LOCKED ? 'anim-rise' : 'mode-card-hover card-glow-pulse anim-rise'}
-            style={{
-              width: '100%', textAlign: 'left', cursor: CAREER_MODE_LOCKED ? 'default' : 'pointer', marginBottom: 10, position: 'relative',
-              display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px',
-              borderRadius: 16, border: `2px solid ${CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.15)' : 'rgba(212,162,60,0.4)'}`,
-              background: CAREER_MODE_LOCKED ? 'rgba(255,255,255,0.03)' : 'linear-gradient(135deg, rgba(212,162,60,0.14), rgba(212,162,60,0.04))',
-              opacity: CAREER_MODE_LOCKED ? 0.7 : 1,
-            }}
-          >
-            <span style={{
-              position: 'absolute', top: -8, right: 14, fontSize: 9, fontWeight: 800, letterSpacing: 0.5,
-              padding: '3px 7px', borderRadius: 999,
-              background: CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.25)' : '#d4a23c',
-              color: CAREER_MODE_LOCKED ? '#F4F1EA' : '#0B1A12',
-            }}>{CAREER_MODE_LOCKED ? 'EM MANUTENÇÃO' : 'NOVO'}</span>
-            <span style={{ ...styles.modeIconBadge, width: 48, height: 48, fontSize: 24, background: CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.08)' : 'rgba(212,162,60,0.18)', border: `1px solid ${CAREER_MODE_LOCKED ? 'rgba(244,241,234,0.15)' : 'rgba(212,162,60,0.4)'}` }}>{CAREER_MODE_LOCKED ? '🔒' : '💼'}</span>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 700, fontSize: 14.5, marginBottom: 2, color: CAREER_MODE_LOCKED ? '#F4F1EA' : '#d4a23c' }}>Modo Carreira</div>
-              <div style={{ fontSize: 11, opacity: 0.65, color: '#F4F1EA' }}>
-                {CAREER_MODE_LOCKED
-                  ? 'Em manutenção — voltando em breve com mais melhorias. Sua carreira salva não foi perdida.'
-                  : 'Orçamento, transferências e categoria de base · 40 clubes 100% reais e atualizados (Série A e B)'}
-              </div>
-            </div>
-            {!CAREER_MODE_LOCKED && <span className="mode-card-arrow-el" style={{ ...styles.modeCardArrow, color: '#F4F1EA' }}>→</span>}
-          </button>
-          {/* Cada modo com uma cor própria (em vez dos 4 cards idênticos de
-              antes, só diferenciados por ícone/texto) — Brasileirão fica
-              com o dourado principal (é o modo "padrão"), Copa com azul
-              (mata-mata), Atual com âmbar (calendário real/"ao vivo") e
-              Livre com roxo (customização livre). */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }} className="mode-cards-grid">
-            {[
-              { id: 'serieab', icon: '🏆', color: mc, title: 'Brasileirão Lendário', sub: '40 times · Série A e B', onConfirm: () => { onSetGameMode('serieab'); onClearLivre(); onStart(); } },
-              { id: 'copa', icon: '⚔️', color: '#5dade2', title: 'Copa do Brasil Lendária', sub: '32 times · Mata-mata', onConfirm: () => { onSetGameMode('copa'); onClearLivre(); onStart(); } },
-              { id: 'atual2026', icon: '📅', color: '#e8a33d', title: 'Brasileirão Atual', sub: '20 times reais · 2026', onConfirm: () => onOpenSerieAtual() },
-              // Sem seletor de dificuldade e sem escolher clube (pedido
-              // explícito do usuário 2026-11-12: "simular literalmente
-              // TODOS OS JOGOS QUE FALTAM... não de um só time") — abre
-              // direto a sub-app própria (Simulator2026App.jsx), que simula
-              // a liga inteira rodada a rodada a partir da real (rodada 35
-              // em diante), sem perspectiva de clube nenhuma.
-              { id: 'atual2026-rt', icon: '📡', color: '#e05050', title: 'Simulador do Brasileirão 2026', sub: 'Rodada 35 em diante · todos os jogos', skipDifficulty: true, onConfirm: () => onOpenSimulator2026() },
-              { id: 'livre', icon: '🎯', color: '#b48ce0', title: 'Modo Livre', sub: livreTeamIds ? `${livreTeamIds.length} times escolhidos` : 'Escolha 16 times', onConfirm: () => onOpenLivrePicker() },
-            ].map((m, i) => (
-              <button
-                key={m.id}
-                onClick={() => (m.skipDifficulty ? m.onConfirm() : setPendingMode(m))}
-                className="mode-card-hover anim-rise"
-                style={{
-                  '--rise-delay': `${80 + i * 70}ms`,
-                  textAlign: 'left', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12,
-                  padding: '14px 14px', borderRadius: 16, border: `2px solid ${hexToRgba(m.color, 0.3)}`, background: hexToRgba(m.color, 0.06),
-                }}
-              >
-                <span style={{ ...styles.modeIconBadge, background: hexToRgba(m.color, 0.18), border: `1px solid ${hexToRgba(m.color, 0.4)}` }}>{m.icon}</span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 1, color: m.color, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.title}</div>
-                  <div style={{ fontSize: 10.5, opacity: 0.6, color: '#F4F1EA', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.sub}</div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Jogar com Amigos */}
-        <button
-          onClick={onMultiPlayer}
-          className="mode-card-hover"
-          style={{
-            width: '100%', marginBottom: 20, padding: '14px 16px',
-            borderRadius: 16, border: '2px solid rgba(127,217,154,0.35)',
-            background: 'rgba(127,217,154,0.06)', color: '#7fd99a',
-            cursor: 'pointer', textAlign: 'left',
-            display: 'flex', alignItems: 'center', gap: 14,
-          }}
-        >
-          <span style={{ ...styles.modeIconBadge, background: 'rgba(127,217,154,0.16)', border: '1px solid rgba(127,217,154,0.35)' }}>👥</span>
-          <div>
-            <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 2 }}>Jogar com Amigos</div>
-            <div style={{ fontSize: 11, opacity: 0.6 }}>Brasileirão (até 20) · Copa do Brasil (até 32) · Brasileirão Atual (até 20) · Sala por código</div>
-          </div>
-          <span className="mode-card-arrow-el" style={{ ...styles.modeCardArrow, marginLeft: 'auto', color: '#7fd99a' }}>→</span>
-        </button>
-
-        {/* Rodapé institucional */}
-        <div style={{
-          display: 'flex', justifyContent: 'center', gap: 18, flexWrap: 'wrap',
-          marginTop: 32, paddingTop: 20, borderTop: '1px solid rgba(255,255,255,0.08)',
-        }}>
-          {[['como-jogar', 'Como Jogar'], ['termos', 'Termos de Uso'], ['privacidade', 'Política de Privacidade'], ['contato', 'Contato']].map(([id, label]) => (
-            <button key={id} onClick={() => onNavigateInfo(id)} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: '6px 2px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
-              {label}
-            </button>
-          ))}
-          <button onClick={onNavigateTeams} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'rgba(244,241,234,0.45)', cursor: 'pointer', fontSize: 11.5, padding: '6px 2px', textDecoration: 'underline', textUnderlineOffset: 3 }}>
-            Elencos
-          </button>
-        </div>
-        </div>
-      </div>
+      <HomeLanding
+        onStart={onStart}
+        onSetGameMode={onSetGameMode}
+        myTeamColor={mc}
+        myTeamLogo={myTeamLogo}
+        myTeamBadge={myTeamBadge}
+        currentUser={currentUser}
+        onMultiPlayer={onMultiPlayer}
+        onNavigateInfo={onNavigateInfo}
+        onNavigateTeams={onNavigateTeams}
+        onOpenSerieAtual={onOpenSerieAtual}
+        onOpenSimulator2026={onOpenSimulator2026}
+        livreTeamIds={livreTeamIds}
+        onClearLivre={onClearLivre}
+        onOpenLivrePicker={onOpenLivrePicker}
+        onOpenCareer={onOpenCareer}
+        dailyChallenge={dailyChallenge}
+        dailyChallengeAlreadyPlayed={dailyChallengeAlreadyPlayed}
+        onOpenDailyChallenge={onOpenDailyChallenge}
+        careerLocked={CAREER_MODE_LOCKED}
+        careerLaunchDismissed={careerLaunchDismissed}
+        onDismissCareerLaunch={dismissCareerLaunch}
+        weeklyTeam={WEEKLY_TEAM_OF_THE_WEEK}
+        weeklyCraque={weeklyCraque}
+        weekRoleInfo={WEEK_ROLE_INFO}
+        weekLineTopPct={WEEK_LINE_TOP_PCT}
+        gameStats={GAME_STATS}
+        achievementsTotal={Object.keys(ACHIEVEMENT_CATALOG).length}
+        featuredAchievementIds={FEATURED_ACHIEVEMENT_IDS}
+        AchievementProgressCard={AchievementProgressCard}
+        onOpenClub={() => setShowClub(true)}
+        onOpenAchievements={() => setShowAchievements(true)}
+        onOpenWeeklyTeam={() => setShowWeeklyTeam(true)}
+        onPickMode={mode => setPendingMode(mode)}
+      />
 
       {showClub && (
         <ClubHistoryModal user={currentUser} myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} myTeamColor={myTeamColor} onUpdateFields={onUpdateFields} onClose={() => setShowClub(false)} />
@@ -11672,6 +11467,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-home-redesign',
+    date: 'Novembro de 2026',
+    title: 'Nova cara pra tela inicial',
+    desc: 'A home foi redesenhada do zero: visual mais claro e editorial, destaque pra Seleção da Semana e pra Supercopa do dia logo de cara, e os 7 modos de jogo organizados num grid único em vez de uma lista comprida. Todas as telas de dentro do jogo (draft, formação, carreira, simulador) continuam no visual escuro de sempre.',
+  },
   {
     id: '2026-11-carreira-liberado',
     date: 'Novembro de 2026',
