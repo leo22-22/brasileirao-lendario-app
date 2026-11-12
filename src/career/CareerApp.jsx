@@ -71,6 +71,9 @@ export function CareerApp({ onExit, onHudChange }) {
   // com o mesmo valor não re-renderiza), e sem isso a linha apagada
   // continuava aparecendo na lista até alguma outra coisa forçar redraw.
   const [savesList, setSavesList] = useState([]);
+  // Clube aberto direto no Mercado (vindo do "Ver elenco" da Tabela).
+  const [marketClub, setMarketClub] = useState(null);
+  useEffect(() => { if (screen !== 'market') setMarketClub(null); }, [screen]);
 
   useEffect(() => {
     if (!save) return;
@@ -468,11 +471,11 @@ export function CareerApp({ onExit, onHudChange }) {
   let body;
   if (screen === 'squad') body = <CareerSquadScreen save={save} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onOpenFormation={() => setScreen('formation')} onOpenMarket={() => setScreen('market')} onBack={back} />;
   else if (screen === 'formation') body = <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onSaveFormationPreset={handleSaveFormationPreset} onDeleteFormationPreset={handleDeleteFormationPreset} onRenameFormationPreset={handleRenameFormationPreset} onBack={back} />;
-  else if (screen === 'table') body = <CareerTableScreen save={save} onBack={back} />;
+  else if (screen === 'table') body = <CareerTableScreen save={save} onNavigate={setScreen} onOpenClubInMarket={(id) => { setMarketClub(id); setScreen('market'); }} onBack={back} />;
   else if (screen === 'calendar') body = <CareerCalendarScreen save={save} onBack={back} />;
   else if (screen === 'copa') body = <CareerCopaScreen save={save} onBack={back} />;
   else if (screen === 'youth') body = <CareerYouthScreen save={save} onPromote={handlePromoteYouth} onBack={back} />;
-  else if (screen === 'market') body = <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onRequestLoan={handleRequestLoan} onToggleShortlist={handleToggleShortlist} onQueueProposal={handleQueueProposal} onCancelQueued={handleCancelQueued} onNavigate={setScreen} onBack={back} />;
+  else if (screen === 'market') body = <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onRequestLoan={handleRequestLoan} onToggleShortlist={handleToggleShortlist} onQueueProposal={handleQueueProposal} onCancelQueued={handleCancelQueued} onNavigate={setScreen} initialClub={marketClub} key={marketClub || 'market'} onBack={back} />;
   else if (screen === 'inbox') body = <CareerInboxScreen save={save} onNavigate={setScreen} onMarkRead={handleMarkRead} />;
   else if (screen === 'finance') body = <CareerFinanceScreen save={save} />;
   else body = <CareerHub save={save} onNavigate={setScreen} onAdvanceDay={handleAdvanceDay} onSimulateSeason={handleSimulateSeason} onMarkRead={handleMarkRead} />;

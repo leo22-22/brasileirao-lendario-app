@@ -11388,6 +11388,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-carreira-tabela',
+    date: 'Novembro de 2026',
+    title: 'Tabela do Modo Carreira redesenhada',
+    desc: 'A Tabela agora mostra a classificação após qualquer rodada, as visões Mandante, Visitante e Últimos 5, quanto cada clube subiu ou caiu na rodada, os últimos 5 resultados com adversário e placar, as faixas de Libertadores, Sul-Americana e rebaixamento e um resumo do seu clube: distância para o Z4, para a meta da diretoria e para o líder, além da projeção de pontos. Ao lado aparecem a próxima rodada (com os jogos entre rivais diretos marcados) e a artilharia só do Brasileirão. Também corrigimos o calendário das carreiras novas: agora cada clube alterna jogos em casa e fora, em vez de passar várias rodadas seguidas como mandante.',
+  },
+  {
     id: '2026-11-carreira-mercado',
     date: 'Novembro de 2026',
     title: 'Mercado do Modo Carreira redesenhado',

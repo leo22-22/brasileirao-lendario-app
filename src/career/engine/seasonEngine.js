@@ -48,12 +48,27 @@ function buildDivision(teamIds, rand) {
   return {
     teamIdsInOrder: shuffled,
     table: alphabetical.map(emptyTableRow),
-    fixtures: generateDoubleRoundRobin(shuffled),
+    fixtures: balanceHomeAway(generateDoubleRoundRobin(shuffled)),
     round: 0,
     // results[roundIdx] = placares daquela rodada — guardado pra tela de
     // calendário mostrar o que já foi jogado, não só a tabela acumulada.
     results: [],
   };
+}
+
+// O método do círculo (generateDoubleRoundRobin, App.jsx) deixa o mesmo
+// clube do mesmo lado por várias rodadas seguidas — com 19 rodadas jogadas
+// havia time com 19 mandos e outro com 0, o que zerava a visão
+// Mandante/Visitante da Tabela (2026-11-13). Aqui, só na carreira, o turno
+// inverte o mando nas rodadas ímpares (padrão Berger: cada clube alterna
+// casa/fora e fecha o turno com 9 ou 10 mandos) e o returno segue sendo o
+// espelho do turno. Não consome `rand`, então o resto do sorteio não muda;
+// saves antigos mantêm o calendário que já têm.
+export function balanceHomeAway(fixtures) {
+  const half = fixtures.length / 2;
+  const first = fixtures.slice(0, half).map((round, r) => (r % 2 === 1 ? round.map(m => ({ homeId: m.awayId, awayId: m.homeId })) : round));
+  const second = first.map(round => round.map(m => ({ homeId: m.awayId, awayId: m.homeId })));
+  return [...first, ...second];
 }
 
 // Save inicial de uma carreira nova — clona os 40 elencos a partir de
@@ -107,6 +122,10 @@ export function createCareerSave(myClubId, customBudget, seedOverride) {
     // temporada (zerado a cada advanceToNextSeason) — alimenta o relatório
     // de fim de temporada (seasonStats.js/seasonReport.js).
     seasonPlayerStats: {},
+    // Mesmas estatísticas, só dos jogos do Brasileirão (sem Copa) — pra
+    // artilharia da Tabela. `null` em save antigo = ainda não acumula até a
+    // próxima temporada (a tela cai em seasonPlayerStats com aviso).
+    leaguePlayerStats: {},
     lastSeasonReport: null,
     pendingSeasonReportData: null,
     screen: 'hub',
@@ -157,7 +176,9 @@ export function playRound(save, roundIdx, userMatch) {
   const b = playDivisionRound(save, 'divisionB', roundIdx, myDivisionKey === 'divisionB' ? userMatch : null);
   let seasonPlayerStats = save.seasonPlayerStats || {};
   for (const sim of [...a.sims, ...b.sims]) seasonPlayerStats = accumulateMatchStats(seasonPlayerStats, sim);
-  return { ...save, divisionA: a.division, divisionB: b.division, seasonPlayerStats };
+  let leaguePlayerStats = save.leaguePlayerStats ?? null;
+  if (leaguePlayerStats) for (const sim of [...a.sims, ...b.sims]) leaguePlayerStats = accumulateMatchStats(leaguePlayerStats, sim);
+  return { ...save, divisionA: a.division, divisionB: b.division, seasonPlayerStats, leaguePlayerStats };
 }
 
 // Chance BASE de surgir uma sondagem por um jogador do usuário em cada
@@ -850,6 +871,7 @@ export function advanceToNextSeason(save) {
     seasonCalendar,
     copa: drawCopaBracket(afterLoans, rand),
     seasonPlayerStats: {},
+    leaguePlayerStats: {},
     lastSeasonReport: null,
     pendingSeasonReportData: null,
     screen: 'hub',

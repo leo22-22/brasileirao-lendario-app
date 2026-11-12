@@ -751,9 +751,9 @@ function SideColumn({ save, onSeekPos, onOpenHistory }) {
 }
 
 // ── Tela ───────────────────────────────────────────────────────────────
-export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounterOffer, onToggleListed, onToggleLoanList, onRequestLoan, onToggleShortlist, onQueueProposal, onCancelQueued }) {
-  const [tab, setTab] = useState(save.pendingOffers?.length ? 'offers' : 'buy');
-  const [club, setClub] = useState(null);
+export function CareerTransferMarket({ save, onPropose, onRespondOffer, onCounterOffer, onToggleListed, onToggleLoanList, onRequestLoan, onToggleShortlist, onQueueProposal, onCancelQueued, initialClub }) {
+  const [tab, setTab] = useState(initialClub ? 'clubs' : save.pendingOffers?.length ? 'offers' : 'buy');
+  const [club, setClub] = useState(initialClub || null);
   const [f, setF] = useState(EMPTY_F);
   const [clubF, setClubF] = useState(EMPTY_F);
   const [sort, setSort] = useState('value-for-money');

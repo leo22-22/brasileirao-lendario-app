@@ -156,6 +156,9 @@ function backfill(save) {
   next = ensureCareerMetaDefaults(next);
   // Mercado redesenhado: observados e propostas agendadas.
   next = ensureMarketDefaults(next);
+  // Artilharia só do Brasileirão: save antigo começa sem (null) e passa a
+  // acumular na próxima temporada.
+  if (next.leaguePlayerStats === undefined) next = { ...next, leaguePlayerStats: null };
   return next;
 }
 

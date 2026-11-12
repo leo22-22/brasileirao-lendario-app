@@ -1,127 +1,350 @@
-// Tabela do Modo Carreira — Série A e B lado a lado por abas, com o
-// clube do usuário destacado. Série A usa as mesmas zonas coloridas de
-// classificação continental que o modo clássico já tem (getZoneInfo,
-// App.jsx) — Libertadores/pré-Libertadores/Sul-Americana/rebaixamento —
-// mesmo sem existir um torneio de Libertadores jogável aqui (decisão de
-// escopo confirmada com o usuário: só informação visual na tabela,
-// inclusive a regra de vaga extra quando o campeão da Copa do Brasil já
-// está no G4). Série B mantém sua própria zona (acesso direto/playoff/
-// rebaixamento), que é sobre promoção, não sobre competição continental.
-import { useState } from 'react';
+// Tabela do Modo Carreira — redesenho de 2026-11-13 seguindo
+// modo-carreira-tabela-mockup.html. A classificação é recalculada dos
+// placares salvos com a MESMA função do motor (engine/standings.js →
+// applyRoundToTable), então os critérios de desempate não mudam. Zonas da
+// Série A (getZoneInfo, com a vaga extra quando o campeão da Copa do
+// Brasil já está no G4) e da Série B (acesso/playoff/rebaixamento) iguais
+// às de antes.
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
+import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { getZoneInfo } from '../../App.jsx';
-import { backButtonStyle } from '../components/styles.js';
+import { standingsAfter, clubFormDetailed, nextFixtures } from '../engine/standings.js';
+import { computeBoard } from '../engine/careerMeta.js';
+import { displayName } from '../../lib/displayName.js';
+import { Icon, TeamBadge, Modal } from '../../ui/index.jsx';
+import '../components/careerShell.css';
+import './careerSquad.css';
+import './careerTable.css';
 
-function serieBZone(pos, total) {
-  if (pos <= 2) return { color: 'var(--success)', label: 'Acesso', title: 'Acesso direto à Série A' };
-  if (pos <= 6) return { color: 'var(--gold-ink)', label: 'Playoff', title: 'Disputa o acesso via playoff' };
-  if (pos >= total - 3) return { color: 'var(--danger)', label: 'Z4', title: 'Rebaixamento' };
-  return null;
+const clubOf = (id) => TEAMS.find(t => t.id === id);
+const nameOf = (id) => displayName(clubOf(id)?.club || '');
+
+// Zonas (cor + rótulo + separador) — mesmas faixas de antes.
+function zoneFor(division, pos, total, copaChampionInG4) {
+  if (division === 'B') {
+    if (pos <= 2) return { key: 'up', color: '#1F7A4D', label: 'Acesso direto à Série A' };
+    if (pos <= 6) return { key: 'po', color: '#B7791F', label: 'Playoff de acesso' };
+    if (pos >= total - 3) return { key: 'z4', color: '#B23B3B', label: 'Zona de rebaixamento' };
+    return null;
+  }
+  if (copaChampionInG4 && pos === 5) return { key: 'g4', color: '#1F7A4D', label: 'Libertadores · fase de grupos' };
+  const z = getZoneInfo(pos, total);
+  if (!z) return null;
+  if (z.label === 'G4') return { key: 'g4', color: '#1F7A4D', label: 'Libertadores · fase de grupos' };
+  if (z.label === 'G6') return { key: 'g6', color: '#6FB28E', label: 'Pré-Libertadores' };
+  if (z.label === 'SA') return { key: 'sa', color: '#4E86C2', label: 'Sul-Americana' };
+  return { key: 'z4', color: '#B23B3B', label: 'Zona de rebaixamento' };
 }
 
-const SERIE_A_LEGEND = [
-  { color: 'var(--success)', text: 'G4 — Libertadores (fase de grupos)' },
-  { color: 'var(--success)', text: 'G6 — Libertadores (pré)' },
-  { color: 'var(--info)', text: 'até 12º — Sul-Americana' },
-  { color: 'var(--danger)', text: 'Z4 — rebaixamento' },
-];
-const SERIE_B_LEGEND = [
-  { color: 'var(--success)', text: '1º-2º — acesso direto à Série A' },
-  { color: 'var(--gold-ink)', text: '3º-6º — disputam o acesso (playoff)' },
-  { color: 'var(--danger)', text: 'Z4 — rebaixamento (sem acesso, segue/cai de divisão)' },
+const LEGEND = {
+  A: [['#1F7A4D', 'G4 · Libertadores'], ['#6FB28E', '5º–6º · Pré-Libertadores'], ['#4E86C2', '7º–12º · Sul-Americana'], ['#B23B3B', 'Z4 · Rebaixamento']],
+  B: [['#1F7A4D', '1º–2º · Acesso direto'], ['#B7791F', '3º–6º · Playoff de acesso'], ['#B23B3B', 'Z4 · Rebaixamento']],
+};
+const VIEWS = [
+  { id: 'all', label: 'Geral' }, { id: 'home', label: 'Mandante' }, { id: 'away', label: 'Visitante' }, { id: 'last5', label: 'Últimos 5' },
 ];
 
-export function CareerTableScreen({ save, onBack }) {
+function Crest({ id, size = 22 }) {
+  const t = clubOf(id);
+  return <TeamBadge src={CLUB_LOGOS[t?.club]} name={t?.club || ''} color={t?.colors?.p || '#0D3A29'} size={size} radius={size / 2} />;
+}
+
+function FormChips({ form }) {
+  return (
+    <span className="tb-frm">
+      {form.map((f, i) => (
+        <i key={i} className={`tb-f${f.res}`} title={`Rodada ${f.round}: ${f.home ? '' : '@ '}${nameOf(f.oppId)} ${f.gf}–${f.ga}`} aria-label={`Rodada ${f.round}, ${f.res === 'V' ? 'vitória' : f.res === 'D' ? 'derrota' : 'empate'} ${f.gf} a ${f.ga} ${f.home ? 'contra' : 'fora contra'} ${nameOf(f.oppId)}`}>{f.res}</i>
+      ))}
+    </span>
+  );
+}
+
+export function CareerTableScreen({ save, onNavigate, onOpenClubInMarket }) {
   const myDivision = save.clubs[save.myClubId].division;
   const [division, setDivision] = useState(myDivision);
   const data = division === 'A' ? save.divisionA : save.divisionB;
+  const played = data.round;
+  const [view, setView] = useState('all');
+  const [afterRound, setAfterRound] = useState(played);
+  const [moreCols, setMoreCols] = useState(false);
+  const [openClub, setOpenClub] = useState(null);
+  const [showAllFixtures, setShowAllFixtures] = useState(false);
+  useEffect(() => { setAfterRound(data.round); }, [division, data.round]);
+  const n = Math.min(afterRound, played);
 
-  // Se o campeão da Copa do Brasil (desta carreira) já terminou a Série A
-  // no G4, uma vaga extra de Libertadores abre pro 5º colocado — igual na
-  // vida real. Só efeito visual (vira G4 também), sem torneio de verdade.
+  const table = useMemo(() => standingsAfter(data, n, view), [data, n, view]);
+  const prevTable = useMemo(() => (n > 0 ? standingsAfter(data, n - 1, view) : null), [data, n, view]);
+  const total = table.length;
   const copaChampionId = save.copa?.phase === 'done' ? save.copa.champion : null;
-  const copaChampionInG4 = division === 'A' && copaChampionId
-    ? save.divisionA.table.slice(0, 4).some(r => r.id === copaChampionId)
-    : false;
+  const copaChampionInG4 = division === 'A' && copaChampionId && view === 'all'
+    ? table.slice(0, 4).some(r => r.id === copaChampionId) : false;
 
-  const getZone = (pos) => {
-    if (division === 'B') return serieBZone(pos, data.table.length);
-    if (copaChampionInG4 && pos === 5) {
-      return { color: 'var(--success)', label: 'G4', title: 'Libertadores — vaga extra (campeão da Copa do Brasil já está no G4)' };
-    }
-    return getZoneInfo(pos, data.table.length);
+  // ── Minha linha fixa no rodapé (mobile) quando sai da área visível ──
+  const myRowRef = useRef(null);
+  const [myRowHidden, setMyRowHidden] = useState(false);
+  useEffect(() => {
+    const el = myRowRef.current;
+    if (!el || typeof IntersectionObserver === 'undefined') return undefined;
+    const io = new IntersectionObserver(([e]) => setMyRowHidden(!e.isIntersecting), { threshold: 0.1 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [division, view, n]);
+
+  // ── Lateral: meu clube (sempre na minha divisão, classificação atual) ──
+  const myData = myDivision === 'A' ? save.divisionA : save.divisionB;
+  const myTable = myData.table;
+  const myIdx = myTable.findIndex(r => r.id === save.myClubId);
+  const myRow = myTable[myIdx];
+  const myPos = myIdx + 1;
+  const myN = myTable.length;
+  const board = computeBoard(save);
+  const ptsAt = (pos) => myTable[pos - 1]?.pts ?? 0;
+  const gaps = [];
+  if (myData.round > 0) {
+    if (myPos > myN - 4) gaps.push({ label: `Para sair do Z4 (${myN - 4}º)`, v: ptsAt(myN - 4) - myRow.pts, danger: true });
+    else gaps.push({ label: `Folga para o Z4 (${myN - 3}º)`, v: myRow.pts - ptsAt(myN - 3), lead: true });
+    if (myDivision === 'A' && myPos > 12) gaps.push({ label: 'Para a Sul-Americana (12º)', v: ptsAt(12) - myRow.pts });
+    if (myDivision === 'B' && myPos > 6) gaps.push({ label: 'Para o playoff (6º)', v: ptsAt(6) - myRow.pts });
+    if (myPos > board.target) gaps.push({ label: `Para a meta da diretoria (${board.target}º)`, v: ptsAt(board.target) - myRow.pts });
+    else gaps.push({ label: `Meta da diretoria (${board.short})`, v: null, ok: true });
+    if (myPos > 1) gaps.push({ label: 'Para o líder', v: ptsAt(1) - myRow.pts });
+  }
+  const rounds = myData.fixtures.length;
+  const remaining = rounds - myData.round;
+  const projection = myRow?.pj ? Math.round((myRow.pts / myRow.pj) * rounds) : null;
+  const targetRow = myTable[board.target - 1];
+  const targetPace = targetRow?.pj ? Math.round((targetRow.pts / targetRow.pj) * rounds) : null;
+  const needPerGame = targetPace != null && remaining > 0 ? Math.max(0, (targetPace - myRow.pts) / remaining) : null;
+  const aprov = myRow?.pj ? Math.round((myRow.pts / (myRow.pj * 3)) * 100) : 0;
+  const myZone = myData.round > 0 ? zoneFor(myDivision, myPos, myN, false) : null;
+
+  // ── Próxima rodada da série vista ──
+  const nextRoundIdx = data.round;
+  const nextMatches = data.fixtures[nextRoundIdx] || [];
+  const curIdx = data.table.findIndex(r => r.id === save.myClubId);
+  const rivals = new Set(curIdx >= 0 && data.round > 0 ? data.table.filter((r, i) => r.id !== save.myClubId && (Math.abs(i - curIdx) <= 3 || Math.abs(r.pts - data.table[curIdx].pts) <= 3)).map(r => r.id) : []);
+  const orderedNext = [...nextMatches].sort((a, b) => {
+    const score = (m) => (m.homeId === save.myClubId || m.awayId === save.myClubId ? 0 : rivals.has(m.homeId) && rivals.has(m.awayId) ? 1 : 2);
+    return score(a) - score(b);
+  });
+  const shownNext = showAllFixtures ? orderedNext : orderedNext.slice(0, 5);
+
+  // ── Artilharia da série (só Brasileirão quando o save já separa) ──
+  const statsSource = save.leaguePlayerStats || save.seasonPlayerStats || {};
+  const leagueOnly = !!save.leaguePlayerStats;
+  const divisionIds = new Set(data.table.map(r => r.id));
+  const scorers = Object.entries(statsSource)
+    .map(([k, s]) => { const [clubId, ...rest] = k.split('::'); return { clubId, name: rest.join('::'), goals: s.goals || 0 }; })
+    .filter(x => x.goals > 0 && divisionIds.has(x.clubId))
+    .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))
+    .slice(0, 5);
+
+  // ── Linhas com separadores de zona ──
+  const rows = [];
+  let lastZone = undefined;
+  table.forEach((row, i) => {
+    const pos = i + 1;
+    const zone = view === 'all' && n > 0 ? zoneFor(division, pos, total, copaChampionInG4) : null;
+    const zKey = zone?.key || null;
+    if (view === 'all' && zKey !== lastZone && zone) rows.push({ sep: true, zone, key: `sep-${pos}` });
+    lastZone = zKey;
+    const prevPos = prevTable ? prevTable.findIndex(r => r.id === row.id) + 1 : null;
+    rows.push({ row, pos, zone, move: prevPos ? prevPos - pos : 0 });
+  });
+
+  const openRow = openClub ? table.find(r => r.id === openClub) : null;
+  const openPos = openClub ? table.findIndex(r => r.id === openClub) + 1 : null;
+
+  const MyStickyRow = () => {
+    const i = table.findIndex(r => r.id === save.myClubId);
+    if (i < 0) return null;
+    const r = table[i];
+    return (
+      <div className="tb-sticky-me" aria-hidden="true">
+        <span className="tb-ps">{i + 1}º</span><Crest id={r.id} /><b className="cf-ell">{nameOf(r.id)}</b>
+        <span className="sq-num">{r.pj} J</span><span className="sq-num">{r.gp - r.gc > 0 ? '+' : ''}{r.gp - r.gc}</span><span className="tb-pts">{r.pts}</span>
+      </div>
+    );
   };
 
   return (
-    <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px' }}>
-      <button onClick={onBack} style={backButtonStyle}>← Voltar</button>
-      <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 12 }}>Tabela</h2>
-
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
-        {['A', 'B'].map(d => (
-          <button
-            key={d}
-            onClick={() => setDivision(d)}
-            style={{
-              flex: 1, padding: '8px 0', borderRadius: 999, fontSize: 13, fontWeight: 700, cursor: 'pointer',
-              border: `1px solid ${division === d ? 'var(--gold)' : 'var(--line-strong)'}`,
-              background: division === d ? 'rgba(194,154,69,0.12)' : 'transparent',
-              color: division === d ? 'var(--gold-ink)' : 'var(--ink-2)',
-            }}
-          >Série {d}</button>
-        ))}
+    <div className="ch-main tb-main">
+      <div className="sq-ph">
+        <div style={{ minWidth: 0 }}>
+          <span className="ch-mono">Brasileirão {2025 + save.season} · Temporada {save.season} · {played} de {data.fixtures.length} rodadas</span>
+          <h1>Tabela</h1>
+        </div>
+        <div className="cf-seg" role="tablist" aria-label="Divisão">
+          {['A', 'B'].map(d => <button key={d} type="button" role="tab" aria-selected={division === d} className={division === d ? 'cf-on' : ''} onClick={() => { setDivision(d); setOpenClub(null); }}>Série {d}</button>)}
+        </div>
       </div>
 
-      <div style={{ overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5 }}>
-          <thead>
-            <tr style={{ opacity: 0.5, textAlign: 'left' }}>
-              <th style={{ padding: '4px 6px', fontWeight: 500 }}>#</th>
-              <th style={{ padding: '4px 6px', fontWeight: 500 }}>Clube</th>
-              <th style={{ padding: '4px 6px', fontWeight: 500, textAlign: 'center' }}>PJ</th>
-              <th style={{ padding: '4px 6px', fontWeight: 500, textAlign: 'center' }}>V</th>
-              <th style={{ padding: '4px 6px', fontWeight: 500, textAlign: 'center' }}>E</th>
-              <th style={{ padding: '4px 6px', fontWeight: 500, textAlign: 'center' }}>D</th>
-              <th style={{ padding: '4px 6px', fontWeight: 500, textAlign: 'center' }}>SG</th>
-              <th style={{ padding: '4px 6px', fontWeight: 700, textAlign: 'center' }}>Pts</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.table.map((row, idx) => {
-              const pos = idx + 1;
-              const isMe = row.id === save.myClubId;
-              const team = TEAMS.find(t => t.id === row.id);
-              const zone = getZone(pos);
-              return (
-                <tr key={row.id} style={{ background: isMe ? 'rgba(194,154,69,0.1)' : 'transparent', fontWeight: isMe ? 700 : 400 }} title={zone?.title}>
-                  <td style={{ padding: '6px', borderLeft: `3px solid ${zone?.color || 'transparent'}` }}>{pos}</td>
-                  <td style={{ padding: '6px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{team?.club || row.label}</td>
-                  <td style={{ padding: '6px', textAlign: 'center' }}>{row.pj}</td>
-                  <td style={{ padding: '6px', textAlign: 'center' }}>{row.v}</td>
-                  <td style={{ padding: '6px', textAlign: 'center' }}>{row.e}</td>
-                  <td style={{ padding: '6px', textAlign: 'center' }}>{row.d}</td>
-                  <td style={{ padding: '6px', textAlign: 'center' }}>{row.gp - row.gc}</td>
-                  <td style={{ padding: '6px', textAlign: 'center', color: 'var(--gold-ink)' }}>{row.pts}</td>
+      <div className="tb-lay">
+        <div className="ch-card tb-card">
+          <div className="tb-tt">
+            <div className="cf-seg tb-views" role="tablist" aria-label="Visão da tabela">
+              {VIEWS.map(v => <button key={v.id} type="button" role="tab" aria-selected={view === v.id} className={view === v.id ? 'cf-on' : ''} onClick={() => setView(v.id)} disabled={played === 0 && v.id !== 'all'} title={played === 0 && v.id !== 'all' ? 'Disponível depois da primeira rodada' : undefined}>{v.label}</button>)}
+            </div>
+            <label className="tb-rsel">
+              <span>Após a</span>
+              <select value={n} onChange={e => setAfterRound(Number(e.target.value))} disabled={played === 0} aria-label="Classificação após a rodada">
+                {played === 0 && <option value={0}>rodada 0</option>}
+                {Array.from({ length: played }, (_, i) => played - i).map(r => <option key={r} value={r}>rodada {r}</option>)}
+              </select>
+            </label>
+            <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm tb-more-cols" onClick={() => setMoreCols(m => !m)} aria-pressed={moreCols}>{moreCols ? 'Menos colunas' : 'Mais colunas'}</button>
+          </div>
+
+          {played === 0 && <div className="mk-locked" style={{ margin: '12px 18px 0' }}><Icon name="info" size={16} />A temporada ainda não começou: todos com 0 ponto, em ordem alfabética.</div>}
+          {view !== 'all' && <div className="ch-small" style={{ padding: '10px 18px 0' }}>{view === 'home' ? 'Só jogos como mandante' : view === 'away' ? 'Só jogos como visitante' : 'Só os últimos 5 jogos de cada clube'} · mesmos critérios de desempate. Zonas valem só na visão Geral.</div>}
+
+          <div className="tb-scroll">
+            <table className={`tb-table${moreCols ? ' tb-more' : ''}`}>
+              <caption className="sr-only">Classificação da Série {division} após a rodada {n}{view !== 'all' ? ` (${VIEWS.find(v => v.id === view).label})` : ''}</caption>
+              <thead>
+                <tr>
+                  <th scope="col" className="tb-c-pos">#</th>
+                  <th scope="col" className="tb-c-mv"><span className="sr-only">Movimento</span></th>
+                  <th scope="col" className="tb-c-club">Clube</th>
+                  <th scope="col">PJ</th>
+                  <th scope="col" className="tb-x">V</th>
+                  <th scope="col" className="tb-x">E</th>
+                  <th scope="col" className="tb-x">D</th>
+                  <th scope="col" className="tb-x">GP</th>
+                  <th scope="col" className="tb-x">GC</th>
+                  <th scope="col">SG</th>
+                  <th scope="col">Pts</th>
+                  <th scope="col" className="tb-c-frm">Últimos 5</th>
                 </tr>
+              </thead>
+              <tbody>
+                {rows.map(r => r.sep ? (
+                  <tr key={r.key} className={`tb-sep${r.zone.key === 'z4' ? ' tb-sep-red' : ''}`}><td colSpan={12}><span>{r.zone.label}</span></td></tr>
+                ) : (() => {
+                  const { row, pos, zone, move } = r;
+                  const isMe = row.id === save.myClubId;
+                  const sg = row.gp - row.gc;
+                  return (
+                    <tr
+                      key={row.id}
+                      ref={isMe ? myRowRef : undefined}
+                      className={`tb-tr${isMe ? ' tb-me' : ''}${openClub === row.id ? ' tb-open' : ''}`}
+                      style={{ '--zone': zone?.color || 'transparent' }}
+                      tabIndex={0}
+                      onClick={() => setOpenClub(row.id)}
+                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenClub(row.id); } }}
+                      aria-label={`${pos}º ${nameOf(row.id)}, ${row.pts} pontos${zone ? `, ${zone.label}` : ''}. Ver detalhes do clube`}
+                    >
+                      <td className="tb-c-pos"><span className="tb-ps" style={isMe && myZone?.key === 'z4' && view === 'all' ? { color: 'var(--danger)' } : undefined}>{pos}</span></td>
+                      <td className="tb-c-mv">{move > 0 ? <span className="tb-mv tb-up" aria-label={`subiu ${move}`}>▲{move}</span> : move < 0 ? <span className="tb-mv tb-dn" aria-label={`caiu ${-move}`}>▼{-move}</span> : <span className="tb-mv tb-eq" aria-label="manteve">–</span>}</td>
+                      <th scope="row" className="tb-c-club"><span className="tb-cl"><Crest id={row.id} /><b className="cf-ell">{nameOf(row.id)}</b></span></th>
+                      <td className="tb-n">{row.pj}</td>
+                      <td className="tb-n tb-x">{row.v}</td>
+                      <td className="tb-n tb-x">{row.e}</td>
+                      <td className="tb-n tb-x">{row.d}</td>
+                      <td className="tb-n tb-x">{row.gp}</td>
+                      <td className="tb-n tb-x">{row.gc}</td>
+                      <td className="tb-n">{sg > 0 ? `+${sg}` : sg}</td>
+                      <td className="tb-pts">{row.pts}</td>
+                      <td className="tb-c-frm"><FormChips form={clubFormDetailed(data, row.id, n, 5)} /></td>
+                    </tr>
+                  );
+                })())}
+              </tbody>
+            </table>
+          </div>
+          <div className="tb-leg">
+            {LEGEND[division].map(([c, t]) => <span key={t}><i style={{ background: c }} aria-hidden="true" />{t}</span>)}
+            {copaChampionInG4 && <span>O campeão da Copa do Brasil está no G4: o 5º também vai à Libertadores.</span>}
+            <span className="tb-crit">Critérios: pontos, vitórias, saldo, gols pró</span>
+          </div>
+          {myRowHidden && <MyStickyRow />}
+        </div>
+
+        <div className="tb-side">
+          <div className="ch-card tb-me-card">
+            <span className="ch-mono">{nameOf(save.myClubId)} na tabela</span>
+            <div className="tb-big">
+              <b style={{ color: myData.round === 0 ? 'var(--ink)' : myZone?.key === 'z4' ? 'var(--danger)' : (myZone?.key === 'g4' || myZone?.key === 'g6' || myZone?.key === 'up') ? 'var(--success)' : 'var(--ink)' }}>{myData.round === 0 ? '—' : `${myPos}º`}</b>
+              <span className="ch-small">{myRow?.pts ?? 0} pts · {aprov}% de aproveitamento</span>
+            </div>
+            {myData.round === 0 ? (
+              <p className="ch-small" style={{ margin: '8px 0 0' }}>As distâncias aparecem depois da primeira rodada.</p>
+            ) : (
+              <>
+                {gaps.map(g => (
+                  <div key={g.label} className="tb-gap"><span>{g.label}</span><b style={{ color: g.danger ? 'var(--danger)' : g.ok || g.lead ? 'var(--success)' : undefined }}>{g.ok ? 'dentro' : g.v <= 0 ? (g.lead ? `${Math.max(0, g.v)} pts` : 'empatado') : `${g.v} pt${g.v === 1 ? '' : 's'}`}</b></div>
+                ))}
+                <div className="tb-pace">
+                  No ritmo atual o {nameOf(save.myClubId)} termina com <b>{projection} pontos</b>.
+                  {myPos > board.target && targetPace != null && needPerGame != null
+                    ? <> Para acompanhar o ritmo do {board.target}º colocado ({targetPace} pts), precisa de <b>{needPerGame.toFixed(1).replace('.', ',')} pontos por jogo</b> nas {remaining} rodadas restantes.</>
+                    : <> Está dentro da meta ({board.short}){remaining ? `, com ${remaining} rodadas pela frente` : ''}.</>}
+                </div>
+              </>
+            )}
+          </div>
+
+          <div className="ch-card" style={{ overflow: 'hidden' }}>
+            <div className="ch-head"><h3>{nextRoundIdx < data.fixtures.length ? `Rodada ${nextRoundIdx + 1}` : 'Temporada encerrada'}</h3><button type="button" className="ch-link" onClick={() => onNavigate('calendar')}>Calendário</button></div>
+            {shownNext.map((m, i) => {
+              const mine = m.homeId === save.myClubId || m.awayId === save.myClubId;
+              const key = !mine && rivals.has(m.homeId) && rivals.has(m.awayId);
+              return (
+                <div key={i} className={`tb-fx${mine ? ' tb-fx-mine' : ''}${key ? ' tb-fx-key' : ''}`}>
+                  <span className="tb-fx-h"><span className="cf-ell">{nameOf(m.homeId)}</span><Crest id={m.homeId} size={18} /></span>
+                  <span className="tb-fx-x" aria-label={key ? 'jogo entre rivais diretos' : 'contra'}>×</span>
+                  <span className="tb-fx-a"><Crest id={m.awayId} size={18} /><span className="cf-ell">{nameOf(m.awayId)}</span></span>
+                </div>
               );
             })}
-          </tbody>
-        </table>
+            {orderedNext.length > 0 && (
+              <div className="ch-small" style={{ padding: '10px 20px 16px', borderTop: '1px solid var(--line)' }}>
+                <b style={{ color: 'var(--warning)' }}>×</b> jogos de rivais diretos{orderedNext.length > 5 && <> · <button type="button" className="ch-link" style={{ padding: 0 }} onClick={() => setShowAllFixtures(s => !s)}>{showAllFixtures ? 'mostrar menos' : `ver os ${orderedNext.length} jogos`}</button></>}
+              </div>
+            )}
+          </div>
+
+          <div className="ch-card" style={{ overflow: 'hidden' }}>
+            <div className="ch-head"><h3>Artilharia</h3><span className="ch-small">Série {division}{leagueOnly ? '' : ' · inclui Copa'}</span></div>
+            {scorers.length === 0 && <div className="ch-empty">Ninguém marcou ainda.</div>}
+            {scorers.map((s, i) => (
+              <div key={`${s.clubId}-${s.name}`} className={`tb-sc${s.clubId === save.myClubId ? ' tb-sc-me' : ''}`}>
+                <span className="tb-rk">{i + 1}</span>
+                <Crest id={s.clubId} size={24} />
+                <div style={{ minWidth: 0 }}><b className="cf-ell">{s.name}</b><small>{nameOf(s.clubId)}</small></div>
+                <span className="tb-g">{s.goals}</span>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 4 }}>
-        {(division === 'A' ? SERIE_A_LEGEND : SERIE_B_LEGEND).map(l => (
-          <div key={l.text} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--muted)' }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: l.color, flexShrink: 0 }} />
-            {l.text}
+      {openRow && (
+        <Modal onClose={() => setOpenClub(null)} maxWidth={420} labelledBy="tb-club-title">
+          <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 14 }}>
+            <Crest id={openRow.id} size={52} />
+            <div style={{ minWidth: 0 }}>
+              <h3 id="tb-club-title" style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 24, margin: 0 }}>{nameOf(openRow.id)}</h3>
+              <span className="ch-small">{openPos}º na Série {division} · {openRow.pts} pts · {openRow.v}V {openRow.e}E {openRow.d}D</span>
+            </div>
           </div>
-        ))}
-        {division === 'A' && copaChampionInG4 && (
-          <div style={{ fontSize: 11, color: 'var(--success)', marginTop: 2 }}>
-            🏆 O campeão da Copa do Brasil está no G4 — uma vaga extra de Libertadores abriu pro 5º colocado.
-          </div>
-        )}
-      </div>
+          <div className="ui-label" style={{ marginBottom: 6 }}>Forma</div>
+          {n > 0 ? <FormChips form={clubFormDetailed(data, openRow.id, n, 5)} /> : <span className="ch-small">Sem jogos ainda.</span>}
+          <div className="ui-label" style={{ margin: '16px 0 6px' }}>Próximos jogos</div>
+          {nextFixtures(data, openRow.id, data.round, 2).map(f => (
+            <div key={f.round} className="tb-gap"><span style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Crest id={f.oppId} size={20} />{f.home ? '' : '@ '}{nameOf(f.oppId)}</span><b>Rodada {f.round}</b></div>
+          ))}
+          {nextFixtures(data, openRow.id, data.round, 2).length === 0 && <span className="ch-small">Sem jogos restantes.</span>}
+          {openRow.id !== save.myClubId && onOpenClubInMarket && (
+            <button type="button" className="ui-btn ui-btn-dark ui-btn-md ui-btn-block" style={{ marginTop: 18 }} onClick={() => onOpenClubInMarket(openRow.id)}><Icon name="shirt" size={16} />Ver elenco no Mercado</button>
+          )}
+          {openRow.id === save.myClubId && (
+            <button type="button" className="ui-btn ui-btn-dark ui-btn-md ui-btn-block" style={{ marginTop: 18 }} onClick={() => onNavigate('squad')}><Icon name="shirt" size={16} />Ver meu elenco</button>
+          )}
+        </Modal>
+      )}
     </div>
   );
 }
