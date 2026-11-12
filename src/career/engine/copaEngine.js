@@ -231,6 +231,26 @@ function nextFixedPairing(results, isSemiToFinal) {
   return [...pairUp(0), ...pairUp(half)];
 }
 
+// Entrada de `copa.rounds[classicIdx]` pra uma fase que AINDA NÃO foi
+// decidida (confrontos já sorteados/conhecidos, mas sem placar nenhum) —
+// bug reportado pelo usuário 2026-11-13: "a copa do brasil tem que ter o
+// formato de chaveamento igual é no modo lendário". O chaveamento
+// clássico (CupBracketModal/cupMatchOutcome, App.jsx) só preenchia
+// `copa.rounds[classicIdx]` DEPOIS da fase inteira decidida — enquanto a
+// fase atual ainda estava em andamento, o chaveamento mostrava o bloco
+// dela como "a definir" mesmo já sabendo quem joga com quem. Agora cada
+// fase entra no array assim que é sorteada (sem placar, `cupMatchOutcome`
+// já sabe tratar isso como "ainda não decidido" e mostrar só os nomes).
+function placeholderRoundEntry(round, ties) {
+  return {
+    name: COPA_ROUND_LABELS[round],
+    matches: ties.map(t => ({ homeId: t.aId, awayId: t.bId })),
+    leg1Results: [],
+    results: [],
+    penaltyResults: [],
+  };
+}
+
 // Fecha a Primeira Fase (nossa, só Série B) e sorteia o chaveamento FIXO
 // inteiro dos 16avos a partir daqui — essa é a ÚNICA vez que o chaveamento
 // tem aleatoriedade; dali pra frente só os resultados em campo decidem quem
@@ -239,9 +259,11 @@ function advancePrimeiraFase(save, winners, rand) {
   const copa = save.copa;
   const pool = [...winners, ...(copa.byeIds || [])];
   const ties = pairConsecutive(shuffle(pool, rand));
+  const rounds = [...(copa.rounds || [])];
+  rounds[0] = placeholderRoundEntry(1, ties);
   return {
     ...save,
-    copa: { ...copa, round: 1, leg: 'ida', leg1Results: null, ties, byeIds: [], pendingRoundTieResults: null },
+    copa: { ...copa, round: 1, leg: 'ida', leg1Results: null, ties, byeIds: [], pendingRoundTieResults: null, rounds },
   };
 }
 
@@ -295,6 +317,10 @@ function advanceBracketRound(save, results) {
   }
 
   const nextTies = nextFixedPairing(results, classicIdx === 3); // 3 = semifinal (BK_SIDE_ROUNDS-1 no modo clássico)
+  // Pré-popula a PRÓXIMA fase assim que ela é sorteada (mesmo motivo do
+  // placeholder da Primeira Fase acima) — senão o chaveamento mostrava "a
+  // definir" pra fase que na verdade já tem confronto certo, só sem placar.
+  rounds[classicIdx + 1] = placeholderRoundEntry(copa.round + 1, nextTies);
   return {
     ...save,
     copa: { ...copa, round: copa.round + 1, leg: 'ida', leg1Results: null, ties: nextTies, pendingRoundTieResults: null, rounds, history },
