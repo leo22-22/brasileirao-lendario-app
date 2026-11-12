@@ -11388,6 +11388,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-carreira-calendario',
+    date: 'Novembro de 2026',
+    title: 'Calendário do Modo Carreira redesenhado',
+    desc: 'O Calendário ganhou a faixa da temporada com as 38 rodadas pintadas pelo seu resultado (toque numa rodada para ir até a data), os jogos da Copa do Brasil em azul ao lado dos do Brasileirão, filtro por competição, visão em Lista, os dias da janela de transferências destacados e um card do dia com as probabilidades do jogo, os 10 jogos da rodada e as datas importantes da temporada.',
+  },
+  {
     id: '2026-11-carreira-tabela',
     date: 'Novembro de 2026',
     title: 'Tabela do Modo Carreira redesenhada',
