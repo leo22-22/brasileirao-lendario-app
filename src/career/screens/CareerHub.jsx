@@ -14,7 +14,8 @@ import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { formatCalendarDay } from '../engine/calendar.js';
 import { computePlayerValue } from '../engine/pricing.js';
 import { COPA_ROUND_LABELS } from '../engine/copaEngine.js';
-import { clubForm } from '../engine/simHelpers.js';
+import { clubForm, teamForSim } from '../engine/simHelpers.js';
+import { matchOutcomeProbabilities } from '../../App.jsx';
 import { TransferWindowBadge } from '../components/TransferWindowBadge.jsx';
 import { isTransferWindowOpen } from '../engine/calendar.js';
 import { backButtonStyle } from '../components/styles.js';
@@ -90,17 +91,6 @@ function lastMatchResult(save, division) {
   return { oppId, myGoals, oppGoals, isHome, res: myGoals > oppGoals ? 'V' : myGoals < oppGoals ? 'D' : 'E' };
 }
 
-// Força aproximada do elenco (média de OVR dos 11 melhores, fora da
-// categoria de base) — usada só pra barra de comparação do próximo jogo,
-// não é uma previsão de verdade, só dá um "clima" de confronto difícil ou
-// fácil baseado em dado real (elenco), não sorteado.
-function squadPower(save, clubId) {
-  const roster = save.clubs[clubId]?.roster.filter(p => !p.inAcademy) || [];
-  const top11 = [...roster].sort((a, b) => b.ovr - a.ovr).slice(0, 11);
-  if (!top11.length) return 60;
-  return top11.reduce((s, p) => s + p.ovr, 0) / top11.length;
-}
-
 // Valor de mercado somado do elenco profissional (fora da base) — mesma
 // fonte de preço que o Mercado usa (computePlayerValue).
 function squadValueTotal(save, clubId) {
@@ -162,9 +152,16 @@ function FormDots({ form }) {
 }
 
 function NextMatchCard({ save, division, seasonOver, nextMatch, onOpenPreview }) {
-  const homePower = nextMatch ? squadPower(save, nextMatch.homeId) : 0;
-  const awayPower = nextMatch ? squadPower(save, nextMatch.awayId) : 0;
-  const homePct = nextMatch ? Math.round((homePower / (homePower + awayPower)) * 100) : 50;
+  // Chance de vitória/empate real (pedido explícito do usuário 2026-11-13:
+  // "tem que aparecer a chance de vitoria empate tire isso de força que nao
+  // ta fazendo muito sentido") — mesma fórmula da simulação de verdade
+  // (matchOutcomeProbabilities, App.jsx) que a prévia do confronto
+  // (MatchPreviewModal) já usa, em vez da força bruta de elenco sem moral/
+  // fator casa que só dava uma ideia vaga de "difícil ou fácil".
+  const odds = nextMatch ? matchOutcomeProbabilities(teamForSim(save, nextMatch.homeId), teamForSim(save, nextMatch.awayId)) : null;
+  const homeWinPct = odds ? Math.round(odds.homeWin * 100) : 0;
+  const drawPct = odds ? Math.round(odds.draw * 100) : 0;
+  const awayWinPct = odds ? Math.max(0, 100 - homeWinPct - drawPct) : 0;
   // Clicável (pedido explícito do usuário 2026-11-12) — abre a prévia do
   // confronto (MatchPreviewModal): força de cada lado já com moral, time
   // titular previsto, posição na tabela e últimos 5 jogos.
@@ -205,13 +202,15 @@ function NextMatchCard({ save, division, seasonOver, nextMatch, onOpenPreview })
           </div>
           <div style={{ textAlign: 'center', fontSize: 11, opacity: 0.55, margin: '12px 0 10px', fontFamily: "'Space Mono', monospace" }}>Rodada {division.round + 1} · {formatCalendarDay(save.seasonCalendar[division.round])}</div>
           <div style={{ paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.07)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, fontWeight: 600, opacity: 0.7, marginBottom: 4 }}>
-              <span>Força ({homePct}%)</span>
-              <span>Força ({100 - homePct}%)</span>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, fontWeight: 600, opacity: 0.8, marginBottom: 4 }}>
+              <span style={{ color: 'rgba(244,241,234,0.9)' }}>Vitória {homeWinPct}%</span>
+              <span style={{ opacity: 0.6 }}>Empate {drawPct}%</span>
+              <span style={{ color: '#d4a23c' }}>Vitória {awayWinPct}%</span>
             </div>
             <div style={{ width: '100%', height: 6, borderRadius: 999, background: 'rgba(255,255,255,0.08)', overflow: 'hidden', display: 'flex' }}>
-              <div style={{ width: `${homePct}%`, background: 'rgba(255,255,255,0.35)' }} />
-              <div style={{ width: `${100 - homePct}%`, background: 'linear-gradient(90deg, #d4a23c, #f0c868)' }} />
+              <div style={{ width: `${homeWinPct}%`, background: 'rgba(255,255,255,0.4)' }} />
+              <div style={{ width: `${drawPct}%`, background: 'rgba(255,255,255,0.15)' }} />
+              <div style={{ width: `${awayWinPct}%`, background: 'linear-gradient(90deg, #d4a23c, #f0c868)' }} />
             </div>
           </div>
         </>

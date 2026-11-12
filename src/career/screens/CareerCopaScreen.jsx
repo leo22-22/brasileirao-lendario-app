@@ -23,11 +23,32 @@ export function CareerCopaScreen({ save, onBack }) {
   const roundLabel = COPA_ROUND_LABELS[copa.round];
   const [showBracket, setShowBracket] = useState(false);
   const myTeam = TEAMS.find(t => t.id === myClubId);
-  const hasBracket = (copa.rounds || []).some(r => r?.matches?.length);
+
+  // Fase ATUAL sintetizada pro chaveamento quando ainda não foi gravada em
+  // copa.rounds (saves de antes do fix 2026-11-13, ou qualquer corrida que
+  // ainda não passou pela transição que grava o placeholder em
+  // copaEngine.js/placeholderRoundEntry) — sem isso o bloco da fase em
+  // andamento aparecia "a definir" mesmo com os confrontos já sorteados,
+  // e o botão "Ver chaveamento" nem aparecia (pedido explícito do usuário:
+  // "a copa do brasil tem que ter o formato de chaveamento igual é no modo
+  // lendário" — "copa do brasil ainda tá assim" numa carreira já existente).
+  const classicIdx = copa.round - 1; // -1 = ainda na Primeira Fase, sem bloco clássico
+  const effectiveRounds = (() => {
+    const rounds = [...(copa.rounds || [])];
+    if (classicIdx >= 0 && !rounds[classicIdx]?.matches?.length && copa.ties?.length) {
+      rounds[classicIdx] = {
+        name: COPA_ROUND_LABELS[copa.round],
+        matches: copa.ties.map(t => ({ homeId: t.aId, awayId: t.bId })),
+        leg1Results: [], results: [], penaltyResults: [],
+      };
+    }
+    return rounds;
+  })();
+  const hasBracket = effectiveRounds.some(r => r?.matches?.length);
 
   const bracket = showBracket && (
     <CupBracketModal
-      cupRounds={copa.rounds || []}
+      cupRounds={effectiveRounds}
       leagueTeams={BRACKET_TEAMS}
       myTeamId={myClubId}
       myTeamColor={myTeam?.colors?.p}
