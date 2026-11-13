@@ -7,23 +7,20 @@
 // pede confirmação no próprio card.
 import { useEffect, useRef, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
-import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { timeAgo } from '../engine/careerSummary.js';
 import { formatMoneyShort } from './CareerHub.jsx';
 import { displayName } from '../../lib/displayName.js';
-import { Icon, TeamBadge } from '../../ui/index.jsx';
+import { Icon } from '../../ui/index.jsx';
 import { dayOfYearToMonthDay } from '../components/monthCalendar.jsx';
 import '../components/careerShell.css';
 import './careerStart.css';
+import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 
 const MONTH_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const clubOf = (id) => TEAMS.find(t => t.id === id);
 const nameOf = (id) => displayName(clubOf(id)?.club || '');
 
-function Crest({ id, logo, name, color, size }) {
-  const t = id ? clubOf(id) : null;
-  return <TeamBadge src={logo ?? CLUB_LOGOS[t?.club]} name={name ?? t?.club ?? ''} color={color ?? t?.colors?.p ?? '#0D3A29'} size={size} radius={size / 2} />;
-}
+const Crest = ({ id, logo, name, color, size }) => <ClubCrest id={id} logo={logo} name={name} color={color} size={size} />;
 
 function OtherCareer({ c, onLoad, onDelete }) {
   const [menu, setMenu] = useState(false);

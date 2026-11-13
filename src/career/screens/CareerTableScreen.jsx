@@ -7,16 +7,16 @@
 // às de antes.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
-import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { getZoneInfo } from '../../App.jsx';
 import { standingsAfter, clubFormDetailed, nextFixtures } from '../engine/standings.js';
 import { computeBoard } from '../engine/careerMeta.js';
 import { displayName } from '../../lib/displayName.js';
-import { Icon, TeamBadge, Modal } from '../../ui/index.jsx';
+import { Icon, Modal } from '../../ui/index.jsx';
 import { StandingsTable, FormChips } from '../../components/football/StandingsTable.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
 import './careerTable.css';
+import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 
 const clubOf = (id) => TEAMS.find(t => t.id === id);
 const nameOf = (id) => displayName(clubOf(id)?.club || '');
@@ -46,10 +46,7 @@ const VIEWS = [
   { id: 'all', label: 'Geral' }, { id: 'home', label: 'Mandante' }, { id: 'away', label: 'Visitante' }, { id: 'last5', label: 'Últimos 5' },
 ];
 
-function Crest({ id, size = 22 }) {
-  const t = clubOf(id);
-  return <TeamBadge src={CLUB_LOGOS[t?.club]} name={t?.club || ''} color={t?.colors?.p || '#0D3A29'} size={size} radius={size / 2} />;
-}
+const Crest = ({ id, size = 22 }) => <ClubCrest id={id} size={size} />;
 
 const describeForm = (f) => ({
   title: `Rodada ${f.round}: ${f.home ? '' : '@ '}${nameOf(f.oppId)} ${f.gf}–${f.ga}`,

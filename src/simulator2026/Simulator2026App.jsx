@@ -34,6 +34,7 @@ import { Icon, Modal } from '../ui/index.jsx';
 import './simulator2026.css';
 import { traditionalMatchStyles as ts } from './traditionalMatchStyles.js';
 import { displayName } from '../lib/displayName.js';
+import { ClubCrest } from '../components/football/ClubCrest.jsx';
 
 const SAVE_KEY = 'brl_simulator2026_save';
 // Índice 0-based da rodada 35 em SERIE_A_2026_FIXTURES (rodada 1 = índice 0).
@@ -115,13 +116,9 @@ function persistSave(save) {
 
 // Escudo do clube; sem logo, um círculo com a cor do clube. `ring` põe o
 // escudo num círculo branco (cards escuros do redesenho de 2026-11-13).
-function TeamCrest({ team, size = 22, ring = false }) {
-  const inner = team?.clubLogo
-    ? <img src={team.clubLogo} alt="" aria-hidden="true" style={{ width: ring ? size * 0.72 : size, height: ring ? size * 0.72 : size, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
-    : <span aria-hidden="true" style={{ width: ring ? size * 0.72 : size, height: ring ? size * 0.72 : size, borderRadius: '50%', background: team?.color || 'var(--surface-2)', flexShrink: 0, display: 'inline-block' }} />;
-  if (!ring) return inner;
-  return <span className="sm-crest-ring" style={{ width: size, height: size }}>{inner}</span>;
-}
+const TeamCrest = ({ team, size = 22, ring = false }) => (ring
+  ? <ClubCrest team={team} size={size} frame frameClass="sm-crest-ring" scale={0.72} />
+  : <ClubCrest team={team} size={size} />);
 
 // Monta o pacote de UMA partida (placar + timeline minuto a minuto já
 // prontos) — o placar sai de uma seed determinística (matchPrng) derivada

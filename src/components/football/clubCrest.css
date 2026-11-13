@@ -1,0 +1,4 @@
+/* ClubCrest (components/football/ClubCrest.jsx) */
+.fb-crest-frame { display: inline-grid; place-items: center; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); flex-shrink: 0; overflow: hidden; }
+.fb-crest-q { display: inline-grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--muted); font-size: 10px; flex-shrink: 0; }
+.fb-crest-frame .ui-badge-emblem { border: none; background: none; }

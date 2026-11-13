@@ -3,7 +3,7 @@
 // tick, placar, minuto, resultados da rodada) e devolve as ações pelos
 // mesmos handlers. Nada aqui simula ou decide resultado.
 import { Icon } from '../../ui/index.jsx';
-import { Crest } from './Crest.jsx';
+import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 import './matchTab.css';
 
 const FORM_CLASS = { V: 'lg-fv', E: 'lg-fe', D: 'lg-fd' };
@@ -51,7 +51,7 @@ function Side({ t, onViewTeam, big }) {
   const Tag = clickable ? 'button' : 'div';
   return (
     <Tag type={clickable ? 'button' : undefined} className={`lg-side${clickable ? ' lg-side-btn' : ''}`} onClick={clickable ? () => onViewTeam(t.raw) : undefined} title={clickable ? 'Ver elenco' : undefined}>
-      <Crest logo={t.logo} badge={t.badge} name={t.label} color={t.color} size={big ? 72 : 64} ring={t.mine} className="lg-crest-big" />
+      <ClubCrest logo={t.logo} badge={t.badge} name={t.label} color={t.color} size={big ? 72 : 64} frame scale={0.68} frameClass={`fb-crest-frame lg-crest-big${t.mine ? ' lg-crest-mine' : ''}`} />
       <b className="lg-side-nm">{t.label}</b>
       <small>{t.sub}</small>
     </Tag>
@@ -229,9 +229,9 @@ export function MatchTab({
               const aw = g.score && g.score.a > g.score.h;
               return (
                 <div key={g.key} className="lg-gm">
-                  <span className={`lg-gm-h${hw ? ' lg-win' : ''}`}><span className="lg-ell">{g.home.label}</span><Crest logo={g.home.logo} badge={g.home.badge} name={g.home.label} color={g.home.color} size={18} /></span>
+                  <span className={`lg-gm-h${hw ? ' lg-win' : ''}`}><span className="lg-ell">{g.home.label}</span><ClubCrest logo={g.home.logo} badge={g.home.badge} name={g.home.label} color={g.home.color} size={18} /></span>
                   <span className="lg-gm-sc">{g.score ? `${g.score.h} – ${g.score.a}` : '×'}</span>
-                  <span className={`lg-gm-a${aw ? ' lg-win' : ''}`}><Crest logo={g.away.logo} badge={g.away.badge} name={g.away.label} color={g.away.color} size={18} /><span className="lg-ell">{g.away.label}</span></span>
+                  <span className={`lg-gm-a${aw ? ' lg-win' : ''}`}><ClubCrest logo={g.away.logo} badge={g.away.badge} name={g.away.label} color={g.away.color} size={18} /><span className="lg-ell">{g.away.label}</span></span>
                 </div>
               );
             })}

@@ -22,11 +22,12 @@ import { ReadyMadeTeamModal } from './game/ReadyMadeTeamModal.jsx';
 import { CustomFormationModal } from './game/CustomFormationModal.jsx';
 import { SquadReadyScreen } from './game/SquadReadyScreen.jsx';
 import { LeagueHeader } from './game/league/LeagueHeader.jsx';
+import { AppHeader, HeaderMenu } from './ui/AppHeader.jsx';
+import { ClubCrest } from './components/football/ClubCrest.jsx';
 import { MatchTab } from './game/league/MatchTab.jsx';
 import { TableTab } from './game/league/TableTab.jsx';
 import { SquadTab } from './game/league/SquadTab.jsx';
 import { StatsTab } from './game/league/StatsTab.jsx';
-import { Crest as LeagueCrest } from './game/league/Crest.jsx';
 import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter } from './ui/index.jsx';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
@@ -2352,35 +2353,6 @@ function initialsOf(name = '') {
   const parts = String(name).trim().split(/[\s._-]+/).filter(Boolean);
   const ini = parts.length >= 2 ? parts[0][0] + parts[1][0] : String(name).slice(0, 2);
   return ini.toUpperCase();
-}
-
-// Menu do cabeçalho no celular — junta as ações secundárias pra o
-// cabeçalho caber numa linha só (marca + ação principal + conta + menu).
-function HeaderMenu({ items, badge }) {
-  const [open, setOpen] = useState(false);
-  useEffect(() => {
-    if (!open) return undefined;
-    const close = () => setOpen(false);
-    window.addEventListener('click', close);
-    return () => window.removeEventListener('click', close);
-  }, [open]);
-  return (
-    <div className="ui-hmenu-wrap ui-only-mobile">
-      <button type="button" className="ui-hbtn ui-hbtn-icon" aria-label="Mais opções" aria-expanded={open} onClick={e => { e.stopPropagation(); setOpen(o => !o); }}>
-        <Icon name="menu" size={18} />
-        {badge && <span className="ui-dot" style={{ minWidth: 10, height: 10, top: -2, right: -2, padding: 0 }} />}
-      </button>
-      {open && (
-        <div className="ui-hmenu" role="menu" onClick={e => e.stopPropagation()}>
-          {items.map(it => (
-            <button key={it.label} type="button" role="menuitem" onClick={() => { setOpen(false); it.onClick(); }}>
-              <Icon name={it.icon} size={17} />{it.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
 }
 
 export default function App() {
@@ -6294,37 +6266,16 @@ export default function App() {
           myTeamColor={myTeamColor}
         />
       )}
-      <header className="ui-header">
-        <div className="ui-header-inner" style={careerOpen ? { maxWidth: 'none', padding: '12px 28px' } : undefined}>
-          <button type="button" className="ui-brand" onClick={requestGoHome} title="Voltar ao menu inicial" aria-label="Brasileirão Lendário — voltar ao menu inicial">
-            <BrandMark />
-            <span style={{ minWidth: 0 }}>
-              <span className="ui-brand-name">Brasileirão Lendário</span>
-              {!careerOpen && <span className="ui-brand-sub">monte · escale · seja campeão</span>}
-            </span>
-          </button>
-          {simulator2026Open && (
-            <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
-              <span>Início</span>
-              <Icon name="chevronRight" size={14} />
-              <b>Simulador 2026</b>
-            </nav>
-          )}
-          {!careerOpen && !simulator2026Open && (classicStep || leagueCrumb || newGameCrumb) && (
-            <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
-              <span>{(classicStep || leagueCrumb) ? classicModeLabel : newGameCrumb}</span>
-              <Icon name="chevronRight" size={14} />
-              <b>{classicStep || leagueCrumb || 'Novo jogo'}</b>
-            </nav>
-          )}
-          {careerOpen && (careerHud?.active || careerHud?.crumb) && (
-            <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
-              <span>{careerHud.crumb?.root || 'Modo Carreira'}</span>
-              <Icon name="chevronRight" size={14} />
-              <b>{careerHud.crumb?.section || careerHud.section || `${careerHud.clubLabel} · Temporada ${careerHud.season}`}</b>
-            </nav>
-          )}
-          <div className="ui-header-actions">
+      <AppHeader
+        onBrand={requestGoHome}
+        brandTitle="Voltar ao menu inicial"
+        showSub={!careerOpen}
+        wide={careerOpen}
+        crumb={simulator2026Open ? { root: 'Início', current: 'Simulador 2026' }
+          : (!careerOpen && (classicStep || leagueCrumb || newGameCrumb)) ? { root: (classicStep || leagueCrumb) ? classicModeLabel : newGameCrumb, current: classicStep || leagueCrumb || 'Novo jogo' }
+            : (careerOpen && (careerHud?.active || careerHud?.crumb)) ? { root: careerHud.crumb?.root || 'Modo Carreira', current: careerHud.crumb?.section || careerHud.section || `${careerHud.clubLabel} · Temporada ${careerHud.season}` }
+              : null}
+      >
             {/* "Continuar" (partida salva) só fora da carreira. */}
             {phase === 'intro' && !multiPhase && !careerOpen && (
               <>
@@ -6400,9 +6351,7 @@ export default function App() {
               ]}
               badge={unseenNewsCount > 0}
             />
-          </div>
-        </div>
-      </header>
+      </AppHeader>
       {isOffline && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9500,
@@ -11994,35 +11943,7 @@ const RESULT_COLORS = { V: '#1F7A4D', D: '#B23B3B', E: '#8A938C' };
 // `ring` desenha o resultado em volta do escudo — assim o calendário mostra
 // QUEM foi o adversário e COMO terminou sem precisar de duas linhas.
 function TinyCrest({ team, size = 20, ring = null, title }) {
-  const [failed, setFailed] = useState(false);
-  const src = team?.clubLogo || team?.logo || null;
-  const box = {
-    width: size, height: size, borderRadius: '50%', flexShrink: 0,
-    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-    boxSizing: 'border-box',
-    ...(ring ? { border: `2px solid ${ring}` } : {}),
-  };
-  if (src && !failed) {
-    return (
-      <span style={{ ...box, overflow: 'hidden', background: 'var(--surface)' }} title={title}>
-        <img
-          src={src} alt={team?.club || ''} onError={() => setFailed(true)}
-          style={{ width: size - (ring ? 6 : 2), height: size - (ring ? 6 : 2), objectFit: 'contain' }}
-        />
-      </span>
-    );
-  }
-  const nome = team?.club || team?.label || '?';
-  return (
-    <span
-      title={title}
-      style={{
-        ...box, background: hexToRgba(team?.color || '#9fb3a8', 0.22),
-        color: teamInk(team?.color || '#69736B'), fontFamily: 'var(--font-mono)',
-        fontSize: Math.max(7, Math.round(size * 0.4)), fontWeight: 700, letterSpacing: -0.3,
-      }}
-    >{nome.slice(0, 3).toUpperCase()}</span>
-  );
+  return <ClubCrest team={team} size={size} frame={!!ring} scale={0.7} ringColor={ring || undefined} title={title} />;
 }
 
 function SeasonCalendarModal({
@@ -12719,9 +12640,9 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   if (roundDone && roundResults && myPj >= currentRound + 1) standingsPrev = positionsOf(revertResults(tableNow, roundResults));
   else if (!roundDone && lastRoundResults && currentRound > 0 && myPj >= currentRound) standingsPrev = positionsOf(revertResults(tableNow, lastRoundResults));
   const crestOf = (id, size) => {
-    if (id === myTeamId) return <LeagueCrest logo={myTeamLogo} badge={myTeamBadge} name={myLabel} color={mc} size={size} />;
+    if (id === myTeamId) return <ClubCrest logo={myTeamLogo} badge={myTeamBadge} name={myLabel} color={mc} size={size} />;
     const t = leagueTeams.find(x => x.id === id) || otherDivision?.teams?.find(x => x.id === id) || otherDivision?.table?.find(x => x.id === id);
-    return <LeagueCrest logo={t?.clubLogo} name={t?.label || ''} color={t?.colors?.p || t?.color || '#0D3A29'} size={size} />;
+    return <ClubCrest logo={t?.clubLogo} name={t?.label || ''} color={t?.colors?.p || t?.color || '#0D3A29'} size={size} />;
   };
   const matchLiveTable = mtTable.length > 0 && !isDailyChallenge && !inPromotionTie ? {
     title: matchStatus === 'live' || matchStatus === 'paused' ? 'Tabela ao vivo' : 'Classificação',
@@ -12854,7 +12775,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   return (
     <div style={styles.card} className="card-mob">
       <LeagueHeader
-        crest={<LeagueCrest logo={myTeamLogo} badge={myTeamBadge} name={myLabel} color={mc} size={58} radius={16} />}
+        crest={<ClubCrest logo={myTeamLogo} badge={myTeamBadge} name={myLabel} color={mc} size={58} frame scale={0.7} frameRadius={16} />}
         eyebrow={leagueEyebrow}
         title={leagueTitle}
         tags={headerTags}

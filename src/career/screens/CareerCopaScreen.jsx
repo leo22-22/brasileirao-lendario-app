@@ -5,7 +5,6 @@
 // vêm de copaEngine.js via engine/copaView.js. Nenhuma regra/sorteio muda.
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
-import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { formatCalendarDay } from '../engine/calendar.js';
 import { COPA_ROUND_LABELS } from '../engine/copaEngine.js';
 import { upcomingFixtures } from '../engine/careerMeta.js';
@@ -16,11 +15,12 @@ import {
 } from '../engine/copaView.js';
 import { formatMoneyShort } from './CareerHub.jsx';
 import { displayName } from '../../lib/displayName.js';
-import { Icon, TeamBadge } from '../../ui/index.jsx';
+import { Icon } from '../../ui/index.jsx';
 import { dayOfYearToMonthDay, GRID_YEAR } from '../components/monthCalendar.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
 import './careerCopa.css';
+import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 
 const clubOf = (id) => TEAMS.find(t => t.id === id);
 const nameOf = (id) => displayName(clubOf(id)?.club || '');
@@ -30,11 +30,7 @@ const shortDay = (day) => { const { month, dayOfMonth } = dayOfYearToMonthDay(da
 const wdDay = (day) => { const { month, dayOfMonth } = dayOfYearToMonthDay(day); return `${WD[new Date(GRID_YEAR, month, dayOfMonth).getDay()]}, ${dayOfMonth} ${MONTH_SHORT[month]}`; };
 const phaseDays = (p) => (Array.isArray(COPA_DAYS[p]) ? COPA_DAYS[p] : [COPA_DAYS[p]]);
 
-function Crest({ id, size = 18 }) {
-  const t = clubOf(id);
-  if (!t) return <span className="cp-q" style={{ width: size, height: size }} aria-hidden="true" />;
-  return <TeamBadge src={CLUB_LOGOS[t.club]} name={t.club} color={t.colors?.p || '#0D3A29'} size={size} radius={size / 2} />;
-}
+const Crest = ({ id, size = 18 }) => <ClubCrest id={id} size={size} unknown="blank" unknownClass="cp-q" />;
 
 const score = (s) => (s ? `${s.homeGoals}–${s.awayGoals}` : null);
 const aggText = (t) => (t.aggA == null ? null : `${t.aggA}–${t.aggB}${t.onPens ? '*' : ''}`);

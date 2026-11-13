@@ -20,6 +20,7 @@ import {
   tableSlice, transferWindowText, dayParts,
 } from '../engine/careerMeta.js';
 import '../components/careerShell.css';
+import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 
 function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
@@ -83,12 +84,9 @@ function longDate(season, day) {
   return `${weekdayOf(season, day)}, ${d} de ${MONTHS_FULL[m]}`;
 }
 
-function Crest({ clubId, size = 40, ring = false }) {
-  const team = clubOf(clubId);
-  const badge = <TeamBadge src={CLUB_LOGOS[team?.club]} name={team?.club || ''} color={team?.colors?.p || '#0D3A29'} size={ring ? Math.round(size * 0.66) : size} radius={ring ? 6 : Math.round(size / 2)} />;
-  if (!ring) return badge;
-  return <span className="ch-crest-ring" style={{ width: size, height: size }}>{badge}</span>;
-}
+const Crest = ({ clubId, size = 40, ring = false }) => (ring
+  ? <ClubCrest id={clubId} size={size} frame frameClass="ch-crest-ring" scale={0.66} innerRadius={6} />
+  : <ClubCrest id={clubId} size={size} />);
 
 function FormBadges({ form }) {
   if (!form.length) return <span style={{ fontSize: 12, color: '#B6CBBF' }}>sem jogos</span>;

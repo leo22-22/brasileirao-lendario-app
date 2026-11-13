@@ -2,11 +2,11 @@
 // de um jogo só (CareerMatchDayScreen) e a de ida+volta (CareerTwoLegScreen)
 // — extraído pra não duplicar ~100 linhas entre as duas telas.
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { posColor, posOrderIndex, ovrColor } from '../../lib/format.js';
 import { buildPitchSlots } from '../engine/formations.js';
 import { teamForSim } from '../engine/simHelpers.js';
 import { displayName } from '../../lib/displayName.js';
+import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 
 const SIM_MINUTES_PER_TICK = 2;
 // Velocidade da simulação ao vivo (pedido explícito do usuário 2026-11-11,
@@ -68,14 +68,9 @@ export function eventText(ev) {
 }
 
 export function TeamBadge({ team }) {
-  const logo = CLUB_LOGOS[team.club];
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 96 }}>
-      {logo ? (
-        <img src={logo} alt={displayName(team.club)} style={{ width: 42, height: 42, objectFit: 'contain' }} />
-      ) : (
-        <div style={{ width: 42, height: 42, borderRadius: '50%', background: team.color || '#333' }} />
-      )}
+      <ClubCrest team={team} size={42} />
       <div style={{ fontSize: 11.5, fontWeight: 600, textAlign: 'center', lineHeight: 1.2 }}>{displayName(team.club)}</div>
     </div>
   );

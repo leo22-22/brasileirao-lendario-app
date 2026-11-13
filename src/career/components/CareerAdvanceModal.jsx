@@ -221,7 +221,7 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, o
                       <span style={{ opacity: 0.6 }}>{result.gf}-{result.ga}</span>
                     </span>
                   )}
-                  {hasCopa && <TinyCrest emoji="🏆" ring={copaResult ? RESULT_COLORS[copaResult] : null} />}
+                  {hasCopa && <TinyCrest icon="trophy" ring={copaResult ? RESULT_COLORS[copaResult] : null} />}
                 </div>
               );
             })}

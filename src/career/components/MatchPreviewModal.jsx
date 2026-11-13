@@ -6,23 +6,17 @@
 // fosse jogada agora — reaproveita teamForSim de verdade, não um cálculo
 // à parte, pra nunca divergir do que a simulação realmente usaria).
 import { TEAMS } from '../../data/teams.js';
-import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { posColor, ovrColor, posOrderIndex } from '../../lib/format.js';
 import { teamForSim, clubForm } from '../engine/simHelpers.js';
 import { matchOutcomeProbabilities } from '../../lib/probability.js';
 import { displayName } from '../../lib/displayName.js';
+import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 
 // Cópia local de TeamCrest/FormDots (CareerHub.jsx) — evita import
 // circular entre a tela e este modal (o hub é quem abre o modal).
 const RESULT_COLORS = { V: '#1F7A4D', D: '#B23B3B', E: '#8A938C' };
 
-function TeamCrest({ teamId, size }) {
-  const team = TEAMS.find(t => t.id === teamId);
-  const logo = team && CLUB_LOGOS[team.club];
-  return logo
-    ? <img src={logo} alt={displayName(team.club)} style={{ width: size, height: size, objectFit: 'contain' }} />
-    : <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surface-2)' }} />;
-}
+const TeamCrest = ({ teamId, size }) => <ClubCrest id={teamId} size={size} />;
 
 function FormDots({ form }) {
   if (!form.length) return <span style={{ fontSize: 9.5, color: 'var(--muted)' }}>sem jogos</span>;

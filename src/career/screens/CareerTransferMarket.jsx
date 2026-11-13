@@ -10,7 +10,6 @@
 // (save.queuedProposals, enviadas quando a janela abre — marketQueue.js).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
-import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { CAREER_CLUB_IDS } from '../../data/career-clubs.js';
 import { computePlayerValue } from '../engine/pricing.js';
 import { MIN_SQUAD_SIZE, acceptanceChance } from '../engine/rosterStore.js';
@@ -22,10 +21,11 @@ import { findPlayerAnywhere, isShortlisted } from '../engine/marketQueue.js';
 import { dayParts } from '../engine/careerMeta.js';
 import { POS_ORDER, posSector } from '../../lib/format.js';
 import { displayName } from '../../lib/displayName.js';
-import { Icon, TeamBadge, Modal } from '../../ui/index.jsx';
+import { Icon, Modal } from '../../ui/index.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
 import './careerMarket.css';
+import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 
 const PAGE = 25;
 const MONTHS_FULL = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
@@ -70,10 +70,7 @@ const TONE = { danger: 'var(--danger)', warning: 'var(--warning-ink)', success: 
 function PosChip({ pos }) {
   return <span className={`sq-pos sq-${posSector(pos)}`}>{pos}</span>;
 }
-function Crest({ clubId, size = 30 }) {
-  const t = clubOf(clubId);
-  return <TeamBadge src={CLUB_LOGOS[t?.club]} name={t?.club || ''} color={t?.colors?.p || '#0D3A29'} size={size} radius={size / 2} />;
-}
+const Crest = ({ clubId, size = 30 }) => <ClubCrest id={clubId} size={size} />;
 
 function Toast({ toast }) {
   if (!toast) return null;

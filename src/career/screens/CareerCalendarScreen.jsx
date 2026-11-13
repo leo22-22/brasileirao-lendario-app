@@ -8,7 +8,6 @@
 // fase só guarda o agregado). Nenhuma data ou regra muda aqui.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
-import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { matchOutcomeProbabilities } from '../../lib/probability.js';
 import {
   formatCalendarDay, isTransferWindowOpen, currentWindowCloseDay, nextWindowOpenDay,
@@ -18,11 +17,12 @@ import { COPA_ROUND_LABELS, COPA_DAYS as COPA_DAYS_LIST } from '../engine/copaEn
 import { upcomingFixtures, myCopaStatus } from '../engine/careerMeta.js';
 import { teamForSim } from '../engine/simHelpers.js';
 import { displayName } from '../../lib/displayName.js';
-import { Icon, TeamBadge } from '../../ui/index.jsx';
+import { Icon } from '../../ui/index.jsx';
 import { MONTH_NAMES, MONTH_LENGTHS, GRID_YEAR, dayOfYearToMonthDay, dayOfYearFor } from '../components/monthCalendar.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
 import './careerCalendar.css';
+import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 
 const COMP = {
   br: { label: 'Brasileirão', color: '#1F7A4D' },
@@ -46,11 +46,7 @@ export function clubAbbr(id) {
   return base.replace(/[^A-Za-z]/g, '').slice(0, 3).toUpperCase();
 }
 
-function Crest({ id, size = 18 }) {
-  const t = clubOf(id);
-  if (!t) return <span className="cl-crest-q" style={{ width: size, height: size }} aria-hidden="true">?</span>;
-  return <TeamBadge src={CLUB_LOGOS[t.club]} name={t.club} color={t.colors?.p || '#0D3A29'} size={size} radius={size / 2} />;
-}
+const Crest = ({ id, size = 18 }) => <ClubCrest id={id} size={size} unknown="q" unknownClass="cl-crest-q" />;
 
 const outcome = (gf, ga) => (gf > ga ? 'V' : gf < ga ? 'D' : 'E');
 

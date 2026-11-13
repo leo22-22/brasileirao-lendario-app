@@ -15,7 +15,8 @@ import { CONTACT_EMAIL, INFO_TABS, HOW_TO_PLAY_STEPS, CLUB_STADIUMS } from '../d
 import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from '../lib/format.js';
 import { teamInk } from '../lib/color.js';
 import { ERA_BUCKETS } from '../lib/eras.js';
-import { Icon, BrandMark, SiteFooter, Tabs, Input, Button, Tag, TeamBadge } from '../ui/index.jsx';
+import { Icon, SiteFooter, Tabs, Input, Button, Tag, TeamBadge } from '../ui/index.jsx';
+import { AppHeader, HeaderMenu } from '../ui/AppHeader.jsx';
 import '../home/home.css';
 import { displayName } from '../lib/displayName.js';
 
@@ -46,32 +47,25 @@ export function EmailLink({ subject, style, label }) {
 function ContentShell({ onHome, onNavigateInfo, onNavigateTeams, maxWidth = 760, children }) {
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'var(--bg)', zIndex: 10000, overflowY: 'auto', color: 'var(--ink)' }}>
-      <header className="ui-header">
-        <div className="ui-header-inner">
-          <button type="button" className="ui-brand" onClick={onHome} title="Voltar ao início">
-            <BrandMark />
-            <span style={{ minWidth: 0 }}>
-              <span className="ui-brand-name">Brasileirão Lendário</span>
-              <span className="ui-brand-sub">monte · escale · seja campeão</span>
-            </span>
+      <AppHeader onBrand={onHome} brandTitle="Voltar ao início">
+        {onNavigateTeams && (
+          <button type="button" className="ui-hbtn ui-hide-mobile" onClick={onNavigateTeams}>
+            <Icon name="shirt" size={16} /> Elencos
           </button>
-          <div className="ui-header-actions">
-            {onNavigateTeams && (
-              <button type="button" className="ui-hbtn ui-hide-mobile" onClick={onNavigateTeams}>
-                <Icon name="shirt" size={16} /> Elencos
-              </button>
-            )}
-            {onNavigateInfo && (
-              <button type="button" className="ui-hbtn ui-hide-mobile" onClick={() => onNavigateInfo('como-jogar')}>
-                <Icon name="info" size={16} /> Como jogar
-              </button>
-            )}
-            <button type="button" className="ui-hbtn ui-hbtn-dark" onClick={onHome}>
-              <Icon name="play" size={13} /> Jogar agora
-            </button>
-          </div>
-        </div>
-      </header>
+        )}
+        {onNavigateInfo && (
+          <button type="button" className="ui-hbtn ui-hide-mobile" onClick={() => onNavigateInfo('como-jogar')}>
+            <Icon name="info" size={16} /> Como jogar
+          </button>
+        )}
+        <button type="button" className="ui-hbtn ui-hbtn-dark" onClick={onHome}>
+          <Icon name="play" size={13} /> Jogar agora
+        </button>
+        <HeaderMenu items={[
+          ...(onNavigateTeams ? [{ icon: 'shirt', label: 'Elencos', onClick: onNavigateTeams }] : []),
+          ...(onNavigateInfo ? [{ icon: 'info', label: 'Como jogar', onClick: () => onNavigateInfo('como-jogar') }] : []),
+        ]} />
+      </AppHeader>
       <main style={{ maxWidth, margin: '0 auto', padding: '32px 16px 56px' }}>
         {children}
       </main>

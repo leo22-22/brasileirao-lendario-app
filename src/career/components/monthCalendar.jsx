@@ -2,7 +2,8 @@
 // (calendário clicável da temporada) e CareerAdvanceModal.jsx (modal animado
 // do "Avançar") — extraído pra não duplicar a matemática de dia-do-ano vs
 // dia-do-mês/dia-da-semana entre os dois.
-import { CLUB_LOGOS } from '../../data/club-logos.js';
+import { ClubCrest } from '../../components/football/ClubCrest.jsx';
+import { Icon } from '../../ui/index.jsx';
 
 export const MONTH_LENGTHS = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 export const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
@@ -39,16 +40,11 @@ export function monthMatrix(month) {
   return weeks;
 }
 
-export function TinyCrest({ team, ring, emoji }) {
-  const logo = team ? CLUB_LOGOS[team.club] : null;
-  return (
-    <div style={{
-      width: 22, height: 22, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-      border: ring ? `2px solid ${ring}` : '1px solid var(--line-strong)', background: 'var(--surface)', overflow: 'hidden', flexShrink: 0,
-    }}>
-      {emoji ? <span style={{ fontSize: 11 }}>{emoji}</span> : logo ? <img src={logo} alt="" style={{ width: '72%', height: '72%', objectFit: 'contain' }} /> : <span style={{ fontSize: 9, color: 'var(--muted)' }}>?</span>}
-    </div>
-  );
+export function TinyCrest({ team, ring, icon }) {
+  if (icon) {
+    return <span className="fb-crest-frame" style={{ width: 22, height: 22, ...(ring ? { boxShadow: `inset 0 0 0 2px ${ring}` } : null) }} aria-hidden="true"><Icon name={icon} size={12} /></span>;
+  }
+  return <ClubCrest team={team} size={22} frame scale={0.72} ringColor={ring || undefined} unknown="q" />;
 }
 
 export const navArrowStyle = {
