@@ -11388,6 +11388,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-carreira-final-copa',
+    date: 'Novembro de 2026',
+    title: 'Final da Copa do Brasil agora é jogada',
+    desc: 'No Modo Carreira, a temporada terminava logo depois da última rodada do Brasileirão (15/nov) e a final da Copa do Brasil (18/nov) nunca acontecia — sem campeão e sem a premiação de R$ 78M para o campeão e R$ 34M para o vice. Agora a temporada só termina depois da final, e se o seu clube estiver nela o botão da Visão geral vira "Jogar a final da Copa".',
+  },
+  {
     id: '2026-11-carreira-inicio',
     date: 'Novembro de 2026',
     title: 'Nova entrada do Modo Carreira',

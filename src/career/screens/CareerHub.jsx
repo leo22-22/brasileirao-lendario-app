@@ -233,7 +233,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
   const primaryLabel = offerCount > 0 ? 'Responder propostas'
     : noFormation ? 'Definir formação'
       : suspendedStarters.length ? 'Tirar suspenso da escalação'
-        : seasonOver ? 'Encerrar temporada'
+        : seasonOver ? (next ? 'Jogar a final da Copa' : 'Encerrar temporada')
           : next?.comp === 'Brasileirão' ? `Jogar rodada ${next.roundIdx + 1}`
             : next ? `Avançar até a Copa` : 'Avançar';
   const primaryAction = offerCount > 0 ? () => onNavigate('market')

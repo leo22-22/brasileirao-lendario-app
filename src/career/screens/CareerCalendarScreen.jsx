@@ -14,7 +14,7 @@ import {
   formatCalendarDay, isTransferWindowOpen, currentWindowCloseDay, nextWindowOpenDay,
   WINDOW2_START, WINDOW2_END, JAN_END,
 } from '../engine/calendar.js';
-import { COPA_ROUND_LABELS } from '../engine/copaEngine.js';
+import { COPA_ROUND_LABELS, COPA_DAYS as COPA_DAYS_LIST } from '../engine/copaEngine.js';
 import { upcomingFixtures, myCopaStatus } from '../engine/careerMeta.js';
 import { teamForSim } from '../engine/simHelpers.js';
 import { displayName } from '../../lib/displayName.js';
@@ -468,7 +468,9 @@ export function CareerCalendarScreen({ save, onNavigate, onPlayNext }) {
     if (closeDay == null && openDay > today) out.push({ day: openDay, kind: 'win', title: 'Janela de transferências abre', sub: `Fica aberta até ${formatCalendarDay(openDay === WINDOW2_START ? WINDOW2_END : JAN_END)}` });
     if (closeDay == null && openDay <= today) out.push({ day: null, monthLabel: 'jan', kind: 'win', title: 'Janela de transferências abre', sub: 'Em janeiro, na próxima temporada' });
     if (cal[18] && cal[18] >= today) out.push({ day: cal[18], kind: 'turn', title: 'Fim do 1º turno', sub: 'Rodada 19' });
-    if (cal[cal.length - 1] >= today) out.push({ day: cal[cal.length - 1], kind: 'end', title: 'Última rodada', sub: 'Relatório da temporada logo depois' });
+    const copaRunning = save.copa && save.copa.phase !== 'done';
+    if (cal[cal.length - 1] >= today) out.push({ day: cal[cal.length - 1], kind: 'end', title: 'Última rodada', sub: copaRunning ? 'Relatório da temporada depois da final da Copa' : 'Relatório da temporada logo depois' });
+    if (copaRunning && !(status.alive)) { const fd = (Array.isArray(COPA_DAYS_LIST[5]) ? COPA_DAYS_LIST[5][0] : COPA_DAYS_LIST[5]); if (fd >= today) out.push({ day: fd, kind: 'cb', title: 'Final da Copa do Brasil', sub: 'A temporada termina depois dela' }); }
     return out.sort((a, b) => (a.day ?? 999) - (b.day ?? 999));
   })();
   const KD_ICON = { cb: ['cup', 'var(--info-soft)', 'var(--info)'], win: ['market', 'var(--success-soft)', 'var(--success)'], turn: ['table', 'var(--surface-2)', 'var(--ink-2)'], end: ['trophy', 'var(--gold-soft)', 'var(--gold-ink)'] };

@@ -303,8 +303,14 @@ export function advanceDay(save) {
     current = returnDueLoans(current, day);
     const division = current[myDivisionKey];
     const nextRoundIdx = division.round;
+    // Fim do Brasileirão só encerra a temporada se a Copa do Brasil não
+    // tiver mais jogo pela frente — a final (COPA_DAYS, 18/nov) cai depois
+    // da última rodada (15/nov) e, sem isso, nunca era jogada: sem campeão
+    // e sem a premiação da final (corrigido 2026-11-13, pedido do usuário:
+    // "a temporada terminar só depois da Copa do Brasil").
     if (nextRoundIdx >= division.fixtures.length) {
-      return { save: { ...current, calendarDay: day, lastDayEvents: events }, event: 'season-end' };
+      const copaPending = current.copa && current.copa.phase !== 'done' && copaCurrentDay(current.copa) >= day;
+      if (!copaPending) return { save: { ...current, calendarDay: day, lastDayEvents: events }, event: 'season-end' };
     }
     if (day === current.seasonCalendar[nextRoundIdx]) {
       const matches = division.fixtures[nextRoundIdx] || [];
