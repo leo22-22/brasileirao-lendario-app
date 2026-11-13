@@ -219,7 +219,9 @@ export function loadCareerSaveBySeed(seed) {
 // está sendo jogada agora mesmo.
 export function saveCareerSave(save) {
   try {
-    localStorage.setItem(slotKey(save.seed), JSON.stringify(save));
+    // `updatedAt` (2026-11-13): "salva/jogada há X" na entrada do Modo
+    // Carreira; saves antigos não têm e a tela esconde o texto.
+    localStorage.setItem(slotKey(save.seed), JSON.stringify({ ...save, updatedAt: Date.now() }));
     const ids = readIndex();
     if (!ids.includes(save.seed)) writeIndex([...ids, save.seed]);
     setActiveCareerSeed(save.seed);

@@ -3,11 +3,10 @@
 // seu próprio estado e sua própria persistência (brl_career_save); nunca
 // lê/escreve `phase`, `gameMode` ou `brl_save`. Só sai informação pro
 // resto do app via `onHudChange` (pro cabeçalho mostrar o orçamento).
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { TEAMS } from '../data/teams.js';
 import { ClubPickerScreen } from './screens/ClubPickerScreen.jsx';
 import { CareerStartScreen } from './screens/CareerStartScreen.jsx';
-import { CareerLoadScreen } from './screens/CareerLoadScreen.jsx';
 import { CareerHub, eventLine } from './screens/CareerHub.jsx';
 import { CareerAdvanceModal } from './components/CareerAdvanceModal.jsx';
 import { CareerSquadScreen } from './screens/CareerSquadScreen.jsx';
@@ -21,7 +20,8 @@ import { CareerCalendarScreen } from './screens/CareerCalendarScreen.jsx';
 import { CareerCopaScreen } from './screens/CareerCopaScreen.jsx';
 import { CareerYouthScreen } from './screens/CareerYouthScreen.jsx';
 import { CareerTransferMarket } from './screens/CareerTransferMarket.jsx';
-import { loadCareerSave, saveCareerSave, listCareerSaves, loadCareerSaveBySeed, setActiveCareerSeed, deleteCareerSave } from './state/careerStorage.js';
+import { loadCareerSave, saveCareerSave, loadCareerSaveBySeed, setActiveCareerSeed, deleteCareerSave } from './state/careerStorage.js';
+import { listCareerSummaries } from './engine/careerSummary.js';
 import {
   createCareerSave, advanceDay, endOfSeason, finalizeSeasonAfterUserTie, simulateUserTie,
   simulateUserCopaTieLeg1, simulateUserCopaTieLeg2, finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2,
@@ -46,10 +46,13 @@ const SECTION_LABELS = {
 
 export function CareerApp({ onExit, onHudChange }) {
   const [save, setSave] = useState(() => loadCareerSave());
+  const untouchedRef = useRef(save);
   // Com carreira salva, SEMPRE para na tela de "Continuar ou nova carreira"
   // primeiro — sem isso, não tinha nenhum jeito de recomeçar: toda entrada
   // no Modo Carreira carregava direto a carreira salva, sem opção nenhuma.
-  const [screen, setScreen] = useState(() => (loadCareerSave() ? 'start' : 'picker'));
+  // Sempre abre na página de entrada (2026-11-13): com carreiras, mostra a
+  // ativa + as outras; sem nenhuma, vira só o card de "Nova carreira".
+  const [screen, setScreen] = useState('start');
   // Overlay do calendário "passando" — vive AQUI (não dentro de CareerHub)
   // de propósito: quando o "Avançar" cai direto numa partida/confronto
   // pendente, o roteamento de tela troca pra CareerMatchDayScreen/
@@ -70,7 +73,9 @@ export function CareerApp({ onExit, onHudChange }) {
   // uma carreira que NÃO é a ativa não muda `save` (bailout do setState
   // com o mesmo valor não re-renderiza), e sem isso a linha apagada
   // continuava aparecendo na lista até alguma outra coisa forçar redraw.
-  const [savesList, setSavesList] = useState([]);
+  const [savesList, setSavesList] = useState(() => listCareerSummaries());
+  // Resumos das carreiras (careerSummary.js) recalculados ao voltar pra entrada.
+  useEffect(() => { if (screen === 'start') setSavesList(listCareerSummaries()); }, [screen]);
   // Clube aberto direto no Mercado (vindo do "Ver elenco" da Tabela).
   const [marketClub, setMarketClub] = useState(null);
   useEffect(() => { if (screen !== 'market') setMarketClub(null); }, [screen]);
@@ -81,14 +86,20 @@ export function CareerApp({ onExit, onHudChange }) {
     // diretoria) — idempotente: só devolve um save novo se algo mudou.
     const synced = syncCareerMeta(processQueuedProposals(save));
     if (synced !== save) { setSave(synced); return; }
+    // Abrir o Modo Carreira sem mudar nada não regrava o slot — senão o
+    // `updatedAt` ("salva há X" na entrada) virava "agora" só de abrir.
+    if (save === untouchedRef.current) return;
+    untouchedRef.current = null;
     saveCareerSave(save);
   }, [save]);
 
   useEffect(() => {
     if (!onHudChange) return;
+    const crumb = screen === 'start' ? { root: 'Início', section: 'Modo Carreira' } : null;
+    if (!save && crumb) { onHudChange({ active: false, crumb }); return; }
     if (save) {
       const team = TEAMS.find(t => t.id === save.myClubId);
-      onHudChange({ active: true, balance: save.clubs[save.myClubId].budget, clubLabel: displayName(team.club), clubColor: team.colors?.p, season: save.season, section: SECTION_LABELS[screen] || null });
+      onHudChange({ active: true, balance: save.clubs[save.myClubId].budget, clubLabel: displayName(team.club), clubColor: team.colors?.p, season: save.season, section: SECTION_LABELS[screen] || null, crumb });
     } else {
       onHudChange(null);
     }
@@ -109,13 +120,6 @@ export function CareerApp({ onExit, onHudChange }) {
     setScreen('picker');
   }, []);
 
-  // "Carregar carreira" — lista todas as carreiras salvas (ver
-  // CareerLoadScreen) pra trocar de uma pra outra sem apagar nenhuma.
-  const handleOpenLoad = useCallback(() => {
-    setSavesList(listCareerSaves());
-    setScreen('load');
-  }, []);
-
   const handleLoadCareer = useCallback((seed) => {
     const loaded = loadCareerSaveBySeed(seed);
     if (!loaded) return;
@@ -130,13 +134,12 @@ export function CareerApp({ onExit, onHudChange }) {
   // ou assume a próxima mais recente como ativa (ainda existe alguma).
   const handleDeleteCareer = useCallback((seed) => {
     const nextActiveSeed = deleteCareerSave(seed);
-    setSavesList(listCareerSaves());
+    setSavesList(listCareerSummaries());
     setSave(prev => {
       if (!prev || prev.seed !== seed) return prev;
-      const next = nextActiveSeed ? loadCareerSaveBySeed(nextActiveSeed) : null;
-      setScreen(next ? 'start' : 'picker');
-      return next;
+      return nextActiveSeed ? loadCareerSaveBySeed(nextActiveSeed) : null;
     });
+    setScreen('start');
   }, []);
 
   // Resolve só 1 rodada a partir de `prev` — mesma função usada tanto pro
@@ -360,36 +363,24 @@ export function CareerApp({ onExit, onHudChange }) {
     setScreen('hub');
   }, []);
 
-  if (!save || screen === 'picker') {
-    // Voltar da escolha de clube: se já existe alguma carreira (chegou
-    // aqui via "Nova carreira"), volta pra tela de entrada dela em vez de
-    // sair do Modo Carreira inteiro — só sai de vez quando é a primeira
-    // carreira (nunca existiu nenhuma save ainda).
-    return <ClubPickerScreen onPick={handlePick} onBack={save ? () => setScreen('start') : onExit} />;
-  }
-
   if (screen === 'start') {
     return (
       <CareerStartScreen
-        save={save}
-        onContinue={() => setScreen(save.screen || 'hub')}
+        careers={savesList}
+        activeSeed={save?.seed || null}
+        onContinue={() => setScreen(save?.screen || 'hub')}
         onNewCareer={handleNewCareer}
-        onOpenLoad={handleOpenLoad}
+        onLoad={handleLoadCareer}
+        onDelete={handleDeleteCareer}
         onBack={onExit}
       />
     );
   }
 
-  if (screen === 'load') {
-    return (
-      <CareerLoadScreen
-        saves={savesList}
-        activeSeed={save?.seed}
-        onLoad={handleLoadCareer}
-        onDelete={handleDeleteCareer}
-        onBack={() => setScreen(save ? 'start' : 'picker')}
-      />
-    );
+  if (!save || screen === 'picker') {
+    // Voltar da escolha de clube volta pra página de entrada (que também
+    // existe sem nenhuma carreira salva).
+    return <ClubPickerScreen onPick={handlePick} onBack={() => setScreen('start')} />;
   }
 
   // Checado ANTES de qualquer tela de partida/confronto pendente — garante

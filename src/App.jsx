@@ -6343,11 +6343,11 @@ export default function App() {
               {!careerOpen && <span className="ui-brand-sub">monte · escale · seja campeão</span>}
             </span>
           </button>
-          {careerOpen && careerHud?.active && (
+          {careerOpen && (careerHud?.active || careerHud?.crumb) && (
             <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
-              <span>Modo Carreira</span>
+              <span>{careerHud.crumb?.root || 'Modo Carreira'}</span>
               <Icon name="chevronRight" size={14} />
-              <b>{careerHud.section || `${careerHud.clubLabel} · Temporada ${careerHud.season}`}</b>
+              <b>{careerHud.crumb?.section || careerHud.section || `${careerHud.clubLabel} · Temporada ${careerHud.season}`}</b>
             </nav>
           )}
           <div className="ui-header-actions">
@@ -11387,6 +11387,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-carreira-inicio',
+    date: 'Novembro de 2026',
+    title: 'Nova entrada do Modo Carreira',
+    desc: 'Continuar, trocar de carreira e começar uma nova agora ficam numa página só: a carreira ativa aparece em destaque com posição, fase da Copa, orçamento, valor do elenco e o próximo jogo com a forma recente, e as outras carreiras viram cards com a última vez que você jogou. Dá para carregar ou apagar cada uma direto no card (com confirmação), e começar uma carreira nova continua mantendo as outras salvas.',
+  },
   {
     id: '2026-11-carreira-copa',
     date: 'Novembro de 2026',
