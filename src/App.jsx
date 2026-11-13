@@ -22,6 +22,7 @@ import { SquadReadyScreen } from './game/SquadReadyScreen.jsx';
 import { LeagueHeader } from './game/league/LeagueHeader.jsx';
 import { MatchTab } from './game/league/MatchTab.jsx';
 import { TableTab } from './game/league/TableTab.jsx';
+import { SquadTab } from './game/league/SquadTab.jsx';
 import { Crest as LeagueCrest } from './game/league/Crest.jsx';
 import { applyResults, revertResults, positionsOf, leagueZoneFor, compactRows } from './game/league/leagueTable.js';
 import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter } from './ui/index.jsx';
@@ -13020,68 +13021,23 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
 
       {activeTab === 'elenco' && (() => {
         const myTeam = leagueTeams.find(t => t.id === myTeamId);
-        // Titulares aqui já vêm com a troca automática de suspensos/lesionados
-        // aplicada (getEligibleRoster) e ordenados por posição — nunca mostra
-        // quem está fora como se estivesse escalado, e quem entrou no lugar
-        // some da lista de "Banco" (já é titular). Mesma lógica usada de
-        // verdade na simulação da rodada (teamsForRound), só pra exibição.
+        // Titulares já com a troca automática de suspensos/lesionados
+        // (getEligibleRoster), igual à simulação da rodada (teamsForRound).
         const { starters, bench, unavailable } = buildSquadView(myTeam, suspensions, injuries);
-        const understaffed = unavailable.some(p => p.shortOnSubs);
-        const renderRow = (p, i) => {
-          // p.pos é a lista de posições que o jogador PODE jogar, não onde ele
-          // foi escalado (um LD com pos ['LD','MD'] pode estar num slot MD) —
-          // pra mostrar a posição real usada, busca a vaga pelo slotKey salvo
-          // no draft. Exclui slots de banco da busca (`!s.isBench`): um
-          // reserva promovido por getEligibleRoster continua com o slotKey
-          // de quando estava no banco (ex.: "bench2"), e sem esse filtro a
-          // busca encontrava esse slot e usava seu realPos literal "bench"
-          // como se fosse a posição do jogador.
-          const assignedPos = !p.isBench && pitchSlots.find(s => s.key === p.slotKey && !s.isBench)?.realPos;
-          const posLabel = assignedPos || p.pos?.[0] || '-';
-          return (
-            <div key={`${p.name}-${i}`} style={styles.squadRow}>
-              <span style={{ ...styles.squadPos, color: p.isCaptain ? 'var(--gold-ink)' : undefined }}>{p.isCaptain ? 'C' : posLabel}</span>
-              <span style={styles.squadName}>{p.name}</span>
-              <span style={styles.squadTeam}>{p.club || ''}</span>
-              <span style={{ ...styles.squadOvr, color: p.isCaptain ? 'var(--gold-ink)' : undefined }}>{p.isCaptain ? `${p.ovr} +2` : p.ovr}</span>
-            </div>
-          );
+        // p.pos é a lista de posições que o jogador PODE jogar; a posição em
+        // que ele joga vem da vaga (slotKey) do draft, ignorando vagas de banco
+        // (um reserva promovido mantém o slotKey "benchN").
+        const assignedPosOf = (p) => pitchSlots.find(s => s.key === p.slotKey && !s.isBench)?.realPos || null;
+        const statsOf = (p) => {
+          const k = playerKey(myTeamId, p.name);
+          const r = seasonRatings?.[k];
+          return { j: r?.count || 0, g: scorers?.[k]?.goals || 0, a: assisters?.[k]?.assists || 0, avg: r?.count ? r.sum / r.count : null };
         };
-        const renderUnavailableRow = (p, i) => (
-          <div key={`${p.name}-${i}`} style={{ ...styles.squadRow, opacity: 0.5 }}>
-            <span style={styles.squadPos}>{p.pos?.[0] || '-'}</span>
-            <span style={styles.squadName}>
-              {p.name}
-              <span title={p.reason === 'suspenso' ? 'Suspenso' : 'Lesionado'} style={{ marginLeft: 6 }}>{p.reason === 'suspenso' ? '🟥' : '🩹'}</span>
-              {p.replacementName && <span style={{ display: 'block', fontSize: 10, opacity: 0.8, marginTop: 1 }}>entra: {p.replacementName}</span>}
-              {p.shortOnSubs && <span style={{ display: 'block', fontSize: 10, color: 'var(--danger)', marginTop: 1 }}>sem reserva na posição</span>}
-            </span>
-            <span style={styles.squadTeam}>{p.club || ''}</span>
-            <span style={styles.squadOvr}>{p.ovr}</span>
-          </div>
-        );
         return (
-          <div style={styles.squadList}>
-            {understaffed && (
-              <div style={{ background: 'rgba(178,59,59,0.12)', border: '1px solid rgba(178,59,59,0.45)', borderRadius: 8, padding: '8px 10px', fontSize: 11.5, color: 'var(--danger)', marginBottom: 12 }}>
-                ⚠️ Time desfalcado — sem reserva disponível pra uma posição.
-              </div>
-            )}
-            <div style={styles.sectionLabel}>Titulares</div>
-            {starters.map(renderRow)}
-            {bench.length > 0 && (
-              <>
-                <div style={{ ...styles.sectionLabel, marginTop: 14 }}>Banco</div>
-                {bench.map(renderRow)}
-              </>
-            )}
-            {unavailable.length > 0 && (
-              <>
-                <div style={{ ...styles.sectionLabel, marginTop: 14 }}>Desfalques</div>
-                {unavailable.map(renderUnavailableRow)}
-              </>
-            )}
-          </div>
+          <SquadTab
+            starters={starters} bench={bench} unavailable={unavailable}
+            assignedPosOf={assignedPosOf} statsOf={statsOf} hasStats
+          />
         );
       })()}
 
