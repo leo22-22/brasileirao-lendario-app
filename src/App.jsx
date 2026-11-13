@@ -15,6 +15,7 @@ import { INFO_TABS, INFO_ROUTES, CLUB_STADIUMS } from './data/info-content.js';
 import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from './lib/format.js';
 import { teamInk, readableOn, textOn } from './lib/color.js';
 import { FIRST_YEAR, LAST_YEAR } from './lib/eras.js';
+import './styles/newgame.css';
 import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter } from './ui/index.jsx';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
@@ -2450,6 +2451,8 @@ export default function App() {
   // cabeçalho (sempre renderizado) mostrar o pill de orçamento.
   const [careerOpen, setCareerOpen] = useState(false);
   const [careerHud, setCareerHud] = useState(null);
+  // Breadcrumb "{modo} › Novo jogo" enquanto o modal de dificuldade está aberto.
+  const [newGameCrumb, setNewGameCrumb] = useState(null);
   const [hasCareerSaveFlag] = useState(() => {
     try { return !!localStorage.getItem('brl_career_save'); } catch { return false; }
   });
@@ -3163,6 +3166,7 @@ export default function App() {
 
   const chooseFormation = (key) => {
     setFormationKey(key);
+    try { localStorage.setItem('brl_last_formation', key); } catch { /* sem storage */ }
     const formSlots = buildPitchSlots(key);
     const benchSlots = ['bench1', 'bench2', 'bench3', 'bench4', 'bench5'].map((k, i) => ({
       key: k, label: `SUB ${i + 1}`, realPos: 'bench', isBench: true, x: 0, y: 0
@@ -6317,7 +6321,12 @@ export default function App() {
   // PC) — revertido depois a pedido do próprio usuário: "mais centralizado
   // e bonito" fica melhor numa coluna mais estreita, igual à maioria dos
   // sites desse estilo (menu/dashboard, não uma landing page larga).
-  const wideMainMaxWidth = multiPhase ? null : (phase === 'intro' || phase === 'playing') ? 1240 : ['draft', 'squad', 'transfer'].includes(phase) ? 1100 : null;
+  // Fluxo de novo jogo (redesenho 2026-11-13): esquema e draft têm o próprio
+  // contêiner largo (ng-wrap/ng-dwrap), então o <main> não limita a largura.
+  const wideMainMaxWidth = (phase === 'formation' || phase === 'draft') ? 1440 : multiPhase ? null : (phase === 'intro' || phase === 'playing') ? 1240 : ['squad', 'transfer'].includes(phase) ? 1100 : null;
+  const classicModeLabel = multiPhase ? 'Multiplayer' : isDailyChallenge ? 'Supercopa do dia' : (isSerieAtual || gameMode === 'atual2026') ? 'Brasileirão Atual' : (livreTeamIds?.length ? 'Modo Livre' : gameMode === 'copa' ? 'Copa do Brasil Lendária' : 'Brasileirão Lendário');
+  const classicStep = { formation: 'Esquema tático', draft: 'Draft', squad: 'Capitão' }[phase] || null;
+  const newGameSteps = ['Esquema', 'Draft', 'Capitão', isDailyChallenge ? 'Supercopa' : gameMode === 'copa' ? 'Copa' : 'Temporada'];
   // Tema claro (creme) agora é o padrão do app inteiro — ver src/styles/tokens.css.
 
   return (
@@ -6343,6 +6352,13 @@ export default function App() {
               {!careerOpen && <span className="ui-brand-sub">monte · escale · seja campeão</span>}
             </span>
           </button>
+          {!careerOpen && (classicStep || newGameCrumb) && (
+            <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
+              <span>{classicStep ? classicModeLabel : newGameCrumb}</span>
+              <Icon name="chevronRight" size={14} />
+              <b>{classicStep || 'Novo jogo'}</b>
+            </nav>
+          )}
           {careerOpen && (careerHud?.active || careerHud?.crumb) && (
             <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
               <span>{careerHud.crumb?.root || 'Modo Carreira'}</span>
@@ -6574,6 +6590,7 @@ export default function App() {
 
         {phase === 'intro' && !multiPhase && (
           <Intro
+            onNewGameCrumb={setNewGameCrumb}
             onStart={goToFormationPicker}
             gameMode={gameMode} onSetGameMode={setGameMode}
             difficulty={difficulty} onSetDifficulty={setDifficulty}
@@ -6609,7 +6626,7 @@ export default function App() {
             onPick={team => multiUpdateMyTeam({ serieAtualTeamId: team.id })}
           />
         )}
-        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onChooseCustom={chooseCustomFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge && !isSerieAtual ? setGameMode : undefined} onPlayReadyMade={!isSerieAtual && roomSnap?.gameMode !== 'atual2026' ? useReadyMadeSquad : undefined} isDailyChallenge={isDailyChallenge} myTeamColor={myTeamColor} />}
+        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onChooseCustom={chooseCustomFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge && !isSerieAtual ? setGameMode : undefined} onPlayReadyMade={!isSerieAtual && roomSnap?.gameMode !== 'atual2026' ? useReadyMadeSquad : undefined} isDailyChallenge={isDailyChallenge} myTeamColor={myTeamColor} modeLabel={classicModeLabel} difficulty={multiPhase ? null : difficulty} steps={newGameSteps} />}
         {phase === 'transfer' && (
           <TransferMarket
             pitch={pitch}
@@ -6647,6 +6664,7 @@ export default function App() {
             captainSlot={captainSlot}
             onSlotPointerDown={handleSlotPointerDown}
             dragOverKey={dragOverKey}
+            log={log}
           />
         )}
         {phase === 'squad' && (
@@ -7271,12 +7289,13 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, onOpenSimulator2026, livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer, dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge }) {
+function Intro({ onNewGameCrumb, onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, onOpenSimulator2026, livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer, dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   const [showClub, setShowClub] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
   const [showWeeklyTeam, setShowWeeklyTeam] = useState(false);
   const [pendingMode, setPendingMode] = useState(null); // modo clicado aguardando escolha de dificuldade no modal
+  useEffect(() => { onNewGameCrumb?.(pendingMode?.title || null); return () => onNewGameCrumb?.(null); }, [pendingMode, onNewGameCrumb]);
   const weeklyCraque = WEEKLY_TEAM_OF_THE_WEEK.players.find(p => p.craque);
   // Banner de lançamento do Modo Carreira — pedido explícito do usuário ao
   // liberar o modo pra produção (2026-11-09: "notificação muito chamativa"
@@ -7360,64 +7379,84 @@ function Intro({ onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColo
 // home (exceto Modo Carreira, que não usa dificuldade). Junta escolha de
 // dificuldade + entrar no modo num só passo, em vez de ter uma seção de
 // dificuldade solta na home valendo pra "o modo atual" de forma implícita.
-function ModeDifficultyModal({ mode, difficulty, onSetDifficulty, onConfirm, onClose, myTeamColor }) {
-  const mc = teamInk(myTeamColor || '#C29A45');
+// Informações de cada modo para o modal de "Novo jogo" (redesenho de
+// 2026-11-13, jogo-dificuldade-mockup.html). Modo sem entrada aqui usa o
+// `sub` do próprio card da home.
+const MODE_NEWGAME_INFO = {
+  serieab: { tagline: 'Pontos corridos com campeões de todas as eras', chips: ['40 times', 'Série A e B', '38 rodadas', 'Draft de 16 jogadores'], cta: 'Escolher esquema tático' },
+  copa: { tagline: 'Mata-mata com campeões de todas as eras', chips: ['32 times', 'Mata-mata', 'Ida e volta', 'Draft de 16 jogadores'], cta: 'Escolher esquema tático' },
+  atual2026: { tagline: 'Os clubes reais da Série A de 2026', chips: ['20 times', 'Série A 2026', '38 rodadas', 'Elencos reais'], cta: 'Escolher clube' },
+};
+// Texto longo de cada dificuldade (o curto continua em DIFFICULTY_LEVELS.desc).
+const DIFFICULTY_LONG = {
+  facil: 'a IA joga abaixo do seu nível de papel. Bom para aprender o draft e testar esquemas sem pressão.',
+  normal: 'a IA joga com o OVR original dos times sorteados. O resultado depende só das suas escolhas.',
+  dificil: 'a IA joga acima do seu nível de papel. Um bom draft ainda briga pelo título, mas não dá para errar muito nas escolhas.',
+  lendario: 'a IA fica bem mais forte. Só um elenco excepcional briga pelo título.',
+};
+const DIFFICULTY_BARS = { facil: [1, '#2E8B57'], normal: [2, '#8C9A91'], dificil: [3, '#B7791F'], lendario: [4, '#B23B3B'] };
+
+function ModeDifficultyModal({ mode, difficulty, onSetDifficulty, onConfirm, onClose }) {
+  const info = MODE_NEWGAME_INFO[mode.id] || { tagline: mode.sub, chips: [], cta: 'Continuar' };
+  const goRef = useRef(null);
+  useEffect(() => {
+    goRef.current?.focus();
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  const keys = Object.keys(DIFFICULTY_LEVELS);
+  const onRadioKey = (e) => {
+    const i = keys.indexOf(difficulty);
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') { e.preventDefault(); onSetDifficulty(keys[(i + 1) % keys.length]); }
+    if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); onSetDifficulty(keys[(i - 1 + keys.length) % keys.length]); }
+  };
+  const aiText = (adj) => (adj === 0 ? 'IA com OVR original' : `IA ${adj > 0 ? '+' : '−'}${Math.abs(adj)} de OVR`);
+  const cur = DIFFICULTY_LEVELS[difficulty];
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line-strong)', borderRadius: 20, padding: 22 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span style={{ fontSize: 30 }}>{mode.icon}</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 16 }}>{mode.title}</div>
-              <div style={{ fontSize: 11.5, color: 'var(--muted)' }}>{mode.sub}</div>
-            </div>
+    <div className="ng-overlay" onClick={onClose} role="presentation">
+      <div className="ng-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ng-modal-title">
+        <div className="ng-mh">
+          <div className="ng-mh-ic" aria-hidden="true"><Icon name="trophy" size={26} /></div>
+          <div style={{ minWidth: 0 }}>
+            <span className="ng-mono">Novo jogo</span>
+            <h2 id="ng-modal-title">{mode.title}</h2>
+            <small>{info.tagline}</small>
           </div>
-          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 28, height: 28, flexShrink: 0 }}>×</button>
+          <button type="button" className="ng-x" onClick={onClose} aria-label="Fechar"><Icon name="close" size={16} /></button>
         </div>
-        <div style={styles.teamEditLabel}>Dificuldade</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }} className="difficulty-grid">
-          {Object.entries(DIFFICULTY_LEVELS).map(([key, d]) => {
-            const tone = DIFFICULTY_UI[key]?.tone || mc;
-            const active = difficulty === key;
+        {info.chips.length > 0 && <div className="ng-fmt">{info.chips.map(c => <span key={c}>{c}</span>)}</div>}
+        <div className="ng-lbl"><span className="ng-mono" id="ng-diff-lbl">Escolha a dificuldade</span><span className="ng-small">Multiplica seus pontos no ranking</span></div>
+        <div className="ng-opts" role="radiogroup" aria-labelledby="ng-diff-lbl" onKeyDown={onRadioKey}>
+          {keys.map(key => {
+            const d = DIFFICULTY_LEVELS[key];
+            const on = difficulty === key;
+            const [n, color] = DIFFICULTY_BARS[key] || [1, '#8C9A91'];
+            const mult = DIFFICULTY_UI[key]?.mult || '';
             return (
               <button
-                key={key}
-                onClick={() => onSetDifficulty(key)}
-                title={d.desc}
-                className="mode-card-hover"
-                aria-pressed={active}
-                style={{
-                  padding: '10px 6px', borderRadius: 10, border: '2px solid',
-                  borderColor: active ? tone : 'var(--line-strong)',
-                  background: active ? hexToRgba(tone, 0.12) : 'var(--surface)',
-                  color: active ? tone : 'var(--ink)',
-                  cursor: 'pointer', textAlign: 'center', fontSize: 12, fontWeight: 700,
-                  transition: 'all 0.12s',
-                }}
+                key={key} type="button" role="radio" aria-checked={on} tabIndex={on ? 0 : -1}
+                className={`ng-op${on ? ' ng-on' : ''}`} onClick={() => onSetDifficulty(key)}
               >
-                {d.short}
-                <div style={{ fontSize: 9.5, fontWeight: 400, opacity: active ? 0.8 : 0.4, marginTop: 2, fontFamily: 'var(--font-mono)' }}>
-                  {DIFFICULTY_UI[key]?.mult}
-                </div>
+                <b>{d.short}</b>
+                {on && <span className="ng-check" aria-hidden="true"><Icon name="check" size={13} strokeWidth={2.4} /></span>}
+                <span className="ng-lv" aria-hidden="true">{[0, 1, 2, 3].map(i => <i key={i} style={i < n ? { background: color } : undefined} />)}</span>
+                <span className="ng-ai">{aiText(d.aiOvrAdjust)}</span>
+                <span className="ng-mult" style={on ? { color: 'var(--gold-ink)' } : undefined}>{mult} {mult === '× 1' ? 'ponto' : 'pontos'}</span>
               </button>
             );
           })}
         </div>
-        <div style={{ fontSize: 11, color: 'var(--muted)', margin: '6px 0 18px', lineHeight: 1.4 }}>{DIFFICULTY_LEVELS[difficulty]?.desc}</div>
-        <button
-          onClick={onConfirm}
-          style={{
-            width: '100%', minHeight: 48, padding: '0 20px', borderRadius: 999, border: 'none', cursor: 'pointer',
-            background: 'var(--green)', color: '#fff', fontSize: 15, fontWeight: 600,
-          }}
-        >
-          Jogar →
-        </button>
+        <div className="ng-desc" aria-live="polite"><Icon name="star" size={18} /><span><b>{cur?.label}:</b> {DIFFICULTY_LONG[difficulty] || cur?.desc}</span></div>
+        <div className="ng-mf">
+          <span className="ng-small">A escolha fica salva para os próximos jogos.</span>
+          <button type="button" ref={goRef} className="ng-go" onClick={onConfirm}>{info.cta}<Icon name="chevronRight" size={16} /></button>
+        </div>
       </div>
     </div>
   );
 }
+
 
 // Onde cada função entra no desenho do campo (0 = linha de fundo/goleiro,
 // 5 = linha de ataque) e a sigla curta pra caber no chip do jogador. Posição
@@ -8709,101 +8748,91 @@ function MultiFormationWaitScreen({ roomData, myId }) {
 // FIM DAS TELAS MULTIPLAYER
 // ============================================================
 const FORMATION_GROUPS = [
-  { prefix: '4', title: 'Linha de 4 zagueiros', icon: '🛡️', hint: 'Equilíbrio clássico entre defesa e ataque' },
-  { prefix: '3', title: 'Linha de 3 zagueiros', icon: '⚔️', hint: 'Mais volume ofensivo, alas cobrindo as laterais' },
-  { prefix: '5', title: 'Linha de 5 zagueiros', icon: '🔒', hint: 'Retranca — prioriza solidez defensiva' },
+  { prefix: '4', title: 'Linha de 4 zagueiros', hint: 'Equilíbrio clássico entre defesa e ataque' },
+  { prefix: '3', title: 'Linha de 3 zagueiros', hint: 'Mais volume ofensivo, alas cobrindo as laterais' },
+  { prefix: '5', title: 'Linha de 5 zagueiros', hint: 'Retranca — prioriza solidez defensiva' },
 ];
+const NG_SECTOR = { GOL: 'gk', ZAG: 'df', LD: 'df', LE: 'df', VOL: 'md', MC: 'md', MD: 'md', ME: 'md', MEI: 'md', PD: 'at', PE: 'at', ATA: 'at' };
+const ngSector = (pos) => NG_SECTOR[pos] || 'md';
+// Último esquema escolhido no fluxo de novo jogo (só preferência de tela,
+// gravado em chooseFormation) — destaca o card com "Último usado".
+const LAST_FORMATION_KEY = 'brl_last_formation';
+function readLastFormation() { try { return localStorage.getItem(LAST_FORMATION_KEY); } catch { return null; } }
 
-function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGameMode, onPlayReadyMade, isDailyChallenge, myTeamColor }) {
+function MiniPitchPreview({ formationKey }) {
+  const slots = useMemo(() => buildPitchSlots(formationKey), [formationKey]);
+  return (
+    <div className="ng-mp" aria-hidden="true">
+      {slots.map((s, i) => <i key={i} className={`ng-d ng-${ngSector(s.realPos)}`} style={{ left: `${s.x}%`, top: `${s.y}%` }} title={s.realPos} />)}
+    </div>
+  );
+}
+
+// Escolha do esquema (redesenho de 2026-11-13, jogo-esquema-tatico-mockup).
+// `modeLabel`/`difficulty`/`steps` só vêm do fluxo de novo jogo — na troca
+// de formação no meio da temporada a tela aparece sem eles.
+function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGameMode, onPlayReadyMade, isDailyChallenge, myTeamColor, modeLabel, difficulty, steps }) {
+  const [line, setLine] = useState('all');
+  const [style, setStyle] = useState('all');
+  const [lastUsed] = useState(() => (steps ? readLastFormation() : null));
+  const all = useMemo(() => Object.entries(FORMATIONS), []);
+  const total = all.length;
   const groups = useMemo(() => (
     FORMATION_GROUPS
-      .map(g => ({ ...g, items: Object.entries(FORMATIONS).filter(([key]) => key.split('-')[0] === g.prefix) }))
+      .map(g => ({
+        ...g,
+        items: all.filter(([key, f]) => key.split('-')[0] === g.prefix && (line === 'all' || line === g.prefix)
+          && (style === 'all' || (f.label.match(/^[\d-]+\s*(.*)$/)?.[1] || '') === style)),
+      }))
       .filter(g => g.items.length > 0)
-  ), []);
-  const total = Object.keys(FORMATIONS).length;
-  // Atalho pra quem já sabe qual time histórico quer usar — funciona igual
-  // no solo e numa sala com amigos, já que os dois passam por essa mesma
-  // tela antes do draft.
+  ), [all, line, style]);
+  const countBy = (prefix) => all.filter(([k]) => k.split('-')[0] === prefix).length;
   const [showTeamPicker, setShowTeamPicker] = useState(false);
   const [showCustomBuilder, setShowCustomBuilder] = useState(false);
+  const diff = difficulty ? DIFFICULTY_LEVELS[difficulty] : null;
 
   return (
-    <div style={styles.card} className="card-mob">
-      {onBack && <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 10px', margin: '0 0 0 -2px', minHeight: 32 }}>&#8592; Voltar</button>}
-      {/* Quem chega direto aqui (primeira visita pula a home) nunca via o
-          seletor de campeonato — sem isso, ficava preso no Brasileirão
-          (o padrão) sem jeito nenhum de escolher a Copa do Brasil. */}
-      {onSetGameMode && (
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20 }}>
-          {[
-            { id: 'serieab', label: 'Brasileirão' },
-            { id: 'copa', label: 'Copa do Brasil' },
-          ].map(m => (
-            <button
-              key={m.id}
-              onClick={() => onSetGameMode(m.id)}
-              aria-pressed={gameMode === m.id}
-              className="mode-card-hover"
-              style={{
-                flex: 1, padding: '10px 12px', borderRadius: 10, cursor: 'pointer',
-                border: `2px solid ${gameMode === m.id ? 'var(--gold)' : 'var(--line-strong)'}`,
-                background: gameMode === m.id ? 'rgba(194,154,69,0.12)' : 'var(--surface)',
-                color: gameMode === m.id ? 'var(--gold-ink)' : 'var(--ink)', fontWeight: 700, fontSize: 13,
-              }}
-            >
-              {m.label}
+    <div className="ng-wrap">
+      <div className="ng-top">
+        <div style={{ minWidth: 0 }}>
+          {onBack && <button type="button" className="ng-back" style={{ marginBottom: 16 }} onClick={onBack}><Icon name="chevronLeft" size={14} />Voltar</button>}
+          <span className="ng-mono" style={{ display: 'block' }}>
+            {modeLabel || 'Formação'}{diff ? ` · ${diff.short} ${DIFFICULTY_UI[difficulty]?.mult || ''}` : ''}
+          </span>
+          <h1>Escolha o esquema tático</h1>
+          <p>{total} esquemas organizados pela linha de defesa. Clique em um para {steps ? 'começar o draft' : 'trocar a formação'}.</p>
+        </div>
+        {steps && (
+          <ol className="ng-steps" aria-label="Etapas do novo jogo">
+            {steps.map((s, i) => (
+              <React.Fragment key={s}>
+                {i > 0 && <span className="ng-sline" aria-hidden="true" />}
+                <li className={`ng-sp${i === 0 ? ' ng-on' : ''}`} aria-current={i === 0 ? 'step' : undefined}><i>{i + 1}</i>{s}</li>
+              </React.Fragment>
+            ))}
+          </ol>
+        )}
+      </div>
+
+      {(onPlayReadyMade || onChooseCustom) && (
+        <div className="ng-sc">
+          {onPlayReadyMade && (
+            <button type="button" className="ng-short" onClick={() => setShowTeamPicker(true)}>
+              <span className="ng-short-ic" style={{ background: 'var(--gold-soft)', color: '#7A5B1C' }} aria-hidden="true"><Icon name="trophy" size={22} /></span>
+              <span style={{ minWidth: 0 }}><b>Já sei qual time eu quero</b><small>Pula o sorteio e usa o elenco pronto de um time histórico</small></span>
+              <span className="ng-ar" aria-hidden="true"><Icon name="chevronRight" size={14} /></span>
             </button>
-          ))}
+          )}
+          {onChooseCustom && (
+            <button type="button" className="ng-short" onClick={() => setShowCustomBuilder(true)}>
+              <span className="ng-short-ic" style={{ background: 'var(--success-soft)', color: 'var(--success)' }} aria-hidden="true"><Icon name="edit" size={22} /></span>
+              <span style={{ minWidth: 0 }}><b>Criar minha própria formação</b><small>Arraste os jogadores pelo campo e monte do seu jeito</small></span>
+              <span className="ng-ar" aria-hidden="true"><Icon name="chevronRight" size={14} /></span>
+            </button>
+          )}
         </div>
       )}
-      <div style={styles.eyebrow}>{isDailyChallenge ? '🏆 Supercopa do Brasil · Passo 1 de 2' : 'Passo 1 de 2'}</div>
-      <h2 style={styles.h2}>Escolha o esquema tático</h2>
-      <p style={styles.formationIntro}>
-        {total} esquemas táticos à sua escolha, organizados pela linha de defesa. Cada posição no campinho
-        já mostra a cor da função — goleiro, zaga, meio ou ataque.
-      </p>
-
-      {onPlayReadyMade && (
-        <button
-          onClick={() => setShowTeamPicker(true)}
-          style={{
-            width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10,
-            padding: '12px 14px', borderRadius: 10, marginBottom: 24, cursor: 'pointer',
-            border: '1px dashed rgba(194,154,69,0.55)', background: 'rgba(194,154,69,0.1)', color: 'var(--ink)',
-          }}
-        >
-          <span style={{ fontSize: 18 }}>🏆</span>
-          <span style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--gold-ink)' }}>Já sei qual time eu quero</div>
-            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 1 }}>Pula o sorteio — usa o elenco pronto de um time histórico</div>
-          </span>
-          <span style={{ fontSize: 14, color: 'var(--muted)' }}>→</span>
-        </button>
-      )}
-      {showTeamPicker && (
-        <TeamPickerModal
-          onClose={() => setShowTeamPicker(false)}
-          onPick={team => { setShowTeamPicker(false); onPlayReadyMade(team); }}
-        />
-      )}
-
-      {onChooseCustom && (
-        <button
-          onClick={() => setShowCustomBuilder(true)}
-          style={{
-            width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10,
-            padding: '12px 14px', borderRadius: 10, marginBottom: 24, cursor: 'pointer',
-            border: '1px dashed rgba(31,122,77,0.5)', background: 'rgba(31,122,77,0.1)', color: 'var(--ink)',
-          }}
-        >
-          <span style={{ fontSize: 18 }}>🎨</span>
-          <span style={{ flex: 1 }}>
-            <div style={{ fontWeight: 700, fontSize: 13, color: 'var(--success)' }}>Criar minha própria formação</div>
-            <div style={{ fontSize: 11.5, color: 'var(--muted)', marginTop: 1 }}>Arraste os jogadores pelo campinho e monte um esquema do seu jeito</div>
-          </span>
-          <span style={{ fontSize: 14, color: 'var(--muted)' }}>→</span>
-        </button>
-      )}
+      {showTeamPicker && <TeamPickerModal onClose={() => setShowTeamPicker(false)} onPick={team => { setShowTeamPicker(false); onPlayReadyMade(team); }} />}
       {showCustomBuilder && (
         <CustomFormationBuilder
           myTeamColor={myTeamColor}
@@ -8812,31 +8841,56 @@ function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGame
         />
       )}
 
+      <div className="ng-fbar">
+        {onSetGameMode && (
+          <>
+            <div className="ng-seg" role="tablist" aria-label="Campeonato">
+              {[{ id: 'serieab', label: 'Brasileirão' }, { id: 'copa', label: 'Copa do Brasil' }].map(m => (
+                <button key={m.id} type="button" role="tab" aria-selected={gameMode === m.id} className={gameMode === m.id ? 'ng-on' : ''} onClick={() => onSetGameMode(m.id)}>{m.label}</button>
+              ))}
+            </div>
+            <span className="ng-vsep" aria-hidden="true" />
+          </>
+        )}
+        <div role="group" aria-label="Linha de defesa" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {[['all', `Todos ${total}`], ['4', 'Linha de 4'], ['3', 'Linha de 3'], ['5', 'Linha de 5']].filter(([k]) => k === 'all' || countBy(k) > 0).map(([k, l]) => (
+            <button key={k} type="button" className={`ng-chip${line === k ? ' ng-on' : ''}`} aria-pressed={line === k} onClick={() => setLine(k)}>{l}</button>
+          ))}
+        </div>
+        <span className="ng-vsep" aria-hidden="true" />
+        <div role="group" aria-label="Estilo" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {['Ofensivo', 'Equilibrado', 'Defensivo'].map(s => (
+            <button key={s} type="button" className={`ng-chip${style === s ? ' ng-on' : ''}`} aria-pressed={style === s} onClick={() => setStyle(st => (st === s ? 'all' : s))}>{s}</button>
+          ))}
+        </div>
+        <span className="ng-lg" aria-hidden="true"><span><i className="ng-gk" />GOL</span><span><i className="ng-df" />Defesa</span><span><i className="ng-md" />Meio</span><span><i className="ng-at" />Ataque</span></span>
+      </div>
+
+      {groups.length === 0 && <div className="ng-empty">Nenhum esquema com esse filtro. <button type="button" className="ng-chip" style={{ marginLeft: 8 }} onClick={() => { setLine('all'); setStyle('all'); }}>Limpar filtros</button></div>}
       {groups.map(g => (
-        <div key={g.prefix} style={{ marginBottom: 28 }}>
-          <div style={styles.formationSectionHead}>
-            <span style={styles.formationSectionTitle}><span>{g.icon}</span>{g.title}</span>
-            <span style={styles.formationSectionHint}>{g.hint}</span>
-          </div>
-          <div style={styles.formationGrid} className="formation-grid">
+        <section key={g.prefix} aria-label={g.title}>
+          <div className="ng-grp"><span className="ng-mono">{g.title} · {g.items.length}</span><span className="ng-small">{g.hint}</span></div>
+          <div className="ng-fg" style={{ marginTop: 18 }}>
             {g.items.map(([key, f]) => {
               const m = f.label.match(/^([\d-]+)\s*(.*)$/);
               const shape = m ? m[1] : f.label;
               const desc = m ? m[2] : '';
+              const last = key === lastUsed;
               return (
-                <button key={key} className="formation-card" style={styles.formationCard} onClick={() => onChoose(key)}>
-                  <div style={styles.formationShapeNum}>{shape}</div>
-                  <div style={styles.formationShapeDesc}>{desc}</div>
+                <button key={key} type="button" className={`ng-fc${last ? ' ng-last' : ''}`} onClick={() => onChoose(key)} aria-label={`${shape} ${desc}${last ? ', último usado' : ''}`}>
+                  {last && <span className="ng-lt">Último usado</span>}
                   <MiniPitchPreview formationKey={key} />
+                  <b>{shape}</b><small>{desc}</small>
                 </button>
               );
             })}
           </div>
-        </div>
+        </section>
       ))}
     </div>
   );
 }
+
 
 // Modal de busca pra escolher um dos 100 times históricos e jogar direto com
 // o elenco pronto deles — usado tanto no solo quanto numa sala com amigos
@@ -9062,28 +9116,6 @@ const POS_GROUP_COLOR = {
 };
 
 // Ordem fixa de exibição por posição primária (lista de jogadores no Draft).
-function MiniPitchPreview({ formationKey }) {
-  const slots = useMemo(() => buildPitchSlots(formationKey), [formationKey]);
-  return (
-    <div style={styles.miniPitch} className="on-dark">
-      <div style={styles.miniPitchHalfLine} />
-      <div style={styles.miniPitchCircle} />
-      <div style={styles.miniPitchCenterDot} />
-      <div style={styles.miniPitchArcTop} />
-      <div style={styles.miniPitchArcBottom} />
-      {slots.map((s, i) => (
-        <div
-          key={i}
-          title={s.realPos}
-          style={{ ...styles.miniDot, left: `${s.x}%`, top: `${s.y}%`, background: POS_GROUP_COLOR[s.realPos] || 'var(--gold)' }}
-        >
-          <span style={styles.miniDotLabel}>{s.realPos}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 // Editor de formação livre: 10 jogadores de linha (goleiro fixo, só
 // ilustrativo) que a pessoa arrasta pelo campinho — mesmo padrão de
 // Pointer Events + setPointerCapture do ImageCropModal, cobrindo mouse e
@@ -9242,7 +9274,7 @@ function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
   );
 }
 
-function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, myTeamColor, captainSlot, onSlotPointerDown, dragOverKey }) {
+function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, myTeamColor, captainSlot, onSlotPointerDown, dragOverKey, variant, targetName }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   const dark = needsDark(mc);
   const highlightKeys = new Set(highlightSlots.map(s => s.key));
@@ -9256,7 +9288,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
         ...styles.pitchField,
         background: 'var(--pitch)',
         backgroundImage: 'repeating-linear-gradient(to bottom, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.035) 14.3%, transparent 14.3%, transparent 28.6%)',
-      }} className="pitch-field on-dark">
+      }} className={`pitch-field on-dark${variant === 'draft' ? ' ng-pitch' : ''}`}>
 
         {/* ── Marcações do campo ── */}
         {/* Linha do meio */}
@@ -9344,6 +9376,38 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
                     ? '0 0 10px rgba(212,162,60,0.3)'
                     : 'none';
 
+          // Visual do draft (redesenho 2026-11-13): OVR no círculo com anel da
+          // cor do setor e o nome numa pílula embaixo; vaga possível em dourado.
+          // Mesmos handlers do visual padrão — só a aparência muda.
+          if (variant === 'draft') {
+            const ring = { gk: '#C29A45', df: '#4E86C2', md: '#3FA372', at: '#D2604F' }[ngSector(slot.realPos)];
+            const target = !occupant && isHighlighted;
+            const swapTarget = !!occupant && isHighlighted;
+            const act = () => (canPlace ? onClickSlot(slot.key) : onUnplace(slot.key));
+            return (
+              <div
+                key={slot.key}
+                data-slot-key={slot.key}
+                onClick={clickable ? act : undefined}
+                onPointerDown={draggable ? onSlotPointerDown(slot.key) : undefined}
+                onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } } : undefined}
+                role={clickable ? 'button' : undefined}
+                tabIndex={clickable ? 0 : undefined}
+                aria-label={occupant ? `${slot.label}: ${occupant.name}, OVR ${occupant.ovr}${canPlace ? '. Trocar de lugar' : '. Mover'}` : `Vaga de ${slot.label}${target ? ', disponível' : ''}`}
+                title={occupant ? `${occupant.name}${occupant.teamLabel ? ` · ${occupant.teamLabel}` : ''} — clique ou arraste para mover` : slot.label}
+                className={`pitch-spot ng-sl${occupant ? '' : ' ng-sl-e'}${target || swapTarget ? ' ng-sl-t' : ''}${isPreviewed ? ' ng-sl-pv' : ''}${isDropTarget ? ' ng-sl-drop' : ''}`}
+                style={{ left: `${slot.x}%`, top: `${slot.y}%`, '--ring': ring, cursor: clickable ? 'pointer' : 'default', touchAction: draggable ? 'none' : undefined, zIndex: occupant ? 3 : 2 }}
+              >
+                <div className="ng-sl-c pitch-spot-circle">
+                  {isCap && <span className="ng-sl-cap" aria-hidden="true">⭐</span>}
+                  {occupant ? occupant.ovr : slot.label}
+                </div>
+                {occupant
+                  ? <span className="ng-sl-n">{occupant.weeklyBoost === 5 ? '👑 ' : occupant.weeklyBoost ? '🌟 ' : ''}{shortName(occupant.name)}</span>
+                  : target && targetName ? <span className="ng-sl-n">{shortName(targetName)} aqui</span> : null}
+              </div>
+            );
+          }
           return (
             <div
               key={slot.key}
@@ -9427,13 +9491,46 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
 }
 
 // Exibe os jogadores do banco de reservas (interativo durante o draft)
-function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, onSlotPointerDown, dragOverKey }) {
+function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, onSlotPointerDown, dragOverKey, variant }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   const benchSlots = pitchSlots.filter(s => s.isBench);
   const filled = benchSlots.filter(s => pitch[s.key]);
   const highlightKeys = new Set(highlightSlots.map(s => s.key));
   const previewKeys = new Set(previewSlots.map(s => s.key));
   if (benchSlots.length === 0) return null;
+  // Visual do draft (redesenho 2026-11-13): 5 caixas lado a lado, a vaga
+  // possível em dourado — mesmos handlers do visual padrão.
+  if (variant === 'draft') {
+    return (
+      <div className="ng-bench" role="group" aria-label={`Banco (${filled.length} de ${benchSlots.length})`}>
+        {benchSlots.map((slot, i) => {
+          const p = pitch[slot.key];
+          const isHighlighted = highlightKeys.has(slot.key);
+          const isPreviewed = !p && !isHighlighted && previewKeys.has(slot.key);
+          const canPlace = isHighlighted && !!onClickSlot;
+          const canUnplace = !!p && !!onUnplace;
+          const clickable = canPlace || canUnplace;
+          const isDropTarget = dragOverKey === slot.key;
+          const draggable = !!p && !!onSlotPointerDown;
+          const act = () => (canPlace ? onClickSlot(slot.key) : onUnplace(slot.key));
+          return (
+            <div
+              key={slot.key} data-slot-key={slot.key}
+              className={`ng-bs${p ? ' ng-bs-f' : ''}${canPlace ? ' ng-bs-t' : ''}${isPreviewed ? ' ng-bs-pv' : ''}${isDropTarget ? ' ng-bs-drop' : ''}`}
+              onClick={clickable ? act : undefined}
+              onKeyDown={clickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); act(); } } : undefined}
+              onPointerDown={draggable ? onSlotPointerDown(slot.key) : undefined}
+              role={clickable ? 'button' : undefined} tabIndex={clickable ? 0 : undefined}
+              aria-label={p ? `Banco ${i + 1}: ${p.name}, OVR ${p.ovr}` : `Banco ${i + 1}${canPlace ? ', disponível' : ''}`}
+              style={{ cursor: clickable ? 'pointer' : 'default', touchAction: draggable ? 'none' : undefined }}
+            >
+              {p ? <><b>{shortName(p.name)}</b><small>{p.pos[0]} · {p.ovr}</small></> : <span>Banco {i + 1}{canPlace ? <><br />ou aqui</> : ''}</span>}
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
   return (
     <div style={{ marginTop: 10, padding: '10px 14px', background: 'var(--surface)', borderRadius: 10, border: '1px solid var(--line)' }}>
       <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8, fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: 1 }}>
@@ -10131,51 +10228,49 @@ export function getZoneInfo(pos, total) {
   return null;
 }
 
-function DraftTopBar({ formationLabel, filled, total, skipsLeft, onSkip, onBack, mustSkip = false }) {
-  const pct = total > 0 ? (filled / total) * 100 : 0;
+// Barra do topo do draft (redesenho de 2026-11-13, jogo-draft-mockup):
+// voltar ao esquema, passo/formação, progresso por vaga (titulares |
+// banco) e os pulos restantes com o botão de sortear outro time.
+function DraftTopBar({ formationLabel, pitch, pitchSlots, skipsLeft, onSkip, onBack, mustSkip = false, round, modeLabel }) {
+  const field = pitchSlots.filter(s => !s.isBench);
+  const bench = pitchSlots.filter(s => s.isBench);
+  const fieldFilled = field.filter(s => pitch[s.key]).length;
+  const benchFilled = bench.filter(s => pitch[s.key]).length;
+  const filled = fieldFilled + benchFilled;
   // `mustSkip`: nenhum jogador do time sorteado cabe nas vagas restantes. O
-  // pulo continua disponível mesmo com a cota zerada — senão a tela fica sem
-  // ação nenhuma (ver comentário em skipTeam).
+  // pulo continua disponível mesmo com a cota zerada (ver skipTeam).
   const canSkip = skipsLeft > 0 || mustSkip;
   return (
-    <div style={{ marginBottom: 16 }}>
-      <div style={styles.draftTopRow}>
-        <div>
-          {onBack && <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px', margin: '0 0 2px -2px', minHeight: 30, display: 'block' }}>&#8592; Voltar</button>}
-          <div style={styles.eyebrow}>{formationLabel}</div>
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{filled} de {total} posições preenchidas</div>
-          {mustSkip && (
-            <div style={{ fontSize: 12, color: 'var(--warning-ink)', marginTop: 6, maxWidth: 340 }}>
-              Nenhum jogador deste time cabe nas vagas que sobraram — pule sem gastar seus pulos.
-            </div>
-          )}
+    <div className="ng-card ng-tb">
+      {onBack && <button type="button" className="ng-back" onClick={onBack}><Icon name="chevronLeft" size={14} />Esquema</button>}
+      <div style={{ minWidth: 0 }}>
+        <span className="ng-mono">Passo 2 · Draft · {formationLabel}</span>
+        <h1>Monte seu elenco</h1>
+      </div>
+      <div className="ng-prog">
+        <div className="ng-r">
+          <span><b>{filled} de {pitchSlots.length}</b> posições · {fieldFilled}/{field.length} titulares · {benchFilled}/{bench.length} banco</span>
+          <span>rodada {round}</span>
         </div>
-        {/* Sem onSkip (Brasileirão Atual: só existe um time pra escalar, o
-            real, não tem pra onde "pular") o botão nem aparece — antes
-            ficava visível e parecia clicável (contador "3" aceso) sem fazer
-            nada, o que só confundia. */}
-        {onSkip && (
-          <button
-            onClick={onSkip}
-            disabled={!canSkip}
-            title={!canSkip ? 'Sem pulos restantes' : mustSkip && skipsLeft <= 0 ? 'Pulo livre — nenhum jogador cabe' : 'Pular este time'}
-            style={{
-              ...styles.skipsBox,
-              cursor: canSkip ? 'pointer' : 'not-allowed',
-              opacity: canSkip ? 1 : 0.4,
-              background: 'none',
-              border: `1px solid ${canSkip ? 'rgba(194,154,69,0.55)' : 'var(--line-strong)'}`,
-              transition: 'background 0.15s, border-color 0.15s',
-            }}
-          >
-            <span style={{ ...styles.skipsNum, color: canSkip ? 'var(--gold-ink)' : 'var(--muted)' }}>{mustSkip && skipsLeft <= 0 ? '↻' : skipsLeft}</span>
-            <span style={{ ...styles.skipsLabel, color: canSkip ? 'var(--gold-ink)' : 'var(--muted)' }}>pular</span>
+        <div className="ng-cells" style={{ gridTemplateColumns: `repeat(${field.length}, 1fr)${bench.length ? ` 8px repeat(${bench.length}, 1fr)` : ''}` }} role="progressbar" aria-valuemin={0} aria-valuemax={pitchSlots.length} aria-valuenow={filled} aria-label={`${filled} de ${pitchSlots.length} posições preenchidas`}>
+          {field.map(s => <i key={s.key} className={pitch[s.key] ? 'ng-f' : ''} />)}
+          {bench.length > 0 && <i className="ng-sp0" />}
+          {bench.map(s => <i key={s.key} className={`ng-bn${pitch[s.key] ? ' ng-f' : ''}`} />)}
+        </div>
+      </div>
+      {/* Sem onSkip (Brasileirão Atual: só existe o time real para escalar) o bloco nem aparece. */}
+      {onSkip && (
+        <div className="ng-skip">
+          <span className="ng-small">Pulos</span>
+          <span className="ng-dots" aria-label={`${skipsLeft} de ${MAX_SKIPS} pulos restantes`}>
+            {Array.from({ length: MAX_SKIPS }, (_, i) => <i key={i} className={i < skipsLeft ? '' : 'ng-u'} />)}
+          </span>
+          <button type="button" className="ng-skip-b" onClick={onSkip} disabled={!canSkip} title={!canSkip ? 'Sem pulos restantes' : mustSkip && skipsLeft <= 0 ? 'Pulo livre: nenhum jogador cabe' : 'Pular este time'}>
+            <Icon name="forward" size={15} />Sortear outro
           </button>
-        )}
-      </div>
-      <div style={styles.progressBar}>
-        <div style={{ ...styles.progressFill, width: `${pct}%` }} />
-      </div>
+        </div>
+      )}
+      {mustSkip && <div className="ng-warn" role="status">Nenhum jogador deste time cabe nas vagas que sobraram. Sorteie outro sem gastar seus pulos.</div>}
     </div>
   );
 }
@@ -10190,271 +10285,202 @@ function useIsMobile(bp = 768) {
   return mob;
 }
 
-function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, isPlayerBlockedByFormation, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, mustSkip, myTeamColor, captainSlot, onSlotPointerDown, dragOverKey }) {
+const ngOvrClass = (ovr) => (ovr >= 85 ? 'ng-o-hi' : ovr >= 78 ? 'ng-o-md' : 'ng-o-lo');
+
+// Draft (redesenho de 2026-11-13): time sorteado com a lista de jogadores e
+// onde cada um cabe, campo + banco no meio e, ao lado, o resumo do elenco e
+// a lista de escolhas. Toda a lógica (clickPlayer/clickPitchSlot/arrastar/
+// pular) continua a mesma do App — aqui só muda a apresentação.
+function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlots, formationLabel, skipsLeft, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, isPlayerBlockedByFormation, onClickPlayer, onClickPitchSlot, onUnplacePlayer, onSkipTeam, mustSkip, myTeamColor, captainSlot, onSlotPointerDown, dragOverKey, log = [] }) {
   const isMobile = useIsMobile();
-  const filledCount = Object.keys(pitch).length;
   const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
-  // Preview no hover: só no desktop (touch não tem hover de verdade) e só
-  // quando não há seleção ativa, pra não conflitar com o destaque real.
-  // Debounça a entrada (não a saída) — sem isso, passar o mouse rápido por
-  // vários jogadores da lista disparava um re-render + animação de escala no
-  // campo a cada linha sobrevoada, e a transição de 0.15s de cada uma ainda
-  // rodando quando a próxima já começava dava a sensação de "delay"/travado.
+  const [filter, setFilter] = useState('fit');
+  const [sortBy, setSortBy] = useState('ovr');
+  // Preview no hover (só desktop, sem seleção ativa) — debounce na entrada
+  // para não animar o campo a cada linha sobrevoada.
   const [hoveredPlayer, setHoveredPlayer] = useState(null);
   const hoverTimeoutRef = useRef(null);
   useEffect(() => () => clearTimeout(hoverTimeoutRef.current), []);
-  const handlePlayerHoverStart = (p) => {
-    clearTimeout(hoverTimeoutRef.current);
-    hoverTimeoutRef.current = setTimeout(() => setHoveredPlayer(p), 60);
-  };
-  const handlePlayerHoverEnd = (p) => {
-    clearTimeout(hoverTimeoutRef.current);
-    setHoveredPlayer(prev => (prev?.name === p.name ? null : prev));
-  };
+  const handlePlayerHoverStart = (p) => { clearTimeout(hoverTimeoutRef.current); hoverTimeoutRef.current = setTimeout(() => setHoveredPlayer(p), 60); };
+  const handlePlayerHoverEnd = (p) => { clearTimeout(hoverTimeoutRef.current); setHoveredPlayer(prev => (prev?.name === p.name ? null : prev)); };
   const previewSlots = !isMobile && !selectedPlayer && hoveredPlayer ? eligibleSlotsForPlayer(hoveredPlayer) : [];
-  const sortedPlayers = useMemo(() => {
+
+  const players = useMemo(() => {
     if (!rolledTeam) return [];
-    return [...rolledTeam.players].sort((a, b) => posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]));
-  }, [rolledTeam]);
+    return rolledTeam.players.map(p => {
+      const slots = eligibleSlotsForPlayer(p);
+      const field = [...new Set(slots.filter(s => !s.isBench).map(s => s.label))];
+      const bench = slots.some(s => s.isBench);
+      return { p, canPick: slots.length > 0, field, bench, blocked: slots.length === 0 && isPlayerBlockedByFormation(p) };
+    });
+  }, [rolledTeam, eligibleSlotsForPlayer, isPlayerBlockedByFormation]);
+  const fitCount = players.filter(x => x.canPick).length;
+  const shown = useMemo(() => {
+    const list = filter === 'fit' ? players.filter(x => x.canPick) : players;
+    return [...list].sort((a, b) => (sortBy === 'ovr' ? b.p.ovr - a.p.ovr : posOrderIndex(a.p.pos[0]) - posOrderIndex(b.p.pos[0])) || b.p.ovr - a.p.ovr);
+  }, [players, filter, sortBy]);
 
-  const mobileLayoutStyle = { display: 'flex', flexDirection: 'column', gap: 12, marginTop: 16 };
-  const playersPanelStyle = isMobile
-    ? { ...styles.draftLeft, maxHeight: '50vh' }
-    : styles.draftLeft;
-  const pitchPanelStyle = isMobile ? {} : styles.draftRight;
+  // Resumo do elenco: média dos titulares e por setor (pela vaga, não pela posição do jogador)
+  const fieldSlots = pitchSlots.filter(s => !s.isBench);
+  const starters = fieldSlots.filter(s => pitch[s.key]);
+  const avg = (arr) => (arr.length ? arr.reduce((t, s) => t + pitch[s.key].ovr, 0) / arr.length : null);
+  const fmt = (x) => (x == null ? '—' : x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }));
+  const sector = (sec) => avg(starters.filter(s => ngSector(s.realPos) === sec));
+  const picks = log.map((e, i) => ({ ...e, n: i + 1 })).reverse();
+  const usedTeams = new Set(log.map(e => e.teamLabel)).size;
+  const pickedPlayer = (name) => Object.values(pitch).find(p => p?.name === name);
+  const slotOf = (key) => pitchSlots.find(s => s.key === key);
+  const round = log.length + 1;
+  const teamOvr = rolledTeam ? teamStrength(Object.fromEntries([...rolledTeam.players].sort((a, b) => b.ovr - a.ovr).slice(0, 11).map((p, i) => [i, p]))) : null;
 
+  const topBar = <DraftTopBar formationLabel={formationLabel} pitch={pitch} pitchSlots={pitchSlots} skipsLeft={skipsLeft} onSkip={onSkipTeam} onBack={onBack} mustSkip={!isRolling && mustSkip} round={round} />;
+
+  const pitchCard = (
+    <div className="ng-card ng-pitchc">
+      <Pitch
+        pitch={pitch} pitchSlots={pitchSlots} highlightSlots={highlightSlots} previewSlots={previewSlots}
+        onClickSlot={isRolling ? undefined : onClickPitchSlot}
+        onUnplace={!isRolling && repositioningSlot === null ? onUnplacePlayer : undefined}
+        myTeamColor={myTeamColor} captainSlot={captainSlot}
+        onSlotPointerDown={isRolling ? undefined : onSlotPointerDown} dragOverKey={dragOverKey}
+        variant="draft" targetName={selectedPlayer?.name}
+      />
+      <BenchDisplay
+        pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor}
+        highlightSlots={highlightSlots} previewSlots={previewSlots}
+        onClickSlot={isRolling ? undefined : onClickPitchSlot}
+        onUnplace={!isRolling && repositioningSlot === null ? onUnplacePlayer : undefined}
+        onSlotPointerDown={isRolling ? undefined : onSlotPointerDown} dragOverKey={dragOverKey}
+        variant="draft"
+      />
+    </div>
+  );
+
+  const side = (
+    <div className="ng-side">
+      <div className="ng-card ng-sum">
+        <span className="ng-mono">Seu time até agora</span>
+        <b className="ng-big">{fmt(avg(starters))}</b>
+        <span className="ng-small">{starters.length === 1 ? 'OVR do único titular' : starters.length ? `OVR médio dos ${starters.length} titulares` : 'Nenhum titular escalado ainda'}</span>
+        <div className="ng-secs">
+          {[['at', 'Ataque'], ['md', 'Meio'], ['df', 'Defesa'], ['gk', 'Goleiro']].map(([k, l]) => {
+            const v = sector(k);
+            return <div key={k}><small>{l}</small><b style={v == null ? { color: 'var(--muted)' } : undefined}>{fmt(v)}</b></div>;
+          })}
+        </div>
+      </div>
+      <div className="ng-card" style={{ overflow: 'hidden' }}>
+        <div className="ng-ch"><h3>Escolhas</h3><span className="ng-small">{usedTeams} time{usedTeams === 1 ? '' : 's'} usado{usedTeams === 1 ? '' : 's'}</span></div>
+        {picks.length === 0 && <div className="ng-it ng-skipped">Nenhuma escolha ainda.</div>}
+        {picks.map(e => {
+          if (e.skipped) return <div key={e.n} className="ng-it ng-skipped"><span className="ng-k">{e.n}</span><div><b>Pulou</b><small>{e.teamLabel}</small></div></div>;
+          const pl = pickedPlayer(e.playerName);
+          const sl = slotOf(e.slot);
+          return (
+            <div key={e.n} className="ng-it">
+              <span className="ng-k">{e.n}</span>
+              <div style={{ minWidth: 0 }}><b>{e.playerName}</b><small>{e.teamLabel}{sl ? ` · ${sl.isBench ? 'banco' : sl.label}` : ''}</small></div>
+              {pl && <span className="ng-ov">{pl.ovr}</span>}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+
+  let teamCard;
   if (isRolling) {
-    const pitchEl = <div style={pitchPanelStyle}><Pitch pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot} /></div>;
-    const rollingEl = (
-      <div className="draft-left" style={playersPanelStyle}>
-        <div style={styles.rollingBox}>
-          <span style={styles.diceIconSpin}>🎲</span>
-          <div style={styles.rollingName}>{rollingPreview ? rollingPreview.label : '...'}</div>
-          <div style={styles.rollingHint}>sorteando time...</div>
+    teamCard = (
+      <div className="ng-card ng-tcard">
+        <div className="ng-rolling" role="status">
+          <span className="ng-mono">Sorteando time</span>
+          <b>{rollingPreview ? rollingPreview.label : '…'}</b>
         </div>
       </div>
     );
-    return (
-      <div style={styles.card} className="card-mob">
-        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} onBack={onBack} mustSkip={mustSkip} />
-        <div style={isMobile ? mobileLayoutStyle : styles.draftLayout} className="draft-layout-grid">
-          {isMobile ? <>{pitchEl}{rollingEl}</> : <>{rollingEl}{pitchEl}</>}
+  } else if (!rolledTeam) {
+    teamCard = (
+      <div className="ng-card ng-tcard">
+        <div className="ng-rolling">
+          <b>Os times disponíveis se esgotaram.</b>
+          {/* Rede de segurança: sem isto a tela ficava sem saída (ver comentário antigo). */}
+          {onBack && <button type="button" className="ng-skip-b" style={{ marginTop: 16 }} onClick={onBack}>Recomeçar a escalação</button>}
         </div>
       </div>
     );
-  }
-
-  if (!rolledTeam) {
-    return (
-      <div style={styles.card} className="card-mob">
-        <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} onBack={onBack} />
-        <div style={styles.emptyState}>
-          Os times disponíveis se esgotaram.
+  } else {
+    const logo = CLUB_LOGOS[rolledTeam.club];
+    const cp = rolledTeam.colors?.p || '#0D3A29';
+    const cs = rolledTeam.colors?.s || '#FBF9F4';
+    teamCard = (
+      <div className="ng-card ng-tcard">
+        <div className="ng-th">
+          <span className="ng-th-band" style={{ background: `linear-gradient(90deg, ${cp} 0 33%, ${cs} 33% 66%, ${cp} 66%)` }} aria-hidden="true" />
+          <TeamBadge src={logo} name={rolledTeam.club} color={cp} size={58} radius={29} />
+          <div style={{ minWidth: 0 }}>
+            <span className="ng-mono">Time sorteado</span>
+            <h2>{rolledTeam.label}</h2>
+            <small>{rolledTeam.coach ? `Técnico: ${rolledTeam.coach}` : displayName(rolledTeam.club)}</small>
+          </div>
+          {teamOvr != null && <div className="ng-th-ovr"><b>{Math.round(teamOvr)}</b><span className="ng-mono">OVR do time</span></div>}
         </div>
-        {/* Essa tela já foi um beco sem saída: sem botão nenhum e com o save
-            preso em 'draft', toda recarga voltava pra cá. Hoje o App re-sorteia
-            sozinho ao restaurar, e este botão é a rede de segurança final. */}
-        {onBack && (
-          <button style={{ ...styles.btnPrimary, width: '100%', marginTop: 12 }} onClick={onBack}>
-            Recomeçar a escalação
-          </button>
-        )}
+        <div className={`ng-hint${selectedPlayer ? ' ng-hint-sel' : ''}`} aria-live="polite">
+          <Icon name="star" size={16} />
+          {selectedPlayer
+            ? (repositioningSlot !== null
+              ? <span>Mova <b>{selectedPlayer.name}</b> para outra vaga, ou clique num jogador para cancelar.</span>
+              : <span>Escolha a vaga de <b>{selectedPlayer.name}</b> no campo ou no banco.</span>)
+            : hoveredPlayer && previewSlots.length
+              ? <span><b>{hoveredPlayer.name}</b> pode jogar em: {previewSlots.map(s => (s.isBench ? 'banco' : s.label)).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
+              : <span>Escolha <b>1 jogador</b> deste time e depois a vaga dele no campo ou no banco.</span>}
+        </div>
+        <div className="ng-fl">
+          <button type="button" className={`ng-chip${filter === 'fit' ? ' ng-on' : ''}`} aria-pressed={filter === 'fit'} onClick={() => setFilter('fit')}>Cabem no time · {fitCount}</button>
+          <button type="button" className={`ng-chip${filter === 'all' ? ' ng-on' : ''}`} aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Todos · {players.length}</button>
+          <button type="button" className="ng-chip" onClick={() => setSortBy(s => (s === 'ovr' ? 'pos' : 'ovr'))}>Ordenar: {sortBy === 'ovr' ? 'OVR' : 'posição'}</button>
+        </div>
+        <div>
+          {shown.length === 0 && <div className="ng-it ng-skipped" style={{ padding: '14px 20px' }}>Nenhum jogador deste time cabe nas vagas que sobraram.</div>}
+          {shown.map(({ p, canPick, field, bench, blocked }) => {
+            const isSelected = selectedPlayer?.name === p.name;
+            const fit = field.length ? `Vaga de ${field.join(' ou ')}${bench ? ' ou banco' : ''}` : bench ? 'Só banco' : blocked ? 'Fora do esquema' : 'Sem vaga livre';
+            const weekly = p.weeklyBoost ? `${p.weeklyBoost === 5 ? 'Craque' : 'Seleção'} da ${WEEKLY_TEAM_OF_THE_WEEK.label}, +${p.weeklyBoost} de OVR` : null;
+            return (
+              <button
+                key={p.name} type="button"
+                className={`ng-pr${isSelected ? ' ng-sel' : ''}${p.weeklyBoost ? ' ng-weekly' : ''}`}
+                onClick={() => canPick && onClickPlayer(p)}
+                onMouseEnter={() => handlePlayerHoverStart(p)} onMouseLeave={() => handlePlayerHoverEnd(p)}
+                disabled={!canPick}
+                aria-pressed={isSelected}
+                aria-label={`${p.name}, OVR ${p.ovr}, ${p.pos.join(' e ')}. ${fit}${weekly ? `. ${weekly}` : ''}`}
+                title={weekly || (blocked ? 'Sem posição compatível nesse esquema, nem titular nem banco' : undefined)}
+              >
+                <span className={`ng-o ${ngOvrClass(p.ovr)}`}>{p.ovr}</span>
+                <span style={{ minWidth: 0 }}>
+                  <b>{p.weeklyBoost === 5 ? '👑 ' : p.weeklyBoost ? '🌟 ' : ''}{p.name}</b>
+                  <span className="ng-pps">
+                    {p.pos.map(pos => <span key={pos} className={`ng-pos ${field.includes(pos) ? `ng-p-${ngSector(pos)}` : 'ng-off'}`}>{pos}</span>)}
+                    {blocked && <span className="ng-pos ng-lock">FORA DO ESQUEMA</span>}
+                  </span>
+                </span>
+                <span className={`ng-fit${!field.length && bench ? ' ng-bench' : ''}${!canPick ? ' ng-none' : ''}`}>{fit}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={{ ...styles.card, position: 'relative' }} className="card-mob">
-      <DraftTopBar formationLabel={formationLabel} filled={filledCount} total={pitchSlots.length} skipsLeft={skipsLeft} onSkip={onSkipTeam} onBack={onBack} mustSkip={mustSkip} />
-
-      {selectedPlayer && (
-        <div style={styles.selectedPlayerBanner}>
-          {repositioningSlot !== null
-            ? <>Mova <b>{selectedPlayer.name}</b> para outra posição — ou clique num jogador para cancelar</>
-            : <>Escolha a posição no campo para <b>{selectedPlayer.name}</b></>
-          }
-        </div>
-      )}
-
-      {/* Banner de preview do hover: sempre sobreposto (position:absolute +
-          wrapper de altura zero), nunca em fluxo normal. Antes ele empurrava
-          o layout ao aparecer/sumir — o que deslocava a PRÓPRIA linha hoverada
-          pra fora do cursor, disparando mouseleave, escondendo o banner, o que
-          devolvia a linha pro lugar, disparando mouseenter de novo: um loop
-          infinito de pisca-pisca. pointerEvents:'none' garante que o banner
-          nunca "rouba" o hover de quem está embaixo dele mesmo quando
-          se sobrepõe visualmente. */}
-      {!selectedPlayer && (
-        <div style={{ position: 'relative', height: 0, zIndex: 5 }}>
-          {previewSlots.length > 0 && hoveredPlayer ? (
-            <div style={{ ...styles.selectedPlayerBanner, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none', background: 'var(--surface)', boxShadow: 'var(--shadow)', border: '1px solid var(--gold)' }}>
-              👀 <b>{hoveredPlayer.name}</b> pode jogar em: {previewSlots.map(s => s.label).join(', ')}
-            </div>
-          ) : hoveredPlayer && isPlayerBlockedByFormation(hoveredPlayer) ? (
-            <div style={{ ...styles.selectedPlayerBanner, position: 'absolute', top: 0, left: 0, right: 0, pointerEvents: 'none', background: 'var(--surface)', boxShadow: 'var(--shadow)', border: '1px solid rgba(178,59,59,0.6)' }}>
-              🔒 <b>{hoveredPlayer.name}</b> não tem posição compatível com o esquema atual
-            </div>
-          ) : null}
-        </div>
-      )}
-
-      <div style={isMobile ? mobileLayoutStyle : styles.draftLayout} className="draft-layout-grid">
-        {/* No mobile: campo primeiro; no desktop: jogadores primeiro */}
-        {isMobile && (
-          <div style={pitchPanelStyle}>
-            <Pitch
-              pitch={pitch}
-              pitchSlots={pitchSlots}
-              highlightSlots={highlightSlots}
-              previewSlots={previewSlots}
-              onClickSlot={onClickPitchSlot}
-              onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
-              myTeamColor={myTeamColor}
-              captainSlot={captainSlot}
-              onSlotPointerDown={onSlotPointerDown}
-              dragOverKey={dragOverKey}
-            />
-          </div>
-        )}
-
-        {/* Jogadores */}
-        <div className="draft-left" style={playersPanelStyle}>
-          <div style={styles.teamHeaderCard}>
-            {CLUB_LOGOS[rolledTeam.club]
-              ? <img src={CLUB_LOGOS[rolledTeam.club]} style={{ width: 36, height: 36, objectFit: 'contain', flexShrink: 0 }} alt={displayName(rolledTeam.club)} />
-              : <span style={{ fontSize: 20 }}>🎲</span>
-            }
-            <div>
-              <div style={styles.rolledTeamLabel}>{rolledTeam.label}</div>
-              <div style={styles.rolledTeamCoach}>Técnico: {rolledTeam.coach}</div>
-            </div>
-          </div>
-
-          <div style={styles.playersList}>
-            {sortedPlayers.map((p, i) => {
-              const slots = eligibleSlotsForPlayer(p);
-              const canPick = slots.length > 0;
-              const blockedByFormation = !canPick && isPlayerBlockedByFormation(p);
-              const isSelected = selectedPlayer?.name === p.name;
-              // Seleção da Semana: jogador com bônus vigente (ver
-              // WEEKLY_TEAM_OF_THE_WEEK/weeklyBoost) ganha um card dourado no
-              // draft — craque (+5) num tom mais forte que o resto da
-              // seleção (+3), pra ficar claro quem é o destaque da rodada.
-              const isWeeklyPick = !!p.weeklyBoost;
-              const isCraque = p.weeklyBoost === 5;
-              const goldTone = isCraque ? '#8A6A24' : '#C29A45';
-              return (
-                <button
-                  key={i}
-                  onClick={() => canPick && onClickPlayer(p)}
-                  onMouseEnter={() => handlePlayerHoverStart(p)}
-                  onMouseLeave={() => handlePlayerHoverEnd(p)}
-                  disabled={!canPick}
-                  title={blockedByFormation ? 'Sem posição compatível nesse esquema — nem titular, nem banco' : (isWeeklyPick ? `${isCraque ? 'Craque' : 'Seleção'} da ${WEEKLY_TEAM_OF_THE_WEEK.label} — +${p.weeklyBoost} OVR` : undefined)}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '10px 12px',
-                    borderRadius: 9,
-                    border: '1px solid',
-                    background: isSelected
-                      ? 'var(--success-soft)'
-                      : isWeeklyPick
-                        ? hexToRgba(goldTone, isCraque ? 0.2 : 0.12)
-                        : canPick ? 'var(--surface)' : 'transparent',
-                    borderColor: isSelected
-                      ? 'rgba(31,122,77,0.45)'
-                      : isWeeklyPick
-                        ? hexToRgba(goldTone, isCraque ? 0.85 : 0.55)
-                        : canPick ? 'var(--line)' : 'transparent',
-                    boxShadow: isWeeklyPick && !isSelected ? `0 0 12px ${hexToRgba(goldTone, isCraque ? 0.3 : 0.15)}` : 'none',
-                    opacity: canPick ? 1 : 0.3,
-                    cursor: canPick ? 'pointer' : 'not-allowed',
-                    color: 'var(--ink)',
-                    textAlign: 'left',
-                    width: '100%',
-                    transition: 'background 0.12s, border-color 0.12s',
-                    marginBottom: 2,
-                  }}
-                >
-                  <div style={{
-                    width: 40, height: 40, borderRadius: 8, flexShrink: 0,
-                    background: isSelected ? 'rgba(31,122,77,0.14)' : isWeeklyPick ? hexToRgba(goldTone, 0.18) : 'var(--surface)',
-                    border: `1px solid ${isWeeklyPick ? goldTone : (POS_GROUP_COLOR[p.pos[0]] || 'var(--line-strong)')}55`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14,
-                    color: isWeeklyPick ? goldTone : ovrColor(p.ovr),
-                  }}>
-                    {p.ovr}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 5 }}>
-                    <div style={{
-                      fontSize: 13.5, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden',
-                      textOverflow: 'ellipsis', lineHeight: 1.2,
-                      color: isWeeklyPick ? goldTone : 'var(--ink)',
-                    }}>
-                      {isCraque ? '👑 ' : isWeeklyPick ? '🌟 ' : ''}{p.name}
-                    </div>
-                    <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', minHeight: 16 }}>
-                      {p.pos.map((pos, pi) => {
-                        const c = teamInk(POS_GROUP_COLOR[pos] || '#C29A45');
-                        const isPrimary = pi === 0;
-                        return (
-                          <span key={pos} style={{
-                            fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 800,
-                            padding: '2px 6px', borderRadius: 4, letterSpacing: 0.4, lineHeight: 1.4,
-                            background: isPrimary ? c : `${c}22`,
-                            color: isPrimary ? 'var(--ink)' : c,
-                            border: isPrimary ? 'none' : `1px solid ${c}88`,
-                          }}>{pos}</span>
-                        );
-                      })}
-                      {blockedByFormation && (
-                        <span style={{
-                          fontFamily: 'var(--font-mono)', fontSize: 9, fontWeight: 800,
-                          padding: '2px 6px', borderRadius: 4, letterSpacing: 0.4, lineHeight: 1.4,
-                          background: 'rgba(178,59,59,0.14)', color: 'var(--danger)', border: '1px solid rgba(178,59,59,0.5)',
-                        }}>🔒 FORA DO ESQUEMA</span>
-                      )}
-                    </div>
-                  </div>
-                  {isSelected && <span style={{ flexShrink: 0, fontSize: 16, color: 'var(--success)' }}>→</span>}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Campo — só no desktop (mobile já renderizou acima) */}
-        {!isMobile && (
-          <div style={styles.draftRight}>
-            <Pitch
-              pitch={pitch}
-              pitchSlots={pitchSlots}
-              highlightSlots={highlightSlots}
-              previewSlots={previewSlots}
-              onClickSlot={onClickPitchSlot}
-              onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
-              myTeamColor={myTeamColor}
-              captainSlot={captainSlot}
-              onSlotPointerDown={onSlotPointerDown}
-              dragOverKey={dragOverKey}
-            />
-          </div>
-        )}
+    <div className="ng-dwrap">
+      {topBar}
+      <div className="ng-lay">
+        {teamCard}
+        {pitchCard}
+        {side}
       </div>
-      <BenchDisplay
-        pitch={pitch}
-        pitchSlots={pitchSlots}
-        myTeamColor={myTeamColor}
-        highlightSlots={highlightSlots}
-        previewSlots={previewSlots}
-        onClickSlot={onClickPitchSlot}
-        onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
-        onSlotPointerDown={onSlotPointerDown}
-        dragOverKey={dragOverKey}
-      />
     </div>
   );
 }
@@ -11387,6 +11413,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-novo-jogo',
+    date: 'Novembro de 2026',
+    title: 'Novo jogo redesenhado: dificuldade, esquema e draft',
+    desc: 'Começar um jogo ficou mais claro: a escolha de dificuldade mostra o quanto a IA fica mais forte e quanto isso multiplica seus pontos; os 22 esquemas táticos ganharam filtros por linha de defesa e estilo, com o último usado em destaque; e o draft agora mostra onde cada jogador do time sorteado cabe, o campo com o OVR de quem já foi escalado, o banco, o seu OVR médio por setor e a lista de escolhas.',
+  },
   {
     id: '2026-11-carreira-base',
     date: 'Novembro de 2026',
