@@ -77,24 +77,7 @@
 .sm-tbl { overflow: hidden; }
 .sm-tbl-hd { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 18px 20px 12px; }
 .sm-tbl-hd h3 { font-family: var(--font-serif); font-weight: 500; font-size: 22px; margin: 0; }
-.sm-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.sm-table thead th { position: sticky; top: 0; z-index: 2; background: var(--surface); height: 32px; font-family: var(--font-mono); font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 500; text-align: center; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 0 4px; }
-.sm-table thead th:first-child { padding-left: 16px; text-align: left; }
-.sm-table .sm-l { text-align: left; }
-.sm-table tbody tr { height: 36px; border-top: 1px solid var(--line); }
-.sm-table tbody tr:first-child { border-top: 0; }
-.sm-table td, .sm-table tbody th { padding: 0 4px; font-weight: inherit; }
-.sm-table tbody td:first-child { padding-left: 16px; box-shadow: inset 3px 0 0 var(--zone, transparent); }
-.sm-table tr.sm-hl { background: #F6EEDB; }
-.sm-ps { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); width: 30px; }
-.sm-mv { font-family: var(--font-mono); font-size: 10px; width: 30px; text-align: center; }
-.sm-up { color: var(--success); } .sm-dn { color: var(--danger); } .sm-eq { color: var(--line-strong); }
-.sm-cl { display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 190px; }
-.sm-cl b { font-weight: 500; }
 .sm-n { font-family: var(--font-mono); font-size: 12px; text-align: center; color: var(--ink-2); width: 34px; }
-.sm-pts { font-family: var(--font-serif); font-size: 17px; text-align: center; width: 44px; padding-right: 12px !important; }
-.sm-lg { display: flex; gap: 12px; flex-wrap: wrap; padding: 12px 16px; border-top: 1px solid var(--line); font-size: 11.5px; color: var(--muted); }
-.sm-lg i { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
 
 /* Toast e CTA fixo */
 .sm-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 950; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 13.5px; box-shadow: 0 14px 30px -14px rgba(15,31,23,.6); max-width: calc(100vw - 32px); }
@@ -124,8 +107,6 @@
   .sm-acts .sm-b-o { flex: 1; }
   .sm-mobile-cta { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(245,241,232,0), var(--bg) 30%); }
   .sm-mobile-cta .sm-b-g { width: 100%; }
-  .sm-table .sm-x, .sm-table .sm-mv { display: none; }
-  .sm-cl { max-width: 52vw; }
   .sm-toast { bottom: 84px; border-radius: 18px; }
   .sm-champ h2 { font-size: 30px; }
 }

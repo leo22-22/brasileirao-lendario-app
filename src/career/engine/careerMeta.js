@@ -291,14 +291,29 @@ export function tableSlice(save) {
   let prev = -1;
   for (const i of [...keep].sort((a, b) => a - b)) {
     if (prev >= 0 && i > prev + 1) rows.push({ gap: true, key: `gap-${i}` });
-    rows.push({ ...table[i], pos: i + 1, mine: i === myIdx, z4: i >= n - 4, zLineBefore: i === n - 4 && prev === i - 1 });
+    rows.push({ ...table[i], pos: i + 1, mine: i === myIdx, z4: key === 'A' && i >= n - 4, zLineBefore: key === 'A' && i === n - 4 && prev === i - 1 });
     prev = i;
   }
   const myRow = table[myIdx];
   const pos = myIdx + 1;
   let sentence;
   const cname = clubName(save.myClubId);
-  if (pos > n - 4) {
+  if (key === 'B') {
+    // Série B: 1º–2º acesso direto, 3º–6º mata-mata (sem rebaixamento).
+    if (pos <= 2) {
+      const third = table[2];
+      const d = myRow.pts - (third?.pts ?? myRow.pts);
+      sentence = `O ${cname} está no acesso direto, ${d} ponto${d === 1 ? '' : 's'} à frente do 3º`;
+    } else if (pos <= 6) {
+      const second = table[1];
+      const d = second.pts - myRow.pts;
+      sentence = d <= 0 ? `O ${cname} está colado no acesso direto` : `O ${cname} está no mata-mata, a ${d} ponto${d > 1 ? 's' : ''} do acesso direto`;
+    } else {
+      const sixth = table[5];
+      const d = sixth.pts - myRow.pts;
+      sentence = d <= 0 ? `O ${cname} está colado na zona do mata-mata` : `${d} ponto${d > 1 ? 's' : ''} separa${d > 1 ? 'm' : ''} o ${cname} do mata-mata de acesso`;
+    }
+  } else if (pos > n - 4) {
     const safe = table[n - 5];
     const d = safe.pts - myRow.pts;
     sentence = d <= 0 ? `O ${cname} está empatado em pontos com a saída do Z4` : `${d} ponto${d > 1 ? 's' : ''} separa${d > 1 ? 'm' : ''} o ${cname} da saída do Z4`;

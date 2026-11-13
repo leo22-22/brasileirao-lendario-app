@@ -14,7 +14,8 @@ import { CareerApp } from './career/CareerApp.jsx';
 import { INFO_TABS, INFO_ROUTES, CLUB_STADIUMS } from './data/info-content.js';
 import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from './lib/format.js';
 import { HOME_ADVANTAGE, RIVALRY_BOOST, isRivalryMatch, poissonPmf, matchOutcomeProbabilities } from './lib/probability.js';
-import { applyResults, revertResults, positionsOf, zoneFor as standingsZoneFor, compactRows } from './lib/standings.js';
+import { applyResults, revertResults, positionsOf, zoneFor as standingsZoneFor, compactRows, sortStandings, ZONE_LEGEND } from './lib/standings.js';
+import { StandingsTable } from './components/football/StandingsTable.jsx';
 import { teamInk, readableOn, textOn } from './lib/color.js';
 import { FIRST_YEAR, LAST_YEAR } from './lib/eras.js';
 import './styles/newgame.css';
@@ -4280,9 +4281,8 @@ export default function App() {
               else if (res.homeGoals < res.awayGoals) { a.v++; a.pts += 3; h.d++; }
               else { h.e++; h.pts++; a.e++; a.pts++; }
             });
-            return [...tbl].sort((a, b) =>
-              b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp
-            );
+            // Desempate oficial (pontos, vitórias, saldo, gols pró) — lib/standings.
+            return sortStandings(tbl);
           });
         } else {
           // Copa: registrar resultado da rodada
@@ -4631,7 +4631,7 @@ export default function App() {
         else if (res.homeGoals < res.awayGoals) { a.v++; a.pts += 3; h.d++; }
         else { h.e++; h.pts++; a.e++; a.pts++; }
       });
-      table = [...table].sort((a, b) => b.pts - a.pts || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp);
+      table = sortStandings(table);
 
       const disc = applyRoundDiscipline(cards, susp, inj, occurrences);
       cards = disc.cards; susp = disc.suspensions; inj = disc.injuries;
@@ -4681,8 +4681,13 @@ export default function App() {
     // no root com z-index alto, e a tela de resultado apareceria atrás dele —
     // era o "cheguei no fim e não acontece nada".
     if (round >= fixtures.length) {
+      // `move` precisa existir fora do if (era const dentro dele e o
+      // applySeasonAwards abaixo quebrava com ReferenceError na Série A/B).
+      let move;
       if (gameMode === 'serieab') {
-        const { move, tie } = resolveDivisionEnd(table, myTeamId, myDivision);
+        const end = resolveDivisionEnd(table, myTeamId, myDivision);
+        move = end.move;
+        const { tie } = end;
         if (tie) {
           // Mata-mata de acesso pela frente — não é algo pra passar batido
           // dentro da simulação direta; fecha o calendário e deixa a pessoa
@@ -9942,11 +9947,9 @@ function TeamViewModal({ team, onClose, myTeamColor, suspensions, injuries }) {
 
 // Zonas da tabela do Brasileirão
 export function getZoneInfo(pos, total) {
-  if (pos <= 4) return { color: '#1F7A4D', label: 'G4', title: 'Libertadores - Fase de Grupos' };
-  if (pos <= 6) return { color: '#357F59', label: 'G6', title: 'Libertadores - Pré' };
-  if (pos <= 12) return { color: '#2F6FA8', label: 'SA', title: 'Sul-Americana' };
-  if (pos >= total - 3) return { color: '#B23B3B', label: 'Z4', title: 'Rebaixamento' };
-  return null;
+  // Zonas e cores vêm de lib/standings (única fonte; paleta da carreira).
+  const z = standingsZoneFor('A', pos, total);
+  return z ? { color: z.color, label: z.short, title: z.title } : null;
 }
 
 // Barra do topo do draft (redesenho de 2026-11-13, jogo-draft-mockup):
@@ -11134,6 +11137,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-tabela-unica',
+    date: 'Novembro de 2026',
+    title: 'Uma tabela só, com o desempate oficial',
+    desc: 'Todas as classificações do jogo (temporada, resultado final, Simulador 2026 e Modo Carreira) agora usam a mesma tabela, com as mesmas cores de zona. O desempate segue o critério oficial da CBF em todos os modos: pontos, vitórias, saldo e gols pró. Na Série B, a tabela mostra só o acesso direto e o mata-mata, porque ninguém cai da Série B. E a simulação direta da Série A/B não trava mais no fim da temporada.',
+  },
   {
     id: '2026-11-liga-redesenhada',
     date: 'Novembro de 2026',
@@ -13723,33 +13732,17 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             {showOtherDivision ? '▾' : '▸'} Ver classificação final ({otherDivision.table.length} times)
           </button>
           {showOtherDivision && (
-            <div className="table-scroll">
-              <div style={styles.tableHeaderRow}>
-                <span style={styles.tablePos}>#</span>
-                <span style={{ flex: 1 }}>Time</span>
-                <span style={styles.tableCell}>PJ</span>
-                <span style={{ ...styles.tableCell, color: 'var(--gold-ink)', fontWeight: 700 }}>PTS</span>
-              </div>
-              {otherDivision.table.map((row, i) => {
-                const zone = getZoneInfo(i + 1, otherDivision.table.length);
-                return (
-                  <div key={row.id} style={{
-                    ...styles.tableRow,
-                    background: i % 2 === 0 ? 'var(--surface)' : 'transparent',
-                    borderLeft: zone ? `3px solid ${zone.color}` : '3px solid transparent',
-                  }}>
-                    <span style={styles.tablePos}>{i + 1}</span>
-                    <span style={{ flex: 1, minWidth: 0, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
-                      {row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />}
-                      <span style={{ flex: '1 1 0%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
-                      {zone && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{zone.label}</span>}
-                    </span>
-                    <span style={styles.tableCell}>{row.pj}</span>
-                    <span style={{ ...styles.tableCell, fontWeight: 700, color: 'var(--gold-ink)' }}>{row.pts}</span>
-                  </div>
-                );
-              })}
-            </div>
+            <StandingsTable
+              rows={otherDivision.table}
+              zoneFor={(pos, total) => standingsZoneFor(myDivision === 'A' ? 'B' : 'A', pos, total)}
+              showMovement={false}
+              showForm={false}
+              compact
+              renderCrest={(id) => <ClubCrest team={otherDivision.table.find(r => r.id === id)} size={20} />}
+              renderTeamName={(row) => parseTeamLabel(row.label).baseName}
+              caption={`Classificação final da Série ${myDivision === 'A' ? 'B' : 'A'}`}
+              legend={ZONE_LEGEND[myDivision === 'A' ? 'B' : 'A']}
+            />
           )}
         </ResultSection>
       )}
@@ -13788,54 +13781,20 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       <ResultStatsTabs mc={mc} title="Destaques da Temporada" categories={statCategories} />
 
       <ResultSection icon="📈" label="Classificação Final" mc={mc}>
-      <div className="table-scroll">
-        <div style={styles.tableHeaderRow}>
-          <span style={styles.tablePos}>#</span>
-          <span style={{ flex: 1 }}>Time</span>
-          <span style={styles.tableCell}>PJ</span>
-          <span style={styles.tableCell}>V</span>
-          <span style={styles.tableCell}>E</span>
-          <span style={styles.tableCell}>D</span>
-          <span style={styles.tableCell} className="table-col-hide-mobile">GP</span>
-          <span style={styles.tableCell} className="table-col-hide-mobile">GC</span>
-          <span style={styles.tableCell}>SG</span>
-          <span style={{ ...styles.tableCell, color: 'var(--gold-ink)', fontWeight: 700 }}>PTS</span>
-        </div>
-        {leagueTable.map((row, i) => {
-          const isMe = row.id === myTeamId;
-          const sg = row.gp - row.gc;
-          const zone = isMe ? null : getZoneInfo(i + 1, leagueTable.length);
-          return (
-            <div key={row.id} style={{
-              ...styles.tableRow,
-              background: isMe ? hexToRgba(mc, 0.1) : i % 2 === 0 ? 'var(--surface)' : 'transparent',
-              borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
-            }}>
-              <span style={styles.tablePos}>{i + 1}</span>
-              <span
-                onClick={() => !isMe && onViewTeam && onViewTeam(leagueTeams.find(t => t.id === row.id))}
-                style={{ flex: 1, minWidth: 0, fontWeight: isMe ? 700 : 400, color: isMe ? mc : 'var(--ink)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, cursor: isMe ? 'default' : 'pointer' }}
-              >
-                {isMe
-                  ? (myTeamLogo
-                    ? <img src={myTeamLogo} style={styles.tableCrestImg} alt="" />
-                    : (myTeamBadge && <span style={styles.tableCrestEmoji}>{myTeamBadge}</span>))
-                  : (row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />)
-                }
-                <span style={{ flex: '1 1 0%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
-              </span>
-              <span style={styles.tableCell}>{row.pj}</span>
-              <span style={styles.tableCell}>{row.v}</span>
-              <span style={styles.tableCell}>{row.e}</span>
-              <span style={styles.tableCell}>{row.d}</span>
-              <span style={styles.tableCell} className="table-col-hide-mobile">{row.gp}</span>
-              <span style={styles.tableCell} className="table-col-hide-mobile">{row.gc}</span>
-              <span style={styles.tableCell}>{sg >= 0 ? `+${sg}` : sg}</span>
-              <span style={{ ...styles.tableCell, fontWeight: 700, color: 'var(--gold-ink)' }}>{row.pts}</span>
-            </div>
-          );
-        })}
-      </div>{/* /table-scroll */}
+      <StandingsTable
+        rows={leagueTable}
+        zoneFor={(pos, total) => standingsZoneFor(gameMode === 'serieab' ? myDivision : 'A', pos, total)}
+        showMovement={false}
+        showForm={false}
+        highlightIds={[myTeamId]}
+        onRowClick={onViewTeam ? (id) => { if (id !== myTeamId) onViewTeam(leagueTeams.find(t => t.id === id)); } : null}
+        renderCrest={(id) => (id === myTeamId
+          ? <ClubCrest logo={myTeamLogo} badge={myTeamBadge} name={leagueTeams.find(t => t.id === id)?.label || 'Meu Time'} color={mc} size={22} />
+          : <ClubCrest team={leagueTable.find(r => r.id === id)} size={22} />)}
+        renderTeamName={(row) => parseTeamLabel(row.label).baseName}
+        caption="Classificação final"
+        legend={ZONE_LEGEND[gameMode === 'serieab' ? myDivision : 'A']}
+      />
       </ResultSection>
 
       {campaignLines.length > 0 && (

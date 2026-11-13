@@ -5,7 +5,6 @@
 // (ver engine/careerMeta.js) — nada de dado inventado.
 import { useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
-import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { CLUB_STADIUMS } from '../../data/info-content.js';
 import { careerClubTier } from '../../data/career-clubs.js';
 import { computePlayerValue } from '../engine/pricing.js';
@@ -14,13 +13,15 @@ import { matchOutcomeProbabilities } from '../../lib/probability.js';
 import { MatchPreviewModal } from '../components/MatchPreviewModal.jsx';
 import { displayName } from '../../lib/displayName.js';
 import { readableOn } from '../../lib/color.js';
-import { Icon, TeamBadge } from '../../ui/index.jsx';
+import { Icon } from '../../ui/index.jsx';
 import {
   myDivision, computeBoard, moraleFrom, upcomingFixtures, assistantInsight, squadAlerts,
   tableSlice, transferWindowText, dayParts,
 } from '../engine/careerMeta.js';
 import '../components/careerShell.css';
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
+import { MiniStandings } from '../../components/football/StandingsTable.jsx';
+import { zoneFor as standingsZoneFor } from '../../lib/standings.js';
 
 function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
@@ -250,7 +251,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
         <span className="ch-hero-stripe" style={{ background: stripe }} aria-hidden="true" />
         <div className="ch-hero-id" style={{ display: 'flex', gap: 22, alignItems: 'center', minWidth: 0 }}>
           <span className="ch-hero-crest" style={{ width: 84, height: 84, display: 'grid', placeItems: 'center', flexShrink: 0 }}>
-            <TeamBadge src={CLUB_LOGOS[team.club]} name={team.club} color={team.colors?.p} size={84} radius={42} />
+            <ClubCrest id={save.myClubId} size={84} />
           </span>
           <div style={{ minWidth: 0 }}>
             <span className="ch-mono">Temporada {save.season} · {longDate(save.season, save.calendarDay)}</span>
@@ -424,15 +425,13 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
       <section className="ch-row3">
         <div className="ch-card" style={{ overflow: 'hidden' }}>
           <div className="ch-head"><h3>Tabela</h3><button type="button" className="ch-link" onClick={() => onNavigate('table')}>Ver completa</button></div>
-          <table className="ch-table">
-            <tbody>
-              {tableInfo.rows.map(r => r.gap ? (
-                <tr key={r.key}><td colSpan={4} style={{ textAlign: 'center', color: 'var(--muted)', padding: '4px 0', fontFamily: 'var(--font-body)' }}>···</td></tr>
-              ) : (
-                <FragmentRow key={r.id} r={r} n={tableInfo.n} started={started} />
-              ))}
-            </tbody>
-          </table>
+          <MiniStandings
+            title="Tabela da sua divisão"
+            myId={save.myClubId}
+            showMovement={false}
+            renderCrest={(id) => <ClubCrest id={id} size={20} />}
+            rows={tableInfo.rows.map(r => (r.gap ? r : { row: r, pos: r.pos, label: displayName(clubOf(r.id)?.club || ''), zone: started ? standingsZoneFor(divisionKey, r.pos, tableInfo.n) : null }))}
+          />
           <div className="ch-small" style={{ padding: '12px 22px 18px', borderTop: '1px solid var(--line)' }}>{division.round === 0 ? 'A tabela começa a andar na rodada 1.' : tableInfo.sentence}</div>
         </div>
 
@@ -465,20 +464,6 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
   );
 }
 
-function FragmentRow({ r, n, started }) {
-  const team = clubOf(r.id);
-  return (
-    <>
-      {started && r.pos === n - 3 && <tr className="ch-zline" aria-hidden="true"><td colSpan={4} /></tr>}
-      <tr className={`${r.mine ? 'ch-me' : ''} ${started && r.z4 ? 'ch-z' : ''}`}>
-        <td>{r.pos}</td>
-        <td><span className="ch-cl"><TeamBadge src={CLUB_LOGOS[team?.club]} name={team?.club || ''} color={team?.colors?.p} size={20} radius={10} /><span style={{ fontWeight: r.mine ? 700 : 400 }}>{displayName(team?.club)}</span></span></td>
-        <td className="ch-j">{r.pj}J</td>
-        <td>{r.pts}</td>
-      </tr>
-    </>
-  );
-}
 
 // Cor do clube como texto (contraste garantido sobre o creme).
 export const clubInk = (clubId) => readableOn('#FBF9F4', clubOf(clubId)?.colors?.p || '#0D3A29');

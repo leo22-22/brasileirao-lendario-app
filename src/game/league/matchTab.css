@@ -96,23 +96,6 @@
 .lg-win { font-weight: 700; }
 .lg-gm-sc { text-align: center; font-family: var(--font-mono); font-weight: 600; font-size: 13px; color: var(--ink); }
 
-.lg-mt { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
-.lg-mt th, .lg-mt td { padding: 0 4px; height: 36px; border-top: 1px solid var(--line); text-align: center; }
-.lg-mt thead th { height: 30px; font-family: var(--font-mono); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 500; }
-.lg-mt tr > :first-child { padding-left: 16px; width: 44px; text-align: left; }
-.lg-mt tbody tr > :first-child { box-shadow: inset 3px 0 0 var(--zone, transparent); }
-.lg-mt tr > :last-child { padding-right: 16px; text-align: right; width: 56px; }
-.lg-mt tr > :nth-child(2) { width: 30px; }
-.lg-mt tr > :nth-child(4) { width: 30px; }
-.lg-mt-mv { font-family: var(--font-mono); font-size: 10px; }
-.lg-up { color: var(--success); } .lg-dn { color: var(--danger); } .lg-eq { color: var(--line-strong); }
-.lg-mt .lg-mt-cl { text-align: left; font-weight: 500; }
-.lg-mt-ps { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
-.lg-mt-n { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
-.lg-mt td.lg-mt-p { font-family: var(--font-serif); font-size: 17px; }
-.lg-mt-me { background: #F6EEDB; }
-.lg-mt-me .lg-mt-cl { font-weight: 700; }
-.lg-mt .lg-mt-gap td { height: 22px; color: var(--muted); text-align: center; padding: 0; box-shadow: none; }
 
 /* Pós-jogo: desfalques, notas e histórico */
 .lg-acc { width: 100%; display: flex; align-items: center; gap: 10px; padding: 16px 22px; border: none; background: none; cursor: pointer; font-family: var(--font-body); color: var(--ink); text-align: left; }

@@ -4,6 +4,7 @@
 // mesmos handlers. Nada aqui simula ou decide resultado.
 import { Icon } from '../../ui/index.jsx';
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
+import { MiniStandings } from '../../components/football/StandingsTable.jsx';
 import './matchTab.css';
 
 const FORM_CLASS = { V: 'lg-fv', E: 'lg-fe', D: 'lg-fd' };
@@ -241,23 +242,7 @@ export function MatchTab({
         {liveTable && (
           <section className="lg-card">
             <div className="lg-ch"><h3>{liveTable.title}</h3>{onOpenTable && <button type="button" className="lg-link" onClick={onOpenTable}>Completa</button>}</div>
-            <table className="lg-mt">
-              <caption className="sr-only">{liveTable.title}</caption>
-              <thead><tr><th scope="col">#</th><th scope="col"><span className="sr-only">Movimento</span></th><th scope="col" className="lg-mt-cl">Clube</th><th scope="col">J</th><th scope="col" className="lg-mt-p">Pts</th></tr></thead>
-              <tbody>
-                {liveTable.rows.map(r => r.gap ? (
-                  <tr key={r.key} className="lg-mt-gap"><td colSpan={5}>…</td></tr>
-                ) : (
-                  <tr key={r.row.id} className={r.row.id === liveTable.myId ? 'lg-mt-me' : undefined} style={{ '--zone': r.zone?.color || 'transparent' }}>
-                    <td className="lg-mt-ps">{r.pos}</td>
-                    <td className="lg-mt-mv">{r.move > 0 ? <span className="lg-up" aria-label={`subiu ${r.move}`}>▲{r.move}</span> : r.move < 0 ? <span className="lg-dn" aria-label={`caiu ${-r.move}`}>▼{-r.move}</span> : <span className="lg-eq" aria-label="manteve">–</span>}</td>
-                    <th scope="row" className="lg-mt-cl"><span className="lg-ell">{r.label}</span></th>
-                    <td className="lg-mt-n">{r.row.pj}</td>
-                    <td className="lg-mt-p">{r.row.pts}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <MiniStandings rows={liveTable.rows} myId={liveTable.myId} title={liveTable.title} />
             {liveTable.note && <div className="lg-note">{liveTable.note}</div>}
           </section>
         )}

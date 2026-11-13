@@ -5,7 +5,7 @@
 // descartado, sem ficar em memória.
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
-import { getZoneInfo } from '../../App.jsx';
+import { zoneFor } from '../../lib/standings.js';
 import { formatCalendarDay } from './calendar.js';
 import { computePlayerValue } from './pricing.js';
 import { clubForm } from './simHelpers.js';
@@ -19,11 +19,13 @@ import { displayName } from '../../lib/displayName.js';
 function zoneOf(division, pos, n, round) {
   if (round === 0) return { tone: null, label: 'Pré-temporada', short: `Série ${division}` };
   if (division === 'B') {
-    if (pos <= 4) return { tone: 'ok', label: `${pos}º · Zona de acesso`, short: `Série B · ${pos}º · acesso` };
-    if (pos > n - 4) return { tone: 'bad', label: `${pos}º · Zona de rebaixamento`, short: `Série B · ${pos}º` };
+    // Regra do motor: 1º–2º sobem direto, 3º–6º mata-mata; ninguém cai da B.
+    if (pos <= 2) return { tone: 'ok', label: `${pos}º · Acesso direto`, short: `Série B · ${pos}º · acesso` };
+    if (pos <= 6) return { tone: 'ok', label: `${pos}º · Mata-mata de acesso`, short: `Série B · ${pos}º · mata-mata` };
     return { tone: null, label: `${pos}º lugar`, short: `Série B · ${pos}º` };
   }
-  const z = getZoneInfo(pos, n);
+  const zz = zoneFor('A', pos, n);
+  const z = zz ? { label: zz.short } : null;
   const short = `Série A · ${pos}º`;
   if (z?.label === 'G4') return { tone: 'ok', label: `${pos}º · Libertadores`, short };
   if (z?.label === 'G6') return { tone: 'ok', label: `${pos}º · Pré-Libertadores`, short };

@@ -150,3 +150,36 @@ export function StandingsTable({
     </>
   );
 }
+
+/**
+ * Tabela resumida (# · movimento · clube · J · Pts), com linhas de "…".
+ * rows: [{ row, pos, move?, zone?, label } | { gap: true, key }]
+ */
+export function MiniStandings({ rows, myId, title, showMovement = true, renderCrest = null, onRowClick = null }) {
+  return (
+    <table className="tb-mini">
+      <caption className="sr-only">{title}</caption>
+      <thead><tr><th scope="col">#</th>{showMovement && <th scope="col"><span className="sr-only">Movimento</span></th>}<th scope="col" className="tb-mini-cl">Clube</th><th scope="col">J</th><th scope="col">Pts</th></tr></thead>
+      <tbody>
+        {rows.map(r => r.gap ? (
+          <tr key={r.key} className="tb-mini-gap"><td colSpan={showMovement ? 5 : 4}>…</td></tr>
+        ) : (
+          <tr
+            key={r.row.id}
+            className={`${r.row.id === myId ? 'tb-mini-me' : ''}${onRowClick ? ' tb-mini-click' : ''}`}
+            style={{ '--zone': r.zone?.color || 'transparent' }}
+            tabIndex={onRowClick ? 0 : undefined}
+            onClick={onRowClick ? () => onRowClick(r.row.id) : undefined}
+            onKeyDown={onRowClick ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onRowClick(r.row.id); } } : undefined}
+          >
+            <td className="tb-mini-ps">{r.pos}</td>
+            {showMovement && <td className="tb-mini-mv"><Movement move={r.move || 0} /></td>}
+            <th scope="row" className="tb-mini-cl"><span className="tb-mini-nm">{renderCrest ? renderCrest(r.row.id) : null}<span className="tb-mini-ell">{r.label}</span></span></th>
+            <td className="tb-mini-n">{r.row.pj}</td>
+            <td className="tb-mini-p">{r.row.pts}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}

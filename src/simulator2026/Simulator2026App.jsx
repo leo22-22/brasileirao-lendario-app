@@ -35,6 +35,8 @@ import './simulator2026.css';
 import { traditionalMatchStyles as ts } from './traditionalMatchStyles.js';
 import { displayName } from '../lib/displayName.js';
 import { ClubCrest } from '../components/football/ClubCrest.jsx';
+import { StandingsTable } from '../components/football/StandingsTable.jsx';
+import { zoneFor, ZONE_LEGEND } from '../lib/standings.js';
 
 const SAVE_KEY = 'brl_simulator2026_save';
 // Índice 0-based da rodada 35 em SERIE_A_2026_FIXTURES (rodada 1 = índice 0).
@@ -621,40 +623,19 @@ export function Simulator2026App({ onExit }) {
         </div>
 
         <section className="ng-card sm-tbl" aria-labelledby="sm-tbl-h">
-          <div className="sm-tbl-hd"><h3 id="sm-tbl-h">Classificação</h3><span className="ng-small">▲▼ desde a tabela real</span></div>
-          <div className="sm-tbl-scroll">
-            <table className="sm-table">
-              <caption className="sr-only">Classificação do Brasileirão 2026 após {save.matchIdx} jogos simulados</caption>
-              <thead>
-                <tr>
-                  <th scope="col">#</th><th scope="col"><span className="sr-only">Movimento</span></th><th scope="col" className="sm-l">Clube</th>
-                  <th scope="col">PJ</th><th scope="col" className="sm-x">V</th><th scope="col" className="sm-x">E</th><th scope="col" className="sm-x">D</th><th scope="col">SG</th><th scope="col">Pts</th>
-                </tr>
-              </thead>
-              <tbody>
-                {table.map((row, i) => {
-                  const p = i + 1;
-                  const z = zoneOf(p);
-                  const mv = (baseline[row.id] || p) - p;
-                  const sg = row.gp - row.gc;
-                  return (
-                    <tr key={row.id} className={hl.has(row.id) ? 'sm-hl' : ''} style={{ '--zone': z?.color || 'transparent' }}>
-                      <td className="sm-ps">{p}</td>
-                      <td className="sm-mv">{mv > 0 ? <span className="sm-up" aria-label={`subiu ${mv} desde a tabela real`}>▲{mv}</span> : mv < 0 ? <span className="sm-dn" aria-label={`caiu ${-mv} desde a tabela real`}>▼{-mv}</span> : <span className="sm-eq" aria-label="mesma posição da tabela real">–</span>}</td>
-                      <th scope="row" className="sm-l"><span className="sm-cl"><TeamCrest team={row} size={18} /><b className="ng-ell">{nameOf(row.id)}</b></span></th>
-                      <td className="sm-n">{row.pj}</td><td className="sm-n sm-x">{row.v}</td><td className="sm-n sm-x">{row.e}</td><td className="sm-n sm-x">{row.d}</td>
-                      <td className="sm-n">{sg > 0 ? `+${sg}` : sg}</td>
-                      <td className="sm-pts">{row.pts}</td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-          <div className="sm-lg">
-            <span><i style={{ background: '#1F7A4D' }} />G4</span><span><i style={{ background: '#6FB28E' }} />Pré-Liberta</span><span><i style={{ background: '#4E86C2' }} />Sul-Americana</span><span><i style={{ background: '#B23B3B' }} />Z4</span>
-            {nextMatch && <span><i style={{ background: '#F6EEDB', border: '1px solid var(--line-strong)' }} />jogando agora</span>}
-          </div>
+          <div className="sm-tbl-hd"><h3 id="sm-tbl-h">Classificação</h3><span className="ng-small">setas: posição em relação à tabela real</span></div>
+          <StandingsTable
+            rows={table}
+            zoneFor={(pos, total) => zoneFor('A', pos, total)}
+            prevPositions={baseline}
+            showForm={false}
+            highlightIds={[...hl]}
+            renderCrest={(id) => <TeamCrest team={teamById[id]} size={18} />}
+            renderTeamName={(row) => nameOf(row.id)}
+            caption={`Classificação do Brasileirão 2026 após ${save.matchIdx} jogos simulados`}
+            legend={ZONE_LEGEND.A}
+            legendNote={nextMatch ? 'Em destaque: os dois times do próximo jogo' : null}
+          />
         </section>
       </div>
 

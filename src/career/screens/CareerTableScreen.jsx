@@ -7,7 +7,7 @@
 // às de antes.
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
-import { getZoneInfo } from '../../App.jsx';
+import { zoneFor as standingsZoneFor, ZONE_LEGEND } from '../../lib/standings.js';
 import { standingsAfter, clubFormDetailed, nextFixtures } from '../engine/standings.js';
 import { computeBoard } from '../engine/careerMeta.js';
 import { displayName } from '../../lib/displayName.js';
@@ -21,27 +21,10 @@ import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 const clubOf = (id) => TEAMS.find(t => t.id === id);
 const nameOf = (id) => displayName(clubOf(id)?.club || '');
 
-// Zonas (cor + rótulo + separador) — mesmas faixas de antes.
-function zoneFor(division, pos, total, copaChampionInG4) {
-  if (division === 'B') {
-    if (pos <= 2) return { key: 'up', color: '#1F7A4D', label: 'Acesso direto à Série A' };
-    if (pos <= 6) return { key: 'po', color: '#B7791F', label: 'Playoff de acesso' };
-    if (pos >= total - 3) return { key: 'z4', color: '#B23B3B', label: 'Zona de rebaixamento' };
-    return null;
-  }
-  if (copaChampionInG4 && pos === 5) return { key: 'g4', color: '#1F7A4D', label: 'Libertadores · fase de grupos' };
-  const z = getZoneInfo(pos, total);
-  if (!z) return null;
-  if (z.label === 'G4') return { key: 'g4', color: '#1F7A4D', label: 'Libertadores · fase de grupos' };
-  if (z.label === 'G6') return { key: 'g6', color: '#6FB28E', label: 'Pré-Libertadores' };
-  if (z.label === 'SA') return { key: 'sa', color: '#4E86C2', label: 'Sul-Americana' };
-  return { key: 'z4', color: '#B23B3B', label: 'Zona de rebaixamento' };
-}
-
-const LEGEND = {
-  A: [['#1F7A4D', 'G4 · Libertadores'], ['#6FB28E', '5º–6º · Pré-Libertadores'], ['#4E86C2', '7º–12º · Sul-Americana'], ['#B23B3B', 'Z4 · Rebaixamento']],
-  B: [['#1F7A4D', '1º–2º · Acesso direto'], ['#B7791F', '3º–6º · Playoff de acesso'], ['#B23B3B', 'Z4 · Rebaixamento']],
-};
+// Zonas e legenda: lib/standings (Série B: acesso direto e mata-mata; não
+// existe rebaixamento da Série B no motor).
+const zoneFor = (division, pos, total, copaChampionInG4) => standingsZoneFor(division, pos, total, { copaChampionInG4 });
+const LEGEND = ZONE_LEGEND;
 const VIEWS = [
   { id: 'all', label: 'Geral' }, { id: 'home', label: 'Mandante' }, { id: 'away', label: 'Visitante' }, { id: 'last5', label: 'Últimos 5' },
 ];
