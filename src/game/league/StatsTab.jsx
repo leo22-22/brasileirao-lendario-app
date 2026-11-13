@@ -5,51 +5,11 @@
 import { useState } from 'react';
 import { splitTeamLabel } from './TableTab.jsx';
 import './matchTab.css';
+import { LeaderboardGrid } from '../../components/football/LeaderboardCard.jsx';
+import { buildLeaderboards, splitPlayerKey as splitKey, MIN_GAMES_FOR_RATING } from '../../lib/leaders.js';
 
 const fmt1 = (n) => n.toFixed(1).replace('.', ',');
-const MIN_GAMES_FOR_RATING = 3; // mesmo corte do painel antigo
 
-function splitKey(key) {
-  const i = key.indexOf('::');
-  return { teamId: key.slice(0, i), name: key.slice(i + 2) };
-}
-
-function LeaderCard({ title, unit, rows, crestOf, myId, emptyText }) {
-  const [all, setAll] = useState(false);
-  const shown = rows.slice(0, all ? 20 : 5);
-  return (
-    <section className="lg-card lg-ld">
-      <div className="lg-ld-h"><h3>{title}</h3><span className="lg-small">{unit}</span></div>
-      {rows.length === 0 && <div className="lg-empty">{emptyText}</div>}
-      {shown.map((r, i) => {
-        const mine = r.teamId === myId;
-        if (i === 0) {
-          return (
-            <div key={r.key} className={`lg-ld-lead${mine ? ' lg-ld-mine' : ''}`}>
-              <span className="lg-ld-rk">1</span>
-              {crestOf(r.teamId, 36)}
-              <div className="lg-ld-t"><b className="lg-ell">{r.name}</b><small className="lg-ell">{r.team}</small></div>
-              <span className="lg-ld-v">{r.display}</span>
-            </div>
-          );
-        }
-        return (
-          <div key={r.key} className={`lg-ld-rw${mine ? ' lg-ld-mine' : ''}`}>
-            <span className="lg-ld-rk">{i + 1}</span>
-            {crestOf(r.teamId, 20)}
-            <div className="lg-ld-t"><b className="lg-ell">{r.name}</b><small className="lg-ell">{r.team}</small></div>
-            <span className="lg-ld-v">{r.display}</span>
-          </div>
-        );
-      })}
-      {rows.length > 5 && (
-        <button type="button" className="lg-ld-more" onClick={() => setAll(a => !a)} aria-expanded={all}>
-          {all ? 'Ver só o top 5' : `Ver top ${Math.min(20, rows.length)}`}
-        </button>
-      )}
-    </section>
-  );
-}
 
 /**
  * Tudo no formato do motor: scorers {key:{goals,teamLabel}}, assisters {key:{assists}},
@@ -62,20 +22,8 @@ export function StatsTab({ scorers, assisters, cleanSheets, seasonRatings, cardC
   const teamName = (id, fallback) => (id === myId ? myLabel : splitTeamLabel(teamLabelOf(id) || fallback || '').name);
   const keep = (teamId) => inLeague.has(teamId) && (scope === 'all' || teamId === myId);
 
-  const build = (obj, value, display, filter = () => true) => Object.entries(obj || {})
-    .map(([key, d]) => ({ key, ...splitKey(key), d }))
-    .filter(r => keep(r.teamId) && filter(r.d, r.key))
-    .map(r => ({ key: r.key, teamId: r.teamId, name: r.name, team: teamName(r.teamId, r.d?.teamLabel), v: value(r.d, r.key), display: display(r.d, r.key) }))
-    .filter(r => r.v > 0)
-    .sort((a, b) => b.v - a.v || a.name.localeCompare(b.name));
-
-  const goals = build(scorers, d => d.goals, d => d.goals);
-  const assists = build(assisters, d => d.assists, d => d.assists);
-  const clean = build(cleanSheets, d => d.clean, d => d.clean);
-  const ratings = build(seasonRatings, d => d.sum / d.count, d => fmt1(d.sum / d.count), d => d.count >= MIN_GAMES_FOR_RATING);
-  const cardKeys = { ...Object.fromEntries(Object.keys(redCards || {}).map(k => [k, 0])), ...(cardCounts || {}) };
-  const cards = build(cardKeys, (y, k) => (y || 0) + (redCards?.[k] || 0), (y, k) => (redCards?.[k] ? <>{(y || 0) + redCards[k]}<small className="lg-ld-red">{redCards[k]} verm.</small></> : (y || 0)));
-
+  const boards = buildLeaderboards({ scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, keep, teamName });
+  const { goals, assists, clean, ratings, cards } = boards;
   const empty = playedRounds === 0 || !table.some(r => r.pj > 0);
   if (empty) {
     return (
@@ -139,12 +87,7 @@ export function StatsTab({ scorers, assisters, cleanSheets, seasonRatings, cardC
         </section>
       )}
 
-      <div className="lg-st-grid">
-        <LeaderCard title="Artilheiros" unit="gols" rows={goals} crestOf={crestOf} myId={myId} emptyText="Ninguém marcou ainda." />
-        <LeaderCard title="Assistências" unit="assist." rows={assists} crestOf={crestOf} myId={myId} emptyText="Nenhuma assistência ainda." />
-        <LeaderCard title="Jogos sem sofrer gol" unit="jogos" rows={clean} crestOf={crestOf} myId={myId} emptyText="Nenhum goleiro passou em branco ainda." />
-        <LeaderCard title="Nota média" unit={`nota · mín. ${MIN_GAMES_FOR_RATING} jogos`} rows={ratings} crestOf={crestOf} myId={myId} emptyText={`Ninguém tem ${MIN_GAMES_FOR_RATING} jogos com nota ainda.`} />
-        <LeaderCard title="Cartões" unit="amarelos + vermelhos" rows={cards} crestOf={crestOf} myId={myId} emptyText="Nenhum cartão ainda." />
+      <LeaderboardGrid boards={boards} crestOf={crestOf} myIds={[myId]} minGames={MIN_GAMES_FOR_RATING}>
         <section className="lg-card lg-teams">
           <h3>Times da liga</h3>
           <div className="lg-trow"><span>Melhor ataque</span>{tl(bestAtk, bestAtk.gp)}</div>
@@ -155,7 +98,7 @@ export function StatsTab({ scorers, assisters, cleanSheets, seasonRatings, cardC
             <div className="lg-trow"><span>Maior goleada</span><b>{blowout.homeGoals > blowout.awayGoals ? `${teamName(blowout.homeId)} ${blowout.homeGoals} × ${blowout.awayGoals} ${teamName(blowout.awayId)}` : `${teamName(blowout.awayId)} ${blowout.awayGoals} × ${blowout.homeGoals} ${teamName(blowout.homeId)} (fora)`}</b></div>
           )}
         </section>
-      </div>
+      </LeaderboardGrid>
     </div>
   );
 }

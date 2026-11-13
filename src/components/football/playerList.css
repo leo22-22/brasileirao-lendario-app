@@ -38,3 +38,8 @@
   .sq-pos { min-width: 40px; padding: 0 6px; }
   .sq-nm-l { flex-wrap: wrap; white-space: normal; row-gap: 3px; }
 }
+
+/* Variante compacta (modais): posição · jogador · OVR */
+.pl-compact .sq-th, .pl-compact .sq-tr { grid-template-columns: 50px minmax(0,1fr) 46px; padding: 0 4px; }
+.pl-compact .sq-tr { min-height: 50px; }
+.pl-compact .sq-grp { padding: 12px 4px 6px; }

@@ -16,6 +16,9 @@ import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from './lib/format
 import { HOME_ADVANTAGE, RIVALRY_BOOST, isRivalryMatch, poissonPmf, matchOutcomeProbabilities } from './lib/probability.js';
 import { applyResults, revertResults, positionsOf, zoneFor as standingsZoneFor, compactRows, sortStandings, ZONE_LEGEND } from './lib/standings.js';
 import { StandingsTable } from './components/football/StandingsTable.jsx';
+import { PlayerList } from './components/football/PlayerList.jsx';
+import { LeaderboardGrid } from './components/football/LeaderboardCard.jsx';
+import { buildLeaderboards } from './lib/leaders.js';
 import { teamInk, readableOn, textOn } from './lib/color.js';
 import { FIRST_YEAR, LAST_YEAR } from './lib/eras.js';
 import './styles/newgame.css';
@@ -30,7 +33,7 @@ import { MatchTab } from './game/league/MatchTab.jsx';
 import { TableTab } from './game/league/TableTab.jsx';
 import { SquadTab } from './game/league/SquadTab.jsx';
 import { StatsTab } from './game/league/StatsTab.jsx';
-import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter } from './ui/index.jsx';
+import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter, EmptyState } from './ui/index.jsx';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
 import { HomeLanding } from './home/HomeLanding.jsx';
@@ -9719,189 +9722,50 @@ export function CupBracketModal({
 
 // Painel de estatísticas da temporada (artilheiros, assistências, goleiros,
 // notas e cartões) — usado tanto no Brasileirão quanto na Copa.
-function SeasonStatsPanel({ scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, leagueTeams, mc }) {
-  const empty = !((scorers && Object.keys(scorers).length) || (assisters && Object.keys(assisters).length)
-    || (cleanSheets && Object.keys(cleanSheets).length) || (seasonRatings && Object.keys(seasonRatings).length)
-    || (cardCounts && Object.keys(cardCounts).length));
-  if (empty) {
-    return <div style={{ marginTop: 14, fontSize: 12, color: 'var(--muted)', textAlign: 'center' }}>As estatísticas aparecem depois do primeiro jogo.</div>;
-  }
-  return (
-    <>
-      {scorers && Object.keys(scorers).length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Artilheiros</div>
-          {Object.entries(scorers)
-            .sort((a, b) => b[1].goals - a[1].goals)
-            .slice(0, 5)
-            .map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              return (
-                <div key={key} style={styles.statRow}>
-                  <span style={styles.statRank}>{i + 1}.</span>
-                  <span style={styles.statName}>{name}</span>
-                  <span style={styles.statTeam}>{d.teamLabel}</span>
-                  <span style={{ ...styles.statValue, color: mc }}>gol {d.goals}</span>
-                </div>
-              );
-            })
-          }
-        </div>
-      )}
-
-      {assisters && Object.keys(assisters).length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Líderes de assistência</div>
-          {Object.entries(assisters)
-            .sort((a, b) => b[1].assists - a[1].assists)
-            .slice(0, 5)
-            .map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              return (
-                <div key={key} style={styles.statRow}>
-                  <span style={styles.statRank}>{i + 1}.</span>
-                  <span style={styles.statName}>{name}</span>
-                  <span style={styles.statTeam}>{d.teamLabel}</span>
-                  <span style={{ ...styles.statValue, color: mc }}>assist {d.assists}</span>
-                </div>
-              );
-            })
-          }
-        </div>
-      )}
-
-      {cleanSheets && Object.keys(cleanSheets).length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Goleiros — Jogos sem sofrer gol</div>
-          {Object.entries(cleanSheets)
-            .filter(([, d]) => d.clean > 0)
-            .sort((a, b) => b[1].clean - a[1].clean)
-            .slice(0, 5)
-            .map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              return (
-                <div key={key} style={styles.statRow}>
-                  <span style={styles.statRank}>{i + 1}.</span>
-                  <span style={styles.statName}>{name}</span>
-                  <span style={styles.statTeam}>{d.teamLabel}</span>
-                  <span style={{ ...styles.statValue, color: mc }}>🧤 {d.clean}</span>
-                </div>
-              );
-            })
-          }
-        </div>
-      )}
-
-      {seasonRatings && Object.keys(seasonRatings).length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Nota média da temporada</div>
-          {Object.entries(seasonRatings)
-            .filter(([, d]) => d.count >= 3)
-            .sort((a, b) => (b[1].sum / b[1].count) - (a[1].sum / a[1].count))
-            .slice(0, 5)
-            .map(([key, d], i) => {
-              const { name } = splitPlayerKey(key);
-              const avg = d.sum / d.count;
-              return (
-                <div key={key} style={styles.statRow}>
-                  <span style={styles.statRank}>{i + 1}.</span>
-                  <span style={styles.statName}>{name}</span>
-                  <span style={styles.statTeam}>{d.teamLabel} · {d.count}j</span>
-                  <span style={{ ...styles.statValue, color: avg >= 7.5 ? 'var(--success)' : avg < 5.5 ? 'var(--danger)' : mc }}>⭐ {avg.toFixed(1)}</span>
-                </div>
-              );
-            })
-          }
-        </div>
-      )}
-
-      {cardCounts && Object.keys(cardCounts).length > 0 && (
-        <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Cartões</div>
-          {Object.entries(cardCounts)
-            .sort((a, b) => b[1] - a[1])
-            .slice(0, 5)
-            .map(([key, yellows], i) => {
-              const { teamId, name } = splitPlayerKey(key);
-              const teamLabel = leagueTeams?.find(t => t.id === teamId)?.label;
-              return (
-                <div key={key} style={styles.statRow}>
-                  <span style={styles.statRank}>{i + 1}.</span>
-                  <span style={styles.statName}>{name}</span>
-                  {teamLabel && <span style={styles.statTeam}>{teamLabel}</span>}
-                  {redCards?.[key] > 0 && <span style={{ fontSize: 13 }}>🟥×{redCards[key]}</span>}
-                  <span style={{ ...styles.statValue, color: mc }}>🟨 {yellows}</span>
-                </div>
-              );
-            })
-          }
-        </div>
-      )}
-    </>
-  );
+function SeasonStatsPanel({ scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, leagueTeams, myTeamId }) {
+  const teamName = (id, fallback) => parseTeamLabel(leagueTeams?.find(t => t.id === id)?.label || fallback || '').baseName;
+  const boards = buildLeaderboards({ scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, teamName });
+  const empty = !Object.values(boards).some(l => l.length);
+  if (empty) return <EmptyState icon="trophy" title="Ainda sem estatísticas">Elas aparecem depois do primeiro jogo.</EmptyState>;
+  const crestOf = (id, size) => <ClubCrest team={leagueTeams?.find(t => t.id === id)} size={size} />;
+  return <LeaderboardGrid boards={boards} crestOf={crestOf} myIds={myTeamId ? [myTeamId] : []} />;
 }
 
 // Modal para ver o elenco COMPLETO (titulares + banco) de um time — aberto
 // ao clicar num time em qualquer lugar do app (tabela, chaveamento da Copa,
 // cabeçalho da partida ao vivo, resultado final). Importante sobretudo no
 // mobile, onde não dá pra "passar o olho" no elenco adversário sem um modal.
-function TeamViewModal({ team, onClose, myTeamColor, suspensions, injuries }) {
-  const mc = teamInk(myTeamColor || '#C29A45');
+function TeamViewModal({ team, onClose, suspensions, injuries }) {
   if (!team) return null;
   const { starters, bench, unavailable } = buildSquadView(team, suspensions, injuries);
   const understaffed = unavailable.some(p => p.shortOnSubs);
   const players = team.players || [];
-  const renderRow = (p, i) => (
-    <div key={`${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--line)', fontSize: 12 }}>
-      <span style={{ width: 36, fontSize: 10, color: 'var(--muted)' }}>{p.pos?.[0] || '-'}</span>
-      <span style={{ flex: 1 }}>{p.name}</span>
-      <span style={{ fontFamily: 'var(--font-mono)', color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
-    </div>
-  );
-  const renderUnavailableRow = (p, i) => (
-    <div key={`${p.name}-${i}`} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', borderBottom: '1px solid var(--line)', fontSize: 12, color: 'var(--muted)' }}>
-      <span style={{ width: 36, fontSize: 10, color: 'var(--muted)' }}>{p.pos?.[0] || '-'}</span>
-      <span style={{ flex: 1 }}>
-        {p.name}
-        <span title={p.reason === 'suspenso' ? 'Suspenso' : 'Lesionado'} style={{ marginLeft: 6 }}>{p.reason === 'suspenso' ? '🟥' : '🩹'}</span>
-        {p.replacementName && <span style={{ display: 'block', fontSize: 10, opacity: 0.8, marginTop: 1 }}>entra: {p.replacementName}</span>}
-        {p.shortOnSubs && <span style={{ display: 'block', fontSize: 10, color: 'var(--danger)', marginTop: 1 }}>sem reserva na posição</span>}
-      </span>
-      <span style={{ fontFamily: 'var(--font-mono)', color: ovrColor(p.ovr), fontSize: 11 }}>{p.ovr}</span>
-    </div>
-  );
+  const { baseName, achievement } = parseTeamLabel(team.label || '');
+  const groups = [
+    { key: 'tit', label: 'Titulares', dot: 'var(--green)', players: starters },
+    { key: 'res', label: 'Banco', dot: 'var(--gold)', players: bench },
+    { key: 'out', label: 'Desfalques', dot: 'var(--danger)', players: unavailable },
+  ].filter(g => g.players.length);
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, padding: 20, width: '100%', maxWidth: 400, maxHeight: '85vh', overflowY: 'auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-          <div>
-            {team.clubLogo && <img src={team.clubLogo} style={{ width: 28, height: 28, objectFit: 'contain', marginRight: 8, verticalAlign: 'middle' }} alt="" />}
-            <span style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700 }}>{team.label}</span>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 20, padding: 6 }}>x</button>
+    <Modal onClose={onClose} maxWidth={480} labelledBy="tv-title">
+      <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 12, paddingRight: 36 }}>
+        <ClubCrest team={team} size={48} />
+        <div style={{ minWidth: 0 }}>
+          <h3 id="tv-title" style={{ fontFamily: 'var(--font-serif)', fontWeight: 500, fontSize: 22, margin: 0 }}>{baseName}</h3>
+          {achievement && <div style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--gold-ink)' }}>{achievement}</div>}
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>OVR {String(team.ovr).replace('.', ',')} · {players.length} jogadores</div>
         </div>
-        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: mc, marginBottom: 12 }}>OVR {team.ovr} · {players.length} jogadores</div>
-        {understaffed && (
-          <div style={{ background: 'rgba(178,59,59,0.12)', border: '1px solid rgba(178,59,59,0.45)', borderRadius: 8, padding: '8px 10px', fontSize: 11.5, color: 'var(--danger)', marginBottom: 12 }}>
-            ⚠️ Time desfalcado — sem reserva disponível pra uma posição.
-          </div>
-        )}
-        <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 4 }}>Titulares</div>
-        {starters.map(renderRow)}
-        {bench.length > 0 && (
-          <>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginTop: 14, marginBottom: 4 }}>Banco</div>
-            {bench.map(renderRow)}
-          </>
-        )}
-        {unavailable.length > 0 && (
-          <>
-            <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginTop: 14, marginBottom: 4 }}>Desfalques</div>
-            {unavailable.map(renderUnavailableRow)}
-          </>
-        )}
       </div>
-    </div>
+      {understaffed && <Alert tone="danger" style={{ marginBottom: 10 }}>Time desfalcado: sem reserva disponível para uma posição.</Alert>}
+      <PlayerList
+        className="pl-compact"
+        groups={groups}
+        getId={(p) => `${p.name}-${p.reason || 'ok'}`}
+        getSub={(p) => [(p.pos || []).join(' · '), p.replacementName ? `entra ${p.replacementName}` : null, p.shortOnSubs ? 'sem reserva na posição' : null].filter(Boolean).join(' · ')}
+        getTags={(p) => (p.reason ? [{ id: 'susp', label: p.reason === 'suspenso' ? 'Suspenso' : 'Lesionado' }] : [])}
+        ariaLabel={`Elenco do ${baseName}`}
+      />
+    </Modal>
   );
 }
 
@@ -12285,7 +12149,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           <div style={styles.sectionLabel}>Estatísticas da Copa</div>
           <SeasonStatsPanel
             scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings}
-            cardCounts={cardCounts} redCards={redCards} leagueTeams={leagueTeams} mc={mc}
+            cardCounts={cardCounts} redCards={redCards} leagueTeams={leagueTeams} myTeamId={myTeamId}
           />
         </div>
         {/* Duas portas pro mesmo chaveamento: o botão "Ver chaveamento" (a
@@ -13300,42 +13164,6 @@ function ResultSection({ icon, label, mc, children, style }) {
   );
 }
 
-// Artilharia/assistências/defesa/notas/cartões viravam 5 blocos empilhados
-// com o mesmo rótulo — o trecho mais poluído da tela antiga. Agora é um
-// cartão só, com abas: só uma categoria por vez, trocada por clique.
-// `categories` já entram com os dados formatados (não crus), pra este
-// componente não precisar saber nada sobre a forma dos dados do jogo.
-function ResultStatsTabs({ mc, title, categories }) {
-  const available = categories.filter(c => c.entries.length > 0);
-  const [tabId, setTabId] = useState(available[0]?.id);
-  if (available.length === 0) return null;
-  const active = available.find(c => c.id === tabId) || available[0];
-  return (
-    <ResultSection icon="🏅" label={title} mc={mc}>
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
-        {available.map(c => (
-          <button
-            key={c.id}
-            onClick={() => setTabId(c.id)}
-            className="tap-target-sm"
-            style={{
-              fontFamily: 'var(--font-mono)', fontSize: 11.5, fontWeight: 700,
-              padding: '6px 11px', borderRadius: 999, cursor: 'pointer',
-              border: `1px solid ${active.id === c.id ? mc : 'var(--line-strong)'}`,
-              background: active.id === c.id ? hexToRgba(mc, 0.16) : 'var(--surface)',
-              color: active.id === c.id ? mc : 'var(--ink-2)',
-            }}
-          >
-            {c.icon} {c.label}
-          </button>
-        ))}
-      </div>
-      {active.entries.map((row, i) => (
-        <ResultStatRow key={row.key} rank={i + 1} name={row.name} team={row.team} value={row.value} mc={mc} />
-      ))}
-    </ResultSection>
-  );
-}
 
 // Rodapé de ações da tela de fim de campeonato. Antes eram 3 botões
 // empilhados (2 "ghost" + 1 "primary") sem deixar claro qual era a ação
@@ -13396,25 +13224,6 @@ function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart, isLea
   );
 }
 
-// Linha de ranking da tela de resultado: posição, nome, time e valor. O time
-// é o que separa dois homônimos de elencos diferentes — sem ele os rankings
-// mostravam "Gabigol / Gabigol" em sequência e pareciam quebrados.
-function ResultStatRow({ rank, name, team, value, mc }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: 13 }}>
-      <span style={{ width: 20, flexShrink: 0, color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{rank}.</span>
-      {/* O nome do jogador tem prioridade: quem encolhe primeiro é o nome do
-          time, que só está aqui pra desempatar homônimos. */}
-      <span style={{ flex: '1 1 0%', minWidth: 0, display: 'flex', alignItems: 'baseline', gap: 6, overflow: 'hidden' }}>
-        <span style={{ flexShrink: 0, maxWidth: '65%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{name}</span>
-        {team && (
-          <span style={{ color: 'var(--muted)', fontSize: 11, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{team}</span>
-        )}
-      </span>
-      <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: mc, flexShrink: 0, whiteSpace: 'nowrap' }}>{value}</span>
-    </div>
-  );
-}
 
 // Resultado do Desafio do Dia — tela própria, mais simples que a de uma
 // temporada de verdade (sem tabela, sem prêmios, sem "Nova Temporada"): é
@@ -13482,30 +13291,12 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
   // isso os rankings mostravam o mesmo nome duas vezes seguidas, parecendo
   // bug. O painel de estatísticas durante a temporada já fazia certo.
   const teamOf = (key, d) => d?.teamLabel || leagueTeams?.find(t => t.id === splitPlayerKey(key).teamId)?.label || '';
-  // Formata uma lista [chave, dado] pro formato que ResultStatsTabs espera —
-  // já com nome/time resolvidos, não a chave crua.
-  const toRows = (entries, valueFn) => entries.map(([key, d]) => ({
-    key, name: splitPlayerKey(key).name, team: teamOf(key, d), value: valueFn(d, key),
-  }));
-  const topScorers = scorers ? Object.entries(scorers).sort((a, b) => b[1].goals - a[1].goals).slice(0, 3) : [];
-  const topAssisters = assisters ? Object.entries(assisters).sort((a, b) => b[1].assists - a[1].assists).slice(0, 3) : [];
-  const topCleanSheets = cleanSheets
-    ? Object.entries(cleanSheets).filter(([, d]) => d.clean > 0).sort((a, b) => b[1].clean - a[1].clean).slice(0, 3)
-    : [];
-  const topRatings = seasonRatings
-    ? Object.entries(seasonRatings).filter(([, d]) => d.count >= 3).sort((a, b) => (b[1].sum / b[1].count) - (a[1].sum / a[1].count)).slice(0, 3)
-    : [];
-  const topCards = cardCounts ? Object.entries(cardCounts).sort((a, b) => b[1] - a[1]).slice(0, 3) : [];
-  // As 5 categorias que antes eram 5 blocos empilhados na tela — agora
-  // abas de um cartão só (ResultStatsTabs), compartilhado por Copa e
-  // Brasileirão.
-  const statCategories = [
-    { id: 'artilharia', icon: '⚽', label: 'Artilharia', entries: toRows(topScorers, d => `gol ${d.goals}`) },
-    { id: 'assist', icon: '🎯', label: 'Assistências', entries: toRows(topAssisters, d => `assist ${d.assists}`) },
-    { id: 'defesa', icon: '🧤', label: 'Defesa', entries: toRows(topCleanSheets, d => `🧤 ${d.clean}`) },
-    { id: 'notas', icon: '⭐', label: 'Notas', entries: toRows(topRatings, d => `⭐ ${(d.sum / d.count).toFixed(1)}`) },
-    { id: 'cartoes', icon: '🟨', label: 'Cartões', entries: toRows(topCards, (yellows, key) => `${redCards?.[key] > 0 ? `🟥×${redCards[key]}  ` : ''}🟨 ${yellows}`) },
-  ];
+  // Destaques (mesmos rankings da aba Estatísticas — lib/leaders).
+  const resultBoards = buildLeaderboards({
+    scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards,
+    teamName: (id, fallback) => parseTeamLabel(leagueTeams?.find(t => t.id === id)?.label || fallback || '').baseName,
+  });
+  const resultCrestOf = (id, size) => <ClubCrest team={leagueTeams?.find(t => t.id === id)} size={size} />;
 
   // Campanha completa (todas as partidas do usuario nesta temporada/copa, na ordem) —
   // usada tanto na tela de resultado quanto no card compartilhavel.
@@ -13578,7 +13369,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           </ResultSection>
         )}
 
-        <ResultStatsTabs mc={mc} title="Destaques da Copa" categories={statCategories} />
+        <ResultSection icon="🏅" label="Destaques da Copa" mc={mc}><LeaderboardGrid boards={resultBoards} crestOf={resultCrestOf} myIds={[myTeamId]} /></ResultSection>
 
         {cupRounds?.length > 0 && (
           <button
@@ -13738,7 +13529,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         </ResultSection>
       )}
 
-      <ResultStatsTabs mc={mc} title="Destaques da Temporada" categories={statCategories} />
+      <ResultSection icon="🏅" label="Destaques da temporada" mc={mc}><LeaderboardGrid boards={resultBoards} crestOf={resultCrestOf} myIds={[myTeamId]} /></ResultSection>
 
       <ResultSection icon="📈" label="Classificação Final" mc={mc}>
       <StandingsTable

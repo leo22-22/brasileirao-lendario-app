@@ -17,6 +17,8 @@ import '../components/careerShell.css';
 import './careerSquad.css';
 import './careerTable.css';
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
+import { LeaderboardCard } from '../../components/football/LeaderboardCard.jsx';
+import { buildLeaderboards } from '../../lib/leaders.js';
 
 const clubOf = (id) => TEAMS.find(t => t.id === id);
 const nameOf = (id) => displayName(clubOf(id)?.club || '');
@@ -110,11 +112,11 @@ export function CareerTableScreen({ save, onNavigate, onOpenClubInMarket }) {
   const statsSource = save.leaguePlayerStats || save.seasonPlayerStats || {};
   const leagueOnly = !!save.leaguePlayerStats;
   const divisionIds = new Set(data.table.map(r => r.id));
-  const scorers = Object.entries(statsSource)
-    .map(([k, s]) => { const [clubId, ...rest] = k.split('::'); return { clubId, name: rest.join('::'), goals: s.goals || 0 }; })
-    .filter(x => x.goals > 0 && divisionIds.has(x.clubId))
-    .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))
-    .slice(0, 5);
+  const scorers = buildLeaderboards({
+    scorers: statsSource,
+    keep: (id) => divisionIds.has(id),
+    teamName: (id) => nameOf(id),
+  }).goals;
 
   // Posição de cada clube antes da rodada vista (seta de movimento)
   const prevPositions = useMemo(() => (prevTable ? new Map(prevTable.map((r, i) => [r.id, i + 1])) : null), [prevTable]);
@@ -231,18 +233,14 @@ export function CareerTableScreen({ save, onNavigate, onOpenClubInMarket }) {
             )}
           </div>
 
-          <div className="ch-card" style={{ overflow: 'hidden' }}>
-            <div className="ch-head"><h3>Artilharia</h3><span className="ch-small">Série {division}{leagueOnly ? '' : ' · inclui Copa'}</span></div>
-            {scorers.length === 0 && <div className="ch-empty">Ninguém marcou ainda.</div>}
-            {scorers.map((s, i) => (
-              <div key={`${s.clubId}-${s.name}`} className={`tb-sc${s.clubId === save.myClubId ? ' tb-sc-me' : ''}`}>
-                <span className="tb-rk">{i + 1}</span>
-                <Crest id={s.clubId} size={24} />
-                <div style={{ minWidth: 0 }}><b className="cf-ell">{s.name}</b><small>{nameOf(s.clubId)}</small></div>
-                <span className="tb-g">{s.goals}</span>
-              </div>
-            ))}
-          </div>
+          <LeaderboardCard
+            title="Artilharia"
+            unit={`Série ${division}${leagueOnly ? '' : ' · inclui Copa'}`}
+            rows={scorers}
+            crestOf={(id, size) => <Crest id={id} size={size} />}
+            myIds={[save.myClubId]}
+            emptyText="Ninguém marcou ainda."
+          />
         </div>
       </div>
 

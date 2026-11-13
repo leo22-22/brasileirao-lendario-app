@@ -25,12 +25,6 @@
 .tb-fx-x { text-align: center; color: var(--muted); font-size: 12px; }
 .tb-fx-mine { background: #F6EEDB; font-weight: 600; }
 .tb-fx-key .tb-fx-x { color: var(--warning); font-weight: 700; }
-.tb-sc { display: flex; gap: 12px; align-items: center; padding: 10px 20px; border-top: 1px solid var(--line); }
-.tb-sc-me { background: #F6EEDB; }
-.tb-rk { font-family: var(--font-mono); font-size: 12px; color: var(--muted); width: 16px; }
-.tb-sc b { font-weight: 600; font-size: 13.5px; }
-.tb-sc small { display: block; color: var(--muted); font-size: 12px; }
-.tb-g { margin-left: auto; font-family: var(--font-serif); font-size: 20px; }
 
 @media (max-width: 1200px) {
   .tb-lay { grid-template-columns: minmax(0, 1fr); }
