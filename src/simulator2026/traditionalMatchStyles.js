@@ -5,13 +5,15 @@
 // arriscaria TDZ num ciclo real (mesmo motivo de SERIE_A_2026_FIXTURES ter
 // virado arquivo próprio). Pedido do usuário (2026-11-12): usar a simulação
 // "tradicional" (clássica) em vez da reconstruída pro Modo Carreira.
+// 2026-11-13: só os valores mudaram para o padrão creme (placar em Fraunces
+// num bloco verde, cantos maiores) — mesmas chaves e mesma estrutura.
 export const traditionalMatchStyles = {
-  liveMatchBox: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 14, padding: '20px 16px', marginBottom: 20 },
+  liveMatchBox: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 22, padding: '22px 18px', marginBottom: 18 },
   liveTeamsRow: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: 12, marginBottom: 12 },
-  liveTeamName: { fontSize: 14, lineHeight: 1.3 },
-  liveScoreBlock: { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-2)', borderRadius: 10, padding: '8px 16px' },
-  liveScoreNum: { fontFamily: 'var(--font-mono)', fontSize: 28, fontWeight: 700, color: 'var(--ink)', minWidth: 24, textAlign: 'center' },
-  liveScoreDash: { fontFamily: 'var(--font-mono)', fontSize: 20, color: 'var(--muted)' },
+  liveTeamName: { fontSize: 15, lineHeight: 1.3 },
+  liveScoreBlock: { display: 'flex', alignItems: 'center', gap: 10, background: 'var(--green)', borderRadius: 16, padding: '10px 18px' },
+  liveScoreNum: { fontFamily: 'var(--font-serif)', fontSize: 40, fontWeight: 400, color: '#fff', minWidth: 28, textAlign: 'center', lineHeight: 1 },
+  liveScoreDash: { fontFamily: 'var(--font-serif)', fontSize: 22, color: '#B6CBBF' },
   clockRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 },
   clock: { fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700 },
   clockPulse: { width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', animation: 'pulse 1s ease-in-out infinite' },
@@ -19,7 +21,7 @@ export const traditionalMatchStyles = {
   matchCenter: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 },
   matchCenterRow: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 52px minmax(0,1fr)', alignItems: 'center', gap: 6 },
   matchCenterSide: { display: 'flex', minWidth: 0, overflow: 'hidden' },
-  matchCenterCard: { display: 'flex', alignItems: 'center', gap: 7, padding: '6px 9px', borderRadius: 8, border: '1px solid', maxWidth: '100%', minWidth: 0 },
+  matchCenterCard: { display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px', borderRadius: 12, border: '1px solid', maxWidth: '100%', minWidth: 0 },
   matchCenterInfo: { display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 },
   matchCenterMinuteCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 },
   goalMinute: { fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--gold-ink)' },

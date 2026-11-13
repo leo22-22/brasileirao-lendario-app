@@ -15,7 +15,7 @@
 // planilha que o usuário passou ser gerada — ver
 // src/data/brasileirao-2026-real-results.js), depois a rodada 35 inteira,
 // jogo a jogo, até a 38.
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEAMS } from '../data/teams.js';
 import { CLUB_LOGOS } from '../data/club-logos.js';
 // SERIE_A_2026_TEAM_IDS existe tanto aqui (career-clubs.js, ordem diferente
@@ -27,7 +27,10 @@ import { CLUB_LOGOS } from '../data/club-logos.js';
 import { SERIE_A_2026_TEAM_IDS } from '../data/career-clubs.js';
 import { SERIE_A_2026_FIXTURES } from '../data/serie-a-2026-fixtures.js';
 import { REAL_RESULTS_2026_THROUGH_R34 } from '../data/brasileirao-2026-real-results.js';
-import { teamStrength, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents, MatchSummaryModal } from '../App.jsx';
+import { teamStrength, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents, MatchSummaryModal, matchOutcomeProbabilities } from '../App.jsx';
+import { zoneOf, formOf, remainingByClub, stakesFor, disputes, realBaselinePositions } from './insights.js';
+import { Icon, Modal } from '../ui/index.jsx';
+import './simulator2026.css';
 import { traditionalMatchStyles as ts } from './traditionalMatchStyles.js';
 import { displayName } from '../lib/displayName.js';
 
@@ -109,10 +112,14 @@ function persistSave(save) {
   }
 }
 
-function TeamCrest({ team, size = 22 }) {
-  return team?.clubLogo
-    ? <img src={team.clubLogo} alt={displayName(team.club)} style={{ width: size, height: size, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
-    : <div style={{ width: size, height: size, borderRadius: '50%', background: 'var(--surface-2)', flexShrink: 0 }} />;
+// Escudo do clube; sem logo, um círculo com a cor do clube. `ring` põe o
+// escudo num círculo branco (cards escuros do redesenho de 2026-11-13).
+function TeamCrest({ team, size = 22, ring = false }) {
+  const inner = team?.clubLogo
+    ? <img src={team.clubLogo} alt="" aria-hidden="true" style={{ width: ring ? size * 0.72 : size, height: ring ? size * 0.72 : size, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+    : <span aria-hidden="true" style={{ width: ring ? size * 0.72 : size, height: ring ? size * 0.72 : size, borderRadius: '50%', background: team?.color || 'var(--surface-2)', flexShrink: 0, display: 'inline-block' }} />;
+  if (!ring) return inner;
+  return <span className="sm-crest-ring" style={{ width: size, height: size }}>{inner}</span>;
 }
 
 // Monta o pacote de UMA partida (placar + timeline minuto a minuto já
@@ -250,10 +257,10 @@ function useTraditionalLiveMatch(pending) {
   return { phase, minute, score, shownEvents, speed, setSpeed, start, skipToEnd };
 }
 
-// Tela de partida ao vivo — mesmo placar/feed de eventos ao vivo e o mesmo
-// MatchSummaryModal (placar + notas + craque da partida) do Brasileirão
-// clássico/Atual ("nossa simulação padrão"), sem perspectiva de clube (os
-// dois lados são só "o time da casa" e "o time de fora").
+// Tela de partida ao vivo — mesmo motor/feed "tradicional" e o mesmo
+// MatchSummaryModal do Brasileirão clássico/Atual; o redesenho de
+// 2026-11-13 só troca cores e componentes para o padrão creme (estrutura,
+// velocidades 1x/1.5x/2x e "Pular pro resultado" iguais).
 function LiveMatchScreen({ pending, roundLabel, onFinish }) {
   const { homeTeam, awayTeam } = pending;
   const { phase, minute, score, shownEvents, speed, setSpeed, start, skipToEnd } = useTraditionalLiveMatch(pending);
@@ -261,22 +268,22 @@ function LiveMatchScreen({ pending, roundLabel, onFinish }) {
   const aColor = awayTeam.color || '#c94040';
 
   return (
-    <div style={{ width: '100%', maxWidth: 560, margin: '0 auto', padding: '24px 16px', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
-      <div style={{ fontSize: 10.5, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 10 }}>{roundLabel}</div>
+    <div className="sm-live">
+      <span className="ng-mono sm-live-k">{roundLabel}</span>
       <div style={ts.liveMatchBox}>
         <div style={ts.liveTeamsRow}>
-          <div style={{ ...ts.liveTeamName, textAlign: 'right', display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6, minWidth: 0 }}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeam.label}</span>
-            <TeamCrest team={homeTeam} size={28} />
+          <div className="sm-live-team sm-live-h">
+            <TeamCrest team={homeTeam} size={44} />
+            <b>{displayName(homeTeam.club)}</b>
           </div>
-          <div style={ts.liveScoreBlock}>
+          <div style={ts.liveScoreBlock} aria-live="polite" aria-label={phase === 'intro' ? 'Partida não iniciada' : `${displayName(homeTeam.club)} ${score.home} a ${score.away} ${displayName(awayTeam.club)}`}>
             <span style={ts.liveScoreNum}>{phase === 'intro' ? '–' : score.home}</span>
-            <span style={ts.liveScoreDash}>–</span>
+            <span style={ts.liveScoreDash}>×</span>
             <span style={ts.liveScoreNum}>{phase === 'intro' ? '–' : score.away}</span>
           </div>
-          <div style={{ ...ts.liveTeamName, textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'flex-start', gap: 6, minWidth: 0 }}>
-            <TeamCrest team={awayTeam} size={28} />
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeam.label}</span>
+          <div className="sm-live-team sm-live-a">
+            <TeamCrest team={awayTeam} size={44} />
+            <b>{displayName(awayTeam.club)}</b>
           </div>
         </div>
 
@@ -285,15 +292,9 @@ function LiveMatchScreen({ pending, roundLabel, onFinish }) {
             <div style={{ ...ts.clock, color: phase === 'playing' ? 'var(--success)' : 'var(--ink)' }}>{minute}'</div>
             {phase === 'playing' && <div style={ts.clockPulse} />}
             {phase === 'playing' && (
-              <div style={{ display: 'flex', gap: 4, marginLeft: 6 }}>
+              <div className="ng-seg" role="group" aria-label="Velocidade" style={{ marginLeft: 6 }}>
                 {[1, 1.5, 2].map(sp => (
-                  <button key={sp} onClick={() => setSpeed(sp)} style={{
-                    fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: speed === sp ? 700 : 400,
-                    padding: '3px 8px', borderRadius: 6, border: '1px solid', cursor: 'pointer',
-                    borderColor: speed === sp ? 'var(--gold)' : 'var(--line-strong)',
-                    background: speed === sp ? 'rgba(194,154,69,0.15)' : 'transparent',
-                    color: speed === sp ? 'var(--gold-ink)' : 'var(--ink-2)',
-                  }}>{sp}x</button>
+                  <button key={sp} type="button" className={speed === sp ? 'ng-on' : ''} aria-pressed={speed === sp} onClick={() => setSpeed(sp)} style={{ height: 30, padding: '0 12px', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{String(sp).replace('.', ',')}x</button>
                 ))}
               </div>
             )}
@@ -307,8 +308,8 @@ function LiveMatchScreen({ pending, roundLabel, onFinish }) {
               const isHomeSide = ev.teamId === homeTeam.id;
               const sideColor = isHomeSide ? hColor : aColor;
               const content = (
-                <div style={{ ...ts.matchCenterCard, borderColor: `${sideColor}55`, background: `${sideColor}14`, flexDirection: isHomeSide ? 'row' : 'row-reverse' }}>
-                  <span style={{ fontSize: 15 }}>{eventIcon(ev)}</span>
+                <div style={{ ...ts.matchCenterCard, borderColor: hexToRgbaSafe(sideColor, 0.33), background: hexToRgbaSafe(sideColor, 0.08), flexDirection: isHomeSide ? 'row' : 'row-reverse' }}>
+                  <span style={{ fontSize: 15 }} aria-hidden="true">{eventIcon(ev)}</span>
                   <div style={{ ...ts.matchCenterInfo, textAlign: isHomeSide ? 'left' : 'right' }}>
                     <span style={ts.goalScorer}>{eventMainText(ev)}</span>
                     <span style={ts.goalTeam}>{eventSubText(ev)}</span>
@@ -328,14 +329,14 @@ function LiveMatchScreen({ pending, roundLabel, onFinish }) {
             })}
           </div>
         )}
-        {shownEvents.length === 0 && phase === 'done' && <div style={ts.noGoalsMsg}>Sem gols — 0 × 0</div>}
+        {shownEvents.length === 0 && phase === 'done' && <div style={ts.noGoalsMsg}>Sem gols: 0 × 0</div>}
       </div>
 
       {phase === 'intro' && (
-        <button onClick={start} style={{ width: '100%', padding: '13px 0', borderRadius: 999, border: 'none', background: 'var(--green)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' }}>▶ Jogar partida</button>
+        <button type="button" className="ui-btn ui-btn-dark ui-btn-lg ui-btn-block" onClick={start}><Icon name="play" size={16} />Jogar partida</button>
       )}
       {phase === 'playing' && (
-        <button onClick={skipToEnd} style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer' }}>⏭ Pular pro resultado</button>
+        <button type="button" className="ui-btn ui-btn-ghost ui-btn-md ui-btn-block" onClick={skipToEnd}><Icon name="forward" size={16} />Pular pro resultado</button>
       )}
 
       {phase === 'done' && (
@@ -354,15 +355,57 @@ function LiveMatchScreen({ pending, roundLabel, onFinish }) {
   );
 }
 
+function hexToRgbaSafe(hex, a) {
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
+  if (!m) return `rgba(194,154,69,${a})`;
+  const n = parseInt(m[1], 16);
+  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
+}
+
+// Agrupamento da faixa de progresso: o jogo atrasado da R21 e as rodadas 35–38.
+const ROUND_GROUPS = (() => {
+  const groups = [];
+  REMAINING_MATCHES.forEach((m, idx) => {
+    const key = m.postponed ? 'r21' : `r${m.round}`;
+    let g = groups.find(x => x.key === key);
+    if (!g) { g = { key, round: m.round, postponed: !!m.postponed, idxs: [] }; groups.push(g); }
+    g.idxs.push(idx);
+  });
+  return groups;
+})();
+const groupLabel = (g) => (g.postponed ? 'R21 · atr.' : `Rodada ${g.round}`);
+
+function FormChips({ form, label }) {
+  return (
+    <span className="sm-form" aria-label={`${label}: últimos ${form.length} jogos, ${form.join(', ')}`}>
+      {form.map((f, i) => <i key={i} className={`sm-f${f}`}>{f}</i>)}
+    </span>
+  );
+}
+
 export function Simulator2026App({ onExit }) {
   const [teams] = useState(buildTeams);
   const [save, setSave] = useState(() => loadSave() || buildInitialState(teams));
   const [pendingMatch, setPendingMatch] = useState(null); // { key, ...prepareMatch() } | null
+  const [confirmReset, setConfirmReset] = useState(false);
+  const [toast, setToast] = useState(null);
+  const [viewGroup, setViewGroup] = useState(null);
+  const roundCardRef = useRef(null);
 
   const teamById = Object.fromEntries(teams.map(t => [t.id, t]));
+  const nameOf = (id) => displayName(teamById[id]?.club || '');
   const totalMatches = REMAINING_MATCHES.length;
   const seasonOver = save.matchIdx >= totalMatches;
   const nextMatch = seasonOver ? null : REMAINING_MATCHES[save.matchIdx];
+
+  // Classificação real ao fim da rodada 34 (base das setas de movimento).
+  const baseline = useMemo(() => realBaselinePositions(buildInitialState(teams, 'baseline').table), [teams]);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const t = setTimeout(() => setToast(null), 5000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   function applyResult(current, result) {
     const table = applyRoundToTable(current.table, [result]);
@@ -371,126 +414,271 @@ export function Simulator2026App({ onExit }) {
     return next;
   }
 
+  const resultText = (r) => `${r.postponed ? 'R21 atrasado' : `R${r.round}`}: ${nameOf(r.homeId)} ${r.homeGoals} × ${r.awayGoals} ${nameOf(r.awayId)}`;
+
   const handlePlayMatch = () => {
     if (!nextMatch) return;
     const packaged = prepareMatch(save.seed, teamById, nextMatch);
     setPendingMatch({ key: save.matchIdx, ...packaged });
   };
 
-  const handleFinishMatch = () => {
-    if (!pendingMatch) return;
-    setSave(prev => applyResult(prev, pendingMatch.result));
-    setPendingMatch(null);
+  // "Só o resultado": o MESMO pacote do ao vivo (mesma seed/prepareMatch),
+  // aplicado direto, sem tela de partida.
+  const handleQuickResult = () => {
+    if (!nextMatch) return;
+    const { result } = prepareMatch(save.seed, teamById, nextMatch);
+    setSave(prev => applyResult(prev, result));
+    setToast(resultText(result));
   };
 
-  // Reseta pra rodada 34 com uma seed NOVA (aleatória) — sem isso, recomeçar
-  // sempre dava os mesmos 41 resultados (seed fixa). Disponível a qualquer
-  // momento, não só quando a temporada termina.
+  const handleFinishMatch = () => {
+    if (!pendingMatch) return;
+    const r = pendingMatch.result;
+    setSave(prev => applyResult(prev, r));
+    setPendingMatch(null);
+    setToast(resultText(r));
+  };
+
+  // Reseta para a rodada 34 com uma seed NOVA (aleatória).
   const handleSimulateAgain = () => {
     setPendingMatch(null);
-    setSave(buildInitialState(teams));
+    setConfirmReset(false);
+    setViewGroup(null);
+    // Grava já o recomeço — antes só a tela zerava e, ao recarregar, voltava o save antigo.
+    const fresh = buildInitialState(teams);
+    persistSave(fresh);
+    setSave(fresh);
   };
 
   if (pendingMatch) {
-    const roundLabel = pendingMatch.result.postponed ? 'Jogo atrasado — Rodada 21' : `Brasileirão 2026 · Rodada ${pendingMatch.result.round}`;
+    const roundLabel = pendingMatch.result.postponed ? 'Jogo atrasado · Rodada 21' : `Brasileirão 2026 · Rodada ${pendingMatch.result.round}`;
     return <LiveMatchScreen pending={pendingMatch} roundLabel={roundLabel} onFinish={handleFinishMatch} />;
   }
 
-  const lastResults = [...save.log].reverse().slice(0, 12);
+  const table = save.table;
+  const left = remainingByClub(REMAINING_MATCHES, save.matchIdx);
+  const dsp = disputes(table, left, nameOf);
+  const pos = (id) => table.findIndex(r => r.id === id) + 1;
+  const curGroup = nextMatch ? ROUND_GROUPS.find(g => g.idxs.includes(save.matchIdx)) : ROUND_GROUPS[ROUND_GROUPS.length - 1];
+  const shownGroup = ROUND_GROUPS.find(g => g.key === viewGroup) || curGroup;
+  const logByIdx = (idx) => (idx < save.matchIdx ? save.log[idx] : null);
+  const playedInShown = shownGroup.idxs.filter(i => i < save.matchIdx).length;
+  const lastResults = [...save.log].reverse().slice(0, 3);
+  const hl = nextMatch ? new Set([nextMatch.homeId, nextMatch.awayId]) : new Set();
+
+  const openGroup = (g) => {
+    setViewGroup(g.key);
+    requestAnimationFrame(() => roundCardRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  };
+
+  // ── Card do próximo jogo / encerramento ──
+  let hero;
+  if (nextMatch) {
+    const h = teamById[nextMatch.homeId], a = teamById[nextMatch.awayId];
+    const odds = matchOutcomeProbabilities(h, a);
+    const pH = Math.round(odds.homeWin * 100), pD = Math.round(odds.draw * 100), pA = Math.max(0, 100 - pH - pD);
+    const side = (t) => {
+      const p = pos(t.id);
+      const z = zoneOf(p);
+      return (
+        <div className="sm-side">
+          <TeamCrest team={t} size={76} ring />
+          <b>{displayName(t.club)}</b>
+          <small>{p}º · {table[p - 1].pts} pts{z && (z.key === 'g4' || z.key === 'z4') ? ` · ${z.label}` : ''}</small>
+          <FormChips form={formOf(t.id, REAL_RESULTS_2026_THROUGH_R34, save.log)} label={displayName(t.club)} />
+        </div>
+      );
+    };
+    hero = (
+      <section className="sm-hero" aria-labelledby="sm-next-h">
+        <span className="sm-ring" aria-hidden="true" />
+        <div className="sm-k">
+          <span className="ng-mono" id="sm-next-h">{nextMatch.postponed ? `Jogo atrasado · Rodada 21 · jogo ${save.matchIdx + 1} de ${totalMatches}` : `Próximo jogo · Rodada ${nextMatch.round} · jogo ${save.matchIdx + 1} de ${totalMatches}`}</span>
+          <span className="ng-mono">Mando do {displayName(h.club)}</span>
+        </div>
+        <div className="sm-duel">
+          {side(h)}
+          <div className="sm-vsx" aria-hidden="true">×<small>casa · fora</small></div>
+          {side(a)}
+        </div>
+        <div className="sm-pr"><span>{displayName(h.club)} {pH}%</span><span>Empate {pD}%</span><span>{displayName(a.club)} {pA}%</span></div>
+        <div className="sm-pb" role="img" aria-label={`Probabilidades: ${displayName(h.club)} ${pH}%, empate ${pD}%, ${displayName(a.club)} ${pA}%`}>
+          <i style={{ width: `${pH}%`, background: 'var(--gold)' }} /><i style={{ width: `${pD}%`, background: 'rgba(255,255,255,.35)' }} /><i style={{ width: `${pA}%`, background: '#C24747' }} />
+        </div>
+        <div className="sm-stakes">
+          {[h, a].map(t => <div key={t.id} className="sm-stk"><b>{displayName(t.club)}</b>{stakesFor(table, nextMatch, t.id, nameOf)}</div>)}
+        </div>
+        <div className="sm-acts">
+          <button type="button" className="sm-b-o" onClick={handleQuickResult}><Icon name="forward" size={16} />Só o resultado</button>
+          <button type="button" className="sm-b-g" onClick={handlePlayMatch}><Icon name="play" size={16} />Jogar ao vivo</button>
+        </div>
+      </section>
+    );
+  } else {
+    const champ = table[0];
+    const rel = table.slice(-4);
+    hero = (
+      <section className="sm-hero sm-end" aria-labelledby="sm-end-h">
+        <span className="sm-ring" aria-hidden="true" />
+        <span className="ng-mono sm-k">Brasileirão 2026 · simulação encerrada</span>
+        <div className="sm-champ">
+          <TeamCrest team={teamById[champ.id]} size={92} ring />
+          <div>
+            <span className="ng-mono" style={{ color: 'var(--gold)' }}>Campeão</span>
+            <h2 id="sm-end-h">{nameOf(champ.id)}</h2>
+            <small>{champ.pts} pts · {champ.v} vitórias · saldo {champ.gp - champ.gc > 0 ? '+' : ''}{champ.gp - champ.gc}</small>
+          </div>
+        </div>
+        <div className="sm-stakes">
+          <div className="sm-stk"><b>Libertadores (G4)</b>{table.slice(0, 4).map(r => nameOf(r.id)).join(', ')}</div>
+          <div className="sm-stk"><b>Rebaixados</b>{rel.map(r => nameOf(r.id)).join(', ')}</div>
+        </div>
+        <div className="sm-acts">
+          <button type="button" className="sm-b-g" onClick={handleSimulateAgain}><Icon name="forward" size={16} />Simular tudo novamente</button>
+        </div>
+      </section>
+    );
+  }
 
   return (
-    <div style={{ width: '100%', maxWidth: 680, margin: '0 auto', padding: '24px 16px', fontFamily: "'Inter', sans-serif", color: 'var(--ink)' }}>
-      <button
-        onClick={onExit}
-        style={{ background: 'none', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)', padding: '8px 14px', fontSize: 12.5, cursor: 'pointer', marginBottom: 16 }}
-      >← Voltar ao menu</button>
+    <div className={`sm-wrap${nextMatch ? ' sm-has-next' : ''}`}>
+      <div className="sm-top">
+        <div style={{ minWidth: 0 }}>
+          <button type="button" className="ng-back" style={{ marginBottom: 14 }} onClick={onExit}><Icon name="chevronLeft" size={14} />Voltar ao menu</button>
+          <span className="ng-mono" style={{ display: 'block' }}>Tabela real até a rodada 34 · o resto é simulado jogo a jogo</span>
+          <h1>Simulador do <em>Brasileirão 2026</em></h1>
+        </div>
+        <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" onClick={() => setConfirmReset(true)} disabled={save.matchIdx === 0}><Icon name="forward" size={16} />Recomeçar da rodada 34</button>
+      </div>
 
-      <h1 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 4 }}>Simulador do <em style={{ fontStyle: 'italic', color: 'var(--gold-ink)' }}>Brasileirão 2026</em></h1>
-      <p style={{ fontSize: 12.5, color: 'var(--muted)', marginBottom: 18 }}>
-        {seasonOver
-          ? 'Temporada encerrada — campeão definido.'
-          : `Jogo ${save.matchIdx + 1} de ${totalMatches} — tabela real até a rodada 34, simulando o resto jogo por jogo a partir daqui.`}
-      </p>
-
-      {!seasonOver && nextMatch && (
-        <div style={{ padding: '14px 16px', borderRadius: 12, background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)', marginBottom: 14 }}>
-          <div style={{ fontSize: 10.5, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: 'center', marginBottom: 8 }}>
-            {nextMatch.postponed ? 'Jogo atrasado — Rodada 21' : `Rodada ${nextMatch.round}`}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
-            <TeamCrest team={teamById[nextMatch.homeId]} size={28} />
-            <span style={{ fontWeight: 700, fontSize: 14 }}>{teamById[nextMatch.homeId].club}</span>
-            <span style={{ fontSize: 12, color: 'var(--muted)' }}>×</span>
-            <span style={{ fontWeight: 700, fontSize: 14 }}>{teamById[nextMatch.awayId].club}</span>
-            <TeamCrest team={teamById[nextMatch.awayId]} size={28} />
+      <div className="ng-card sm-strip">
+        <div className="sm-big">{save.matchIdx} <small>de {totalMatches} jogos</small></div>
+        <div className="sm-rds-scroll">
+          <div className="sm-rds" style={{ gridTemplateColumns: ROUND_GROUPS.map(g => (g.postponed ? '84px' : 'minmax(120px, 1fr)')).join(' ') }}>
+            {ROUND_GROUPS.map(g => {
+              const isCur = g === curGroup && !!nextMatch;
+              const done = g.idxs.filter(i => i < save.matchIdx).length;
+              return (
+                <button key={g.key} type="button" className="sm-rd" onClick={() => openGroup(g)} aria-label={`${groupLabel(g)}: ${done} de ${g.idxs.length} jogados. Ver jogos`}>
+                  <small>{isCur ? <b>{groupLabel(g)}</b> : groupLabel(g)}{isCur && !g.postponed ? ` · ${done}/${g.idxs.length}` : ''}</small>
+                  <span className="sm-cells">{g.idxs.map(i => <i key={i} className={i < save.matchIdx ? 'sm-cf' : i === save.matchIdx ? 'sm-cn' : ''} />)}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
-      )}
+        <span className="ng-small">{totalMatches - save.matchIdx} jogo{totalMatches - save.matchIdx === 1 ? '' : 's'} restante{totalMatches - save.matchIdx === 1 ? '' : 's'}</span>
+      </div>
 
-      {!seasonOver && (
-        <button
-          onClick={handlePlayMatch}
-          style={{ width: '100%', padding: '13px 0', borderRadius: 999, border: 'none', background: 'var(--green)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer', marginBottom: 8 }}
-        >▶ Jogar este jogo</button>
-      )}
-      <button
-        onClick={handleSimulateAgain}
-        style={{ width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 18 }}
-      >🔁 Simular tudo novamente{seasonOver ? '' : ' (recomeça da rodada 34)'}</button>
-
-      {lastResults.length > 0 && (
-        <div style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)', marginBottom: 18 }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>
-            Últimos resultados
-          </div>
-          <div style={{ display: 'grid', gap: 5 }}>
-            {lastResults.map((r, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5 }}>
-                <span style={{ fontSize: 9, color: 'var(--muted)', width: 44, flexShrink: 0 }}>{r.postponed ? 'R21 (atr.)' : `R${r.round}`}</span>
-                <TeamCrest team={teamById[r.homeId]} size={18} />
-                <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamById[r.homeId].club}</span>
-                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13.5 }}>{r.homeGoals} x {r.awayGoals}</span>
-                <span style={{ flex: 1, minWidth: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamById[r.awayId].club}</span>
-                <TeamCrest team={teamById[r.awayId]} size={18} />
+      <div className="sm-lay">
+        <div className="sm-lc">
+          {hero}
+          <div className="sm-two">
+            <section className="ng-card" ref={roundCardRef} aria-labelledby="sm-round-h" style={{ overflow: 'hidden', scrollMarginTop: 16 }}>
+              <div className="ng-ch">
+                <h3 id="sm-round-h">{shownGroup.postponed ? 'Jogo atrasado · R21' : `Rodada ${shownGroup.round}`}</h3>
+                <span className="ng-small">{playedInShown} de {shownGroup.idxs.length} jogado{shownGroup.idxs.length === 1 ? '' : 's'}</span>
               </div>
-            ))}
+              {shownGroup.idxs.map(i => {
+                const m = REMAINING_MATCHES[i];
+                const r = logByIdx(i);
+                const isNow = i === save.matchIdx;
+                return (
+                  <div key={i} className={`sm-gm${isNow ? ' sm-now' : ''}`}>
+                    <span className="sm-gh"><span className="ng-ell">{nameOf(m.homeId)}</span><TeamCrest team={teamById[m.homeId]} size={20} /></span>
+                    {r ? <span className="sm-sc">{r.homeGoals} – {r.awayGoals}</span> : isNow ? <span className="sm-sc sm-nx">agora</span> : <span className="sm-sc sm-pd">–</span>}
+                    <span className="sm-ga"><TeamCrest team={teamById[m.awayId]} size={20} /><span className="ng-ell">{nameOf(m.awayId)}</span></span>
+                  </div>
+                );
+              })}
+              {shownGroup !== curGroup && <div className="sm-more"><button type="button" className="ch-link" onClick={() => setViewGroup(null)}>Voltar para a rodada atual</button></div>}
+            </section>
+
+            <section className="ng-card" aria-labelledby="sm-disp-h" style={{ overflow: 'hidden' }}>
+              <div className="ng-ch"><h3 id="sm-disp-h">Disputas</h3><span className="ng-small">{dsp.maxLeft ? `até ${dsp.maxLeft} pts em jogo por time` : 'tudo decidido'}</span></div>
+              <div className="sm-race">
+                <div className="sm-rr"><span><b>{dsp.title.decided ? 'Campeão' : 'Título'}</b> · {nameOf(dsp.title.leader)}{dsp.title.decided ? '' : ` × ${nameOf(dsp.title.second)}`}</span><b className="sm-num">{dsp.title.decided ? '✓' : `${dsp.title.gap} pts`}</b></div>
+                {!dsp.title.decided && dsp.title.pointsLeft > 0 && (
+                  <div className="sm-bar2" role="img" aria-label={`O líder precisa de ${dsp.title.need} dos ${dsp.title.pointsLeft} pontos restantes`}>
+                    <i style={{ left: 0, width: '100%', background: 'var(--success-soft)' }} />
+                    <i style={{ left: 0, width: `${Math.min(100, (dsp.title.need / dsp.title.pointsLeft) * 100)}%`, background: 'var(--green-2)' }} />
+                  </div>
+                )}
+                <small>{dsp.title.text}</small>
+              </div>
+              <div className="sm-race">
+                <div className="sm-rr"><span><b>G4</b> · {nameOf(dsp.g4.a)} × {nameOf(dsp.g4.b)}</span><b className="sm-num">{dsp.g4.gap} pt{dsp.g4.gap === 1 ? '' : 's'}</b></div>
+                <small>{dsp.g4.text}</small>
+              </div>
+              <div className="sm-race">
+                <div className="sm-rr"><span><b>Z4</b> · {dsp.z4.open ? `${dsp.z4.count} times em 4 pts` : 'definido'}</span><b className="sm-num" style={{ color: dsp.z4.open ? 'var(--danger)' : 'var(--ink-2)' }}>{dsp.z4.open ? 'Aberto' : 'Definido'}</b></div>
+                <small>{dsp.z4.text}</small>
+              </div>
+              <div className="sm-race">
+                <div className="sm-rr"><span><b>Últimos resultados</b></span></div>
+                <small>{lastResults.length ? lastResults.map((r, i) => <span key={i} style={{ display: 'block' }}>{resultText(r)}</span>) : 'Nenhum jogo simulado ainda.'}</small>
+              </div>
+            </section>
           </div>
+        </div>
+
+        <section className="ng-card sm-tbl" aria-labelledby="sm-tbl-h">
+          <div className="sm-tbl-hd"><h3 id="sm-tbl-h">Classificação</h3><span className="ng-small">▲▼ desde a tabela real</span></div>
+          <div className="sm-tbl-scroll">
+            <table className="sm-table">
+              <caption className="sr-only">Classificação do Brasileirão 2026 após {save.matchIdx} jogos simulados</caption>
+              <thead>
+                <tr>
+                  <th scope="col">#</th><th scope="col"><span className="sr-only">Movimento</span></th><th scope="col" className="sm-l">Clube</th>
+                  <th scope="col">PJ</th><th scope="col" className="sm-x">V</th><th scope="col" className="sm-x">E</th><th scope="col" className="sm-x">D</th><th scope="col">SG</th><th scope="col">Pts</th>
+                </tr>
+              </thead>
+              <tbody>
+                {table.map((row, i) => {
+                  const p = i + 1;
+                  const z = zoneOf(p);
+                  const mv = (baseline[row.id] || p) - p;
+                  const sg = row.gp - row.gc;
+                  return (
+                    <tr key={row.id} className={hl.has(row.id) ? 'sm-hl' : ''} style={{ '--zone': z?.color || 'transparent' }}>
+                      <td className="sm-ps">{p}</td>
+                      <td className="sm-mv">{mv > 0 ? <span className="sm-up" aria-label={`subiu ${mv} desde a tabela real`}>▲{mv}</span> : mv < 0 ? <span className="sm-dn" aria-label={`caiu ${-mv} desde a tabela real`}>▼{-mv}</span> : <span className="sm-eq" aria-label="mesma posição da tabela real">–</span>}</td>
+                      <th scope="row" className="sm-l"><span className="sm-cl"><TeamCrest team={row} size={18} /><b className="ng-ell">{nameOf(row.id)}</b></span></th>
+                      <td className="sm-n">{row.pj}</td><td className="sm-n sm-x">{row.v}</td><td className="sm-n sm-x">{row.e}</td><td className="sm-n sm-x">{row.d}</td>
+                      <td className="sm-n">{sg > 0 ? `+${sg}` : sg}</td>
+                      <td className="sm-pts">{row.pts}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+          <div className="sm-lg">
+            <span><i style={{ background: '#1F7A4D' }} />G4</span><span><i style={{ background: '#6FB28E' }} />Pré-Liberta</span><span><i style={{ background: '#4E86C2' }} />Sul-Americana</span><span><i style={{ background: '#B23B3B' }} />Z4</span>
+            {nextMatch && <span><i style={{ background: '#F6EEDB', border: '1px solid var(--line-strong)' }} />jogando agora</span>}
+          </div>
+        </section>
+      </div>
+
+      {nextMatch && (
+        <div className="sm-mobile-cta">
+          <button type="button" className="sm-b-g" onClick={handlePlayMatch}><Icon name="play" size={16} />Jogar ao vivo</button>
         </div>
       )}
 
-      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Classificação</div>
-      <div style={{ borderRadius: 12, border: '1px solid var(--line)', overflow: 'hidden' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr 28px 28px 28px 28px 36px 36px', gap: 4, padding: '6px 10px', fontSize: 9.5, color: 'var(--muted)', fontWeight: 700, background: 'var(--surface)' }}>
-          <span>#</span><span>Time</span><span style={{ textAlign: 'center' }}>PJ</span><span style={{ textAlign: 'center' }}>V</span><span style={{ textAlign: 'center' }}>E</span><span style={{ textAlign: 'center' }}>D</span><span style={{ textAlign: 'center' }}>SG</span><span style={{ textAlign: 'center' }}>PTS</span>
-        </div>
-        {save.table.map((row, i) => {
-          const zoneColor = i < 4 ? '#1F7A4D' : i < 6 ? '#2F6FA8' : i < 12 ? '#9AA39D' : i >= 16 ? '#B23B3B' : 'transparent';
-          return (
-            <div key={row.id} style={{
-              display: 'grid', gridTemplateColumns: '24px 1fr 28px 28px 28px 28px 36px 36px', gap: 4, alignItems: 'center',
-              padding: '7px 10px', fontSize: 12, borderTop: '1px solid var(--line)',
-              borderLeft: `3px solid ${zoneColor}`, background: i === 0 ? 'rgba(194,154,69,0.1)' : 'transparent',
-            }}>
-              <span style={{ opacity: 0.6, fontFamily: 'var(--font-mono)' }}>{i + 1}</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, overflow: 'hidden' }}>
-                <TeamCrest team={row} size={18} />
-                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: i === 0 ? 700 : 400 }}>{displayName(row.club)}</span>
-              </span>
-              <span style={{ textAlign: 'center', opacity: 0.8 }}>{row.pj}</span>
-              <span style={{ textAlign: 'center', opacity: 0.8 }}>{row.v}</span>
-              <span style={{ textAlign: 'center', opacity: 0.8 }}>{row.e}</span>
-              <span style={{ textAlign: 'center', opacity: 0.8 }}>{row.d}</span>
-              <span style={{ textAlign: 'center', opacity: 0.8 }}>{row.gp - row.gc}</span>
-              <span style={{ textAlign: 'center', fontWeight: 700, fontFamily: 'var(--font-mono)' }}>{row.pts}</span>
-            </div>
-          );
-        })}
-      </div>
-      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: 10, color: 'var(--muted)', marginTop: 8 }}>
-        <span>🟩 G4 — Libertadores (grupos)</span>
-        <span>🟦 G6 — Libertadores (pré)</span>
-        <span>🟥 Z4 — Rebaixamento</span>
-      </div>
+      <div className="sr-only" aria-live="polite">{toast ? `Fim de jogo. ${toast}` : ''}</div>
+      {toast && <div className="sm-toast" role="status"><Icon name="check" size={16} /><span>{toast}</span><button type="button" onClick={() => setToast(null)} aria-label="Fechar aviso"><Icon name="close" size={14} /></button></div>}
+
+      {confirmReset && (
+        <Modal onClose={() => setConfirmReset(false)} maxWidth={420} labelledBy="sm-reset-h">
+          <h3 id="sm-reset-h" style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: 24, margin: '0 0 8px' }}>Recomeçar da rodada 34?</h3>
+          <p style={{ color: 'var(--muted)', margin: '0 0 18px', lineHeight: 1.5 }}>Os {save.matchIdx} jogo{save.matchIdx === 1 ? '' : 's'} já simulado{save.matchIdx === 1 ? '' : 's'} são apagados e a simulação recomeça com novos resultados.</p>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" style={{ flex: 1 }} onClick={() => setConfirmReset(false)} autoFocus>Cancelar</button>
+            <button type="button" className="ui-btn ui-btn-danger ui-btn-md" style={{ flex: 1 }} onClick={handleSimulateAgain}>Recomeçar</button>
+          </div>
+        </Modal>
+      )}
     </div>
   );
 }

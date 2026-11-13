@@ -6323,7 +6323,7 @@ export default function App() {
   // sites desse estilo (menu/dashboard, não uma landing page larga).
   // Fluxo de novo jogo (redesenho 2026-11-13): esquema e draft têm o próprio
   // contêiner largo (ng-wrap/ng-dwrap), então o <main> não limita a largura.
-  const wideMainMaxWidth = (phase === 'formation' || phase === 'draft') ? 1440 : multiPhase ? null : (phase === 'intro' || phase === 'playing') ? 1240 : ['squad', 'transfer'].includes(phase) ? 1100 : null;
+  const wideMainMaxWidth = (simulator2026Open || phase === 'formation' || phase === 'draft') ? 1440 : multiPhase ? null : (phase === 'intro' || phase === 'playing') ? 1240 : ['squad', 'transfer'].includes(phase) ? 1100 : null;
   const classicModeLabel = multiPhase ? 'Multiplayer' : isDailyChallenge ? 'Supercopa do dia' : (isSerieAtual || gameMode === 'atual2026') ? 'Brasileirão Atual' : (livreTeamIds?.length ? 'Modo Livre' : gameMode === 'copa' ? 'Copa do Brasil Lendária' : 'Brasileirão Lendário');
   const classicStep = { formation: 'Esquema tático', draft: 'Draft', squad: 'Capitão' }[phase] || null;
   const newGameSteps = ['Esquema', 'Draft', 'Capitão', isDailyChallenge ? 'Supercopa' : gameMode === 'copa' ? 'Copa' : 'Temporada'];
@@ -6352,7 +6352,14 @@ export default function App() {
               {!careerOpen && <span className="ui-brand-sub">monte · escale · seja campeão</span>}
             </span>
           </button>
-          {!careerOpen && (classicStep || newGameCrumb) && (
+          {simulator2026Open && (
+            <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
+              <span>Início</span>
+              <Icon name="chevronRight" size={14} />
+              <b>Simulador 2026</b>
+            </nav>
+          )}
+          {!careerOpen && !simulator2026Open && (classicStep || newGameCrumb) && (
             <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
               <span>{classicStep ? classicModeLabel : newGameCrumb}</span>
               <Icon name="chevronRight" size={14} />
@@ -11413,6 +11420,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-simulador-2026-visual',
+    date: 'Novembro de 2026',
+    title: 'Simulador do Brasileirão 2026 redesenhado',
+    desc: 'O simulador ganhou uma faixa com o progresso de cada rodada, um card do próximo jogo com escudos, forma recente, probabilidades e o que cada time ganha se vencer, a lista de jogos da rodada, o bloco Disputas (título, G4 e Z4, com campeão e rebaixados quando a matemática decide) e a classificação com setas mostrando quanto cada time subiu ou caiu desde a tabela real. Dá para jogar ao vivo ou ver só o resultado, e os dois dão o mesmo placar.',
+  },
   {
     id: '2026-11-novo-jogo',
     date: 'Novembro de 2026',
