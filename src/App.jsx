@@ -11388,6 +11388,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-carreira-copa',
+    date: 'Novembro de 2026',
+    title: 'Copa do Brasil do Modo Carreira redesenhada',
+    desc: 'O chaveamento saiu do modal e agora fica na própria página, com os dois lados da chave, linhas ligando os confrontos, seu caminho até a final destacado e os placares de ida e volta ao tocar em cada confronto. Também entraram: a linha das fases com o resultado de cada uma, o card do seu confronto com o agregado e uma estimativa de chance de classificação, os possíveis adversários em cada fase, a premiação por avançar, os jogos de cada fase e a artilharia só da Copa.',
+  },
+  {
     id: '2026-11-carreira-calendario',
     date: 'Novembro de 2026',
     title: 'Calendário do Modo Carreira redesenhado',
