@@ -229,9 +229,9 @@ export function MatchTab({
               const aw = g.score && g.score.a > g.score.h;
               return (
                 <div key={g.key} className="lg-gm">
-                  <span className={`lg-gm-h${hw ? ' lg-win' : ''}`}><span className="cf-ell">{g.home.label}</span><Crest logo={g.home.logo} badge={g.home.badge} name={g.home.label} color={g.home.color} size={18} /></span>
+                  <span className={`lg-gm-h${hw ? ' lg-win' : ''}`}><span className="lg-ell">{g.home.label}</span><Crest logo={g.home.logo} badge={g.home.badge} name={g.home.label} color={g.home.color} size={18} /></span>
                   <span className="lg-gm-sc">{g.score ? `${g.score.h} – ${g.score.a}` : '×'}</span>
-                  <span className={`lg-gm-a${aw ? ' lg-win' : ''}`}><Crest logo={g.away.logo} badge={g.away.badge} name={g.away.label} color={g.away.color} size={18} /><span className="cf-ell">{g.away.label}</span></span>
+                  <span className={`lg-gm-a${aw ? ' lg-win' : ''}`}><Crest logo={g.away.logo} badge={g.away.badge} name={g.away.label} color={g.away.color} size={18} /><span className="lg-ell">{g.away.label}</span></span>
                 </div>
               );
             })}
@@ -251,7 +251,7 @@ export function MatchTab({
                   <tr key={r.row.id} className={r.row.id === liveTable.myId ? 'lg-mt-me' : undefined} style={{ '--zone': r.zone?.color || 'transparent' }}>
                     <td className="lg-mt-ps">{r.pos}</td>
                     <td className="lg-mt-mv">{r.move > 0 ? <span className="lg-up" aria-label={`subiu ${r.move}`}>▲{r.move}</span> : r.move < 0 ? <span className="lg-dn" aria-label={`caiu ${-r.move}`}>▼{-r.move}</span> : <span className="lg-eq" aria-label="manteve">–</span>}</td>
-                    <th scope="row" className="lg-mt-cl"><span className="cf-ell">{r.label}</span></th>
+                    <th scope="row" className="lg-mt-cl"><span className="lg-ell">{r.label}</span></th>
                     <td className="lg-mt-n">{r.row.pj}</td>
                     <td className="lg-mt-p">{r.row.pts}</td>
                   </tr>

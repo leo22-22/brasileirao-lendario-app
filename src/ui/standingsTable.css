@@ -20,6 +20,7 @@
 .tb-c-club { text-align: left; font-weight: inherit; }
 .tb-cl { display: flex; align-items: center; gap: 10px; min-width: 0; max-width: 260px; }
 .tb-cl b { font-weight: 500; }
+.tb-cl .cf-ell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; min-width: 0; }
 .tb-me .tb-cl b { font-weight: 700; }
 .tb-n { font-family: var(--font-mono); font-size: 12.5px; text-align: center; color: var(--ink-2); width: 40px; }
 .tb-pts { font-family: var(--font-serif); font-size: 19px; text-align: center; width: 46px; }

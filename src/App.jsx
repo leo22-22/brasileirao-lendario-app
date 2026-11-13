@@ -21,6 +21,7 @@ import { CustomFormationModal } from './game/CustomFormationModal.jsx';
 import { SquadReadyScreen } from './game/SquadReadyScreen.jsx';
 import { LeagueHeader } from './game/league/LeagueHeader.jsx';
 import { MatchTab } from './game/league/MatchTab.jsx';
+import { TableTab } from './game/league/TableTab.jsx';
 import { Crest as LeagueCrest } from './game/league/Crest.jsx';
 import { applyResults, revertResults, positionsOf, leagueZoneFor, compactRows } from './game/league/leagueTable.js';
 import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter } from './ui/index.jsx';
@@ -12323,6 +12324,19 @@ function SeasonCalendarModal({
 
 // Tabela resumida que fica ao lado da partida no desktop (some abaixo de
 // 1024px — no celular a aba "Tabela" continua sendo o caminho).
+// Próximo jogo de um clube a partir da rodada `fromIdx` (0-based) — usado no
+// card do clube das abas Tabela/Série B. Só lê o calendário já sorteado.
+function nextGameIn(fixtures, fromIdx, id, labelOf) {
+  for (let r = Math.max(0, fromIdx); r < (fixtures?.length || 0); r++) {
+    const m = fixtures[r]?.find(x => x.homeId === id || x.awayId === id);
+    if (m) {
+      const home = m.homeId === id;
+      return { round: r + 1, home, oppLabel: labelOf(home ? m.awayId : m.homeId) || '—' };
+    }
+  }
+  return null;
+}
+
 function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey, modeLabel, captainName, lastRoundResults }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
@@ -12759,6 +12773,16 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
     mtPrev = positionsOf(revertResults(tableNow, lastRoundResults));
   }
   const tableDivision = gameMode === 'serieab' ? myDivision : 'A';
+  // ── Abas Tabela / Série B (fase 4) ──
+  const playedRounds = Math.min(myPj, regularRounds);
+  let standingsPrev = null;
+  if (roundDone && roundResults && myPj >= currentRound + 1) standingsPrev = positionsOf(revertResults(tableNow, roundResults));
+  else if (!roundDone && lastRoundResults && currentRound > 0 && myPj >= currentRound) standingsPrev = positionsOf(revertResults(tableNow, lastRoundResults));
+  const crestOf = (id, size) => {
+    if (id === myTeamId) return <LeagueCrest logo={myTeamLogo} badge={myTeamBadge} name={myLabel} color={mc} size={size} />;
+    const t = leagueTeams.find(x => x.id === id) || otherDivision?.teams?.find(x => x.id === id) || otherDivision?.table?.find(x => x.id === id);
+    return <LeagueCrest logo={t?.clubLogo} name={t?.label || ''} color={t?.colors?.p || t?.color || '#0D3A29'} size={size} />;
+  };
   const matchLiveTable = mtTable.length > 0 && !isDailyChallenge && !inPromotionTie ? {
     title: matchStatus === 'live' || matchStatus === 'paused' ? 'Tabela ao vivo' : 'Classificação',
     myId: myTeamId,
@@ -12960,127 +12984,38 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
       )}
 
       {activeTab === 'tabela' && (
-        <div style={styles.tableSection} className="table-scroll">
-          <div style={styles.sectionLabel}>Classificação geral</div>
-          <div style={styles.tableHeaderRow}>
-            <span style={styles.tablePos}>#</span>
-            <span style={{ flex: 1 }}>Time</span>
-            <span style={styles.tableCell}>PJ</span>
-            <span style={styles.tableCell}>V</span>
-            <span style={styles.tableCell}>E</span>
-            <span style={styles.tableCell}>D</span>
-            <span style={styles.tableCell} className="table-col-hide-mobile">GP</span>
-            <span style={styles.tableCell} className="table-col-hide-mobile">GC</span>
-            <span style={styles.tableCell}>SG</span>
-            <span style={{ ...styles.tableCell, color: 'var(--gold-ink)', fontWeight: 700 }}>PTS</span>
-            <span style={{ width: 28 }} className="table-col-hide-mobile"></span>
-          </div>
-          {leagueTable.map((row, i) => {
-            const isMe = row.id === myTeamId;
-            const sg = row.gp - row.gc;
-            const zone = isMe ? null : getZoneInfo(i + 1, leagueTable.length);
-            return (
-              <div key={row.id} style={{
-                ...styles.tableRow,
-                background: isMe ? hexToRgba(mc, 0.1) : i % 2 === 0 ? 'var(--surface)' : 'transparent',
-                borderLeft: isMe ? `3px solid ${mc}` : zone ? `3px solid ${zone.color}` : '3px solid transparent',
-              }}>
-                <span style={styles.tablePos}>{i + 1}</span>
-                <span
-                  onClick={() => !isMe && onViewTeam && onViewTeam(leagueTeams.find(t => t.id === row.id))}
-                  style={{ flex: 1, minWidth: 0, fontWeight: isMe ? 700 : 400, color: isMe ? mc : 'var(--ink)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5, cursor: isMe ? 'default' : 'pointer' }}
-                >
-                  {isMe
-                    ? (myTeamLogo ? <img src={myTeamLogo} style={styles.tableCrestImg} alt="" /> : (myTeamBadge && <span style={styles.tableCrestEmoji}>{myTeamBadge}</span>))
-                    : (row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />)
-                  }
-                  <span style={{ flex: '1 1 0%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
-                  {teamForm?.[row.id]?.length > 0 && (
-                    <span style={{ display: 'flex', gap: 2, flexShrink: 0 }} title="Forma recente">
-                      {teamForm[row.id].map((r, fi) => (
-                        <span key={fi} style={{
-                          width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
-                          background: r === 'V' ? 'var(--success)' : r === 'D' ? 'var(--danger)' : 'var(--gold)',
-                        }} />
-                      ))}
-                    </span>
-                  )}
-                </span>
-                <span style={styles.tableCell}>{row.pj}</span>
-                <span style={{ ...styles.tableCell, color: row.v > 0 ? 'var(--success)' : undefined }}>{row.v}</span>
-                <span style={styles.tableCell}>{row.e}</span>
-                <span style={{ ...styles.tableCell, color: row.d > 0 ? 'var(--danger)' : undefined }}>{row.d}</span>
-                <span style={styles.tableCell} className="table-col-hide-mobile">{row.gp}</span>
-                <span style={styles.tableCell} className="table-col-hide-mobile">{row.gc}</span>
-                <span style={{ ...styles.tableCell, color: sg > 0 ? 'var(--success)' : sg < 0 ? 'var(--danger)' : undefined }}>{sg >= 0 ? `+${sg}` : sg}</span>
-                <span style={{ ...styles.tableCell, fontWeight: 700, color: 'var(--gold-ink)' }}>{row.pts}</span>
-                <span style={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="table-col-hide-mobile">
-                  {zone && !isMe && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{zone.label}</span>}
-                </span>
-              </div>
-            );
-          })}
-          {/* Legenda de zonas */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginTop: 8, fontSize: 11, color: 'var(--muted)' }}>
-            {[['#1F7A4D', 'G4 Libertadores (grupos)'], ['#357F59', 'G6 Libertadores (pré)'], ['#2F6FA8', 'SA Sul-Americana'], ['#B23B3B', 'Z4 Rebaixamento']].map(([c, l]) => (
-              <span key={l} style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                <span style={{ width: 8, height: 8, borderRadius: 2, background: c, display: 'inline-block' }} />{l}
-              </span>
-            ))}
-          </div>
-        </div>
+        <TableTab
+          eyebrow={`${modeLabel || 'Brasileirão Lendário'} · Série ${tableDivision} · ${playedRounds} de ${regularRounds} rodadas`}
+          title="Classificação"
+          rows={leagueTable}
+          division={tableDivision}
+          myId={myTeamId}
+          prevPositions={standingsPrev}
+          formOf={(id) => teamForm?.[id] || null}
+          crestOf={crestOf}
+          nextGameOf={(id) => nextGameIn(fixtures, roundDone ? currentRound + 1 : currentRound, id, (oid) => leagueTeams.find(t => t.id === oid)?.label)}
+          teamOf={(id) => leagueTeams.find(t => t.id === id)}
+          onViewTeam={onViewTeam}
+          criteria="Critérios: pontos, saldo, gols pró"
+        />
       )}
 
       {activeTab === 'outra-serie' && otherDivision && (
-        <div style={styles.tableSection} className="table-scroll">
-          <div style={styles.sectionLabel}>
-            Série {otherDivisionLabel} · Rodada {Math.min(otherDivision.round, otherDivision.fixtures.length)} de {otherDivision.fixtures.length}
-          </div>
-          <p style={{ fontSize: 11.5, color: 'var(--muted)', margin: '2px 0 12px' }}>
-            Só times de IA disputando em paralelo — quando a temporada acabar, quem sobe/desce daqui também conta pra sua Série {myDivision} do ano que vem.
-          </p>
-          <div style={styles.tableHeaderRow}>
-            <span style={styles.tablePos}>#</span>
-            <span style={{ flex: 1 }}>Time</span>
-            <span style={styles.tableCell}>PJ</span>
-            <span style={styles.tableCell}>V</span>
-            <span style={styles.tableCell}>E</span>
-            <span style={styles.tableCell}>D</span>
-            <span style={styles.tableCell} className="table-col-hide-mobile">GP</span>
-            <span style={styles.tableCell} className="table-col-hide-mobile">GC</span>
-            <span style={styles.tableCell}>SG</span>
-            <span style={{ ...styles.tableCell, color: 'var(--gold-ink)', fontWeight: 700 }}>PTS</span>
-            <span style={{ width: 28 }} className="table-col-hide-mobile"></span>
-          </div>
-          {otherDivision.table.map((row, i) => {
-            const sg = row.gp - row.gc;
-            const zone = getZoneInfo(i + 1, otherDivision.table.length);
-            return (
-              <div key={row.id} style={{
-                ...styles.tableRow,
-                background: i % 2 === 0 ? 'var(--surface)' : 'transparent',
-                borderLeft: zone ? `3px solid ${zone.color}` : '3px solid transparent',
-              }}>
-                <span style={styles.tablePos}>{i + 1}</span>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  {row.clubLogo && <img src={row.clubLogo} style={styles.tableCrestImg} alt="" />}
-                  <span style={{ flex: '1 1 0%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{row.label}</span>
-                </span>
-                <span style={styles.tableCell}>{row.pj}</span>
-                <span style={{ ...styles.tableCell, color: row.v > 0 ? 'var(--success)' : undefined }}>{row.v}</span>
-                <span style={styles.tableCell}>{row.e}</span>
-                <span style={{ ...styles.tableCell, color: row.d > 0 ? 'var(--danger)' : undefined }}>{row.d}</span>
-                <span style={styles.tableCell} className="table-col-hide-mobile">{row.gp}</span>
-                <span style={styles.tableCell} className="table-col-hide-mobile">{row.gc}</span>
-                <span style={{ ...styles.tableCell, color: sg > 0 ? 'var(--success)' : sg < 0 ? 'var(--danger)' : undefined }}>{sg >= 0 ? `+${sg}` : sg}</span>
-                <span style={{ ...styles.tableCell, fontWeight: 700, color: 'var(--gold-ink)' }}>{row.pts}</span>
-                <span style={{ width: 28, display: 'flex', alignItems: 'center', justifyContent: 'center' }} className="table-col-hide-mobile">
-                  {zone && <span title={zone.title} style={{ fontSize: 9, padding: '1px 4px', borderRadius: 4, background: `${zone.color}22`, color: zone.color, fontFamily: 'var(--font-mono)', flexShrink: 0 }}>{zone.label}</span>}
-                </span>
-              </div>
-            );
-          })}
-        </div>
+        <TableTab
+          eyebrow={`Série ${otherDivisionLabel} · ${Math.min(otherDivision.round, otherDivision.fixtures.length)} de ${otherDivision.fixtures.length} rodadas`}
+          title={`Série ${otherDivisionLabel}`}
+          note={`Só times da IA disputando em paralelo. Quando a temporada acabar, quem sobe ou desce daqui também conta para a sua Série ${myDivision} do ano que vem.`}
+          rows={otherDivision.table}
+          division={otherDivisionLabel}
+          myId={null}
+          prevPositions={null}
+          formOf={null}
+          crestOf={crestOf}
+          nextGameOf={(id) => nextGameIn(otherDivision.fixtures, otherDivision.round, id, (oid) => otherDivision.teams?.find(t => t.id === oid)?.label || otherDivision.table.find(t => t.id === oid)?.label)}
+          teamOf={(id) => otherDivision.teams?.find(t => t.id === id)}
+          onViewTeam={onViewTeam}
+          criteria="Critérios: pontos, vitórias, saldo, gols pró"
+        />
       )}
 
       {activeTab === 'elenco' && (() => {

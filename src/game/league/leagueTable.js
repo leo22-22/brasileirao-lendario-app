@@ -39,13 +39,13 @@ export function positionsOf(table) {
 }
 
 // Zonas por divisão — mesmas faixas do motor (getZoneInfo na Série A;
-// DIRECT_PROMOTION_SPOTS / PLAYOFF_ZONE / RELEGATION_SPOTS na Série B) e
+// DIRECT_PROMOTION_SPOTS / PLAYOFF_ZONE na Série B) e
 // as mesmas cores da Tabela da carreira.
 export function leagueZoneFor(division, pos, total) {
   if (division === 'B') {
     if (pos <= 2) return { key: 'up', color: '#1F7A4D', label: 'Acesso direto à Série A' };
     if (pos <= 6) return { key: 'po', color: '#B7791F', label: 'Mata-mata de acesso' };
-    if (pos >= total - 3) return { key: 'z4', color: '#B23B3B', label: 'Zona de rebaixamento' };
+    // Na liga clássica não existe Série C: ninguém cai da Série B.
     return null;
   }
   if (pos <= 4) return { key: 'g4', color: '#1F7A4D', label: 'Libertadores · fase de grupos' };
@@ -57,7 +57,7 @@ export function leagueZoneFor(division, pos, total) {
 
 export const LEAGUE_LEGEND = {
   A: [['#1F7A4D', 'G4 · Libertadores'], ['#6FB28E', '5º–6º · Pré-Libertadores'], ['#4E86C2', '7º–12º · Sul-Americana'], ['#B23B3B', 'Z4 · Rebaixamento']],
-  B: [['#1F7A4D', '1º–2º · Acesso direto'], ['#B7791F', '3º–6º · Mata-mata de acesso'], ['#B23B3B', 'Z4 · Rebaixamento']],
+  B: [['#1F7A4D', '1º–2º · Acesso direto'], ['#B7791F', '3º–6º · Mata-mata de acesso']],
 };
 
 // Linhas mostradas na tabela resumida: top 6 ou top 3 + vizinhança do meu time.
