@@ -65,7 +65,9 @@ export function generateProspectName(rand) {
 // [ganhoMin, ganhoMax] por temporada enquanto crescer, chance de "joia"
 // (independente, aplicada depois do sorteio normal), [ovrMin, ovrMax] da
 // joia.
-const TIER_TABLE = {
+// Exportado (2026-11-13) só para a tela de Base mostrar "O que esperar" com
+// os números reais — nenhuma regra mudou.
+export const TIER_TABLE = {
   elite: { ovr: [58, 68], growthChance: 0.55, growthRange: [1, 4], starChance: 0.06, starOvr: [78, 86] },
   grande: { ovr: [54, 64], growthChance: 0.45, growthRange: [1, 3], starChance: 0.03, starOvr: [78, 86] },
   medio: { ovr: [50, 60], growthChance: 0.35, growthRange: [1, 3], starChance: 0.012, starOvr: [78, 86] },

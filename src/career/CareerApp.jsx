@@ -465,7 +465,7 @@ export function CareerApp({ onExit, onHudChange }) {
   else if (screen === 'table') body = <CareerTableScreen save={save} onNavigate={setScreen} onOpenClubInMarket={(id) => { setMarketClub(id); setScreen('market'); }} onBack={back} />;
   else if (screen === 'calendar') body = <CareerCalendarScreen save={save} onNavigate={setScreen} onPlayNext={handleAdvanceDay} onBack={back} />;
   else if (screen === 'copa') body = <CareerCopaScreen save={save} onNavigate={setScreen} onPlayNext={handleAdvanceDay} onBack={back} />;
-  else if (screen === 'youth') body = <CareerYouthScreen save={save} onPromote={handlePromoteYouth} onBack={back} />;
+  else if (screen === 'youth') body = <CareerYouthScreen save={save} onPromote={handlePromoteYouth} onNavigate={setScreen} onBack={back} />;
   else if (screen === 'market') body = <CareerTransferMarket save={save} onPropose={handleProposeTransfer} onRespondOffer={handleRespondOffer} onCounterOffer={handleCounterOffer} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onRequestLoan={handleRequestLoan} onToggleShortlist={handleToggleShortlist} onQueueProposal={handleQueueProposal} onCancelQueued={handleCancelQueued} onNavigate={setScreen} initialClub={marketClub} key={marketClub || 'market'} onBack={back} />;
   else if (screen === 'inbox') body = <CareerInboxScreen save={save} onNavigate={setScreen} onMarkRead={handleMarkRead} />;
   else if (screen === 'finance') body = <CareerFinanceScreen save={save} />;

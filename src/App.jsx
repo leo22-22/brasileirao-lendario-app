@@ -11388,6 +11388,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-carreira-base',
+    date: 'Novembro de 2026',
+    title: 'Categoria de base do Modo Carreira redesenhada',
+    desc: 'Cada jovem da base ganhou um card com o overall atual e a faixa de potencial estimada pelo olheiro, em que lugar ele entraria no elenco, quando sobe sozinho aos 20 anos, a evolução por temporada e o valor de mercado — com destaque para as joias raras e para quem supre uma carência do elenco. Também entraram o "O que esperar" com as chances reais de revelação do porte do seu clube, a lista de jogadores formados no clube (inclusive os vendidos) e uma confirmação antes de promover.',
+  },
+  {
     id: '2026-11-carreira-final-copa',
     date: 'Novembro de 2026',
     title: 'Final da Copa do Brasil agora é jogada',
