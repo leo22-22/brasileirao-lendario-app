@@ -147,12 +147,12 @@ export function StatsTab({ scorers, assisters, cleanSheets, seasonRatings, cardC
         <LeaderCard title="Cartões" unit="amarelos + vermelhos" rows={cards} crestOf={crestOf} myId={myId} emptyText="Nenhum cartão ainda." />
         <section className="lg-card lg-teams">
           <h3>Times da liga</h3>
-          <div className="lg-tl"><span>Melhor ataque</span>{tl(bestAtk, bestAtk.gp)}</div>
-          <div className="lg-tl"><span>Melhor defesa</span>{tl(bestDef, bestDef.gc)}</div>
-          <div className="lg-tl"><span>Mais vitórias</span>{tl(mostWins, mostWins.v)}</div>
-          {cardsTeam && <div className="lg-tl"><span>Mais cartões</span><b className={cardsTeam[0] === myId ? 'lg-gold' : undefined}>{teamName(cardsTeam[0])} · {cardsTeam[1]}</b></div>}
+          <div className="lg-trow"><span>Melhor ataque</span>{tl(bestAtk, bestAtk.gp)}</div>
+          <div className="lg-trow"><span>Melhor defesa</span>{tl(bestDef, bestDef.gc)}</div>
+          <div className="lg-trow"><span>Mais vitórias</span>{tl(mostWins, mostWins.v)}</div>
+          {cardsTeam && <div className="lg-trow"><span>Mais cartões</span><b className={cardsTeam[0] === myId ? 'lg-gold' : undefined}>{teamName(cardsTeam[0])} · {cardsTeam[1]}</b></div>}
           {blowout && blowout.homeGoals !== blowout.awayGoals && (
-            <div className="lg-tl"><span>Maior goleada</span><b>{blowout.homeGoals > blowout.awayGoals ? `${teamName(blowout.homeId)} ${blowout.homeGoals} × ${blowout.awayGoals} ${teamName(blowout.awayId)}` : `${teamName(blowout.awayId)} ${blowout.awayGoals} × ${blowout.homeGoals} ${teamName(blowout.homeId)} (fora)`}</b></div>
+            <div className="lg-trow"><span>Maior goleada</span><b>{blowout.homeGoals > blowout.awayGoals ? `${teamName(blowout.homeId)} ${blowout.homeGoals} × ${blowout.awayGoals} ${teamName(blowout.awayId)}` : `${teamName(blowout.awayId)} ${blowout.awayGoals} × ${blowout.homeGoals} ${teamName(blowout.homeId)} (fora)`}</b></div>
           )}
         </section>
       </div>

@@ -222,8 +222,8 @@
 .lg-ld-more { display: block; width: 100%; text-align: left; padding: 10px 20px 14px; border: none; border-top: 1px solid var(--line); background: none; font-size: 12.5px; font-weight: 600; color: var(--gold-ink); cursor: pointer; font-family: var(--font-body); }
 .lg-teams { padding: 18px 20px; }
 .lg-teams h3 { font-family: var(--font-serif); font-weight: 500; font-size: 21px; margin: 0 0 12px; }
-.lg-tl { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
-.lg-tl b { font-family: var(--font-mono); font-size: 12.5px; text-align: right; }
+.lg-trow { display: flex; justify-content: space-between; gap: 12px; padding: 9px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+.lg-trow b { font-family: var(--font-mono); font-size: 12.5px; text-align: right; }
 .lg-gold { color: var(--gold-ink); }
 .lg-st-empty { padding: 34px 24px; text-align: center; }
 .lg-st-empty h3 { font-family: var(--font-serif); font-weight: 500; font-size: 22px; margin: 0 0 6px; }

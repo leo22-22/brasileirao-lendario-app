@@ -11255,6 +11255,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-liga-redesenhada',
+    date: 'Novembro de 2026',
+    title: 'Temporada do Brasileirão com visual novo',
+    desc: 'A tela da temporada foi refeita. O cabeçalho mostra rodada, posição, dificuldade e capitão. A aba Partida tem prévia com forma recente e chances de cada resultado, placar ao vivo com linha do tempo dos gols e cartões, lance a lance, outros jogos da rodada e a tabela ao vivo. A Tabela ganhou zonas nomeadas, setas de quanto cada time subiu ou caiu e um card de cada clube. O Elenco mostra a posição em que cada jogador atua, de onde ele veio e jogos, gols, assistências e nota. E as Estatísticas têm o resumo do seu time, rankings com top 20 e os destaques da liga.',
+  },
+  {
     id: '2026-11-jogo-capitao-time-pronto-formacao',
     date: 'Novembro de 2026',
     title: 'Time pronto, formação livre e escolha do capitão redesenhados',
