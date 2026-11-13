@@ -13,6 +13,7 @@ import { standingsAfter, clubFormDetailed, nextFixtures } from '../engine/standi
 import { computeBoard } from '../engine/careerMeta.js';
 import { displayName } from '../../lib/displayName.js';
 import { Icon, TeamBadge, Modal } from '../../ui/index.jsx';
+import { StandingsTable, FormChips } from '../../ui/StandingsTable.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
 import './careerTable.css';
@@ -50,15 +51,10 @@ function Crest({ id, size = 22 }) {
   return <TeamBadge src={CLUB_LOGOS[t?.club]} name={t?.club || ''} color={t?.colors?.p || '#0D3A29'} size={size} radius={size / 2} />;
 }
 
-function FormChips({ form }) {
-  return (
-    <span className="tb-frm">
-      {form.map((f, i) => (
-        <i key={i} className={`tb-f${f.res}`} title={`Rodada ${f.round}: ${f.home ? '' : '@ '}${nameOf(f.oppId)} ${f.gf}–${f.ga}`} aria-label={`Rodada ${f.round}, ${f.res === 'V' ? 'vitória' : f.res === 'D' ? 'derrota' : 'empate'} ${f.gf} a ${f.ga} ${f.home ? 'contra' : 'fora contra'} ${nameOf(f.oppId)}`}>{f.res}</i>
-      ))}
-    </span>
-  );
-}
+const describeForm = (f) => ({
+  title: `Rodada ${f.round}: ${f.home ? '' : '@ '}${nameOf(f.oppId)} ${f.gf}–${f.ga}`,
+  label: `Rodada ${f.round}, ${f.res === 'V' ? 'vitória' : f.res === 'D' ? 'derrota' : 'empate'} ${f.gf} a ${f.ga} ${f.home ? 'contra' : 'fora contra'} ${nameOf(f.oppId)}`,
+});
 
 export function CareerTableScreen({ save, onNavigate, onOpenClubInMarket }) {
   const myDivision = save.clubs[save.myClubId].division;
@@ -140,18 +136,8 @@ export function CareerTableScreen({ save, onNavigate, onOpenClubInMarket }) {
     .sort((a, b) => b.goals - a.goals || a.name.localeCompare(b.name))
     .slice(0, 5);
 
-  // ── Linhas com separadores de zona ──
-  const rows = [];
-  let lastZone = undefined;
-  table.forEach((row, i) => {
-    const pos = i + 1;
-    const zone = view === 'all' && n > 0 ? zoneFor(division, pos, total, copaChampionInG4) : null;
-    const zKey = zone?.key || null;
-    if (view === 'all' && zKey !== lastZone && zone) rows.push({ sep: true, zone, key: `sep-${pos}` });
-    lastZone = zKey;
-    const prevPos = prevTable ? prevTable.findIndex(r => r.id === row.id) + 1 : null;
-    rows.push({ row, pos, zone, move: prevPos ? prevPos - pos : 0 });
-  });
+  // Posição de cada clube antes da rodada vista (seta de movimento)
+  const prevPositions = useMemo(() => (prevTable ? new Map(prevTable.map((r, i) => [r.id, i + 1])) : null), [prevTable]);
 
   const openRow = openClub ? table.find(r => r.id === openClub) : null;
   const openPos = openClub ? table.findIndex(r => r.id === openClub) + 1 : null;
@@ -199,66 +185,25 @@ export function CareerTableScreen({ save, onNavigate, onOpenClubInMarket }) {
           {played === 0 && <div className="mk-locked" style={{ margin: '12px 18px 0' }}><Icon name="info" size={16} />A temporada ainda não começou: todos com 0 ponto, em ordem alfabética.</div>}
           {view !== 'all' && <div className="ch-small" style={{ padding: '10px 18px 0' }}>{view === 'home' ? 'Só jogos como mandante' : view === 'away' ? 'Só jogos como visitante' : 'Só os últimos 5 jogos de cada clube'} · mesmos critérios de desempate. Zonas valem só na visão Geral.</div>}
 
-          <div className="tb-scroll">
-            <table className={`tb-table${moreCols ? ' tb-more' : ''}`}>
-              <caption className="sr-only">Classificação da Série {division} após a rodada {n}{view !== 'all' ? ` (${VIEWS.find(v => v.id === view).label})` : ''}</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="tb-c-pos">#</th>
-                  <th scope="col" className="tb-c-mv"><span className="sr-only">Movimento</span></th>
-                  <th scope="col" className="tb-c-club">Clube</th>
-                  <th scope="col">PJ</th>
-                  <th scope="col" className="tb-x">V</th>
-                  <th scope="col" className="tb-x">E</th>
-                  <th scope="col" className="tb-x">D</th>
-                  <th scope="col" className="tb-x">GP</th>
-                  <th scope="col" className="tb-x">GC</th>
-                  <th scope="col">SG</th>
-                  <th scope="col">Pts</th>
-                  <th scope="col" className="tb-c-frm">Últimos 5</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map(r => r.sep ? (
-                  <tr key={r.key} className={`tb-sep${r.zone.key === 'z4' ? ' tb-sep-red' : ''}`}><td colSpan={12}><span>{r.zone.label}</span></td></tr>
-                ) : (() => {
-                  const { row, pos, zone, move } = r;
-                  const isMe = row.id === save.myClubId;
-                  const sg = row.gp - row.gc;
-                  return (
-                    <tr
-                      key={row.id}
-                      ref={isMe ? myRowRef : undefined}
-                      className={`tb-tr${isMe ? ' tb-me' : ''}${openClub === row.id ? ' tb-open' : ''}`}
-                      style={{ '--zone': zone?.color || 'transparent' }}
-                      tabIndex={0}
-                      onClick={() => setOpenClub(row.id)}
-                      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenClub(row.id); } }}
-                      aria-label={`${pos}º ${nameOf(row.id)}, ${row.pts} pontos${zone ? `, ${zone.label}` : ''}. Ver detalhes do clube`}
-                    >
-                      <td className="tb-c-pos"><span className="tb-ps" style={isMe && myZone?.key === 'z4' && view === 'all' ? { color: 'var(--danger)' } : undefined}>{pos}</span></td>
-                      <td className="tb-c-mv">{move > 0 ? <span className="tb-mv tb-up" aria-label={`subiu ${move}`}>▲{move}</span> : move < 0 ? <span className="tb-mv tb-dn" aria-label={`caiu ${-move}`}>▼{-move}</span> : <span className="tb-mv tb-eq" aria-label="manteve">–</span>}</td>
-                      <th scope="row" className="tb-c-club"><span className="tb-cl"><Crest id={row.id} /><b className="cf-ell">{nameOf(row.id)}</b></span></th>
-                      <td className="tb-n">{row.pj}</td>
-                      <td className="tb-n tb-x">{row.v}</td>
-                      <td className="tb-n tb-x">{row.e}</td>
-                      <td className="tb-n tb-x">{row.d}</td>
-                      <td className="tb-n tb-x">{row.gp}</td>
-                      <td className="tb-n tb-x">{row.gc}</td>
-                      <td className="tb-n">{sg > 0 ? `+${sg}` : sg}</td>
-                      <td className="tb-pts">{row.pts}</td>
-                      <td className="tb-c-frm"><FormChips form={clubFormDetailed(data, row.id, n, 5)} /></td>
-                    </tr>
-                  );
-                })())}
-              </tbody>
-            </table>
-          </div>
-          <div className="tb-leg">
-            {LEGEND[division].map(([c, t]) => <span key={t}><i style={{ background: c }} aria-hidden="true" />{t}</span>)}
-            {copaChampionInG4 && <span>O campeão da Copa do Brasil está no G4: o 5º também vai à Libertadores.</span>}
-            <span className="tb-crit">Critérios: pontos, vitórias, saldo, gols pró</span>
-          </div>
+          <StandingsTable
+            rows={table}
+            zoneFor={view === 'all' && n > 0 ? (pos) => zoneFor(division, pos, total, copaChampionInG4) : null}
+            prevPositions={prevPositions}
+            getForm={(id) => clubFormDetailed(data, id, n, 5)}
+            describeForm={describeForm}
+            highlightIds={[save.myClubId]}
+            highlightRowRef={myRowRef}
+            selectedId={openClub}
+            onRowClick={setOpenClub}
+            renderTeamName={(row) => nameOf(row.id)}
+            renderCrest={(id) => <Crest id={id} />}
+            rowLabel={(row, pos, zone) => `${pos}º ${nameOf(row.id)}, ${row.pts} pontos${zone ? `, ${zone.label}` : ''}. Ver detalhes do clube`}
+            isPosDanger={(row) => row.id === save.myClubId && myZone?.key === 'z4' && view === 'all'}
+            caption={`Classificação da Série ${division} após a rodada ${n}${view !== 'all' ? ` (${VIEWS.find(v => v.id === view).label})` : ''}`}
+            moreCols={moreCols}
+            legend={LEGEND[division]}
+            legendNote={copaChampionInG4 ? 'O campeão da Copa do Brasil está no G4: o 5º também vai à Libertadores.' : null}
+          />
           {myRowHidden && <MyStickyRow />}
         </div>
 
@@ -331,7 +276,7 @@ export function CareerTableScreen({ save, onNavigate, onOpenClubInMarket }) {
             </div>
           </div>
           <div className="ui-label" style={{ marginBottom: 6 }}>Forma</div>
-          {n > 0 ? <FormChips form={clubFormDetailed(data, openRow.id, n, 5)} /> : <span className="ch-small">Sem jogos ainda.</span>}
+          {n > 0 ? <FormChips form={clubFormDetailed(data, openRow.id, n, 5)} describe={describeForm} /> : <span className="ch-small">Sem jogos ainda.</span>}
           <div className="ui-label" style={{ margin: '16px 0 6px' }}>Próximos jogos</div>
           {nextFixtures(data, openRow.id, data.round, 2).map(f => (
             <div key={f.round} className="tb-gap"><span style={{ display: 'flex', gap: 8, alignItems: 'center' }}><Crest id={f.oppId} size={20} />{f.home ? '' : '@ '}{nameOf(f.oppId)}</span><b>Rodada {f.round}</b></div>

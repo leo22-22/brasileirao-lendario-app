@@ -16,6 +16,7 @@ import { squadDepth, DEPTH_GROUPS, VETERAN_AGE } from '../engine/squadDepth.js';
 import { TEAMS } from '../../data/teams.js';
 import { displayName } from '../../lib/displayName.js';
 import { Icon } from '../../ui/index.jsx';
+import { PlayerList, PosChip, Tags, ovrClass, groupBySector } from '../../ui/PlayerList.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
 
@@ -28,9 +29,6 @@ const SECTORS = [
   { id: 'md', label: 'Meio' },
   { id: 'at', label: 'Ataque' },
 ];
-const SECTOR_GROUP = { gk: 'Goleiros', df: 'Defesa', md: 'Meio-campo', at: 'Ataque' };
-const SECTOR_DOT = { gk: '#B08A3E', df: '#3F74AE', md: '#2F8A5E', at: '#C2513F' };
-const SECTOR_ORDER = ['gk', 'df', 'md', 'at'];
 const POS_NAME = {
   GOL: 'Goleiro', ZAG: 'Zagueiro', LD: 'Lateral-direito', LE: 'Lateral-esquerdo', VOL: 'Volante', MC: 'Meio-campista',
   MD: 'Meia-direita', ME: 'Meia-esquerda', MEI: 'Meia ofensivo', PD: 'Ponta-direita', PE: 'Ponta-esquerda', ATA: 'Atacante',
@@ -52,7 +50,6 @@ function formatMoneyShort(n) {
   return `R$ ${n}`;
 }
 const fmt1 = (n) => (Math.round(n * 10) / 10).toFixed(1).replace('.', ',');
-const ovrClass = (o) => (o >= 85 ? 'sq-o-hi' : o >= 80 ? 'sq-o-md' : 'sq-o-lo');
 
 // Nota de evolução — só as faixas que o próprio motor usa no fim de
 // temporada (applySeasonAging em aging.js), sem regra nova.
@@ -64,14 +61,6 @@ function evolutionNote(p) {
   if (next >= 34) return { text: `tende a cair após os ${Math.max(34, p.age)}`, tone: 'down' };
   if (next >= 30) return { text: 'pode perder 1 ponto por temporada', tone: 'down' };
   return { text: 'estável', tone: 'flat' };
-}
-
-function PosChip({ pos, small }) {
-  return <span className={`sq-pos sq-${posSector(pos)}${small ? ' sq-pos-sm' : ''}`}>{pos}</span>;
-}
-
-function Tags({ tags }) {
-  return tags.map(t => <span key={t.id} className={`sq-tg sq-tg-${t.id}`}>{t.label}</span>);
 }
 
 function RowMenu({ open, onToggle, onClose, items, label }) {
@@ -233,10 +222,25 @@ export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOp
     goals: p => statsOf(p).goals, matches: p => statsOf(p).matches,
   }[sortBy];
   const sorted = [...filtered].sort((a, b) => sortKey(b) - sortKey(a) || posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0]) || b.ovr - a.ovr);
-  const groups = SECTOR_ORDER.map(s => ({ s, players: sorted.filter(p => posSector(p.pos[0]) === s) })).filter(g => g.players.length);
+  const groups = groupBySector(sorted);
   const sectorCount = (id) => (id === 'all' ? roster.length : roster.filter(p => posSector(p.pos[0]) === id).length);
 
   // Primeiro jogador selecionado por padrão (o primeiro da lista atual).
+  const listColumns = [
+    { key: 'age', label: 'Idade', align: 'r', className: 'sq-num', hideMobile: true, render: (p) => p.age ?? '—' },
+    {
+      key: 'pot', label: 'Potencial', className: 'sq-pot', hideMobile: true, render: (p) => {
+        const hasPot = p.potential != null && p.potential > p.ovr;
+        return p.potential == null ? <span className="ch-small">—</span> : (
+          <><span className="ch-bar" style={{ height: 6, flex: 1 }}><i style={{ width: `${hasPot ? Math.round((p.ovr / p.potential) * 100) : 100}%`, background: hasPot ? 'var(--green-2)' : 'var(--line-strong)' }} /></span>{hasPot ? p.potential : 'teto'}</>
+        );
+      },
+    },
+    { key: 'j', label: 'J', align: 'r', className: 'sq-num', hideMobile: true, render: (p) => statsOf(p).matches },
+    { key: 'g', label: 'G', align: 'r', className: 'sq-num', hideMobile: true, render: (p) => statsOf(p).goals },
+    { key: 'a', label: 'A', align: 'r', className: 'sq-num', hideMobile: true, render: (p) => statsOf(p).assists },
+    { key: 'val', label: 'Valor', align: 'r', className: 'sq-num', hideMobile: true, render: (p) => formatMoneyShort(valueOf(p)) },
+  ];
   const flat = groups.flatMap(g => g.players);
   const selected = roster.find(p => p.name === selectedName) || flat[0] || null;
   const bestOvr = n ? Math.max(...roster.map(p => p.ovr)) : 0;
@@ -349,46 +353,15 @@ export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOp
           {groups.length === 0 && <div className="ch-empty">Nenhum jogador encontrado com esse filtro.</div>}
 
           {view === 'table' ? (
-            <div role="listbox" aria-label="Jogadores do elenco">
-              <div className="sq-th" aria-hidden="true"><span>Pos</span><span>Jogador</span><span className="r">Idade</span><span>Potencial</span><span className="r">J</span><span className="r">G</span><span className="r">A</span><span className="r">Valor</span><span className="r">OVR</span><span /></div>
-              {groups.map(g => (
-                <div key={g.s} role="group" aria-label={`${SECTOR_GROUP[g.s]}, ${g.players.length}`}>
-                  <div className="sq-grp"><i style={{ background: SECTOR_DOT[g.s] }} />{SECTOR_GROUP[g.s]} · {g.players.length}</div>
-                  {g.players.map(p => {
-                    const s = statsOf(p);
-                    const sel = selected?.name === p.name;
-                    const hasPot = p.potential != null && p.potential > p.ovr;
-                    return (
-                      <div
-                        key={p.name}
-                        role="option"
-                        aria-selected={sel}
-                        tabIndex={0}
-                        className={`sq-tr${sel ? ' sq-sel' : ''}`}
-                        onClick={() => select(p.name)}
-                        onKeyDown={e => { if (e.target !== e.currentTarget) return; if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); select(p.name); } }}
-                        aria-label={`${p.pos[0]}: ${p.name}, OVR ${p.ovr}`}
-                      >
-                        <PosChip pos={p.pos[0]} />
-                        <span className="sq-nm"><span className="sq-nm-l"><b>{p.name}</b><Tags tags={tagsOf(p)} /></span><small>{p.pos.join(' · ')}</small></span>
-                        <span className="sq-num sq-hide-m">{p.age ?? '—'}</span>
-                        <span className="sq-pot sq-hide-m">
-                          {p.potential == null ? <span className="ch-small">—</span> : (
-                            <><span className="ch-bar" style={{ height: 6, flex: 1 }}><i style={{ width: `${hasPot ? Math.round((p.ovr / p.potential) * 100) : 100}%`, background: hasPot ? 'var(--green-2)' : 'var(--line-strong)' }} /></span>{hasPot ? p.potential : 'teto'}</>
-                          )}
-                        </span>
-                        <span className="sq-num sq-hide-m">{s.matches}</span>
-                        <span className="sq-num sq-hide-m">{s.goals}</span>
-                        <span className="sq-num sq-hide-m">{s.assists}</span>
-                        <span className="sq-num sq-hide-m">{formatMoneyShort(valueOf(p))}</span>
-                        <span className={`sq-ovr ${ovrClass(p.ovr)}`}>{p.ovr}</span>
-                        <RowMenu open={menuFor === p.name} onToggle={() => setMenuFor(m => (m === p.name ? null : p.name))} onClose={() => setMenuFor(null)} items={menuItems(p)} label={p.name} />
-                      </div>
-                    );
-                  })}
-                </div>
-              ))}
-            </div>
+            <PlayerList
+              groups={groups}
+              ariaLabel="Jogadores do elenco"
+              columns={listColumns}
+              getTags={tagsOf}
+              selectedId={selected?.name ?? null}
+              onRowClick={(p) => select(p.name)}
+              renderRowEnd={(p) => <RowMenu open={menuFor === p.name} onToggle={() => setMenuFor(m => (m === p.name ? null : p.name))} onClose={() => setMenuFor(null)} items={menuItems(p)} label={p.name} />}
+            />
           ) : (
             <div className="sq-cards" role="listbox" aria-label="Jogadores do elenco">
               {flat.map(p => {
