@@ -20,6 +20,9 @@ import { ReadyMadeTeamModal } from './game/ReadyMadeTeamModal.jsx';
 import { CustomFormationModal } from './game/CustomFormationModal.jsx';
 import { SquadReadyScreen } from './game/SquadReadyScreen.jsx';
 import { LeagueHeader } from './game/league/LeagueHeader.jsx';
+import { MatchTab } from './game/league/MatchTab.jsx';
+import { Crest as LeagueCrest } from './game/league/Crest.jsx';
+import { applyResults, revertResults, positionsOf, leagueZoneFor, compactRows } from './game/league/leagueTable.js';
 import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter } from './ui/index.jsx';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
@@ -6722,6 +6725,7 @@ export default function App() {
           <Playing
             modeLabel={classicModeLabel}
             captainName={captainSlot ? pitch[captainSlot]?.name : null}
+            lastRoundResults={currentRound > 0 ? roundHistory[currentRound - 1] : null}
             myTeamId={myTeamId}
             pitchSlots={pitchSlots}
             fixtures={fixtures}
@@ -11715,6 +11719,102 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
   );
 }
 
+// Painel de substituição / ajuste tático durante o jogo (pausado). Extraído
+// do LiveMatchBox para ser usado também pela aba Partida da liga.
+function LiveSubPanel({ myTeamId, liveEvents, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, pitchSlots, myUnavailableNames, onLiveSlotPointerDown, liveDragOverKey }) {
+  const redCardedNames = new Set(
+    (liveEvents || []).filter(ev => ev.type === 'red' && ev.teamId === myTeamId).map(ev => ev.player)
+  );
+  return (
+    <div style={{ marginTop: 10, background: 'var(--surface)', borderRadius: 10, padding: '10px 12px' }}>
+      {forcedSubReason && (
+        <div style={{ fontSize: 12, color: 'var(--danger)', marginBottom: 8, fontWeight: 700 }}>
+          {forcedSubReason} se machucou. Escolha um substituto (ou retome jogando com um a menos).
+        </div>
+      )}
+      <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || 'var(--gold-ink)', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>
+        Substituição
+        {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o reserva</span>}
+        {!subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o titular</span>}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Titulares</div>
+          {Object.entries(liveLineup)
+            .filter(([k, p]) => !p.isBench && !redCardedNames.has(p.name) && !myUnavailableNames?.has(p.name))
+            .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
+            .map(([k, p]) => (
+              <button key={k} onClick={() => onSelectSubStarter(subSelectStarter === k ? null : k)}
+                style={{
+                  display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                  background: subSelectStarter === k ? 'rgba(31,122,77,0.14)' : 'var(--surface)',
+                  border: subSelectStarter === k ? '1px solid rgba(31,122,77,0.6)' : '1px solid var(--line)',
+                  borderRadius: 6, color: 'var(--ink)',
+                  fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer', marginBottom: 3,
+                }}
+              >
+                {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
+              </button>
+            ))}
+        </div>
+        {subSelectStarter && (() => {
+          const starterMeta = pitchSlots?.find(s => s.key === subSelectStarter);
+          return (
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Reservas</div>
+              {Object.entries(liveLineup)
+                .filter(([k, p]) => p.isBench && !myUnavailableNames?.has(p.name))
+                .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
+                .map(([k, p]) => {
+                  const alreadyOut = (subbedOutNames || []).includes(p.name);
+                  const positionOk = !starterMeta || starterMeta.isBench || (p.pos || []).includes(starterMeta.realPos);
+                  const blocked = alreadyOut || !positionOk;
+                  const reason = alreadyOut ? 'Já saiu do jogo nesta partida — não pode voltar' : !positionOk ? 'Não joga na posição desse titular' : undefined;
+                  return (
+                    <button
+                      key={k}
+                      onClick={() => !blocked && onApplySub(subSelectStarter, p)}
+                      disabled={blocked}
+                      title={reason}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
+                        background: blocked ? 'rgba(178,59,59,0.1)' : 'var(--surface)',
+                        border: blocked ? '1px solid rgba(178,59,59,0.35)' : '1px solid var(--line)',
+                        borderRadius: 6, color: blocked ? 'var(--muted)' : 'var(--ink)',
+                        fontFamily: 'var(--font-mono)', fontSize: 10,
+                        cursor: blocked ? 'not-allowed' : 'pointer', marginBottom: 3, opacity: blocked ? 0.6 : 1,
+                      }}
+                    >
+                      {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
+                    </button>
+                  );
+                })}
+            </div>
+          );
+        })()}
+      </div>
+
+      {onLiveSlotPointerDown && (
+        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || 'var(--gold-ink)', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' }}>
+            Ajuste tático
+          </div>
+          <div style={{ fontSize: 10.5, color: 'var(--muted)', marginBottom: 6 }}>
+            Arraste um titular pra outra vaga do time pra mudar o esquema na hora — sem envolver o banco.
+          </div>
+          <Pitch
+            pitch={liveLineup}
+            pitchSlots={pitchSlots || []}
+            myTeamColor={myTeamColor}
+            onSlotPointerDown={onLiveSlotPointerDown}
+            dragOverKey={liveDragOverKey}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots, myUnavailableNames, onViewTeam, onLiveSlotPointerDown, liveDragOverKey }) {
   if (!um || !homeTeam || !awayTeam) return null;
   const isAuto = simMode === 'auto';
@@ -11877,94 +11977,13 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
       {liveEvents.length === 0 && roundDone && <div style={styles.noGoalsMsg}>Sem gols — 0 × 0</div>}
       {liveEvents.length === 0 && !roundDone && !isSimulating && <div style={{ ...styles.noGoalsMsg, paddingTop: 4 }}>Os lances aparecem aqui, minuto a minuto.</div>}
 
-      {/* Sub panel */}
       {showSubPanel && liveLineup && (
-        <div style={{ marginTop: 10, background: 'var(--surface)', borderRadius: 10, padding: '10px 12px' }}>
-          {forcedSubReason && (
-            <div style={{ fontSize: 12, color: 'var(--danger)', marginBottom: 8, fontWeight: 700 }}>
-              🩹 {forcedSubReason} se machucou! Escolha um substituto (ou retome jogando com um a menos).
-            </div>
-          )}
-          <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || 'var(--gold-ink)', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>
-            ↕ Substituição
-            {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o reserva</span>}
-            {!subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o titular</span>}
-          </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Titulares</div>
-              {Object.entries(liveLineup)
-                .filter(([k, p]) => !p.isBench && !redCardedNames.has(p.name) && !myUnavailableNames?.has(p.name))
-                .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
-                .map(([k, p]) => (
-                  <button key={k} onClick={() => onSelectSubStarter(subSelectStarter === k ? null : k)}
-                    style={{
-                      display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                      background: subSelectStarter === k ? 'rgba(31,122,77,0.14)' : 'var(--surface)',
-                      border: subSelectStarter === k ? '1px solid rgba(31,122,77,0.6)' : '1px solid var(--line)',
-                      borderRadius: 6, color: 'var(--ink)',
-                      fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer', marginBottom: 3,
-                    }}
-                  >
-                    {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
-                  </button>
-                ))}
-            </div>
-            {subSelectStarter && (() => {
-              const starterMeta = pitchSlots?.find(s => s.key === subSelectStarter);
-              return (
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Reservas</div>
-                  {Object.entries(liveLineup)
-                    .filter(([k, p]) => p.isBench && !myUnavailableNames?.has(p.name))
-                    .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
-                    .map(([k, p]) => {
-                      const alreadyOut = (subbedOutNames || []).includes(p.name);
-                      const positionOk = !starterMeta || starterMeta.isBench || (p.pos || []).includes(starterMeta.realPos);
-                      const blocked = alreadyOut || !positionOk;
-                      const reason = alreadyOut ? 'Já saiu do jogo nesta partida — não pode voltar' : !positionOk ? 'Não joga na posição desse titular' : undefined;
-                      return (
-                        <button
-                          key={k}
-                          onClick={() => !blocked && onApplySub(subSelectStarter, p)}
-                          disabled={blocked}
-                          title={reason}
-                          style={{
-                            display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                            background: blocked ? 'rgba(178,59,59,0.1)' : 'var(--surface)',
-                            border: blocked ? '1px solid rgba(178,59,59,0.35)' : '1px solid var(--line)',
-                            borderRadius: 6, color: blocked ? 'var(--muted)' : 'var(--ink)',
-                            fontFamily: 'var(--font-mono)', fontSize: 10,
-                            cursor: blocked ? 'not-allowed' : 'pointer', marginBottom: 3, opacity: blocked ? 0.6 : 1,
-                          }}
-                        >
-                          {blocked ? '🔒 ' : ''}{p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
-                        </button>
-                      );
-                    })}
-                </div>
-              );
-            })()}
-          </div>
-
-          {onLiveSlotPointerDown && (
-            <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || 'var(--gold-ink)', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' }}>
-                ↔ Ajuste tático
-              </div>
-              <div style={{ fontSize: 10.5, color: 'var(--muted)', marginBottom: 6 }}>
-                Arraste um titular pra outra vaga do time pra mudar o esquema na hora — sem envolver o banco.
-              </div>
-              <Pitch
-                pitch={liveLineup}
-                pitchSlots={pitchSlots || []}
-                myTeamColor={myTeamColor}
-                onSlotPointerDown={onLiveSlotPointerDown}
-                dragOverKey={liveDragOverKey}
-              />
-            </div>
-          )}
-        </div>
+        <LiveSubPanel
+          myTeamId={myTeamId} liveEvents={liveEvents} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
+          subSelectStarter={subSelectStarter} onSelectSubStarter={onSelectSubStarter} onApplySub={onApplySub}
+          subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
+          onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
+        />
       )}
 
       {/* Toggle manual / automático */}
@@ -12304,41 +12323,7 @@ function SeasonCalendarModal({
 
 // Tabela resumida que fica ao lado da partida no desktop (some abaixo de
 // 1024px — no celular a aba "Tabela" continua sendo o caminho).
-function LeagueSideTable({ leagueTable, leagueTeams, myTeamId, myTeamLogo, mc, onOpenFull }) {
-  const n = leagueTable.length;
-  return (
-    <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: '14px 12px 10px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '0 6px 8px' }}>
-        <span style={{ fontFamily: 'var(--font-serif)', fontSize: 18 }}>Classificação</span>
-        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--muted)', letterSpacing: '0.08em' }}>PTS</span>
-      </div>
-      {leagueTable.map((row, i) => {
-        const isMe = row.id === myTeamId;
-        const zone = getZoneInfo(i + 1, n);
-        const logo = isMe ? myTeamLogo : row.clubLogo;
-        return (
-          <div key={row.id} style={{
-            display: 'grid', gridTemplateColumns: '22px 20px minmax(0,1fr) 28px 30px', alignItems: 'center', gap: 6,
-            padding: '5px 6px', borderRadius: 8, fontSize: 12.5,
-            background: isMe ? hexToRgba(mc, 0.1) : 'transparent',
-            boxShadow: zone ? `inset 3px 0 0 ${zone.color}` : 'none',
-          }}>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', textAlign: 'right' }}>{i + 1}</span>
-            {logo ? <img src={logo} alt="" style={{ width: 18, height: 18, objectFit: 'contain' }} onError={e => { e.currentTarget.style.visibility = 'hidden'; }} /> : <span />}
-            <span title={row.label} style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontWeight: isMe ? 700 : 400, color: isMe ? mc : 'var(--ink)' }}>{parseTeamLabel(row.label).baseName}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', textAlign: 'right' }}>{row.pj}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 700, textAlign: 'right' }}>{row.pts}</span>
-          </div>
-        );
-      })}
-      <button onClick={onOpenFull} className="tap-target-sm" style={{ marginTop: 8, width: '100%', minHeight: 40, background: 'none', border: 'none', borderTop: '1px solid var(--line)', color: 'var(--ink-2)', fontSize: 13, fontWeight: 500, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-        Tabela completa <Icon name="arrowRight" size={14} />
-      </button>
-    </div>
-  );
-}
-
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey, modeLabel, captainName }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey, modeLabel, captainName, lastRoundResults }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -12373,7 +12358,6 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   // — nem essa aba, nem em lugar nenhum. `myDivision` é a MINHA divisão;
   // `otherDivision.table` é sempre da outra.
   const otherDivisionLabel = myDivision === 'A' ? 'B' : 'A';
-  const showSideTable = activeTab === 'partida' && gameMode !== 'copa' && leagueTable?.length > 0;
   const TABS = [
     { id: 'partida', label: 'Partida', icon: 'play', badge: isSimulating && !fastSimActive ? 'ao vivo' : null, live: true },
     { id: 'tabela', label: 'Tabela', icon: 'table' },
@@ -12726,6 +12710,160 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   const isFinalPlayoffLeg = inPromotionTie && promotionTie.leg === 2;
   const isLastRound = isFinalRegularRound || isFinalPlayoffLeg;
 
+  // ── Aba Partida (fase 3): dados prontos para o MatchTab ──
+  const matchStatus = isSimulating ? (isPaused ? 'paused' : 'live') : roundDone ? 'done' : 'pre';
+  const tableNow = leagueTable || [];
+  const posNow = positionsOf(tableNow);
+  const splitLabel = (label = '') => {
+    const m = label.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
+    return m ? { name: m[1], conquest: m[2] } : { name: label, conquest: null };
+  };
+  const matchSide = (t) => {
+    const mine = t.id === myTeamId;
+    const row = tableNow.find(r => r.id === t.id);
+    const pos = posNow.get(t.id);
+    const { name, conquest } = splitLabel(t.label);
+    const situ = row && row.pj > 0 ? `${pos}º · ${row.pts} pts` : null;
+    return {
+      id: t.id, raw: t, mine, label: mine ? t.label : name,
+      logo: mine ? myTeamLogo : t.clubLogo, badge: mine ? myTeamBadge : null,
+      color: mine ? mc : (t.colors?.p || t.color || '#0D3A29'),
+      sub: [mine ? 'Seu time' : conquest, situ].filter(Boolean).join(' · ') || ' ',
+      form: teamForm?.[t.id] || [],
+    };
+  };
+  const matchProbs = homeTeam && awayTeam && typeof homeTeam.ovr === 'number' && typeof awayTeam.ovr === 'number'
+    ? matchOutcomeProbabilities(homeTeam, awayTeam) : null;
+  const smallTeam = (id) => {
+    const t = leagueTeams.find(x => x.id === id);
+    const mine = id === myTeamId;
+    return { label: mine ? (t?.label || myLabel) : splitLabel(t?.label).name, logo: mine ? myTeamLogo : t?.clubLogo, badge: mine ? myTeamBadge : null, color: mine ? mc : (t?.colors?.p || t?.color || '#0D3A29') };
+  };
+  const otherGames = (roundDone ? roundResults : round)
+    .filter(m => m.homeId !== myTeamId && m.awayId !== myTeamId)
+    .map((m, i) => ({ key: `${m.homeId}-${m.awayId}-${i}`, home: smallTeam(m.homeId), away: smallTeam(m.awayId), score: roundDone ? { h: m.homeGoals, a: m.awayGoals } : null }));
+  // Tabela ao vivo: só o placar parcial do MEU jogo entra durante a partida
+  // (os outros jogos só têm resultado no apito final). Movimento = posição
+  // antes desta rodada (ou da última, antes de começar).
+  let mtTable = tableNow;
+  let mtPrev = null;
+  const myPj = tableNow.find(r => r.id === myTeamId)?.pj ?? 0;
+  if (matchStatus === 'live' || matchStatus === 'paused') {
+    if (um) mtTable = applyResults(tableNow, [{ homeId: um.homeId, awayId: um.awayId, homeGoals: liveScore.home, awayGoals: liveScore.away }]);
+    mtPrev = positionsOf(tableNow);
+  } else if (matchStatus === 'done' && roundResults) {
+    const includesRound = myPj >= currentRound + 1;
+    if (includesRound) mtPrev = positionsOf(revertResults(tableNow, roundResults));
+    else { mtTable = applyResults(tableNow, roundResults); mtPrev = positionsOf(tableNow); }
+  } else if (lastRoundResults && myPj >= currentRound && currentRound > 0) {
+    mtPrev = positionsOf(revertResults(tableNow, lastRoundResults));
+  }
+  const tableDivision = gameMode === 'serieab' ? myDivision : 'A';
+  const matchLiveTable = mtTable.length > 0 && !isDailyChallenge && !inPromotionTie ? {
+    title: matchStatus === 'live' || matchStatus === 'paused' ? 'Tabela ao vivo' : 'Classificação',
+    myId: myTeamId,
+    note: matchStatus === 'live' || matchStatus === 'paused' ? 'Com o placar parcial do seu jogo; os outros jogos entram no apito final.' : null,
+    rows: compactRows(mtTable, myTeamId).map(r => r.gap ? r : ({
+      ...r,
+      label: r.row.id === myTeamId ? (r.row.label || myLabel) : splitLabel(leagueTeams.find(t => t.id === r.row.id)?.label || r.row.label).name,
+      move: mtPrev && mtPrev.get(r.row.id) ? mtPrev.get(r.row.id) - r.pos : 0,
+      zone: leagueZoneFor(tableDivision, r.pos, mtTable.length),
+    })),
+  } : null;
+  const partidaExtras = (
+<>
+            {(() => {
+              const prefix = `${myTeamId}::`;
+              const desfalques = [
+                ...Object.entries(suspensions || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => ({ name: k.slice(prefix.length), reason: 'suspenso' })),
+                ...Object.entries(injuries || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => ({ name: k.slice(prefix.length), reason: 'lesionado' })),
+              ];
+              if (desfalques.length === 0) return null;
+              const hasInjury = desfalques.some(d => d.reason === 'lesionado');
+              return (
+                <section className="lg-card lg-out">
+                  <div className="lg-ch"><h3>Desfalques</h3>{hasInjury && <span className="lg-small">boletim de {MEDICAL_CHIEF_NAME}</span>}</div>
+                  {desfalques.map((d, i) => (
+                    <div key={`${d.name}-${i}`} className="lg-out-r"><b>{d.name}</b><span className={`lg-out-t${d.reason === 'lesionado' ? ' lg-out-inj' : ''}`}>{d.reason}</span></div>
+                  ))}
+                </section>
+              );
+            })()}
+  
+            {lastMatchRatings?.length > 0 && (
+              <section className="lg-card">
+                <button type="button" className="lg-acc" aria-expanded={showRatings} onClick={() => setShowRatings(s => !s)}>
+                  <h3>Notas da última partida</h3><Icon name={showRatings ? 'chevronDown' : 'chevronRight'} size={16} />
+                </button>
+                {showRatings && (
+                  <div className="lg-acc-b" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px' }}>
+                    {[activeUserMatch?.homeId, activeUserMatch?.awayId].map((tid, side) => (
+                      <div key={side}>
+                        {[...lastMatchRatings].filter(r => r.teamId === tid).sort((a, b) => b.rating - a.rating).map((r, i) => (
+                          <div key={`${r.name}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12, padding: '3px 0', borderBottom: '1px solid var(--line)' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                            <span style={{
+                              fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0,
+                              color: r.rating >= 7.5 ? 'var(--success)' : r.rating < 5.5 ? 'var(--danger)' : 'var(--ink)',
+                            }}>{r.rating.toFixed(1)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+            )}
+  
+            {/* Historico de partidas */}
+            {matchHistory && matchHistory.length > 0 && (
+              <section className="lg-card">
+                <button type="button" className="lg-acc" aria-expanded={showHistory} onClick={() => setShowHistory(h => !h)}>
+                  <h3>Histórico</h3><span className="lg-small">{matchHistory.length} partida{matchHistory.length !== 1 ? 's' : ''}</span><Icon name={showHistory ? 'chevronDown' : 'chevronRight'} size={16} />
+                </button>
+                {showHistory && (
+                  <div className="lg-acc-b" style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {/* Uma linha por partida do usuário: rodada, selo V/D/E, mando
+                    (vs = casa, @ = fora), adversário e placar. Só o adversário
+                    aparece — o outro time é sempre o do usuário, e mostrar os
+                    dois nomes era justamente o que estourava a largura e
+                    quebrava a linha (o grid de 3 colunas recebia 4 filhos). */}
+                    {[...matchHistory].reverse().map((m, i) => {
+                      const isHome = m.homeLabel === myLabel;
+                      const gf = isHome ? m.hg : m.ag;
+                      const ga = isHome ? m.ag : m.hg;
+                      const res = gf > ga ? 'V' : gf < ga ? 'D' : 'E';
+                      const opponent = isHome ? m.awayLabel : m.homeLabel;
+                      return (
+                        <div key={i} style={{
+                          display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+                          borderRadius: 8, background: 'var(--surface)',
+                          border: `1px solid ${hexToRgba(RESULT_COLORS[res], 0.28)}`, fontSize: 12.5,
+                        }}>
+                          <span style={{ fontSize: 9.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)', width: 30, flexShrink: 0 }}>
+                            {m.gameMode === 'copa' ? (m.legLabel || '').slice(0, 5) : `R${m.round}`}
+                          </span>
+                          <span style={{
+                            width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            background: RESULT_COLORS[res], color: 'var(--ink)', fontSize: 11, fontWeight: 800,
+                          }}>{res}</span>
+                          <span style={{ fontSize: 10, color: 'var(--muted)', width: 16, flexShrink: 0, textAlign: 'center' }}>{isHome ? 'vs' : '@'}</span>
+                          <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opponent}</span>
+                          <span style={{
+                            fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, flexShrink: 0,
+                            color: RESULT_COLORS[res] === RESULT_COLORS.E ? 'var(--ink)' : RESULT_COLORS[res],
+                          }}>{gf}-{ga}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </section>
+            )}
+          </>
+  );
+
   // Cabeçalho da liga (fase 2 do redesenho, liga-partida-mockup.html)
   const myRowIdx = (leagueTable || []).findIndex(r => r.id === myTeamId);
   const myRow = myRowIdx >= 0 ? leagueTable[myRowIdx] : null;
@@ -12752,7 +12890,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   return (
     <div style={styles.card} className="card-mob">
       <LeagueHeader
-        crest={<TeamBadge src={myTeamLogo} name={myLabel} color={mc} size={58} radius={16} />}
+        crest={<LeagueCrest logo={myTeamLogo} badge={myTeamBadge} name={myLabel} color={mc} size={58} radius={16} />}
         eyebrow={leagueEyebrow}
         title={leagueTitle}
         tags={headerTags}
@@ -12781,46 +12919,44 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         onTab={setActiveTab}
       />
 
-      <div className={showSideTable ? 'league-split' : undefined} id="lg-panel" role="tabpanel" aria-labelledby={`lg-tab-${activeTab}`}>
+      <div id="lg-panel" role="tabpanel" aria-labelledby={`lg-tab-${activeTab}`}>
       <div style={{ minWidth: 0 }}>
-      {activeTab === 'partida' && (
-        <>
-          <LiveMatchBox
-            um={um} homeTeam={homeTeam} awayTeam={awayTeam}
-            myTeamId={myTeamId} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} mc={mc}
-            liveScore={liveScore} clockDisplay={clockDisplay}
-            isSimulating={isSimulating} roundDone={roundDone}
-            liveEvents={liveEvents} simSpeed={simSpeed}
-            onSetSpeed={onSetSpeed} simMode={simMode} onSetSimMode={onSetSimMode}
-            autoCountdown={autoCountdown} onStartRound={onStartRound}
-            roundLabel={`Jogar Rodada ${currentRound + 1}`}
-            isPaused={isPaused} onPause={onPause} onResume={onResume}
-            showSubPanel={showSubPanel} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
-            subSelectStarter={subSelectStarter}
-            onSelectSubStarter={onSelectSubStarter}
-            onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
-            myUnavailableNames={myUnavailableNames} onViewTeam={onViewTeam}
-            onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
-          />
-
-          {roundDone && (
-            <div style={styles.otherMatchesBox}>
-              <div style={styles.sectionLabel}>Outros jogos da rodada {currentRound + 1}</div>
-              {roundResults.filter(r => r.homeId !== myTeamId && r.awayId !== myTeamId).map((r, i) => {
-                const h = leagueTeams.find(t => t.id === r.homeId);
-                const a = leagueTeams.find(t => t.id === r.awayId);
-                const hw = r.homeGoals > r.awayGoals, aw = r.awayGoals > r.homeGoals;
-                return (
-                  <div key={i} style={styles.otherMatchRow}>
-                    <span style={{ ...styles.otherTeam, fontWeight: hw ? 700 : 400 }}>{h?.label}</span>
-                    <span style={styles.otherScore}>{r.homeGoals} – {r.awayGoals}</span>
-                    <span style={{ ...styles.otherTeam, textAlign: 'left', fontWeight: aw ? 700 : 400 }}>{a?.label}</span>
-                  </div>
-                );
-              })}
+      {activeTab === 'partida' && um && homeTeam && awayTeam && (
+        <MatchTab
+          roundNumber={currentRound + 1}
+          venueText={[CLUB_STADIUMS[homeTeam.club], um.homeId === myTeamId ? 'você em casa' : 'você fora'].filter(Boolean).join(' · ')}
+          isClassic={isRivalryMatch(homeTeam.club, awayTeam.club)}
+          home={matchSide(homeTeam)}
+          away={matchSide(awayTeam)}
+          status={matchStatus}
+          score={liveScore}
+          minute={clockMinute}
+          events={liveEvents}
+          probs={matchProbs}
+          simMode={simMode} onSetSimMode={onSetSimMode}
+          simSpeed={simSpeed} onSetSpeed={onSetSpeed}
+          onPause={onPause} onResume={onResume}
+          onStart={onStartRound} startLabel={`Jogar rodada ${currentRound + 1}`}
+          autoCountdown={autoCountdown}
+          onSimulateAll={onSimulateAll}
+          onViewTeam={onViewTeam}
+          subPanel={showSubPanel && liveLineup ? (
+            <div className="lg-card" style={{ padding: '4px 16px 14px' }}>
+              <LiveSubPanel
+                myTeamId={myTeamId} liveEvents={liveEvents} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
+                subSelectStarter={subSelectStarter} onSelectSubStarter={onSelectSubStarter} onApplySub={onApplySub}
+                subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
+                onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
+              />
             </div>
-          )}
-        </>
+          ) : null}
+          otherGames={otherGames}
+          otherNote={roundDone ? 'Final' : isSimulating ? 'placares no apito final' : `Rodada ${currentRound + 1}`}
+          liveTable={matchLiveTable}
+          onOpenTable={() => setActiveTab('tabela')}
+        >
+          {partidaExtras}
+        </MatchTab>
       )}
 
       {activeTab === 'tabela' && (
@@ -13021,107 +13157,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         />
       )}
 
-      {activeTab === 'partida' && (
-        <>
-          {(() => {
-            const prefix = `${myTeamId}::`;
-            const desfalques = [
-              ...Object.entries(suspensions || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => ({ name: k.slice(prefix.length), reason: 'suspenso' })),
-              ...Object.entries(injuries || {}).filter(([k, left]) => left > 0 && k.startsWith(prefix)).map(([k]) => ({ name: k.slice(prefix.length), reason: 'lesionado' })),
-            ];
-            if (desfalques.length === 0) return null;
-            const hasInjury = desfalques.some(d => d.reason === 'lesionado');
-            return (
-              <div style={{ marginTop: 14, background: 'rgba(178,59,59,0.1)', border: '1px solid rgba(178,59,59,0.4)', borderRadius: 10, padding: '10px 12px' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)', letterSpacing: 1, textTransform: 'uppercase', marginBottom: 6 }}>
-                  Desfalques no seu time{hasInjury && <span style={{ textTransform: 'none', fontWeight: 400, opacity: 0.7 }}> — boletim de {MEDICAL_CHIEF_NAME}</span>}
-                </div>
-                {desfalques.map((d, i) => (
-                  <div key={`${d.name}-${i}`} style={{ fontSize: 13, padding: '2px 0' }}>{d.name} <span style={{ color: 'var(--muted)', fontSize: 11 }}>({d.reason})</span></div>
-                ))}
-              </div>
-            );
-          })()}
-
-          {lastMatchRatings?.length > 0 && (
-            <div style={{ marginTop: 14 }}>
-              <button onClick={() => setShowRatings(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
-                {showRatings ? '▾' : '▸'} Notas da última partida
-              </button>
-              {showRatings && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 16px', marginTop: 6 }}>
-                  {[activeUserMatch?.homeId, activeUserMatch?.awayId].map((tid, side) => (
-                    <div key={side}>
-                      {[...lastMatchRatings].filter(r => r.teamId === tid).sort((a, b) => b.rating - a.rating).map((r, i) => (
-                        <div key={`${r.name}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12, padding: '3px 0', borderBottom: '1px solid var(--line)' }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
-                          <span style={{
-                            fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0,
-                            color: r.rating >= 7.5 ? 'var(--success)' : r.rating < 5.5 ? 'var(--danger)' : 'var(--ink)',
-                          }}>{r.rating.toFixed(1)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Historico de partidas */}
-          {matchHistory && matchHistory.length > 0 && (
-            <div style={{ marginTop: 12 }}>
-              <button onClick={() => setShowHistory(h => !h)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
-                {showHistory ? '▾' : '▸'} Histórico ({matchHistory.length} partida{matchHistory.length !== 1 ? 's' : ''})
-              </button>
-              {showHistory && (
-                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {/* Uma linha por partida do usuário: rodada, selo V/D/E, mando
-                  (vs = casa, @ = fora), adversário e placar. Só o adversário
-                  aparece — o outro time é sempre o do usuário, e mostrar os
-                  dois nomes era justamente o que estourava a largura e
-                  quebrava a linha (o grid de 3 colunas recebia 4 filhos). */}
-                  {[...matchHistory].reverse().map((m, i) => {
-                    const isHome = m.homeLabel === myLabel;
-                    const gf = isHome ? m.hg : m.ag;
-                    const ga = isHome ? m.ag : m.hg;
-                    const res = gf > ga ? 'V' : gf < ga ? 'D' : 'E';
-                    const opponent = isHome ? m.awayLabel : m.homeLabel;
-                    return (
-                      <div key={i} style={{
-                        display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
-                        borderRadius: 8, background: 'var(--surface)',
-                        border: `1px solid ${hexToRgba(RESULT_COLORS[res], 0.28)}`, fontSize: 12.5,
-                      }}>
-                        <span style={{ fontSize: 9.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)', width: 30, flexShrink: 0 }}>
-                          {m.gameMode === 'copa' ? (m.legLabel || '').slice(0, 5) : `R${m.round}`}
-                        </span>
-                        <span style={{
-                          width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                          display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          background: RESULT_COLORS[res], color: 'var(--ink)', fontSize: 11, fontWeight: 800,
-                        }}>{res}</span>
-                        <span style={{ fontSize: 10, color: 'var(--muted)', width: 16, flexShrink: 0, textAlign: 'center' }}>{isHome ? 'vs' : '@'}</span>
-                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{opponent}</span>
-                        <span style={{
-                          fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13, flexShrink: 0,
-                          color: RESULT_COLORS[res] === RESULT_COLORS.E ? 'var(--ink)' : RESULT_COLORS[res],
-                        }}>{gf}-{ga}</span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          )}
-        </>
-      )}
       </div>
-      {showSideTable && (
-        <aside className="league-side">
-          <LeagueSideTable leagueTable={leagueTable} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamLogo={myTeamLogo} mc={mc} onOpenFull={() => setActiveTab('tabela')} />
-        </aside>
-      )}
       </div>
     </div>
   );
@@ -14140,12 +14176,6 @@ const globalCss = `
     .bk-draw, .bk-land, .bk-flash, .bk-trophy { animation: none !important; }
   }
 
-  .league-split { display: grid; grid-template-columns: minmax(0,1fr) 340px; gap: 20px; align-items: start; }
-  .league-side { position: sticky; top: 16px; }
-  @media (max-width: 1023px) {
-    .league-split { grid-template-columns: 1fr; }
-    .league-side { display: none; }
-  }
   .match-timeline { position: relative; }
   .match-timeline::before { content: ''; position: absolute; left: 50%; top: 4px; bottom: 4px; width: 1px; background: var(--line); }
   .marquee-track { animation: marquee 48s linear infinite; will-change: transform; }
