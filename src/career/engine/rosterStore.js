@@ -136,7 +136,9 @@ export function debitBudget(save, clubId, amount) {
 export function promoteYouthPlayer(save, clubId, playerName) {
   const club = save.clubs[clubId];
   if (!club) return save;
-  const roster = club.roster.map(p => (p.name === playerName ? { ...p, inAcademy: false } : p));
+  // promotedOvr/Season/How (2026-11-13): a tela de Base mostra quanto o
+  // formado evoluiu desde que subiu ("+N") e como subiu.
+  const roster = club.roster.map(p => (p.name === playerName && p.inAcademy ? { ...p, inAcademy: false, promotedOvr: p.ovr, promotedSeason: save.season, promotedHow: 'manual' } : p));
   return replaceRoster(save, clubId, roster);
 }
 

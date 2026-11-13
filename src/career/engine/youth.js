@@ -112,6 +112,8 @@ export function generateClubYouthBatch(makePrngFn, hashSeedFn, saveSeed, clubId,
   const rand = makePrngFn(hashSeedFn(`${saveSeed}|youth|${clubId}|${season}`));
   const tier = careerClubTier(clubId);
   const count = 2 + Math.floor(rand() * 2); // 2 ou 3
-  return Array.from({ length: count }, () => generateYouthProspect(rand, tier));
+  // `revealedSeason` (2026-11-13): "revelado na temporada X" na tela de
+  // Base — só um rótulo, não consome sorteio nem muda nada na geração.
+  return Array.from({ length: count }, () => ({ ...generateYouthProspect(rand, tier), revealedSeason: season }));
 }
 

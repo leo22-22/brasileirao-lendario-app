@@ -13,6 +13,7 @@ import { TIER_TABLE } from '../engine/youth.js';
 import { squadDepth } from '../engine/squadDepth.js';
 import { computePlayerValue } from '../engine/pricing.js';
 import { formatCalendarDay } from '../engine/calendar.js';
+import { COPA_DAYS } from '../engine/copaEngine.js';
 import { formatMoneyShort } from './CareerHub.jsx';
 import { posSector, posOrderIndex } from '../../lib/format.js';
 import { displayName } from '../../lib/displayName.js';
@@ -45,23 +46,37 @@ export function CareerYouthScreen({ save, onPromote, onNavigate }) {
   const tier = careerClubTier(me);
   const T = TIER_TABLE[tier] || TIER_TABLE.pequeno;
   const lastRoundDay = save.seasonCalendar?.[save.seasonCalendar.length - 1];
+  // A revelação acontece no fechamento da temporada, que agora espera a
+  // final da Copa do Brasil quando ela ainda não foi jogada.
+  const copaFinalDay = [].concat(COPA_DAYS[COPA_DAYS.length - 1])[0];
+  const copaPending = save.copa && save.copa.phase !== 'done';
+  const revealAfterDay = copaPending ? Math.max(lastRoundDay || 0, copaFinalDay) : lastRoundDay;
+  const revealAfterText = revealAfterDay ? (copaPending && revealAfterDay === copaFinalDay ? `após a final da Copa, ${formatCalendarDay(revealAfterDay)}` : `após ${formatCalendarDay(revealAfterDay)}`) : null;
 
   // Formados: jogadores com isYouth já fora da base (promovidos ou subiram aos 20)
   const formed = pro.filter(p => p.isYouth).sort((a, b) => b.ovr - a.ovr);
   const starters = new Set(save.myStarters || []);
   const formedStarters = formed.filter(p => starters.has(p.name)).length;
-  // Formados vendidos: a venda (transferLog 'user-sell') só guarda o nome, mas o
-  // jogador vai inteiro para o comprador — com isYouth — e dá para achá-lo lá.
+  // Formados vendidos: desde 2026-11-13 a venda grava isYouth/pos/ovr no
+  // transferLog; vendas mais antigas só têm o nome, então para elas o jogador
+  // é procurado no elenco do comprador (vai inteiro, com isYouth).
   const soldFormed = (save.transferLog || [])
     .filter(e => e.type === 'user-sell' && e.fromClubId === me)
-    .filter(e => save.clubs[e.toClubId]?.roster.some(p => p.name === e.playerName && p.isYouth))
-    .map(e => ({ name: e.playerName, toClubId: e.toClubId, amount: e.amount, pos: save.clubs[e.toClubId].roster.find(p => p.name === e.playerName)?.pos?.[0] }));
+    .map(e => {
+      if (e.isYouth) return { name: e.playerName, toClubId: e.toClubId, amount: e.amount, pos: e.pos, season: e.season };
+      const found = save.clubs[e.toClubId]?.roster.find(p => p.name === e.playerName && p.isYouth);
+      return found ? { name: e.playerName, toClubId: e.toClubId, amount: e.amount, pos: found.pos?.[0], season: e.season } : null;
+    })
+    .filter(Boolean)
+    .reverse();
 
   const stars = academy.filter(p => p.isStar).length;
   const withPot = academy.filter(p => p.growthPerSeason).length;
   const nextUp = academy.filter(p => p.age >= 19).length;
   const avgOvr = academy.length ? academy.reduce((s, p) => s + p.ovr, 0) / academy.length : null;
-  const avgPot = academy.length ? academy.reduce((s, p) => { const r = potentialRange(p); return s + (r ? (r.low + r.high) / 2 : p.ovr); }, 0) / academy.length : null;
+  // Média da FAIXA do olheiro (não o potencial exato, que fica escondido).
+  const avgLow = academy.length ? academy.reduce((s, p) => s + (potentialRange(p)?.low ?? p.ovr), 0) / academy.length : null;
+  const avgHigh = academy.length ? academy.reduce((s, p) => s + (potentialRange(p)?.high ?? p.ovr), 0) / academy.length : null;
   const fmt1 = (x) => x.toLocaleString('pt-BR', { maximumFractionDigits: 1 });
 
   const [confirm, setConfirm] = useState(null);
@@ -106,7 +121,7 @@ export function CareerYouthScreen({ save, onPromote, onNavigate }) {
             {thin && <span className="yb-tg-ok" title={`O elenco tem ${group.count} jogador${group.count === 1 ? '' : 'es'} em ${group.id}`}>Supre carência</span>}
           </span>
         </div>
-        <div className="yb-nm"><h4>{p.name}</h4><small>{p.age} anos · revelado pelo clube</small></div>
+        <div className="yb-nm"><h4>{p.name}</h4><small>{p.age} anos · {p.revealedSeason ? `revelado na temporada ${p.revealedSeason}` : 'revelado pelo clube'}</small></div>
         <div className="yb-ovrs">
           <div className="yb-big">{p.ovr}<small>OVR hoje</small></div>
           <div className="yb-potw">
@@ -166,7 +181,7 @@ export function CareerYouthScreen({ save, onPromote, onNavigate }) {
         </div>
         <div className="yb-nxt">
           <span className="yb-nxt-ic" aria-hidden="true"><Icon name="sprout" size={18} /></span>
-          <div><b>Próxima revelação</b><small>Fim da temporada{lastRoundDay ? ` (após ${formatCalendarDay(lastRoundDay)})` : ''} · 2 ou 3 jovens</small></div>
+          <div><b>Próxima revelação</b><small>Fim da temporada{revealAfterText ? ` (${revealAfterText})` : ''} · 2 ou 3 jovens</small></div>
         </div>
       </div>
 
@@ -174,7 +189,7 @@ export function CareerYouthScreen({ save, onPromote, onNavigate }) {
         <div className="ch-card yb-kpi"><span className="ch-mono">Na base</span><b>{academy.length}</b><span className="yb-d">{academy.length ? `${stars} joia${stars === 1 ? '' : 's'} · ${withPot} com potencial` : 'Nenhum jovem agora'}</span></div>
         <div className="ch-card yb-kpi"><span className="ch-mono">Formados no elenco</span><b>{formed.length}</b><span className="yb-d">{formed.length ? `${formedStarters} titular${formedStarters === 1 ? '' : 'es'} na escalação` : 'Nenhum ainda'}</span></div>
         <div className="ch-card yb-kpi"><span className="ch-mono">Sobem na próxima</span><b>{nextUp}</b><span className="yb-d" style={nextUp ? { color: 'var(--warning-ink, var(--warning))' } : undefined}>{nextUp ? 'Completam 20 anos e sobem sozinhos' : 'Ninguém com 19 anos na base'}</span></div>
-        <div className="ch-card yb-kpi"><span className="ch-mono">OVR médio da base</span><b>{avgOvr != null ? fmt1(avgOvr) : '—'}</b><span className="yb-d">{avgPot != null ? `Potencial médio estimado ${Math.round(avgPot)}` : 'Sem jovens para medir'}</span></div>
+        <div className="ch-card yb-kpi"><span className="ch-mono">OVR médio da base</span><b>{avgOvr != null ? fmt1(avgOvr) : '—'}</b><span className="yb-d">{avgLow != null ? `Potencial estimado ${Math.round(avgLow)} – ${Math.round(avgHigh)}` : 'Sem jovens para medir'}</span></div>
       </div>
 
       <div className="yb-lay">
@@ -186,7 +201,7 @@ export function CareerYouthScreen({ save, onPromote, onNavigate }) {
               <div className="yb-empty-main">
                 <span className="yb-empty-ic" aria-hidden="true"><Icon name="sprout" size={24} /></span>
                 <h3>Nenhum jovem na base agora</h3>
-                <p>No fim da temporada{lastRoundDay ? `, depois de ${formatCalendarDay(lastRoundDay)},` : ''} o {clubName} revela 2 ou 3 jovens de 16 a 19 anos.</p>
+                <p>No fim da temporada{revealAfterText ? ` (${revealAfterText})` : ''}, o {clubName} revela 2 ou 3 jovens de 16 a 19 anos.</p>
               </div>
               {Expect(true)}
             </div>
@@ -207,14 +222,14 @@ export function CareerYouthScreen({ save, onPromote, onNavigate }) {
             {formed.map(p => (
               <div key={p.name} className="yb-gr">
                 <Pos pos={p.pos[0]} />
-                <div style={{ minWidth: 0 }}><b className="cf-ell">{p.name}</b><small>{p.age} anos · {starters.has(p.name) ? 'titular' : 'no elenco'}</small></div>
-                <span className="yb-o">{p.ovr}</span>
+                <div style={{ minWidth: 0 }}><b className="cf-ell">{p.name}</b><small>{p.age} anos · {p.promotedHow === 'auto' ? 'subiu aos 20' : p.promotedHow === 'manual' ? 'promovido' : 'formado no clube'}{p.promotedSeason ? ` na temp. ${p.promotedSeason}` : ''}{starters.has(p.name) ? ' · titular' : ''}</small></div>
+                <span className="yb-o">{p.ovr}{p.promotedOvr != null && p.ovr !== p.promotedOvr && <small className={p.ovr > p.promotedOvr ? 'yb-up' : 'yb-dn'} aria-label={`${p.ovr > p.promotedOvr ? 'subiu' : 'caiu'} ${Math.abs(p.ovr - p.promotedOvr)} desde a promoção`}>{p.ovr > p.promotedOvr ? '+' : '−'}{Math.abs(p.ovr - p.promotedOvr)}</small>}</span>
               </div>
             ))}
             {soldFormed.map(s => (
               <div key={`sold-${s.name}`} className="yb-gr yb-sold">
                 {s.pos ? <Pos pos={s.pos} /> : <span />}
-                <div style={{ minWidth: 0 }}><b className="cf-ell">{s.name}</b><small>vendido ao {nameOf(s.toClubId)} · {formatMoneyShort(s.amount)}</small></div>
+                <div style={{ minWidth: 0 }}><b className="cf-ell">{s.name}</b><small>vendido ao {nameOf(s.toClubId)} · {formatMoneyShort(s.amount)}{s.season ? ` · temp. ${s.season}` : ''}</small></div>
                 <span className="yb-o">—</span>
               </div>
             ))}

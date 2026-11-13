@@ -79,7 +79,9 @@
 .yb-gr { display: flex; gap: 12px; align-items: center; padding: 11px 20px; border-top: 1px solid var(--line); }
 .yb-gr b { font-weight: 600; font-size: 13.5px; display: block; }
 .yb-gr small { display: block; color: var(--muted); font-size: 12px; }
-.yb-o { margin-left: auto; font-family: var(--font-serif); font-size: 20px; }
+.yb-o { margin-left: auto; font-family: var(--font-serif); font-size: 20px; text-align: right; line-height: 1.05; }
+.yb-o small { display: block; font-family: var(--font-mono); font-size: 11px; }
+.yb-up { color: var(--success); } .yb-dn { color: var(--danger); }
 .yb-sold .yb-o { color: var(--muted); }
 
 /* Toast */

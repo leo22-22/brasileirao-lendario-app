@@ -592,7 +592,7 @@ export function endOfSeason(save) {
       // Graduação automática da categoria de base aos 20 anos — a outra
       // forma de sair é o usuário promover manualmente (ver
       // promoteYouthPlayer em rosterStore.js).
-      survivors.push(aged.inAcademy && aged.age >= 20 ? { ...aged, inAcademy: false } : aged);
+      survivors.push(aged.inAcademy && aged.age >= 20 ? { ...aged, inAcademy: false, promotedOvr: aged.ovr, promotedSeason: save.season, promotedHow: 'auto' } : aged);
     }
     next = replaceRoster(next, clubId, survivors);
     // Histórico só registra a aposentadoria de jogador do PRÓPRIO usuário —
@@ -741,7 +741,7 @@ export function respondToOffer(save, offerIndex, accept) {
       [offer.toClubId]: { ...seller, roster: seller.roster.filter(p => p.name !== offer.playerName), budget: seller.budget + offer.amount },
       [offer.fromClubId]: { ...buyer, roster: [...buyer.roster, player], budget: Math.max(0, buyer.budget - offer.amount) },
     },
-    transferLog: appendTransferLog(save, { type: 'user-sell', playerName: offer.playerName, fromClubId: offer.toClubId, toClubId: offer.fromClubId, amount: offer.amount }),
+    transferLog: appendTransferLog(save, { type: 'user-sell', playerName: offer.playerName, fromClubId: offer.toClubId, toClubId: offer.fromClubId, amount: offer.amount, ...(player.isYouth ? { isYouth: true, pos: player.pos?.[0], ovr: player.ovr } : {}) }),
   };
 }
 
@@ -791,7 +791,7 @@ export function counterOffer(save, offerIndex, counterAmount) {
         [offer.toClubId]: { ...seller, roster: seller.roster.filter(p => p.name !== offer.playerName), budget: seller.budget + counterAmount },
         [offer.fromClubId]: { ...buyer, roster: [...buyer.roster, player], budget: Math.max(0, buyer.budget - counterAmount) },
       },
-      transferLog: appendTransferLog(save, { type: 'user-sell', playerName: offer.playerName, fromClubId: offer.toClubId, toClubId: offer.fromClubId, amount: counterAmount }),
+      transferLog: appendTransferLog(save, { type: 'user-sell', playerName: offer.playerName, fromClubId: offer.toClubId, toClubId: offer.fromClubId, amount: counterAmount, ...(player.isYouth ? { isYouth: true, pos: player.pos?.[0], ovr: player.ovr } : {}) }),
     },
     accepted: true,
   };
