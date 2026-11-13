@@ -46,13 +46,8 @@ export function posColor(pos) {
   return POS_COLOR[pos] || '#69736B';
 }
 
-// Extrai o nome base e a conquista (texto entre parênteses no fim do label,
-// quando existe, ex.: "Guarani 1978 (Campeao Brasileiro)") — só reformata
-// o que já está no dado de TEAMS, não inventa nenhum fato novo.
-export function parseTeamLabel(label) {
-  const m = label.match(/^(.*?)\s*\(([^)]+)\)\s*$/);
-  return m ? { baseName: m[1], achievement: m[2] } : { baseName: label, achievement: null };
-}
+// parseTeamLabel mora em lib/teamLabel.js (reexportado aqui por compatibilidade de import).
+export { parseTeamLabel } from './teamLabel.js';
 
 // Setor de cada posição (mesmos grupos do POS_COLOR acima): goleiro,
 // defesa, meio-campo (inclui o meia ofensivo) e ataque. Usado pra força

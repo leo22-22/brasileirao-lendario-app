@@ -2,16 +2,14 @@
 // Tudo puro: recebe a tabela/listas e devolve números e frases. Não simula
 // nada — o placar de cada jogo continua saindo só de prepareMatch
 // (matchPrng + simAiMatch) em Simulator2026App.jsx.
-import { applyRoundToTable } from '../App.jsx';
+import { applyResults as applyRoundToTable, zoneFor } from './standings.js';
 
 // Mesmas faixas da Tabela da carreira (getZoneInfo): G4, 5º–6º pré-Libertadores,
 // 7º–12º Sul-Americana, 17º–20º Z4.
-export function zoneOf(pos) {
-  if (pos <= 4) return { key: 'g4', label: 'G4', color: '#1F7A4D' };
-  if (pos <= 6) return { key: 'g6', label: 'Pré-Liberta', color: '#6FB28E' };
-  if (pos <= 12) return { key: 'sa', label: 'Sul-Americana', color: '#4E86C2' };
-  if (pos >= 17) return { key: 'z4', label: 'Z4', color: '#B23B3B' };
-  return null;
+export function zoneOf(pos, total = 20) {
+  const z = zoneFor('A', pos, total);
+  if (!z) return null;
+  return { key: z.key, label: { g4: 'G4', g6: 'Pré-Liberta', sa: 'Sul-Americana', z4: 'Z4' }[z.key], color: z.color };
 }
 
 const posOf = (table, id) => table.findIndex(r => r.id === id) + 1;

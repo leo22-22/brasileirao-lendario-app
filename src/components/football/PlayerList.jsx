@@ -2,7 +2,7 @@
 // Elenco do Modo Carreira sem mudar markup nem classes (sq-*): grupos por
 // setor com cabeçalho, chip de posição pela cor do setor, nome + tags,
 // colunas configuráveis e badge de OVR em 3 faixas.
-import { posSector } from '../lib/format.js';
+import { posSector } from '../../lib/format.js';
 import './playerList.css';
 
 export const SECTOR_GROUP = { gk: 'Goleiros', df: 'Defesa', md: 'Meio-campo', at: 'Ataque' };

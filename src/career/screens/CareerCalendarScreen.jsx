@@ -9,7 +9,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
-import { matchOutcomeProbabilities } from '../../App.jsx';
+import { matchOutcomeProbabilities } from '../../lib/probability.js';
 import {
   formatCalendarDay, isTransferWindowOpen, currentWindowCloseDay, nextWindowOpenDay,
   WINDOW2_START, WINDOW2_END, JAN_END,

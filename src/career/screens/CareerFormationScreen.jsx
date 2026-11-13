@@ -15,7 +15,7 @@ import { posColor, posOrderIndex, posSector } from '../../lib/format.js';
 import { FORMATIONS, buildPitchSlots, autoFillFromPool } from '../engine/formations.js';
 import { teamForSim } from '../engine/simHelpers.js';
 import { upcomingFixtures, dayParts } from '../engine/careerMeta.js';
-import { matchOutcomeProbabilities } from '../../App.jsx';
+import { matchOutcomeProbabilities } from '../../lib/probability.js';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { displayName } from '../../lib/displayName.js';

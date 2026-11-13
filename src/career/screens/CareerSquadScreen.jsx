@@ -12,11 +12,11 @@ import { posOrderIndex, posSector } from '../../lib/format.js';
 import { computePlayerValue } from '../engine/pricing.js';
 import { playerSeasonStats } from '../engine/seasonStats.js';
 import { transferWindowText } from '../engine/careerMeta.js';
-import { squadDepth, DEPTH_GROUPS, VETERAN_AGE } from '../engine/squadDepth.js';
+import { squadDepth, DEPTH_GROUPS, VETERAN_AGE } from '../../lib/depth.js';
 import { TEAMS } from '../../data/teams.js';
 import { displayName } from '../../lib/displayName.js';
 import { Icon } from '../../ui/index.jsx';
-import { PlayerList, PosChip, Tags, ovrClass, groupBySector } from '../../ui/PlayerList.jsx';
+import { PlayerList, PosChip, Tags, ovrClass, groupBySector } from '../../components/football/PlayerList.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
 

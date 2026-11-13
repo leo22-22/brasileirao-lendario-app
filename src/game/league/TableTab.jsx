@@ -3,16 +3,17 @@
 // posições anteriores chegam prontas do App.jsx.
 import { useState } from 'react';
 import { Icon, Modal } from '../../ui/index.jsx';
-import { StandingsTable, FormChips } from '../../ui/StandingsTable.jsx';
-import { leagueZoneFor, LEAGUE_LEGEND } from './leagueTable.js';
+import { StandingsTable, FormChips } from '../../components/football/StandingsTable.jsx';
+import { zoneFor as leagueZoneFor, ZONE_LEGEND as LEAGUE_LEGEND } from '../../lib/standings.js';
+import { parseTeamLabel } from '../../lib/teamLabel.js';
 
 const RES_TEXT = { V: 'vitória', E: 'empate', D: 'derrota' };
 const describeForm = (f) => ({ title: RES_TEXT[f.res], label: RES_TEXT[f.res] });
 
-// "Clube Ano (Conquista)" → { name: "Clube Ano", conquest: "Conquista" }
+// "Clube Ano (Conquista)" → { name, conquest } (atalho sobre lib/teamLabel)
 export function splitTeamLabel(label = '') {
-  const m = label.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
-  return m ? { name: m[1], conquest: m[2] } : { name: label, conquest: null };
+  const { baseName, achievement } = parseTeamLabel(label);
+  return { name: baseName, conquest: achievement };
 }
 
 /**

@@ -7,7 +7,7 @@
 // fase sai dos vencedores dos confrontos 2j e 2j+1 da fase anterior — vale
 // de 16 avos até semifinal → final. Metade esquerda = primeiros confrontos.
 import { COPA_ROUND_LABELS, COPA_DAYS, COPA_ENTRY_PRIZE_BY_ROUND, COPA_CHAMPION_PRIZE, COPA_RUNNER_UP_PRIZE } from './copaEngine.js';
-import { matchOutcomeProbabilities } from '../../App.jsx';
+import { matchOutcomeProbabilities } from '../../lib/probability.js';
 import { teamForSim } from './simHelpers.js';
 
 export const FINAL_PHASE = COPA_ROUND_LABELS.length - 1; // 5

@@ -1,8 +1,10 @@
 // Componentes base do tema claro. Estilo em ui.css (importado no main.jsx).
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Icon } from './icons.jsx';
+import { useFocusTrap } from './primitives.jsx';
 
 export { Icon } from './icons.jsx';
+export { IconButton, Segmented, FilterChips, Pill, EmptyState, ProgressCells, Stepper, ConfirmInline, Tooltip, Drawer, Popover, Toast, useFocusTrap } from './primitives.jsx';
 
 const cx = (...c) => c.filter(Boolean).join(' ');
 
@@ -42,6 +44,9 @@ export function Tabs({ tabs, value, onChange, className, style }) {
 }
 
 export function Modal({ onClose, maxWidth = 520, children, labelledBy, className, style }) {
+  // Foco preso no modal enquanto aberto; volta para quem abriu ao fechar.
+  const boxRef = useRef(null);
+  useFocusTrap(boxRef, true);
   useEffect(() => {
     if (!onClose) return undefined;
     const onKey = e => { if (e.key === 'Escape') onClose(); };
@@ -50,7 +55,7 @@ export function Modal({ onClose, maxWidth = 520, children, labelledBy, className
   }, [onClose]);
   return (
     <div className="ui-overlay" onClick={onClose} role="presentation">
-      <div className={cx('ui-modal', className)} style={{ maxWidth, ...style }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div ref={boxRef} className={cx('ui-modal', className)} style={{ maxWidth, ...style }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
         {onClose && (
           <button type="button" className="ui-modal-close" onClick={onClose} aria-label="Fechar"><Icon name="close" size={18} /></button>
         )}
@@ -121,9 +126,16 @@ export function PlayerRow({ lead, name, sub, right, onClick, style, className })
 
 // Escudo com fallback: se a imagem falhar some (sem alt text visível) e
 // mostra as iniciais sobre a cor do clube.
-export function TeamBadge({ src, name = '', color = '#0D3A29', size = 32, radius = 10, style }) {
+export function TeamBadge({ src, logo, badge, ring, name = '', color = '#0D3A29', size = 32, radius = 10, style }) {
+  src = src ?? logo;
   const [failed, setFailed] = useState(!src);
   useEffect(() => { setFailed(!src); }, [src]);
+  if (ring) style = { boxShadow: '0 0 0 2px var(--gold)', ...style };
+  if (failed && badge) {
+    return (
+      <span className="ui-badge ui-badge-emblem" style={{ width: size, height: size, borderRadius: radius, fontSize: Math.round(size * 0.46), ...style }} aria-hidden="true">{badge}</span>
+    );
+  }
   const initials = name.replace(/[^A-Za-zÀ-ÿ ]/g, '').split(' ').filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase();
   if (failed) {
     return (

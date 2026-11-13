@@ -10,7 +10,7 @@ import { CLUB_STADIUMS } from '../../data/info-content.js';
 import { careerClubTier } from '../../data/career-clubs.js';
 import { computePlayerValue } from '../engine/pricing.js';
 import { clubForm, teamForSim } from '../engine/simHelpers.js';
-import { matchOutcomeProbabilities } from '../../App.jsx';
+import { matchOutcomeProbabilities } from '../../lib/probability.js';
 import { MatchPreviewModal } from '../components/MatchPreviewModal.jsx';
 import { displayName } from '../../lib/displayName.js';
 import { readableOn } from '../../lib/color.js';

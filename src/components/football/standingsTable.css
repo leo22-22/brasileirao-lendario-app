@@ -1,4 +1,4 @@
-/* Tabela de classificação compartilhada (src/ui/StandingsTable.jsx).
+/* Tabela de classificação compartilhada (src/components/football/StandingsTable.jsx).
    Classes tb-* nascidas na Tabela do Modo Carreira (modo-carreira-tabela-mockup.html). */
 .tb-scroll { width: 100%; }
 .tb-table { width: 100%; border-collapse: collapse; font-size: 13.5px; }

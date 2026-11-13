@@ -10,7 +10,7 @@ import { useEffect, useRef, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { careerClubTier } from '../../data/career-clubs.js';
 import { TIER_TABLE } from '../engine/youth.js';
-import { squadDepth } from '../engine/squadDepth.js';
+import { squadDepth } from '../../lib/depth.js';
 import { computePlayerValue } from '../engine/pricing.js';
 import { formatCalendarDay } from '../engine/calendar.js';
 import { COPA_DAYS } from '../engine/copaEngine.js';

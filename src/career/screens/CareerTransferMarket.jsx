@@ -17,7 +17,7 @@ import { MIN_SQUAD_SIZE, acceptanceChance } from '../engine/rosterStore.js';
 import { isTransferWindowOpen, nextWindowOpenDay, currentWindowCloseDay, JAN_END, WINDOW2_START, WINDOW2_END } from '../engine/calendar.js';
 import { LOAN_DURATIONS, loanOutWillingness } from '../engine/loans.js';
 import { decideAiListings } from '../engine/aiTransfers.js';
-import { squadNeeds } from '../engine/squadDepth.js';
+import { squadNeeds } from '../../lib/depth.js';
 import { findPlayerAnywhere, isShortlisted } from '../engine/marketQueue.js';
 import { dayParts } from '../engine/careerMeta.js';
 import { POS_ORDER, posSector } from '../../lib/format.js';

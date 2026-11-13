@@ -9,7 +9,7 @@ import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { posColor, ovrColor, posOrderIndex } from '../../lib/format.js';
 import { teamForSim, clubForm } from '../engine/simHelpers.js';
-import { matchOutcomeProbabilities } from '../../App.jsx';
+import { matchOutcomeProbabilities } from '../../lib/probability.js';
 import { displayName } from '../../lib/displayName.js';
 
 // Cópia local de TeamCrest/FormDots (CareerHub.jsx) — evita import

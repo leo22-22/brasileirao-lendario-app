@@ -1,7 +1,7 @@
 // Aba Elenco da liga clássica — usa a PlayerList compartilhada (a mesma do
 // Elenco da carreira). Só apresentação: titulares/banco/desfalques chegam
 // prontos do App.jsx (buildSquadView, mesma troca automática da simulação).
-import { PlayerList } from '../../ui/PlayerList.jsx';
+import { PlayerList } from '../../components/football/PlayerList.jsx';
 import { Icon } from '../../ui/index.jsx';
 import { splitTeamLabel } from './TableTab.jsx';
 

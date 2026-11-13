@@ -1,4 +1,4 @@
-@import '../../ui/playerList.css';
+@import '../../components/football/playerList.css';
 /* Elenco do Modo Carreira — valores do modo-carreira-elenco-mockup.html */
 .sq-main { max-width: 1480px; }
 .sq-ph { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; flex-wrap: wrap; }

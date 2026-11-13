@@ -13,6 +13,8 @@ import { CLUB_LOGOS } from './data/club-logos.js';
 import { CareerApp } from './career/CareerApp.jsx';
 import { INFO_TABS, INFO_ROUTES, CLUB_STADIUMS } from './data/info-content.js';
 import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from './lib/format.js';
+import { HOME_ADVANTAGE, RIVALRY_BOOST, isRivalryMatch, poissonPmf, matchOutcomeProbabilities } from './lib/probability.js';
+import { applyResults, revertResults, positionsOf, zoneFor as standingsZoneFor, compactRows } from './lib/standings.js';
 import { teamInk, readableOn, textOn } from './lib/color.js';
 import { FIRST_YEAR, LAST_YEAR } from './lib/eras.js';
 import './styles/newgame.css';
@@ -25,7 +27,6 @@ import { TableTab } from './game/league/TableTab.jsx';
 import { SquadTab } from './game/league/SquadTab.jsx';
 import { StatsTab } from './game/league/StatsTab.jsx';
 import { Crest as LeagueCrest } from './game/league/Crest.jsx';
-import { applyResults, revertResults, positionsOf, leagueZoneFor, compactRows } from './game/league/leagueTable.js';
 import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter } from './ui/index.jsx';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
@@ -1014,25 +1015,7 @@ export function generateDoubleRoundRobin(teamIds) {
 // avançar a tabela da divisão espelho da Série B sem duplicar a lógica de
 // pontuação em dois lugares que podiam divergir.
 export function applyRoundToTable(table, results) {
-  const tbl = table.map(r => ({ ...r }));
-  results.forEach(res => {
-    const h = tbl.find(t => t.id === res.homeId);
-    const a = tbl.find(t => t.id === res.awayId);
-    if (!h || !a) return;
-    h.pj++; a.pj++;
-    h.gp += res.homeGoals; h.gc += res.awayGoals;
-    a.gp += res.awayGoals; a.gc += res.homeGoals;
-    if (res.homeGoals > res.awayGoals) { h.v++; h.pts += 3; a.d++; }
-    else if (res.homeGoals < res.awayGoals) { a.v++; a.pts += 3; h.d++; }
-    else { h.e++; h.pts++; a.e++; a.pts++; }
-  });
-  // Desempate oficial da CBF: pontos → vitórias → saldo de gols → gols
-  // marcados (conferido contra a planilha real do Brasileirão 2026 que o
-  // usuário passou, aba "Cálculo") — faltava "vitórias" como 2º critério
-  // (ia direto pro saldo), corrigido 2026-11-12. Nome por último é só
-  // desempate nosso (nunca acontece na vida real, mas evita ordem
-  // instável se alguém empatar em tudo).
-  return [...tbl].sort((a, b) => b.pts - a.pts || b.v - a.v || (b.gp - b.gc) - (a.gp - a.gc) || b.gp - a.gp || a.label.localeCompare(b.label));
+  return applyResults(table, results);
 }
 
 // Quantos times sobem/descem por temporada na Série A/B — 1º e 2º da Série B
@@ -1455,28 +1438,7 @@ function applyRedCardEffect(homeExp, awayExp, homeReds, awayReds) {
 
 // Time da casa joga um pouco melhor que "no papel" (torcida, viagem do
 // visitante, familiaridade com o gramado) — efeito pequeno de propósito.
-const HOME_ADVANTAGE = 1.05;
 
-// Clássicos/rivalidades históricas — jogo mais aberto e disputado quando os
-// dois times se enfrentam (leve boost pros dois lados, não só um favorito).
-function rivalryKey(a, b) { return [a, b].sort().join('|'); }
-const RIVALRY_PAIRS = [
-  ['Flamengo', 'Fluminense'], ['Flamengo', 'Vasco'], ['Flamengo', 'Botafogo'],
-  ['Vasco', 'Botafogo'], ['Vasco', 'Fluminense'], ['Fluminense', 'Botafogo'],
-  ['Corinthians', 'Palmeiras'], ['Corinthians', 'Sao Paulo'], ['Sao Paulo', 'Palmeiras'],
-  ['Santos', 'Corinthians'], ['Santos', 'Sao Paulo'], ['Santos', 'Palmeiras'],
-  ['Gremio', 'Internacional'],
-  ['Cruzeiro', 'Atletico-MG'],
-  ['Bahia', 'Vitoria'],
-  ['Athletico-PR', 'Coritiba'],
-  ['Fortaleza', 'Ceara'],
-];
-const RIVALRIES = new Set(RIVALRY_PAIRS.map(([a, b]) => rivalryKey(a, b)));
-function isRivalryMatch(clubA, clubB) {
-  if (!clubA || !clubB) return false;
-  return RIVALRIES.has(rivalryKey(clubA, clubB));
-}
-const RIVALRY_BOOST = 1.05;
 
 // Gera os cartões (amarelo/vermelho) de uma partida. Compartilhado entre a
 // versão detalhada (com minuto, via randMin) e a versão leve de fundo (sem
@@ -1713,37 +1675,6 @@ export function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
   };
 }
 
-function poissonPmf(k, lambda) {
-  let p = Math.exp(-lambda);
-  for (let i = 1; i <= k; i++) p *= lambda / i;
-  return p;
-}
-
-// Chance de vitória/empate/derrota ANTES da partida rolar — mesma fórmula
-// exata de `simAiMatch` (diff*0.042, vantagem de casa, rivalidade), só que
-// somando a distribuição de Poisson dos dois times (gols 0-10 cada) pra
-// cada resultado possível, em vez de sortear UMA amostra. Só pra exibir
-// uma prévia informativa (ex. Modo Carreira) — a simulação de verdade
-// continua usando poissonSample normalmente, isso nunca decide nada.
-export function matchOutcomeProbabilities(homeTeam, awayTeam) {
-  const diff = homeTeam.ovr - awayTeam.ovr;
-  let homeExp = Math.max(0.2, 1.3 + diff * 0.042) * HOME_ADVANTAGE;
-  let awayExp = Math.max(0.2, 1.3 - diff * 0.042);
-  if (isRivalryMatch(homeTeam.club, awayTeam.club)) { homeExp *= RIVALRY_BOOST; awayExp *= RIVALRY_BOOST; }
-  const MAX_GOALS = 10;
-  let homeWin = 0, draw = 0, awayWin = 0;
-  for (let h = 0; h <= MAX_GOALS; h++) {
-    const ph = poissonPmf(h, homeExp);
-    for (let a = 0; a <= MAX_GOALS; a++) {
-      const p = ph * poissonPmf(a, awayExp);
-      if (h > a) homeWin += p;
-      else if (h === a) draw += p;
-      else awayWin += p;
-    }
-  }
-  const total = homeWin + draw + awayWin;
-  return { homeWin: homeWin / total, draw: draw / total, awayWin: awayWin / total };
-}
 
 // Funde os gols de simAiMatch (jogos simulados em segundo plano, sem
 // minuto a minuto) nos rankings de artilheiros/assistências — sem isso esses
@@ -12738,8 +12669,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   const tableNow = leagueTable || [];
   const posNow = positionsOf(tableNow);
   const splitLabel = (label = '') => {
-    const m = label.match(/^(.*?)\s*\(([^)]*)\)\s*$/);
-    return m ? { name: m[1], conquest: m[2] } : { name: label, conquest: null };
+    const { baseName, achievement } = parseTeamLabel(label || '');
+    return { name: baseName, conquest: achievement };
   };
   const matchSide = (t) => {
     const mine = t.id === myTeamId;
@@ -12800,7 +12731,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
       ...r,
       label: r.row.id === myTeamId ? (r.row.label || myLabel) : splitLabel(leagueTeams.find(t => t.id === r.row.id)?.label || r.row.label).name,
       move: mtPrev && mtPrev.get(r.row.id) ? mtPrev.get(r.row.id) - r.pos : 0,
-      zone: leagueZoneFor(tableDivision, r.pos, mtTable.length),
+      zone: standingsZoneFor(tableDivision, r.pos, mtTable.length),
     })),
   } : null;
   const partidaExtras = (

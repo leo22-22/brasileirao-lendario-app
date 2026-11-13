@@ -13,7 +13,7 @@ import { standingsAfter, clubFormDetailed, nextFixtures } from '../engine/standi
 import { computeBoard } from '../engine/careerMeta.js';
 import { displayName } from '../../lib/displayName.js';
 import { Icon, TeamBadge, Modal } from '../../ui/index.jsx';
-import { StandingsTable, FormChips } from '../../ui/StandingsTable.jsx';
+import { StandingsTable, FormChips } from '../../components/football/StandingsTable.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
 import './careerTable.css';
