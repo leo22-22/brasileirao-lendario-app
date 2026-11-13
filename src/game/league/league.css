@@ -1,0 +1,35 @@
+/* Liga clássica — valores de liga-partida-mockup.html */
+.lg-head { display: flex; align-items: center; gap: 18px; margin-bottom: 18px; }
+.lg-crest { flex-shrink: 0; display: inline-flex; }
+.lg-head-txt { min-width: 0; flex: 1; }
+.lg-mono { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; color: var(--muted); }
+.lg-head h1 { font-family: var(--font-serif); font-weight: 400; font-size: 34px; letter-spacing: -.02em; line-height: 1; margin: 6px 0 0; }
+.lg-tags { display: flex; gap: 8px; align-items: center; margin-top: 8px; flex-wrap: wrap; }
+.lg-tag { display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 10px; border-radius: 999px; font-size: 12px; font-weight: 600; background: var(--surface-2); color: var(--ink-2); white-space: nowrap; }
+.lg-tag-gold { background: var(--gold-soft); color: var(--gold-ink); }
+.lg-tag-ok { background: var(--success-soft); color: var(--success); }
+.lg-tag-danger { background: var(--danger-soft); color: var(--danger); }
+.lg-head-act { margin-left: auto; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+.lg-btn { height: 42px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 18px; border-radius: 999px; font-weight: 600; font-size: 14px; border: 1px solid var(--line-strong); color: var(--ink); background: var(--surface); cursor: pointer; font-family: var(--font-body); white-space: nowrap; }
+.lg-btn:hover { border-color: var(--ink-2); }
+.lg-btn-pri { background: var(--green); color: #fff; border-color: var(--green); }
+.lg-btn-pri:hover { background: var(--green-2); border-color: var(--green-2); }
+.lg-btn:focus-visible, .lg-tabs button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.lg-countdown { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.lg-countdown b { color: var(--ink); }
+
+.lg-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 18px; overflow-x: auto; scrollbar-width: none; }
+.lg-tabs::-webkit-scrollbar { display: none; }
+.lg-tabs button { padding: 12px 18px; min-height: 44px; font-weight: 500; font-size: 14px; color: var(--muted); display: flex; gap: 8px; align-items: center; border: none; background: none; border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; font-family: var(--font-body); white-space: nowrap; flex-shrink: 0; }
+.lg-tabs button:hover { color: var(--ink-2); }
+.lg-tabs button.lg-on { color: var(--ink); border-bottom-color: var(--ink); }
+.lg-tabs em { font-style: normal; font-size: 11px; font-weight: 600; background: var(--surface-2); color: var(--ink-2); padding: 1px 8px; border-radius: 999px; }
+.lg-tabs em.lg-live { background: var(--danger-soft); color: var(--danger); }
+
+@media (max-width: 768px) {
+  .lg-head { flex-wrap: wrap; gap: 12px; }
+  .lg-head h1 { font-size: 28px; }
+  .lg-head-act { margin-left: 0; width: 100%; justify-content: flex-start; }
+  .lg-head-act .lg-btn { flex: 1 1 auto; }
+  .lg-tabs button { padding: 12px 12px; font-size: 13.5px; }
+}

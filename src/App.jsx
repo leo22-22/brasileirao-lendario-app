@@ -19,6 +19,7 @@ import './styles/newgame.css';
 import { ReadyMadeTeamModal } from './game/ReadyMadeTeamModal.jsx';
 import { CustomFormationModal } from './game/CustomFormationModal.jsx';
 import { SquadReadyScreen } from './game/SquadReadyScreen.jsx';
+import { LeagueHeader } from './game/league/LeagueHeader.jsx';
 import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter } from './ui/index.jsx';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
@@ -6329,6 +6330,10 @@ export default function App() {
   const wideMainMaxWidth = (simulator2026Open || phase === 'formation' || phase === 'draft') ? 1440 : multiPhase ? null : (phase === 'intro' || phase === 'playing') ? 1240 : ['squad', 'transfer'].includes(phase) ? 1100 : null;
   const classicModeLabel = multiPhase ? 'Multiplayer' : isDailyChallenge ? 'Supercopa do dia' : (isSerieAtual || gameMode === 'atual2026') ? 'Brasileirão Atual' : (livreTeamIds?.length ? 'Modo Livre' : gameMode === 'copa' ? 'Copa do Brasil Lendária' : 'Brasileirão Lendário');
   const classicStep = { formation: 'Esquema tático', draft: 'Draft', squad: 'Capitão' }[phase] || null;
+  // Liga em andamento: "{modo} › Rodada N" (a Copa tem o próprio fluxo)
+  const leagueCrumb = phase === 'playing' && gameMode !== 'copa'
+    ? (isDailyChallenge ? 'Jogo único' : (gameMode === 'serieab' && promotionTie?.leg) ? 'Mata-mata de acesso' : `Rodada ${currentRound + 1}`)
+    : null;
   const dailyOppName = dailyOpponent?.label || dailyChallenge?.opponent?.label || 'o adversário';
   const squadConfirmLabel = multiPhase === 'in-draft' ? 'Pronto'
     : isDailyChallenge ? `Enfrentar ${dailyOppName} na Supercopa`
@@ -6368,11 +6373,11 @@ export default function App() {
               <b>Simulador 2026</b>
             </nav>
           )}
-          {!careerOpen && !simulator2026Open && (classicStep || newGameCrumb) && (
+          {!careerOpen && !simulator2026Open && (classicStep || leagueCrumb || newGameCrumb) && (
             <nav className="ui-crumb ui-hide-mobile" aria-label="Você está em">
-              <span>{classicStep ? classicModeLabel : newGameCrumb}</span>
+              <span>{(classicStep || leagueCrumb) ? classicModeLabel : newGameCrumb}</span>
               <Icon name="chevronRight" size={14} />
-              <b>{classicStep || 'Novo jogo'}</b>
+              <b>{classicStep || leagueCrumb || 'Novo jogo'}</b>
             </nav>
           )}
           {careerOpen && (careerHud?.active || careerHud?.crumb) && (
@@ -6715,6 +6720,8 @@ export default function App() {
         )}
         {phase === 'playing' && (
           <Playing
+            modeLabel={classicModeLabel}
+            captainName={captainSlot ? pitch[captainSlot]?.name : null}
             myTeamId={myTeamId}
             pitchSlots={pitchSlots}
             fixtures={fixtures}
@@ -12331,7 +12338,7 @@ function LeagueSideTable({ leagueTable, leagueTeams, myTeamId, myTeamLogo, mc, o
   );
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey, modeLabel, captainName }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -12367,13 +12374,12 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   // `otherDivision.table` é sempre da outra.
   const otherDivisionLabel = myDivision === 'A' ? 'B' : 'A';
   const showSideTable = activeTab === 'partida' && gameMode !== 'copa' && leagueTable?.length > 0;
-  const TAB_ICON = { partida: 'ball', tabela: 'table', elenco: 'users', estatisticas: 'medal', 'outra-serie': 'eye' };
   const TABS = [
-    { id: 'partida', label: 'Partida', icon: '⚽' },
-    { id: 'tabela', label: 'Tabela', icon: '📊' },
-    { id: 'elenco', label: 'Elenco', icon: '👥' },
-    { id: 'estatisticas', label: 'Estatísticas', icon: '🏅' },
-    ...(gameMode === 'serieab' && otherDivision ? [{ id: 'outra-serie', label: `Série ${otherDivisionLabel}`, icon: '🔭' }] : []),
+    { id: 'partida', label: 'Partida', icon: 'play', badge: isSimulating && !fastSimActive ? 'ao vivo' : null, live: true },
+    { id: 'tabela', label: 'Tabela', icon: 'table' },
+    { id: 'elenco', label: 'Elenco', icon: 'shirt' },
+    { id: 'estatisticas', label: 'Estatísticas', icon: 'trophy' },
+    ...(gameMode === 'serieab' && otherDivision ? [{ id: 'outra-serie', label: `Série ${otherDivisionLabel}`, icon: 'list' }] : []),
   ];
 
   // Simulação direta da Copa: em vez do overlay genérico de "Simulando…", ela
@@ -12720,81 +12726,62 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   const isFinalPlayoffLeg = inPromotionTie && promotionTie.leg === 2;
   const isLastRound = isFinalRegularRound || isFinalPlayoffLeg;
 
+  // Cabeçalho da liga (fase 2 do redesenho, liga-partida-mockup.html)
+  const myRowIdx = (leagueTable || []).findIndex(r => r.id === myTeamId);
+  const myRow = myRowIdx >= 0 ? leagueTable[myRowIdx] : null;
+  const diffKey = isDailyChallenge ? 'lendario' : difficulty;
+  const diffLevel = DIFFICULTY_LEVELS[diffKey];
+  const diffUi = DIFFICULTY_UI[diffKey];
+  const dailyOpp = isDailyChallenge ? leagueTeams.find(t => t.id !== myTeamId)?.label : null;
+  const leagueEyebrow = isDailyChallenge
+    ? 'Supercopa do dia · jogo único'
+    : `${modeLabel || 'Brasileirão Lendário'} · ${inPromotionTie ? 'Mata-mata de acesso' : `Série ${gameMode === 'serieab' ? myDivision : 'A'}`}`;
+  const leagueTitle = isDailyChallenge
+    ? 'Supercopa do Brasil'
+    : inPromotionTie
+      ? (promotionTie.leg === 1 ? 'Jogo de ida' : 'Jogo de volta')
+      : `Rodada ${currentRound + 1} de ${regularRounds}`;
+  const headerTags = [];
+  if (isDailyChallenge) headerTags.push({ label: `${myLabel} × ${dailyOpp || 'time lendário de hoje'}`, tone: 'ok' });
+  else if (inPromotionTie) headerTags.push({ label: `${myLabel} × ${promotionTie.opponentLabel}`, tone: 'ok' });
+  else if (myRow && myRow.pj > 0) headerTags.push({ label: `${myLabel} · ${myRowIdx + 1}º · ${myRow.pts} pts`, tone: 'ok' });
+  else headerTags.push({ label: myLabel, tone: 'ok' });
+  if (diffLevel && diffUi) headerTags.push({ label: `${diffLevel.short} ${diffUi.mult}`, title: `Dificuldade ${diffLevel.label}: campanha vale ${diffUi.mult} no ranking. ${diffLevel.desc}` });
+  if (captainName) headerTags.push({ label: `Capitão: ${captainName}`, tone: 'gold', title: 'O capitão joga com +2 de OVR' });
+
   return (
     <div style={styles.card} className="card-mob">
-      <div style={styles.draftTopRow}>
-        <div>
-          <div style={styles.eyebrow}>
-            {isDailyChallenge ? '🏆 Supercopa do Brasil' : inPromotionTie ? 'Série A/B · Mata-mata de Acesso' : gameMode === 'serieab' ? `Brasileirão · Série ${myDivision}` : 'Brasileirão · Série A'}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 3 }}>
-            <span style={{ fontSize: 13, color: 'var(--muted)' }}>
-              {isDailyChallenge
-                ? `vs ${leagueTeams.find(t => t.id !== myTeamId)?.label || 'time lendário de hoje'}`
-                : inPromotionTie
-                ? `${promotionTie.leg === 1 ? 'Jogo de Ida' : 'Jogo de Volta'} vs ${promotionTie.opponentLabel}`
-                : `Rodada ${currentRound + 1} de ${regularRounds}`}
-            </span>
-            {/* O adversário da Supercopa é sempre escalado em Lendário (ver
-                confirmDailyChallenge) — o badge mostra isso, não a
-                dificuldade configurada pra carreira normal do jogador. */}
-            <DifficultyBadge difficulty={isDailyChallenge ? 'lendario' : difficulty} />
-          </div>
-          {onOpenCalendar && (
-            <button
-              onClick={onOpenCalendar}
-              className="tap-target-sm"
-              style={{ marginTop: 6, background: 'none', border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 8, color: mc, fontSize: 11.5, fontWeight: 600, padding: '4px 10px', cursor: 'pointer' }}
-            >
-              📅 Ver calendário
-            </button>
-          )}
-          {onOpenLineupEditor && (
-            <button
-              onClick={onOpenLineupEditor}
-              className="tap-target-sm"
-              title="Trocar titular por reserva pra próxima rodada — sem live, dá pra usar o elenco todo"
-              style={{ marginTop: 6, marginLeft: 8, background: 'none', border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 8, color: mc, fontSize: 11.5, fontWeight: 600, padding: '4px 10px', cursor: 'pointer' }}
-            >
-              📋 Escalação
-            </button>
-          )}
-        </div>
-        {roundDone && simMode === 'manual' && (
-          <button style={{ ...styles.btnSmall, background: mc, color: '#fff' }} onClick={onNextRound}>
-            {isLastRound ? 'Ver resultado final →' : inPromotionTie ? 'Jogo de Volta →' : 'Próxima rodada →'}
-          </button>
+      <LeagueHeader
+        crest={<TeamBadge src={myTeamLogo} name={myLabel} color={mc} size={58} radius={16} />}
+        eyebrow={leagueEyebrow}
+        title={leagueTitle}
+        tags={headerTags}
+        actions={(
+          <>
+            {onOpenCalendar && (
+              <button type="button" className="lg-btn" onClick={onOpenCalendar}><Icon name="calendar" size={16} />Calendário</button>
+            )}
+            {onOpenLineupEditor && (
+              <button type="button" className="lg-btn" onClick={onOpenLineupEditor} title="Trocar titular por reserva para a próxima rodada; sem jogo ao vivo, dá para usar o elenco todo"><Icon name="list" size={16} />Escalação</button>
+            )}
+            {roundDone && simMode === 'manual' && (
+              <button type="button" className="lg-btn lg-btn-pri" onClick={onNextRound}>
+                {isLastRound ? 'Ver resultado final' : inPromotionTie ? 'Jogo de volta' : 'Próxima rodada'}<Icon name="arrowRight" size={16} />
+              </button>
+            )}
+            {roundDone && simMode === 'auto' && autoCountdown !== null && (
+              <span className="lg-countdown" role="status">
+                {isLastRound ? <>Revelando o campeão em <b>{autoCountdown}s</b></> : <>Avançando em <b>{autoCountdown}s</b></>}
+              </span>
+            )}
+          </>
         )}
-        {roundDone && simMode === 'auto' && autoCountdown !== null && (
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: mc, fontWeight: isLastRound ? 700 : 400 }}>
-            {/* Era o mesmo texto genérico de qualquer rodada ("Avançando em
-                3s...") bem na hora de revelar o campeão — sem clima nenhum
-                pro momento mais importante da temporada. */}
-            {isLastRound ? `🏆 Revelando o campeão em ${autoCountdown}s…` : `Avançando em ${autoCountdown}s…`}
-          </div>
-        )}
-      </div>
+        tabs={TABS}
+        activeTab={activeTab}
+        onTab={setActiveTab}
+      />
 
-      <div style={{ display: 'flex', gap: 4, marginBottom: 16, borderBottom: '1px solid var(--line)' }} className="tab-bar-scroll">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setActiveTab(t.id)}
-            style={{
-              flex: '1 1 0%', minWidth: 0, background: 'none', border: 'none', cursor: 'pointer',
-              padding: '10px 6px 12px', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap',
-              color: activeTab === t.id ? 'var(--ink)' : 'var(--muted)', minHeight: 44,
-              borderBottom: `2px solid ${activeTab === t.id ? 'var(--gold)' : 'transparent'}`,
-              marginBottom: -1, transition: 'color 0.12s, border-color 0.12s',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-            }}
-          >
-            {TAB_ICON[t.id] ? <Icon name={TAB_ICON[t.id]} size={16} /> : <span>{t.icon}</span>}<span>{t.label}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className={showSideTable ? 'league-split' : undefined}>
+      <div className={showSideTable ? 'league-split' : undefined} id="lg-panel" role="tabpanel" aria-labelledby={`lg-tab-${activeTab}`}>
       <div style={{ minWidth: 0 }}>
       {activeTab === 'partida' && (
         <>
