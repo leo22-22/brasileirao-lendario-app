@@ -23,6 +23,7 @@ import { LeagueHeader } from './game/league/LeagueHeader.jsx';
 import { MatchTab } from './game/league/MatchTab.jsx';
 import { TableTab } from './game/league/TableTab.jsx';
 import { SquadTab } from './game/league/SquadTab.jsx';
+import { StatsTab } from './game/league/StatsTab.jsx';
 import { Crest as LeagueCrest } from './game/league/Crest.jsx';
 import { applyResults, revertResults, positionsOf, leagueZoneFor, compactRows } from './game/league/leagueTable.js';
 import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter } from './ui/index.jsx';
@@ -6728,6 +6729,7 @@ export default function App() {
             modeLabel={classicModeLabel}
             captainName={captainSlot ? pitch[captainSlot]?.name : null}
             lastRoundResults={currentRound > 0 ? roundHistory[currentRound - 1] : null}
+            allRoundResults={roundHistory}
             myTeamId={myTeamId}
             pitchSlots={pitchSlots}
             fixtures={fixtures}
@@ -9904,7 +9906,7 @@ function SeasonStatsPanel({ scorers, assisters, cleanSheets, seasonRatings, card
 
       {assisters && Object.keys(assisters).length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Lideres de Assistencia</div>
+          <div style={styles.sectionLabel}>Líderes de assistência</div>
           {Object.entries(assisters)
             .sort((a, b) => b[1].assists - a[1].assists)
             .slice(0, 5)
@@ -9947,7 +9949,7 @@ function SeasonStatsPanel({ scorers, assisters, cleanSheets, seasonRatings, card
 
       {seasonRatings && Object.keys(seasonRatings).length > 0 && (
         <div style={{ marginTop: 14 }}>
-          <div style={styles.sectionLabel}>Nota Média da Temporada</div>
+          <div style={styles.sectionLabel}>Nota média da temporada</div>
           {Object.entries(seasonRatings)
             .filter(([, d]) => d.count >= 3)
             .sort((a, b) => (b[1].sum / b[1].count) - (a[1].sum / a[1].count))
@@ -12338,7 +12340,7 @@ function nextGameIn(fixtures, fromIdx, id, labelOf) {
   return null;
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey, modeLabel, captainName, lastRoundResults }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey, modeLabel, captainName, lastRoundResults, allRoundResults }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -13042,9 +13044,13 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
       })()}
 
       {activeTab === 'estatisticas' && (
-        <SeasonStatsPanel
+        <StatsTab
           scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings}
-          cardCounts={cardCounts} redCards={redCards} leagueTeams={leagueTeams} mc={mc}
+          cardCounts={cardCounts} redCards={redCards}
+          table={leagueTable} results={allRoundResults ? Object.values(allRoundResults).flat() : []}
+          myId={myTeamId} myLabel={myLabel} playedRounds={playedRounds}
+          teamLabelOf={(id) => leagueTeams.find(t => t.id === id)?.label}
+          crestOf={crestOf}
         />
       )}
 
