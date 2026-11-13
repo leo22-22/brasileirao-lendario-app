@@ -9,6 +9,7 @@ import { parseTeamLabel, posSector, posOrderIndex } from '../lib/format.js';
 import { displayName } from '../lib/displayName.js';
 import { Icon } from '../ui/index.jsx';
 import './squadReady.css';
+import { PitchSurface } from '../components/football/Pitch.jsx';
 
 const SECTOR_LABEL = { gk: 'goleiro', df: 'defensor', md: 'meio-campista', at: 'atacante' };
 const fmt1 = (x) => x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -176,8 +177,7 @@ export function SquadReadyScreen({
               ? <span>Trocando <b>{selectedPlayer?.name}</b>: toque numa vaga dourada. Toque nele de novo ou Esc para cancelar.</span>
               : <span>Toque num titular e escolha <b>Capitão</b> ou <b>Trocar</b> com outro jogador do campo ou do banco.</span>}
           </div>
-          <div className="sr-pitch">
-            <svg className="sr-marks" viewBox="0 0 508 620" preserveAspectRatio="none" aria-hidden="true"><rect x="10" y="10" width="488" height="600" rx="4" /><line x1="10" y1="310" x2="498" y2="310" /><circle cx="254" cy="310" r="54" /><rect x="134" y="10" width="240" height="84" /><rect x="134" y="526" width="240" height="84" /></svg>
+          <PitchSurface className="sr-pitch">
             {starterSlots.map(slot => {
               const p = pitch[slot.key];
               const isCap = slot.key === captainSlot;
@@ -199,7 +199,7 @@ export function SquadReadyScreen({
                 </button>
               );
             })}
-          </div>
+          </PitchSurface>
           <div className="sr-bench" role="group" aria-label="Banco">
             {benchSlots.map((slot, i) => {
               const p = pitch[slot.key];

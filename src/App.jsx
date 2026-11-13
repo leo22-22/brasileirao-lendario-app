@@ -25,6 +25,7 @@ import { SquadReadyScreen } from './game/SquadReadyScreen.jsx';
 import { LeagueHeader } from './game/league/LeagueHeader.jsx';
 import { AppHeader, HeaderMenu } from './ui/AppHeader.jsx';
 import { ClubCrest } from './components/football/ClubCrest.jsx';
+import { PitchSurface } from './components/football/Pitch.jsx';
 import { MatchTab } from './game/league/MatchTab.jsx';
 import { TableTab } from './game/league/TableTab.jsx';
 import { SquadTab } from './game/league/SquadTab.jsx';
@@ -7465,11 +7466,7 @@ function WeeklyTeamModal({ onClose }) {
         )}
 
         <div style={styles.pitchWrap}>
-          <div style={{
-            ...styles.pitchField,
-            background: 'var(--pitch)',
-            backgroundImage: 'repeating-linear-gradient(to bottom, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.035) 14.3%, transparent 14.3%, transparent 28.6%)',
-          }} className="on-dark">
+          <PitchSurface style={styles.pitchField}>
             {Object.entries(lines).map(([line, linePlayers]) => linePlayers.map((p, i) => {
               const leftPct = ((i + 1) / (linePlayers.length + 1)) * 100;
               const topPct = WEEK_LINE_TOP_PCT[line] ?? 50;
@@ -7501,7 +7498,7 @@ function WeeklyTeamModal({ onClose }) {
                 </div>
               );
             }))}
-          </div>
+          </PitchSurface>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
@@ -8682,9 +8679,9 @@ function readLastFormation() { try { return localStorage.getItem(LAST_FORMATION_
 function MiniPitchPreview({ formationKey }) {
   const slots = useMemo(() => buildPitchSlots(formationKey), [formationKey]);
   return (
-    <div className="ng-mp" aria-hidden="true">
+    <PitchSurface variant="mini" className="ng-mp" aria-hidden="true">
       {slots.map((s, i) => <i key={i} className={`ng-d ng-${ngSector(s.realPos)}`} style={{ left: `${s.x}%`, top: `${s.y}%` }} title={s.realPos} />)}
-    </div>
+    </PitchSurface>
   );
 }
 
@@ -9006,46 +9003,9 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
   const highlightKeys = new Set(highlightSlots.map(s => s.key));
   const previewKeys = new Set(previewSlots.map(s => s.key));
 
-  const markLine = (style) => <div style={{ position: 'absolute', pointerEvents: 'none', ...style }} />;
-
   return (
     <div style={styles.pitchWrap}>
-      <div style={{
-        ...styles.pitchField,
-        background: 'var(--pitch)',
-        backgroundImage: 'repeating-linear-gradient(to bottom, rgba(255,255,255,0.035) 0%, rgba(255,255,255,0.035) 14.3%, transparent 14.3%, transparent 28.6%)',
-      }} className={`pitch-field on-dark${variant === 'draft' ? ' ng-pitch' : ''}`}>
-
-        {/* ── Marcações do campo ── */}
-        {/* Linha do meio */}
-        {markLine({ left: 0, right: 0, top: '50%', height: 1, background: 'var(--line-strong)' })}
-        {/* Círculo central */}
-        {markLine({ left: '50%', top: '50%', width: 74, height: 74, border: '1.5px solid var(--line-strong)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
-        {/* Ponto central */}
-        {markLine({ left: '50%', top: '50%', width: 5, height: 5, background: 'var(--line-strong)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
-
-        {/* Área penal superior */}
-        {markLine({ top: 0, left: '18%', width: '64%', height: '17%', border: '1.5px solid var(--line-strong)', borderTop: 'none', boxSizing: 'border-box' })}
-        {/* Pequena área superior */}
-        {markLine({ top: 0, left: '35%', width: '30%', height: '7%', border: '1.5px solid var(--line-strong)', borderTop: 'none', boxSizing: 'border-box' })}
-        {/* Gol superior */}
-        {markLine({ top: 0, left: '40.5%', width: '19%', height: '2.8%', background: 'var(--surface-2)', borderBottom: '1.5px solid var(--line-strong)', boxSizing: 'border-box' })}
-        {/* Ponto de pênalti superior */}
-        {markLine({ top: '10.5%', left: '50%', width: 5, height: 5, background: 'var(--line-strong)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
-
-        {/* Área penal inferior */}
-        {markLine({ bottom: 0, left: '18%', width: '64%', height: '17%', border: '1.5px solid var(--line-strong)', borderBottom: 'none', boxSizing: 'border-box' })}
-        {/* Pequena área inferior */}
-        {markLine({ bottom: 0, left: '35%', width: '30%', height: '7%', border: '1.5px solid var(--line-strong)', borderBottom: 'none', boxSizing: 'border-box' })}
-        {/* Gol inferior */}
-        {markLine({ bottom: 0, left: '40.5%', width: '19%', height: '2.8%', background: 'var(--surface-2)', borderTop: '1.5px solid var(--line-strong)', boxSizing: 'border-box' })}
-        {/* Ponto de pênalti inferior */}
-        {markLine({ top: '89.5%', left: '50%', width: 5, height: 5, background: 'var(--line-strong)', borderRadius: '50%', transform: 'translate(-50%,-50%)' })}
-
-        {/* Cantos */}
-        {[{ top: -8, left: -8 }, { top: -8, right: -8 }, { bottom: -8, left: -8 }, { bottom: -8, right: -8 }].map((pos, i) =>
-          <div key={i} style={{ position: 'absolute', pointerEvents: 'none', ...pos, width: 16, height: 16, border: '1.5px solid var(--line-strong)', borderRadius: '50%' }} />
-        )}
+      <PitchSurface style={styles.pitchField} className={`pitch-field${variant === 'draft' ? ' ng-pitch' : ''}`}>
 
         {/* ── Jogadores ── */}
         {pitchSlots.filter(slot => !slot.isBench).map(slot => {
@@ -9211,7 +9171,7 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
             </div>
           );
         })}
-      </div>
+      </PitchSurface>
     </div>
   );
 }
@@ -14063,7 +14023,7 @@ const styles = {
   miniDotLabel: { fontSize: 7.5, fontWeight: 800, color: '#0F1F17', fontFamily: 'var(--font-mono)', lineHeight: 1, letterSpacing: -0.2 },
 
   pitchWrap: { margin: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
-  pitchField: { position: 'relative', width: '100%', maxWidth: 380, aspectRatio: '0.68', background: 'repeating-linear-gradient(180deg,var(--pitch) 0 10%,var(--pitch-2) 10% 20%)', border: 'none', borderRadius: 16, overflow: 'hidden', boxShadow: 'var(--shadow)' },
+  pitchField: { width: '100%', maxWidth: 380, aspectRatio: '0.68', boxShadow: 'var(--shadow)' },
 
   rolledTeamBox: { marginTop: 24 },
   rolledTeamHeader: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '2px solid', borderRadius: 12, marginBottom: 16 },

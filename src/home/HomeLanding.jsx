@@ -13,6 +13,7 @@ import { hexToRgba, parseTeamLabel } from '../lib/format.js';
 import { ERA_BUCKETS, YEAR_RANGE_LABEL, FIRST_YEAR } from '../lib/eras.js';
 import './home.css';
 import { displayName } from '../lib/displayName.js';
+import { PitchSurface } from '../components/football/Pitch.jsx';
 
 function ArrowIcon({ color }) {
   return (
@@ -118,7 +119,7 @@ export function HomeLanding({
             <div className="hl-pc-head">
               <div className="hl-t">Seleção da {weeklyTeam.label}<small>os 11 melhores da rodada</small></div>
             </div>
-            <div className="hl-field">
+            <PitchSurface className="hl-field">
               {Object.entries(lines).map(([line, linePlayers]) => linePlayers.map((p, i) => {
                 const leftPct = ((i + 1) / (linePlayers.length + 1)) * 100;
                 const topPct = weekLineTopPct[line] ?? 50;
@@ -134,7 +135,7 @@ export function HomeLanding({
                   </div>
                 );
               }))}
-            </div>
+            </PitchSurface>
           </button>
           <div className="hl-hero-floats">
             {weeklyCraque && (

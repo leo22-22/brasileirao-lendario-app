@@ -12,6 +12,7 @@ import {
 import { posSector } from '../lib/format.js';
 import { Icon } from '../ui/index.jsx';
 import './customFormation.css';
+import { PitchSurface } from '../components/football/Pitch.jsx';
 
 const PRESETS = ['4-3-3', '4-4-2', '3-5-2', '5-3-2', '4-2-3-1'];
 const START_KEY = '4-3-3-misto';
@@ -139,10 +140,9 @@ export function CustomFormationModal({ onBack, onChoose }) {
               <button type="button" className="cf2-tb cf2-danger" style={{ marginLeft: 'auto' }} onClick={() => setConfirmReset(true)}>Resetar</button>
             )}
           </div>
-          <div className="cf2-pitch" ref={fieldRef}>
+          <PitchSurface className="cf2-pitch" ref={fieldRef}>
             <div className="cf2-lane" style={{ width: `${WIDE_X_THRESHOLD}%` }} aria-hidden="true"><span>Lateral · ponta</span></div>
             <div className="cf2-lane cf2-lane-r" style={{ width: `${WIDE_X_THRESHOLD}%` }} aria-hidden="true"><span>Lateral · ponta</span></div>
-            <svg className="cf2-marks" viewBox="0 0 476 640" preserveAspectRatio="none" aria-hidden="true"><rect x="10" y="10" width="456" height="620" rx="4" /><line x1="10" y1="320" x2="466" y2="320" /><circle cx="238" cy="320" r="52" /><rect x="128" y="10" width="220" height="86" /><rect x="128" y="544" width="220" height="86" /></svg>
             <div className="cf2-zl" style={{ top: `${ATT_LINE}%` }} aria-hidden="true"><span className="cf2-zl-up">Ataque</span><span>Meio</span></div>
             <div className="cf2-zl" style={{ top: `${DEF_LINE}%` }} aria-hidden="true"><span>Defesa</span></div>
             <div className="cf2-dt cf2-gk cf2-fixed" style={{ left: '50%', top: '92%' }} aria-label="Goleiro, fixo">GOL</div>
@@ -157,7 +157,7 @@ export function CustomFormationModal({ onBack, onChoose }) {
                 aria-label={`${s.realPos}. Arraste ou use as setas para mover; Enter troca o tipo de posição`}
               >{s.realPos}</button>
             ))}
-          </div>
+          </PitchSurface>
         </div>
 
         <div className="cf2-rt">

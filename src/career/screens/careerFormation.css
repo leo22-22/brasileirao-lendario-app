@@ -28,29 +28,7 @@
 .cf-right { min-width: 0; display: flex; flex-direction: column; gap: 20px; }
 
 /* Campo */
-.cf-pitch { position: relative; width: 100%; aspect-ratio: 528 / 720; border-radius: 16px; overflow: hidden; background: repeating-linear-gradient(180deg, #124A35 0 8.33%, #11452F 8.33% 16.66%); }
-.cf-lines { position: absolute; inset: 0; width: 100%; height: 100%; }
-.cf-pl {
-  position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 5px; width: 104px;
-  background: none; border: none; padding: 0; cursor: pointer; color: #fff; font-family: var(--font-body); z-index: 2;
-}
-.cf-pl:focus-visible { outline: none; }
-.cf-pl:focus-visible .cf-c { outline: 3px solid var(--gold); outline-offset: 3px; }
-.cf-c {
-  width: 54px; height: 54px; border-radius: 50%; background: #FBF9F4; display: grid; place-items: center;
-  font-family: var(--font-serif); font-size: 19px; color: #0F1F17; box-shadow: 0 8px 16px -6px rgba(0,0,0,.45);
-  position: relative; border: 3px solid var(--ring, #C29A45); transition: transform .12s ease;
-}
-.cf-pl:hover .cf-c { transform: scale(1.05); }
-.cf-pl.cf-sel .cf-c { outline: 3px solid #fff; outline-offset: 3px; }
-.cf-pl.cf-empty .cf-c { background: rgba(255,255,255,.06); border: 2px dashed rgba(255,255,255,.55); color: #DCE7E0; font-family: var(--font-mono); font-size: 11px; box-shadow: none; }
-.cf-n { background: rgba(8,26,18,.55); color: #fff; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; max-width: 104px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.cf-p { font-family: var(--font-mono); font-size: 10px; color: #B6CBBF; letter-spacing: .06em; white-space: nowrap; }
-.cf-bdg { position: absolute; width: 20px; height: 20px; border-radius: 50%; font-size: 10.5px; font-weight: 700; display: grid; place-items: center; font-family: var(--font-body); font-style: normal; border: 2px solid #124A35; }
-.cf-cap { top: -4px; right: -6px; background: var(--gold); color: #fff; }
-.cf-pen { bottom: -4px; right: -6px; background: #fff; color: #0F1F17; }
-.cf-warn { top: -4px; left: -6px; background: var(--warning); color: #fff; }
-.cf-warn.cf-red { background: var(--danger); }
+.cf-pitch { width: 100%; aspect-ratio: 528 / 720; }
 .cf-legend { display: flex; gap: 6px 16px; justify-content: center; padding: 12px 0 4px; font-size: 12.5px; color: var(--muted); flex-wrap: wrap; }
 .cf-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 
@@ -132,11 +110,6 @@
   .cf-select { min-width: 200px; }
   .cf-push { margin-left: 0; }
   .cf-pitchwrap { padding: 8px; border-radius: 18px; }
-  .cf-pl { width: 76px; gap: 3px; }
-  .cf-c { width: 40px; height: 40px; font-size: 15px; border-width: 2.5px; }
-  .cf-n { font-size: 10px; padding: 2px 6px; max-width: 76px; }
-  .cf-p { font-size: 8.5px; }
-  .cf-bdg { width: 16px; height: 16px; font-size: 9px; }
   .cf-sum { grid-template-columns: 1fr; }
   .cf-big { border-right: none; border-bottom: 1px solid var(--line); }
   .cf-two { grid-template-columns: 1fr; }

@@ -22,12 +22,12 @@ import { displayName } from '../../lib/displayName.js';
 import { Icon, TeamBadge, Modal } from '../../ui/index.jsx';
 import '../components/careerShell.css';
 import './careerFormation.css';
+import { PitchSurface, PlayerDot, SECTOR_RING } from '../../components/football/Pitch.jsx';
 
 const DEFAULT_FORMATION = '4-3-3-misto';
 const BENCH_MAX = 12;
 const YELLOWS_FOR_SUSPENSION = 3; // mesmo valor de seasonEngine.js
 
-const SECTOR_RING = { gk: '#C29A45', df: '#4E86C2', md: '#3FA372', at: '#D2604F' };
 const SECTOR_LABEL = { at: 'Ataque', md: 'Meio-campo', df: 'Defesa', gk: 'Goleiro' };
 const SECTOR_FILTERS = [
   { id: 'all', label: 'Todos' }, { id: 'gk', label: 'Goleiros' }, { id: 'df', label: 'Defesa' }, { id: 'md', label: 'Meio' }, { id: 'at', label: 'Ataque' },
@@ -75,61 +75,36 @@ function initialBench(roster, save, starterNames) {
   return (save.myBench || []).filter(n => rosterNames.has(n) && !starterSet.has(n)).slice(0, BENCH_MAX);
 }
 
-// ── Campo ──────────────────────────────────────────────────────────────
-function PitchSlot({ slot, player, selected, suspended, hanging, isCap, isPen, onClick }) {
-  const sector = posSector(slot.realPos);
-  const outOfPos = player && !player.pos.includes(slot.realPos);
-  const label = player
-    ? `${slot.realPos}: ${player.name}, OVR ${player.ovr}${isCap ? ', capitão' : ''}${isPen ? ', cobrador de pênalti' : ''}${suspended ? ', suspenso' : hanging ? ', pendurado' : ''}${outOfPos ? ', fora de posição' : ''}`
-    : `${slot.realPos}: vaga vazia — escolher jogador`;
-  return (
-    <button
-      type="button"
-      className={`cf-pl${selected ? ' cf-sel' : ''}${player ? '' : ' cf-empty'}`}
-      style={{ left: `${slot.x}%`, top: `${slot.y}%`, '--ring': SECTOR_RING[sector] }}
-      onClick={onClick}
-      aria-label={label}
-      aria-pressed={selected}
-      title={label}
-    >
-      <span className="cf-c" style={suspended ? { borderColor: 'var(--danger)' } : undefined}>
-        {player ? player.ovr : slot.label}
-        {isCap && <i className="cf-bdg cf-cap" aria-hidden="true">C</i>}
-        {isPen && <i className="cf-bdg cf-pen" aria-hidden="true">P</i>}
-        {(suspended || hanging || outOfPos) && <i className={`cf-bdg cf-warn${suspended ? ' cf-red' : ''}`} aria-hidden="true">!</i>}
-      </span>
-      {player && <span className="cf-n" style={suspended ? { background: 'rgba(178,59,59,.85)' } : undefined}>{player.name}</span>}
-      <span className="cf-p">{slot.realPos}{suspended ? ' · suspenso' : hanging ? ' · pendurado' : outOfPos ? ' · improvisado' : ''}</span>
-    </button>
-  );
-}
-
+// ── Campo (components/football/Pitch) ───────────────────────────────
 function PitchField({ slots, starters, byName, selectedSlot, suspendedSet, hangingSet, captain, penalty, onSlotClick }) {
   return (
-    <div className="cf-pitch on-dark">
-      <svg className="cf-lines" viewBox="0 0 528 720" preserveAspectRatio="none" fill="none" stroke="rgba(255,255,255,.22)" strokeWidth="1.5" aria-hidden="true">
-        <rect x="14" y="14" width="500" height="692" rx="4" /><line x1="14" y1="360" x2="514" y2="360" /><circle cx="264" cy="360" r="62" />
-        <rect x="144" y="14" width="240" height="96" /><rect x="204" y="14" width="120" height="38" />
-        <rect x="144" y="610" width="240" height="96" /><rect x="204" y="668" width="120" height="38" />
-      </svg>
+    <PitchSurface className="cf-pitch">
       {slots.map(slot => {
         const name = starters[slot.key];
         const p = name ? byName[name] : null;
+        const suspended = !!name && suspendedSet.has(name);
+        const hanging = !!name && hangingSet.has(name);
+        const isCap = !!name && captain === name;
+        const isPen = !!name && penalty === name;
+        const outOfPos = p && !p.pos.includes(slot.realPos);
+        const label = p
+          ? `${slot.realPos}: ${p.name}, OVR ${p.ovr}${isCap ? ', capitão' : ''}${isPen ? ', cobrador de pênalti' : ''}${suspended ? ', suspenso' : hanging ? ', pendurado' : ''}${outOfPos ? ', fora de posição' : ''}`
+          : `${slot.realPos}: vaga vazia — escolher jogador`;
         return (
-          <PitchSlot
+          <PlayerDot
             key={slot.key}
             slot={slot}
             player={p}
             selected={selectedSlot === slot.key}
-            suspended={!!name && suspendedSet.has(name)}
-            hanging={!!name && hangingSet.has(name)}
-            isCap={!!name && captain === name}
-            isPen={!!name && penalty === name}
+            badges={{ cap: isCap, pen: isPen, warn: suspended ? 'danger' : (hanging || outOfPos) ? 'warning' : null }}
+            note={suspended ? 'suspenso' : hanging ? 'pendurado' : outOfPos ? 'improvisado' : null}
+            dangerName={suspended}
+            label={label}
             onClick={() => onSlotClick(slot.key)}
           />
         );
       })}
-    </div>
+    </PitchSurface>
   );
 }
 

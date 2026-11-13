@@ -1,0 +1,35 @@
+/* Campo único (components/football/Pitch.jsx) — valores da Formação da carreira */
+.fb-pitch { position: relative; border-radius: 16px; overflow: hidden; background: repeating-linear-gradient(180deg, #124A35 0 8.33%, #11452F 8.33% 16.66%); }
+.fb-pitch-lines { position: absolute; inset: 0; width: 100%; height: 100%; fill: none; stroke: rgba(255,255,255,.22); stroke-width: 1.5; pointer-events: none; }
+.fb-pitch-mini { border-radius: 12px; }
+.fb-pitch-mini .fb-pitch-lines { stroke: rgba(255,255,255,.2); stroke-width: 2.5; }
+
+.fb-dot {
+  position: absolute; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 5px; width: 104px;
+  background: none; border: none; padding: 0; cursor: pointer; color: #fff; font-family: var(--font-body); z-index: 2;
+}
+.fb-dot:focus-visible { outline: none; }
+.fb-dot:focus-visible .fb-dot-c { outline: 3px solid var(--gold); outline-offset: 3px; }
+.fb-dot-c {
+  width: 54px; height: 54px; border-radius: 50%; background: #FBF9F4; display: grid; place-items: center;
+  font-family: var(--font-serif); font-size: 19px; color: #0F1F17; box-shadow: 0 8px 16px -6px rgba(0,0,0,.45);
+  position: relative; border: 3px solid var(--ring, #C29A45); transition: transform .12s ease;
+}
+.fb-dot:hover .fb-dot-c { transform: scale(1.05); }
+.fb-dot.fb-dot-sel .fb-dot-c { outline: 3px solid #fff; outline-offset: 3px; }
+.fb-dot.fb-dot-empty .fb-dot-c { background: rgba(255,255,255,.06); border: 2px dashed rgba(255,255,255,.55); color: #DCE7E0; font-family: var(--font-mono); font-size: 11px; box-shadow: none; }
+.fb-dot-n { background: rgba(8,26,18,.55); color: #fff; font-size: 12px; font-weight: 600; padding: 3px 9px; border-radius: 999px; max-width: 104px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fb-dot-p { font-family: var(--font-mono); font-size: 10px; color: #B6CBBF; letter-spacing: .06em; white-space: nowrap; }
+.fb-bdg { position: absolute; width: 20px; height: 20px; border-radius: 50%; font-size: 10.5px; font-weight: 700; display: grid; place-items: center; font-family: var(--font-body); font-style: normal; border: 2px solid #124A35; }
+.fb-cap { top: -4px; right: -6px; background: var(--gold); color: #fff; }
+.fb-pen { bottom: -4px; right: -6px; background: #fff; color: #0F1F17; }
+.fb-warn { top: -4px; left: -6px; background: var(--warning); color: #fff; }
+.fb-warn.fb-red { background: var(--danger); }
+@media (prefers-reduced-motion: reduce) { .fb-dot-c { transition: none; } }
+@media (max-width: 768px) {
+  .fb-dot { width: 76px; gap: 3px; }
+  .fb-dot-c { width: 40px; height: 40px; font-size: 15px; border-width: 2.5px; }
+  .fb-dot-n { font-size: 10px; padding: 2px 6px; max-width: 76px; }
+  .fb-dot-p { font-size: 8.5px; }
+  .fb-bdg { width: 16px; height: 16px; font-size: 9px; }
+}

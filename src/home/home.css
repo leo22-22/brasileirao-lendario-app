@@ -47,7 +47,7 @@
 .hl-pc-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
 .hl-pc-head .hl-t { font-family: 'Fraunces', Georgia, serif; font-size: 18px; }
 .hl-pc-head .hl-t small { display: block; font-family: Inter, sans-serif; font-size: 11.5px; color: #A9C2B5; margin-top: 2px; font-weight: 400; }
-.hl-field { position: relative; height: 400px; border-radius: 16px; background: repeating-linear-gradient(180deg,#124A35 0 40px,#11452F 40px 80px); overflow: hidden; }
+.hl-field { height: 400px; }
 .hl-p { position: absolute; transform: translate(-50%,-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; width: 60px; }
 .hl-p .hl-dot { width: 36px; height: 36px; border-radius: 50%; background: #FBF9F4; color: var(--hl-green); display: grid; place-items: center; overflow: hidden; font-family: 'JetBrains Mono', monospace; font-size: 9.5px; font-weight: 600; box-shadow: 0 6px 14px rgba(0,0,0,.25); flex-shrink: 0; }
 .hl-p.hl-gold .hl-dot { background: var(--hl-gold); color: #fff; box-shadow: 0 0 10px rgba(194,154,69,.6); }
