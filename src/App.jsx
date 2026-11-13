@@ -16,6 +16,9 @@ import { hexToRgba, ovrColor, posOrderIndex, parseTeamLabel } from './lib/format
 import { teamInk, readableOn, textOn } from './lib/color.js';
 import { FIRST_YEAR, LAST_YEAR } from './lib/eras.js';
 import './styles/newgame.css';
+import { ReadyMadeTeamModal } from './game/ReadyMadeTeamModal.jsx';
+import { CustomFormationModal } from './game/CustomFormationModal.jsx';
+import { SquadReadyScreen } from './game/SquadReadyScreen.jsx';
 import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter } from './ui/index.jsx';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
@@ -480,7 +483,7 @@ const BASE_COORDS = {
   ATA: { x: 50, y: 11 },
 };
 
-function buildPitchSlots(formationKey) {
+export function buildPitchSlots(formationKey) {
   const { counts } = FORMATIONS[formationKey];
 
   // VOL e MC, quando os dois têm qty 1, ficam lado a lado na mesma linha (em
@@ -578,7 +581,7 @@ function buildPitchSlots(formationKey) {
 // resultante — mesma ideia de FORMATIONS/BASE_COORDS, só que a banda
 // (altura) e a lateralidade (esquerda/centro/direita) vêm de onde o
 // círculo foi solto, não de um `counts` escrito à mão.
-const CUSTOM_BANDS = [
+export const CUSTOM_BANDS = [
   { key: 'zaga', y: 80, wideLeft: 'LE', wideRight: 'LD', central: 'ZAG' },
   { key: 'volante', y: 64, wideLeft: null, wideRight: null, central: 'VOL' },
   { key: 'meio', y: 52, wideLeft: null, wideRight: null, central: 'MC' },
@@ -596,12 +599,12 @@ const CUSTOM_BANDS = [
 // impossível colocar dois jogadores em "meio" sem que um virasse MD/ME e
 // nenhum ficasse MEI. Mantém o x/y exatos do arraste (não reespalha), pra o
 // círculo na tela nunca "pular" de onde a pessoa soltou.
-const WIDE_X_THRESHOLD = 30;
+export const WIDE_X_THRESHOLD = 30;
 // Time de futebol de verdade não escala 2 laterais-direitos ao mesmo tempo
 // — cada variante aberta (LD, LE, MD, ME, PD, PE) só pode existir 1 vez por
 // formação. Os tipos centrais (ZAG, VOL, MC, MEI, ATA) não têm esse limite.
 const WIDE_TYPES = new Set(['LD', 'LE', 'MD', 'ME', 'PD', 'PE']);
-function classifyCustomSlots(dots) {
+export function classifyCustomSlots(dots) {
   const placed = dots.map(d => {
     let band = CUSTOM_BANDS[0], closestDist = Infinity;
     CUSTOM_BANDS.forEach(b => {
@@ -648,12 +651,12 @@ function classifyCustomSlots(dots) {
 // numa tela pequena) e pras variantes abertas de cada banda. CYCLE_TARGET_XY
 // é o x/y que representa cada tipo — clicar simplesmente teleporta a bolinha
 // pra lá, então classifyCustomSlots já classifica ela certo na próxima leitura.
-const POS_CYCLE = {
+export const POS_CYCLE = {
   ZAG: 'LD', LD: 'LE', LE: 'ZAG',
   VOL: 'MC', MC: 'MEI', MEI: 'MD', MD: 'ME', ME: 'VOL',
   ATA: 'PD', PD: 'PE', PE: 'ATA',
 };
-const CYCLE_TARGET_XY = {
+export const CYCLE_TARGET_XY = {
   ZAG: { x: 50, y: 80 }, LD: { x: 85, y: 80 }, LE: { x: 15, y: 80 },
   VOL: { x: 50, y: 64 }, MC: { x: 50, y: 52 }, MEI: { x: 50, y: 40 }, MD: { x: 85, y: 40 }, ME: { x: 15, y: 40 },
   ATA: { x: 50, y: 15 }, PD: { x: 85, y: 15 }, PE: { x: 15, y: 15 },
@@ -662,14 +665,14 @@ const CYCLE_TARGET_XY = {
 // "3-2-5" etc — mesma convenção (defesa-meio-ataque) usada no rótulo das
 // formações prontas, só que calculada a partir de `counts` em vez de
 // escrita à mão.
-function formationDefMidFwd(counts) {
+export function formationDefMidFwd(counts) {
   return {
     def: (counts.LD || 0) + (counts.ZAG || 0) + (counts.LE || 0),
     mid: (counts.VOL || 0) + (counts.MC || 0) + (counts.MEI || 0) + (counts.MD || 0) + (counts.ME || 0),
     fwd: (counts.PD || 0) + (counts.PE || 0) + (counts.ATA || 0),
   };
 }
-function customFormationShape(counts) {
+export function customFormationShape(counts) {
   const { def, mid, fwd } = formationDefMidFwd(counts);
   return `${def}-${mid}-${fwd}`;
 }
@@ -677,7 +680,7 @@ function customFormationShape(counts) {
 // Time precisa de pelo menos 2 defensores e 2 meio-campistas pra não quebrar
 // o jogo de verdade (só o ataque pode ficar vazio — um "falso 9" ou time sem
 // referência lá na frente ainda é um time jogável, defesa ou meio vazios não).
-function validateCustomFormation(counts) {
+export function validateCustomFormation(counts) {
   const { def, mid } = formationDefMidFwd(counts);
   const errors = [];
   if (def < 2) errors.push('Precisa de pelo menos 2 defensores (zagueiros e/ou laterais).');
@@ -689,7 +692,7 @@ function validateCustomFormation(counts) {
 // linha (não é uma IA tática de verdade), só o suficiente pra avisar o
 // ponto forte e o risco óbvio de espichar demais pra um lado só, do jeito
 // que o próprio jogo pede: "melhor ataque, mas cuidado com a defesa".
-function describeCustomFormation(counts) {
+export function describeCustomFormation(counts) {
   const { def, mid, fwd } = formationDefMidFwd(counts);
   const hasDefWidth = !!counts.LD || !!counts.LE;
   const hasAttWidth = !!counts.PD || !!counts.PE || !!counts.MD || !!counts.ME;
@@ -5290,7 +5293,7 @@ export default function App() {
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isSerieAtual, serieAtualTeamId, isTransferSeason, seasonYear, formationKey, customFormation]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isSerieAtual, serieAtualTeamId, isTransferSeason, seasonYear, formationKey, customFormation, captainSlot]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -6326,6 +6329,12 @@ export default function App() {
   const wideMainMaxWidth = (simulator2026Open || phase === 'formation' || phase === 'draft') ? 1440 : multiPhase ? null : (phase === 'intro' || phase === 'playing') ? 1240 : ['squad', 'transfer'].includes(phase) ? 1100 : null;
   const classicModeLabel = multiPhase ? 'Multiplayer' : isDailyChallenge ? 'Supercopa do dia' : (isSerieAtual || gameMode === 'atual2026') ? 'Brasileirão Atual' : (livreTeamIds?.length ? 'Modo Livre' : gameMode === 'copa' ? 'Copa do Brasil Lendária' : 'Brasileirão Lendário');
   const classicStep = { formation: 'Esquema tático', draft: 'Draft', squad: 'Capitão' }[phase] || null;
+  const dailyOppName = dailyOpponent?.label || dailyChallenge?.opponent?.label || 'o adversário';
+  const squadConfirmLabel = multiPhase === 'in-draft' ? 'Pronto'
+    : isDailyChallenge ? `Enfrentar ${dailyOppName} na Supercopa`
+      : isTransferSeason ? 'Começar a nova temporada'
+        : gameMode === 'copa' ? 'Disputar a Copa do Brasil'
+          : 'Disputar o Brasileirão';
   const newGameSteps = ['Esquema', 'Draft', 'Capitão', isDailyChallenge ? 'Supercopa' : gameMode === 'copa' ? 'Copa' : 'Temporada'];
   // Tema claro (creme) agora é o padrão do app inteiro — ver src/styles/tokens.css.
 
@@ -6675,7 +6684,11 @@ export default function App() {
           />
         )}
         {phase === 'squad' && (
-          <Squad
+          <SquadReadyScreen
+            modeLabel={classicModeLabel}
+            steps={newGameSteps}
+            difficultyText={multiPhase ? null : `${DIFFICULTY_LEVELS[difficulty]?.short || ''} ${DIFFICULTY_UI[difficulty]?.mult || ''}`.trim()}
+            confirmLabel={squadConfirmLabel}
             pitch={pitch} pitchSlots={pitchSlots}
             formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
             captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
@@ -8902,60 +8915,11 @@ function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGame
 // Modal de busca pra escolher um dos 100 times históricos e jogar direto com
 // o elenco pronto deles — usado tanto no solo quanto numa sala com amigos
 // (FormationPicker é a mesma tela nos dois casos).
-function TeamPickerModal({ onClose, onPick, onlyIds = null, title = 'Escolha um time pronto' }) {
-  const [query, setQuery] = useState('');
-  const sorted = useMemo(() => {
-    const base = onlyIds ? TEAMS.filter(t => onlyIds.includes(t.id)) : LEGACY_TEAMS;
-    return [...base].sort((a, b) => b.year - a.year);
-  }, [onlyIds]);
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return sorted;
-    return sorted.filter(t => t.label.toLowerCase().includes(q) || String(t.year).includes(q));
-  }, [sorted, query]);
-
-  return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2000, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: '16px 16px 0 0', padding: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <div style={{ fontWeight: 700, fontSize: 14 }}>{title}</div>
-          <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
-        </div>
-        <input
-          autoFocus
-          value={query}
-          onChange={e => setQuery(e.target.value)}
-          placeholder="Buscar por time ou ano..."
-          style={{ ...styles.teamInput, marginBottom: 12 }}
-        />
-        <div style={{ overflowY: 'auto', display: 'grid', gap: 6 }}>
-          {filtered.length === 0 && (
-            <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', padding: 16 }}>Nenhum time encontrado.</div>
-          )}
-          {filtered.map(team => {
-            const { baseName, achievement } = parseTeamLabel(team.label);
-            return (
-              <button
-                key={team.id}
-                onClick={() => onPick(team)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
-                  border: '1px solid var(--line)', background: 'var(--surface)',
-                  color: 'var(--ink)', textAlign: 'left', cursor: 'pointer',
-                }}
-              >
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
-                  {achievement && <div style={{ fontSize: 11, color: 'var(--gold-ink)', marginTop: 1 }}>{achievement}</div>}
-                </div>
-                <span style={{ fontSize: 14, color: 'var(--muted)', flexShrink: 0 }}>→</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    </div>
-  );
+// Redesenho de 2026-11-13: o visual novo vive em src/game/ReadyMadeTeamModal.jsx
+// (mesmas props). Mantido com este nome porque é usado em 3 lugares: atalho
+// "Já sei qual time eu quero", Brasileirão Atual e multiplayer (onlyIds).
+function TeamPickerModal(props) {
+  return <ReadyMadeTeamModal {...props} />;
 }
 
 // "Modo de jogo" virou um botão-resumo na home (ver Intro) que abre este
@@ -9130,155 +9094,10 @@ const POS_GROUP_COLOR = {
 // são recalculados ao vivo a cada solta, via classifyCustomSlots /
 // describeCustomFormation — nenhum dos dois é hardcoded, vêm só da
 // posição de cada bolinha.
-function CustomFormationBuilder({ myTeamColor, onBack, onChoose }) {
-  const mc = teamInk(myTeamColor || '#C29A45');
-  const fieldRef = useRef(null);
-  const dragState = useRef({ id: null });
-
-  // Começa de um 4-3-3 equilibrado de verdade (mesmas coordenadas dos
-  // esquemas prontos) — a pessoa mexe a partir de um time que já faz
-  // sentido, em vez de uma bagunça aleatória de bolinhas.
-  const [dots, setDots] = useState(() =>
-    buildPitchSlots('4-3-3-misto')
-      .filter(s => s.realPos !== 'GOL' && !s.isBench)
-      .map((s, i) => ({ id: i, x: s.x, y: s.y }))
-  );
-
-  const { slots, counts } = useMemo(() => classifyCustomSlots(dots), [dots]);
-  const shape = useMemo(() => customFormationShape(counts), [counts]);
-  const description = useMemo(() => describeCustomFormation(counts), [counts]);
-  const errors = useMemo(() => validateCustomFormation(counts), [counts]);
-
-  const onDotPointerDown = (id) => (e) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    dragState.current = { id, startX: e.clientX, startY: e.clientY, moved: false };
-  };
-  const onDotPointerMove = (e) => {
-    const st = dragState.current;
-    if (st.id == null || !fieldRef.current) return;
-    // Só conta como arraste de verdade depois de mexer alguns pixels — um
-    // clique/tap sempre balança 1-2px sem querer, e sem essa margem NUNCA
-    // seria reconhecido como clique puro.
-    if (!st.moved && (Math.abs(e.clientX - st.startX) > 5 || Math.abs(e.clientY - st.startY) > 5)) {
-      st.moved = true;
-    }
-    const rect = fieldRef.current.getBoundingClientRect();
-    const x = Math.max(4, Math.min(96, ((e.clientX - rect.left) / rect.width) * 100));
-    const y = Math.max(4, Math.min(96, ((e.clientY - rect.top) / rect.height) * 100));
-    setDots(prev => prev.map(d => (d.id === st.id ? { ...d, x, y } : d)));
-  };
-  // Soltar sem ter arrastado = clique — avança a bolinha pro próximo tipo do
-  // ciclo (ex.: MEI -> MD -> ME -> volta pro VOL), teleportando ela pro x/y
-  // que representa esse tipo. Alternativa precisa ao arraste fino, principal
-  // pro miolo (VOL/MC/MEI ficam em alturas próximas, difíceis de acertar
-  // exato numa tela de celular).
-  const onDotPointerUp = () => {
-    const st = dragState.current;
-    if (st.id != null && !st.moved) {
-      const current = slots.find(s => s.id === st.id);
-      const nextPos = current && POS_CYCLE[current.realPos];
-      const target = nextPos && CYCLE_TARGET_XY[nextPos];
-      if (target) {
-        const id = st.id;
-        setDots(prev => prev.map(d => (d.id === id ? { ...d, x: target.x, y: target.y } : d)));
-      }
-    }
-    dragState.current = { id: null };
-  };
-
-  return (
-    <div onClick={onBack} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, maxHeight: '94vh', overflowY: 'auto', background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, padding: 20 }}>
-        <button onClick={onBack} className="tap-target-sm" style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '6px 2px 10px', margin: '0 0 0 -2px' }}>&#8592; Voltar</button>
-
-        <div style={styles.eyebrow}>Formação livre</div>
-        <h2 style={styles.h2}>Arraste os jogadores</h2>
-        <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 14 }}>
-          Arraste cada bolinha pra cima, pra baixo ou pros lados — ou toque nela (sem arrastar) pra avançar direto pro próximo tipo de posição. Passar da <span style={{ color: 'var(--gold-ink)', fontWeight: 700 }}>linha amarela</span> vira lateral/ponta; dentro dela fica central. O esquema e a leitura tática são recalculados ao vivo.
-        </p>
-
-        <div
-          ref={fieldRef}
-          style={{
-            position: 'relative', width: '100%', maxWidth: 320, aspectRatio: '0.68', margin: '0 auto 16px',
-            background: 'linear-gradient(180deg,#0f3d22 0%,#145c30 50%,#0f3d22 100%)',
-            border: '2px solid var(--line-strong)', borderRadius: 10, overflow: 'hidden', touchAction: 'none',
-          }}
-        >
-          <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--surface-2)' }} />
-          <div style={{ position: 'absolute', left: '50%', top: '50%', width: 60, height: 60, marginLeft: -30, marginTop: -30, border: '1px solid var(--line-strong)', borderRadius: '50%' }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: '17%', border: '1px solid var(--line-strong)', borderTop: 'none' }} />
-          <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: '17%', border: '1px solid var(--line-strong)', borderBottom: 'none' }} />
-
-          {/* Linhas amarelas marcando o limite exato de WIDE_X_THRESHOLD —
-              passar uma bolinha pra fora delas é o que vira LD/LE, MD/ME ou
-              PD/PE (dependendo da banda); dentro, fica sempre central
-              (ZAG/VOL/MC/MEI/ATA). Sem essa marca, dar aquela "aberta de
-              leve" pra virar ponta era surpresa — não dava pra saber onde
-              exatamente ficava o limite antes de soltar. */}
-          <div style={{ position: 'absolute', left: `${WIDE_X_THRESHOLD}%`, top: 0, bottom: 0, borderLeft: '2px dashed var(--gold)', pointerEvents: 'none' }} />
-          <div style={{ position: 'absolute', left: `${100 - WIDE_X_THRESHOLD}%`, top: 0, bottom: 0, borderLeft: '2px dashed var(--gold)', pointerEvents: 'none' }} />
-
-          {/* Goleiro fixo — só ilustrativo, não arrasta (todo esquema tem 1 goleiro). */}
-          <div style={{
-            position: 'absolute', left: '50%', top: '92%', transform: 'translate(-50%,-50%)',
-            width: 30, height: 30, borderRadius: '50%', background: 'var(--line-strong)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, fontWeight: 800, color: 'var(--ink)',
-          }}>GOL</div>
-
-          {slots.map(s => {
-            const color = POS_GROUP_COLOR[s.realPos] || mc;
-            return (
-              <div
-                key={s.id}
-                onPointerDown={onDotPointerDown(s.id)}
-                onPointerMove={onDotPointerMove}
-                onPointerUp={onDotPointerUp}
-                onPointerCancel={onDotPointerUp}
-                style={{
-                  position: 'absolute', left: `${s.x}%`, top: `${s.y}%`, transform: 'translate(-50%,-50%)',
-                  width: 36, height: 36, borderRadius: '50%', background: color,
-                  border: '2px solid var(--line-strong)', boxShadow: 'var(--shadow)',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  fontSize: 9, fontWeight: 800, color: needsDark(color) ? 'var(--ink)' : '#fff',
-                  cursor: 'grab', touchAction: 'none', userSelect: 'none',
-                }}
-              >
-                {s.realPos}
-              </div>
-            );
-          })}
-        </div>
-
-        <div style={{
-          background: `linear-gradient(135deg, ${hexToRgba(mc, 0.14)}, var(--surface))`,
-          border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 14, padding: '14px 16px', marginBottom: 16,
-        }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 800, color: mc, marginBottom: 4 }}>{shape}</div>
-          <div style={{ fontSize: 12.5, opacity: 0.85, lineHeight: 1.5 }}>{description}</div>
-        </div>
-
-        {errors.length > 0 && (
-          <div style={{ background: 'rgba(178,59,59,0.12)', border: '1px solid rgba(178,59,59,0.5)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 12.5, lineHeight: 1.5, color: 'var(--danger)' }}>
-            {errors.map((e, i) => <div key={i}>{e}</div>)}
-          </div>
-        )}
-
-        <button
-          onClick={() => errors.length === 0 && onChoose(slots, counts, shape)}
-          disabled={errors.length > 0}
-          style={{
-            ...styles.btnPrimary, width: '100%',
-            background: errors.length > 0 ? 'var(--surface-2)' : mc,
-            color: errors.length > 0 ? 'var(--muted)' : 'var(--ink)',
-            cursor: errors.length > 0 ? 'not-allowed' : 'pointer',
-          }}
-        >
-          {errors.length > 0 ? 'Ajuste o esquema pra continuar' : 'Usar essa formação →'}
-        </button>
-      </div>
-    </div>
-  );
+// Redesenho de 2026-11-13: o editor vive em src/game/CustomFormationModal.jsx
+// (mesmas props); as regras continuam aqui em cima (classifyCustomSlots etc.).
+function CustomFormationBuilder(props) {
+  return <CustomFormationModal {...props} />;
 }
 
 function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onClickSlot, onUnplace, myTeamColor, captainSlot, onSlotPointerDown, dragOverKey, variant, targetName }) {
@@ -11420,6 +11239,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-jogo-capitao-time-pronto-formacao',
+    date: 'Novembro de 2026',
+    title: 'Time pronto, formação livre e escolha do capitão redesenhados',
+    desc: 'Escolher um time histórico ficou mais fácil: busca sem acento, filtros por era, clube e conquista, ordenação e uma prévia com OVR, força por setor e destaques. O editor de formação livre ganhou Desfazer, Espelhar, esquemas para começar e um resumo do esquema com o que está faltando. E a tela de "Seu time está pronto" agora mostra o OVR com uma casa decimal e o ganho do capitão, sugestões de capitão, de onde veio cada jogador e um menu para trocar posições. O capitão escolhido também passou a ficar salvo se você recarregar a página.',
+  },
   {
     id: '2026-11-simulador-2026-visual',
     date: 'Novembro de 2026',
