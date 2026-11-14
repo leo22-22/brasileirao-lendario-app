@@ -31,6 +31,7 @@ import { ClubCrest } from './components/football/ClubCrest.jsx';
 import { PitchSurface } from './components/football/Pitch.jsx';
 import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton } from './components/football/LiveMatchView.jsx';
 import { ResultChip, RoundStrip, MonthGrid, COMP_COLORS } from './components/football/SeasonCalendar.jsx';
+import { CupBracket, bracketPathKeys } from './components/football/CupBracket.jsx';
 import { RoundGames } from './components/football/MatchPreviewCard.jsx';
 import { MatchTab } from './game/league/MatchTab.jsx';
 import { TableTab } from './game/league/TableTab.jsx';
@@ -9302,423 +9303,136 @@ function cupMatchOutcome(round, matchIdx) {
   };
 }
 
-// Geometria do chaveamento clássico: 4 fases de cada lado (16 avos → semi) e a
-// final no meio, 9 colunas no total. As posições são calculadas em JS (e não
-// via flex) porque as linhas que ligam um confronto ao bloco da fase seguinte
-// precisam de coordenadas exatas — elas são desenhadas num SVG sobreposto.
-const BK_BLOCK_H = 46;
-const BK_PITCH = 58;   // distância entre os centros de dois blocos das 16 avos
-const BK_COL_W = 132;
-const BK_COL_GAP = 26;
-const BK_SIDE_ROUNDS = 4;
-const BK_GOLD = '#8A6A24';
-const BK_HEIGHT = BK_PITCH * 8;                     // 8 confrontos por lado
-const BK_WIDTH = 9 * BK_COL_W + 8 * BK_COL_GAP;
-// Abaixo desta escala os nomes dos times deixam de ser legíveis (no celular a
-// chave inteira cabe em ~0,24, virando um borrão cinza bonito e inútil).
-const BK_LEGIBLE_SCALE = 0.55;
-
-const bkColX = (col) => col * (BK_COL_W + BK_COL_GAP);
-// Centro vertical do bloco `i` da fase `r` (r=0 nas 16 avos). A cada fase o
-// espaçamento dobra, então o bloco da fase seguinte cai exatamente no meio dos
-// dois que o alimentam — é o que faz a árvore fechar sozinha.
-const bkBlockY = (r, i) => BK_PITCH * Math.pow(2, r) * (i + 0.5);
-// Coluna de uma fase: lado esquerdo conta da borda pro meio, direito espelhado.
-const bkColOf = (r, side) => (side === 'L' ? r : 8 - r);
-
 export function CupBracketModal({
   cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo, myTeamBadge, onViewTeam, onClose,
   // Transição: `advance` é o momento em que uma fase acabou de ser decidida.
   // { intoRoundIdx, winnerIds } numa fase comum; { championId } na final.
   advance = null, simActive = false, simStatus = '', onSimulateAll, onCancelSim,
 }) {
+  // Visual único do chaveamento (components/football/CupBracket, referência:
+  // Copa da carreira). Os dados vêm do cupRounds/cupMatchOutcome de sempre.
   const mc = teamInk(myTeamColor || '#C29A45');
-  // Vários clubes têm preto como cor primária (ex.: Santos) — nesse caso o
-  // botão "Fechar" (fundo = mc) com o texto escuro padrão do btnPrimary
-  // ficava ilegível (preto sobre quase-preto). Texto claro quando o fundo é
-  // escuro, escuro quando é claro — só pra esse botão, que é o único lugar
-  // deste componente que usa a cor do clube como FUNDO sólido.
-  const mcIsDark = (() => {
-    const hex = (mc || '').replace('#', '');
-    if (hex.length !== 6) return true;
-    const r = parseInt(hex.slice(0, 2), 16), g = parseInt(hex.slice(2, 4), 16), b = parseInt(hex.slice(4, 6), 16);
-    return (0.299 * r + 0.587 * g + 0.114 * b) < 140;
-  })();
-  const wrapRef = useRef(null);
-  const autoZoomedRef = useRef(false);
-  const [fitScale, setFitScale] = useState(1);
-  const [zoomed, setZoomed] = useState(false);
   const advancingIds = useMemo(() => new Set(advance?.winnerIds || []), [advance]);
   const intoRoundIdx = advance?.intoRoundIdx ?? -1;
   const championId = advance?.championId ?? null;
   const isChampionMoment = !!championId;
-  const championTeam = isChampionMoment ? leagueTeams?.find(t => t.id === championId) : null;
-
-  // Durante a transição o chaveamento se abre já enquadrado na fase que acabou
-  // de ser decidida — no celular a chave inteira cabe minúscula, e o momento
-  // que interessa é justamente o bloco novo.
-  const decidedRoundIdx = isChampionMoment ? BK_SIDE_ROUNDS : intoRoundIdx - 1;
-
-  // Encolhe o chaveamento inteiro pra caber na largura disponível — assim o
-  // formato clássico aparece de uma vez só, sem rolagem horizontal. No celular
-  // isso fica minúsculo, então o botão de ampliar sobe pra um tamanho legível
-  // e aí sim libera a rolagem lateral.
-  useEffect(() => {
-    const fit = () => {
-      const w = wrapRef.current?.clientWidth;
-      if (!w) return;
-      const s = Math.min(1, w / BK_WIDTH);
-      setFitScale(s);
-      // No celular a chave inteira cabe numa escala de ~0,24: o desenho fica
-      // bonito e os nomes dos times viram borrão cinza. Nesse caso não adianta
-      // "caber" — abre já ampliado e rolado até a fase que interessa, em vez
-      // de mostrar algo ilegível e esperar a pessoa descobrir o "Ampliar".
-      // Só na primeira medição, pra não desfazer o que a pessoa escolheu.
-      if (s < BK_LEGIBLE_SCALE && !autoZoomedRef.current) {
-        autoZoomedRef.current = true;
-        setZoomed(true);
-      }
-    };
-    fit();
-    window.addEventListener('resize', fit);
-    return () => window.removeEventListener('resize', fit);
-  }, []);
-  const scale = zoomed ? Math.max(fitScale, 0.8) : fitScale;
-  const canZoom = fitScale < 0.8;
-
-  // Ampliado, o chaveamento é mais largo que a tela. Rolar sozinho até a fase
-  // recém-decidida (ou a final, no momento do campeão) evita abrir o modal
-  // encarando as 16 avos enquanto o que acabou de acontecer está fora da tela.
-  // Coluna que a rolagem persegue: a fase recém-decidida quando o modal abriu
-  // por uma transição; senão, a fase mais avançada que já tem confronto — que
-  // é onde a Copa está agora. Sem esse segundo caso, abrir o chaveamento na
-  // semifinal (ou durante a simulação) começava encarando as 16 avos.
-  const focusCol = useMemo(() => {
-    if (decidedRoundIdx >= BK_SIDE_ROUNDS) return 4;
-    if (decidedRoundIdx >= 0) return decidedRoundIdx;
-    let last = 0;
-    (cupRounds || []).forEach((r, i) => { if (r?.matches?.length) last = i; });
-    return last >= BK_SIDE_ROUNDS ? 4 : last;
-  }, [decidedRoundIdx, cupRounds]);
-
-  useEffect(() => {
-    const el = wrapRef.current;
-    if (!el || !zoomed) return;
-    const alvo = (bkColX(focusCol) + BK_COL_W / 2) * scale - el.clientWidth / 2;
-    el.scrollTo({ left: Math.max(0, alvo), behavior: 'smooth' });
-  }, [zoomed, scale, focusCol]);
-
+  const decidedRoundIdx = isChampionMoment ? (cupRounds?.length || 5) - 1 : intoRoundIdx - 1;
   const teamOf = (id) => leagueTeams?.find(t => t.id === id);
-  const crestOf = (team, id) => {
-    if (id === myTeamId) {
-      if (myTeamLogo) return <img src={myTeamLogo} style={styles.bracketCrestImg} alt="" />;
-      if (myTeamBadge) return <span style={styles.bracketCrestEmoji}>{myTeamBadge}</span>;
-      return null;
-    }
-    return team?.clubLogo ? <img src={team.clubLogo} style={styles.bracketCrestImg} alt="" /> : null;
-  };
+  const nameOf = (id) => (id === myTeamId ? (teamOf(id)?.label || 'Meu Time') : parseTeamLabel(teamOf(id)?.label || '?').baseName);
+  const crestOf = (id, size) => (id === myTeamId
+    ? <ClubCrest logo={myTeamLogo} badge={myTeamBadge} name={teamOf(id)?.label || 'Meu Time'} color={mc} size={size} />
+    : <ClubCrest team={teamOf(id)} size={size} />);
 
-  const outcomeAt = (r, matchIdx) => {
-    const round = cupRounds?.[r];
-    if (!round?.matches?.[matchIdx]) return null;
-    return cupMatchOutcome(round, matchIdx);
-  };
-
-  const renderBlock = (r, matchIdx, side, posIdx) => {
-    const round = cupRounds?.[r];
-    const m = round?.matches?.[matchIdx];
-    const x = bkColX(bkColOf(r, side));
-    const y = r >= BK_SIDE_ROUNDS ? BK_HEIGHT / 2 : bkBlockY(r, posIdx);
-    const key = `b${r}-${matchIdx}`;
-    const box = {
-      position: 'absolute', left: x, top: y - BK_BLOCK_H / 2, width: BK_COL_W, height: BK_BLOCK_H,
-      borderRadius: 7, overflow: 'hidden', background: 'var(--surface-2)',
-    };
-
-    // Fase ainda não sorteada: bloco vazio, só pra manter o desenho do
-    // chaveamento completo desde a primeira fase.
-    if (!m) {
-      return (
-        <div key={key} style={{ ...box, border: '1px dashed var(--line-strong)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <span style={{ fontSize: 10, opacity: 0.25, fontFamily: 'var(--font-mono)' }}>a definir</span>
-        </div>
-      );
-    }
-
-    const out = cupMatchOutcome(round, matchIdx);
-    const rows = [
-      { id: m.homeId, agg: out.aggH },
-      { id: m.awayId, agg: out.aggA },
-    ];
-    // Bloco que acabou de ser preenchido pelos classificados: entra na tela
-    // com um pequeno salto, escalonado por posição pra dar leitura de cima
-    // pra baixo em vez de tudo piscando junto.
-    const isLanding = r === intoRoundIdx && rows.some(row => advancingIds.has(row.id));
-    const isChampionBlock = isChampionMoment && r === BK_SIDE_ROUNDS;
-    // Confronto que ACABOU de ser decidido — é o único que ganha o anel dourado
-    // cheio. Antes todo classificado de todas as fases levava anel, e com 16
-    // vencedores só nas 16 avos a tela virava uma parede de amarelo onde o
-    // dourado não queria dizer mais nada. Agora: dourado forte = acabou de
-    // acontecer; texto dourado = já passou; e o time do jogador tem a cor DELE,
-    // que é o que ele procura na tela.
-    const isJustDecided = r === decidedRoundIdx && !!advance;
-    const hasMine = rows.some(row => row.id === myTeamId);
-    const ring = isChampionBlock || isJustDecided
-      ? BK_GOLD
-      : hasMine ? hexToRgba(mc, 0.55) : 'var(--line)';
-    return (
-      <div
-        key={key}
-        className={isLanding ? 'bk-land' : undefined}
-        style={{
-          ...box,
-          border: `1px solid ${ring}`,
-          // O brilho fica no BLOCO (que é arredondado), não na linha de dentro:
-          // a linha é retangular e o anel dela era cortado pelo raio do bloco,
-          // o que deixava os cantos com cara de borda quebrada.
-          boxShadow: isChampionBlock || isJustDecided ? `0 0 0 1px ${hexToRgba(BK_GOLD, 0.35)}` : 'none',
-          animationDelay: isLanding ? `${0.35 + posIdx * 0.09}s` : undefined,
-        }}
-      >
-        {rows.map((row, ti) => {
-          const team = teamOf(row.id);
-          const won = out.decided && out.winnerId === row.id;
-          const lost = out.decided && out.loserId === row.id;
-          const mine = row.id === myTeamId;
-          const flashing = isJustDecided && won && (isChampionMoment || advancingIds.has(row.id));
-          return (
-            <div key={ti} className={flashing ? 'bk-flash' : undefined} style={{
-              display: 'flex', alignItems: 'center', gap: 5, height: '50%', padding: '0 6px',
-              borderBottom: ti === 0 ? '1px solid var(--line)' : 'none',
-              // Nunca usa a cor crua do clube se for escura demais pra ler
-              // (vários têm preto/cinza-escuro como cor principal — Santos,
-              // Botafogo-SP, Vasco, Operário etc. — bug real reportado pelo
-              // usuário: "meu nome ali tá preto"): cai pro dourado do
-              // chaveamento nesse caso, mesma convenção já usada no resto do
-              // app (ver comentário em "Orçamento do X no Modo Carreira").
-              background: mine ? hexToRgba(mcIsDark ? BK_GOLD : mc, 0.16) : won ? hexToRgba(BK_GOLD, isJustDecided ? 0.16 : 0.07) : 'transparent',
-              opacity: lost ? 0.32 : 1,
-            }}>
-              <span style={{ ...styles.bracketCrestSlot, width: 16, height: 16 }}>{crestOf(team, row.id)}</span>
-              <span
-                onClick={() => !mine && onViewTeam && team && onViewTeam(team)}
-                style={{
-                  flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  fontSize: 10.5, cursor: mine ? 'default' : 'pointer',
-                  color: mine ? (mcIsDark ? BK_GOLD : mc) : won ? BK_GOLD : 'var(--ink)',
-                  fontWeight: won || mine ? 700 : 400,
-                }}
-              >{team?.label || '?'}</span>
-              {row.agg !== null && row.agg !== undefined && (
-                <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, fontWeight: 700, color: mine ? (mcIsDark ? BK_GOLD : mc) : won ? BK_GOLD : 'var(--ink-2)' }}>
-                  {row.agg}{out.onPens && won ? '*' : ''}
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  // Todos os blocos: 8 confrontos por lado nas 16 avos, metade a cada fase.
-  const blocks = [];
-  for (let r = 0; r < BK_SIDE_ROUNDS; r++) {
-    const perSide = 8 >> r;
-    for (let p = 0; p < perSide; p++) {
-      blocks.push(renderBlock(r, p, 'L', p));
-      blocks.push(renderBlock(r, perSide + p, 'R', p));
-    }
-  }
-  blocks.push(renderBlock(BK_SIDE_ROUNDS, 0, 'L', 0)); // final, no centro
-
-  // Linhas: uma por confronto, do bloco dele até o bloco da fase seguinte.
-  // Fica dourada quando o confronto já foi decidido — é a linha "levando" o
-  // classificado pro próximo bloco.
-  const paths = [];
-  for (let r = 0; r < BK_SIDE_ROUNDS; r++) {
-    const perSide = 8 >> r;
-    for (let p = 0; p < perSide; p++) {
-      for (const side of ['L', 'R']) {
-        const matchIdx = side === 'L' ? p : perSide + p;
-        const out = outcomeAt(r, matchIdx);
-        const lit = !!out?.decided;
-        const y = bkBlockY(r, p);
-        const isSemi = r === BK_SIDE_ROUNDS - 1;
-        const targetY = isSemi ? BK_HEIGHT / 2 : bkBlockY(r + 1, Math.floor(p / 2));
-        const colFrom = bkColOf(r, side);
-        const colTo = isSemi ? 4 : bkColOf(r + 1, side);
-        // No lado direito o desenho corre da direita pra esquerda.
-        const xFrom = side === 'L' ? bkColX(colFrom) + BK_COL_W : bkColX(colFrom);
-        const xTo = side === 'L' ? bkColX(colTo) : bkColX(colTo) + BK_COL_W;
-        const midX = (xFrom + xTo) / 2;
-        // Na transição, a linha da fase recém-decidida se DESENHA (em vez de
-        // já aparecer pronta) — é ela que "leva" o classificado até o bloco
-        // novo, e o bloco só aterrissa depois que ela chega lá.
-        const drawing = lit && r === decidedRoundIdx && !!advance;
-        const len = Math.abs(midX - xFrom) + Math.abs(targetY - y) + Math.abs(xTo - midX);
-        // Três intensidades em vez de duas: a linha da fase que acabou de sair
-        // é ouro cheio, as fases já resolvidas ficam num ouro apagado (contam a
-        // história sem competir com o presente) e o que não foi jogado é
-        // cinza. Antes toda linha decidida era ouro forte e a chave inteira
-        // brigava por atenção.
-        const strokeCor = drawing ? BK_GOLD : lit ? hexToRgba(BK_GOLD, 0.4) : '#CFC6B1';
-        paths.push(
-          <path
-            key={`p${r}-${side}-${p}`}
-            className={drawing ? 'bk-draw' : undefined}
-            d={`M ${xFrom} ${y} H ${midX} V ${targetY} H ${xTo}`}
-            fill="none"
-            stroke={strokeCor}
-            strokeWidth={drawing ? 2 : lit ? 1.4 : 1}
-            style={drawing ? { '--bk-len': len, strokeDasharray: len, animationDelay: `${p * 0.06}s` } : undefined}
-          />
-        );
+  // cupRounds[r] (r = 0 → 16 avos) vira a fase r + 1 da chave.
+  const ties = {};
+  let lastKnown = null;
+  let alive = true;
+  (cupRounds || []).forEach((round, r) => {
+    ties[r + 1] = (round?.matches || []).map((m, i) => {
+      const out = cupMatchOutcome(round, i);
+      if (m.homeId === myTeamId || m.awayId === myTeamId) {
+        lastKnown = { phase: r + 1, idx: i };
+        if (out.decided && out.winnerId !== myTeamId) alive = false;
       }
-    }
-  }
-
-  const roundLabels = [];
-  for (let r = 0; r < BK_SIDE_ROUNDS; r++) {
-    for (const side of ['L', 'R']) {
-      roundLabels.push(
-        <div key={`l${r}${side}`} style={{
-          position: 'absolute', left: bkColX(bkColOf(r, side)), top: -22, width: BK_COL_W,
-          textAlign: 'center', fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase',
-          fontFamily: 'var(--font-mono)', color: 'var(--muted)',
-        }}>{CUP_ROUND_NAMES[r]}</div>
-      );
-    }
-  }
-  roundLabels.push(
-    <div key="lfinal" style={{
-      position: 'absolute', left: bkColX(4), top: -22, width: BK_COL_W,
-      textAlign: 'center', fontSize: 9, letterSpacing: 0.5, textTransform: 'uppercase',
-      fontFamily: 'var(--font-mono)', color: BK_GOLD, fontWeight: 700,
-    }}>🏆 Final</div>
+      return {
+        aId: m.homeId, bId: m.awayId, aggA: out.aggH, aggB: out.aggA,
+        decided: out.decided, winnerId: out.winnerId, onPens: out.onPens,
+        leg1: round.leg1Results?.[i] || null, leg2: round.results?.[i] || null,
+        single: (round.matches?.length || 0) === 1 ? (round.results?.[i] || null) : null,
+        justDecided: !!advance && r === decidedRoundIdx,
+        landing: r === intoRoundIdx && (advancingIds.has(m.homeId) || advancingIds.has(m.awayId)),
+      };
+    });
+  });
+  const { myKeys, mySide, nextPathKey } = bracketPathKeys(lastKnown, alive);
+  const championTeam = isChampionMoment ? teamOf(championId) : null;
+  const sc = (r) => (r ? `${r.homeGoals}–${r.awayGoals}` : '×');
+  const popover = (t, phase) => (
+    <>
+      {phase === 5 || t.single ? (
+        <div className="cp-pop-r"><span>Jogo único</span><b>{nameOf(t.aId)} {sc(t.single)} {nameOf(t.bId)}</b></div>
+      ) : (
+        <>
+          <div className="cp-pop-r"><span>Ida</span><b>{nameOf(t.aId)} {sc(t.leg1)} {nameOf(t.bId)}</b></div>
+          <div className="cp-pop-r"><span>Volta</span><b>{nameOf(t.bId)} {t.leg2 ? `${t.leg2.homeGoals}–${t.leg2.awayGoals}` : '×'} {nameOf(t.aId)}</b></div>
+        </>
+      )}
+      <div className="cp-pop-r"><span>Agregado</span><b>{t.aggA != null ? `${t.aggA}–${t.aggB}` : 'a jogar'}{t.decided ? ` · passa ${nameOf(t.winnerId)}${t.onPens ? ' nos pênaltis' : ''}` : ''}</b></div>
+      {onViewTeam && (
+        <div className="cp-pop-r" style={{ gap: 8 }}>
+          {[t.aId, t.bId].filter(id => id !== myTeamId).map(id => (
+            <button key={id} type="button" className="ch-link" onClick={() => onViewTeam(teamOf(id))}>Ver elenco do {nameOf(id)}</button>
+          ))}
+        </div>
+      )}
+    </>
   );
 
-  // Troféu sobre o bloco da final — só no instante em que o campeão sai.
-  const trophy = isChampionMoment ? (
-    <div key="trophy" className="bk-trophy" style={{
-      position: 'absolute', left: bkColX(4), top: BK_HEIGHT / 2 - BK_BLOCK_H / 2 - 40,
-      width: BK_COL_W, textAlign: 'center', fontSize: 30, animationDelay: '0.5s', pointerEvents: 'none',
-    }}>🏆</div>
-  ) : null;
-
-  // Os confrontos que a fase nova acabou de formar, em texto. O desenho da
-  // chave conta a história inteira, mas ele é encolhido pra caber na largura —
-  // no celular vira letra de formiga, e é justamente aqui que a pessoa quer
-  // ler UMA coisa: quem eu pego agora. Some no momento do campeão (ali o que
-  // importa é o troféu) e fora da transição.
-  const nextMatchStrip = advance && !isChampionMoment && cupRounds?.[intoRoundIdx]?.matches?.length > 0 ? (
-    <div style={{ marginTop: 14, display: 'grid', gap: 4 }}>
-      {cupRounds[intoRoundIdx].matches.map((m, i) => {
-        const h = teamOf(m.homeId), a = teamOf(m.awayId);
-        const mine = m.homeId === myTeamId || m.awayId === myTeamId;
-        return (
-          <div key={i} style={{
-            display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
-            padding: '6px 10px', borderRadius: 6,
-            background: mine ? hexToRgba(mc, 0.14) : 'var(--surface)',
-            border: `1px solid ${mine ? hexToRgba(mc, 0.4) : 'var(--line)'}`,
-            fontWeight: mine ? 700 : 400,
-          }}>
-            <span style={{ flex: 1, minWidth: 0, textAlign: 'right', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h?.label || '?'}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', flexShrink: 0 }}>×</span>
-            <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a?.label || '?'}</span>
-          </div>
-        );
-      })}
-    </div>
-  ) : null;
-
-  // Cabeçalho: fora da transição é só o título; durante, conta o que acabou
-  // de acontecer (é o momento em que a pessoa descobre quem vai pegar).
-  // "Classificados para Final" ficava sem artigo. As fases têm gênero/número
-  // diferentes ("as Oitavas", "a Final"), então o artigo vem junto do nome.
   const faseDestino = CUP_ROUND_NAMES[intoRoundIdx];
-  const nomeComArtigo = faseDestino
-    ? `${/^(16 Avos|Oitavas|Quartas)/.test(faseDestino) ? 'as' : 'a'} ${faseDestino}`
-    : 'a fase seguinte';
+  const nomeComArtigo = faseDestino ? `${/^(16 Avos|Oitavas|Quartas)/.test(faseDestino) ? 'as' : 'a'} ${faseDestino}` : 'a fase seguinte';
   const title = isChampionMoment
-    ? `🏆 ${championTeam?.label || 'Campeão'} — campeão da Copa do Brasil`
-    : advance
-      ? `Classificados para ${nomeComArtigo}`
-      : simActive
-        ? (simStatus || 'Simulando a Copa…')
-        : '🏆 Chaveamento — Copa do Brasil';
-  // Durante a transição o fundo fecha por clique só quando não é o momento do
-  // campeão — ali o botão é o caminho, pra ninguém pular o fecho sem querer.
-  const closeOnBackdrop = !simActive && !isChampionMoment ? onClose : undefined;
+    ? `${championTeam ? nameOf(championId) : 'Campeão'}: campeão da Copa do Brasil`
+    : advance ? `Classificados para ${nomeComArtigo}`
+      : simActive ? (simStatus || 'Simulando a Copa…') : 'Chaveamento da Copa do Brasil';
+  const nextGames = advance && !isChampionMoment ? (cupRounds?.[intoRoundIdx]?.matches || []) : [];
 
   return (
-    <div onClick={closeOnBackdrop} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 1460, maxHeight: '94vh', overflowY: 'auto', background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: `1px solid ${isChampionMoment ? hexToRgba(BK_GOLD, 0.45) : 'var(--line)'}`, borderRadius: 20, padding: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 16 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: BK_GOLD, fontWeight: 700, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {title}
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            {canZoom && (
-              <button
-                onClick={() => setZoomed(z => !z)}
-                style={{ background: 'none', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)', fontSize: 11, padding: '4px 10px', cursor: 'pointer' }}
-              >{zoomed ? '⤢ Ver inteiro' : '🔍 Ampliar'}</button>
-            )}
-            {/* Durante a simulação direta e no momento do campeão o ✕ sai de
-                cena: ali a ação certa é o botão embaixo, não abandonar. */}
-            {!simActive && !isChampionMoment && (
-              <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
-            )}
-          </div>
+    <Modal onClose={!simActive && !isChampionMoment ? onClose : undefined} maxWidth={1460} labelledBy="cbk-title" className="cbk-modal">
+      <div className="cbk-head">
+        <span className="ui-label">Copa do Brasil Lendária</span>
+        <h2 id="cbk-title">{isChampionMoment && <Icon name="trophy" size={24} />}{title}</h2>
+      </div>
+      {isChampionMoment && championTeam && (
+        <div className="cbk-champ bk-trophy">
+          {crestOf(championId, 56)}
+          <div><span className="ui-label">Campeão</span><b>{nameOf(championId)}</b></div>
         </div>
-
-        <div ref={wrapRef} style={{ width: '100%', overflowX: zoomed ? 'auto' : 'hidden', overflowY: 'hidden' }}>
-          <div style={{ height: (BK_HEIGHT + 30) * scale, width: BK_WIDTH * scale, position: 'relative' }}>
-            <div style={{ position: 'absolute', width: BK_WIDTH, height: BK_HEIGHT, top: 26 * scale, left: 0, transform: `scale(${scale})`, transformOrigin: 'top left' }}>
-              <svg width={BK_WIDTH} height={BK_HEIGHT} style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>{paths}</svg>
-              {roundLabels}
-              {blocks}
-              {trophy}
-            </div>
+      )}
+      <CupBracket
+        title={null}
+        ties={ties}
+        nameOf={nameOf}
+        crestOf={crestOf}
+        myId={myTeamId}
+        myKeys={myKeys}
+        mySide={mySide}
+        nextPathKey={nextPathKey}
+        renderPopover={popover}
+        initialMobilePhase={Math.max(1, intoRoundIdx >= 0 ? intoRoundIdx + 1 : (cupRounds?.length || 1))}
+        finalPlaceholder={<><Icon name="trophy" size={20} /><span>Final</span></>}
+        legend={(
+          <div className="cp-bkl">
+            <span><i style={{ background: '#F6EEDB', border: '2px solid var(--gold)' }} />Seu confronto e seu caminho</span>
+            <span><i style={{ border: '1px dashed var(--line-strong)' }} />A definir</span>
+            <span>Eliminados ficam apagados · * decidido nos pênaltis</span>
           </div>
-        </div>
-
-        {nextMatchStrip}
-
-        <div style={{ marginTop: 14, display: 'flex', gap: 14, flexWrap: 'wrap', justifyContent: 'center', fontSize: 10.5, color: 'var(--muted)' }}>
-          <span><span style={{ color: BK_GOLD }}>▬</span> classificado</span>
-          <span>times escurecidos foram eliminados</span>
-          <span><span style={{ fontFamily: 'var(--font-mono)' }}>*</span> decidido nos pênaltis</span>
-        </div>
-
+        )}
+      />
+      {nextGames.length > 0 && (
+        <section className="cbk-next">
+          <h3>Confrontos {CUP_ROUND_NAMES[intoRoundIdx] ? `das ${CUP_ROUND_NAMES[intoRoundIdx].replace(/^(16 Avos de Final)$/, '16 avos')}` : 'da próxima fase'}</h3>
+          <RoundGames games={nextGames.map((m, i) => ({
+            key: i,
+            home: { name: nameOf(m.homeId), crest: crestOf(m.homeId, 18) },
+            away: { name: nameOf(m.awayId), crest: crestOf(m.awayId, 18) },
+            score: null, status: 'pending', mine: m.homeId === myTeamId || m.awayId === myTeamId,
+          }))} />
+        </section>
+      )}
+      <div className="cbk-ctrl">
         {simActive ? (
           <>
-            <div style={{ marginTop: 14, textAlign: 'center', fontSize: 12, color: BK_GOLD, fontFamily: 'var(--font-mono)', minHeight: 18 }}>
-              {simStatus || 'Simulando…'}
-            </div>
-            {onCancelSim && (
-              <button onClick={onCancelSim} style={{ ...styles.btnGhost, width: '100%', marginTop: 10 }}>Parar</button>
-            )}
+            <p className="scal-hint" role="status">{simStatus || 'Simulando…'}</p>
+            {onCancelSim && <Button variant="ghost" block onClick={onCancelSim}>Parar</Button>}
           </>
         ) : (
           <>
-            {/* Fora da transição, o chaveamento também é de onde dá pra tocar a
-                Copa até o fim — o mesmo papel que o calendário tem no
-                Brasileirão. */}
-            {!advance && onSimulateAll && (
-              <button onClick={onSimulateAll} style={{ ...styles.btnGhost, width: '100%', marginTop: 14 }}>
-                ⏭ Simular até o campeão
-              </button>
-            )}
-            <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', marginTop: advance ? 14 : 8 }}>
-              {isChampionMoment ? 'Ver resultado final →' : advance ? 'Continuar →' : 'Fechar'}
-            </button>
+            {!advance && onSimulateAll && <Button variant="ghost" block icon="forward" onClick={onSimulateAll}>Simular até o campeão</Button>}
+            <Button variant="dark" block iconRight={advance ? 'arrowRight' : undefined} onClick={onClose}>{isChampionMoment ? 'Ver resultado final' : advance ? 'Continuar' : 'Fechar'}</Button>
           </>
         )}
       </div>
-    </div>
+    </Modal>
   );
 }
 
@@ -13397,31 +13111,22 @@ const globalCss = `
   }
 
   /* ── Transição do chaveamento ────────────────────────────────
-     Quando uma fase termina, o chaveamento abre e os classificados "sobem"
-     pros blocos da fase seguinte. Três peças que rodam juntas: a linha que
-     leva o time se desenha, o bloco de destino aparece, e o nome de quem
-     passou pisca em dourado. */
-  @keyframes bkDraw { from { stroke-dashoffset: var(--bk-len); } to { stroke-dashoffset: 0; } }
+     Quando uma fase termina, os confrontos novos entram com um pequeno salto
+     (bk-land) e o card do campeão aparece (bk-trophy). */
   @keyframes bkLand {
     0%   { opacity: 0; transform: scale(0.9); }
     60%  { opacity: 1; transform: scale(1.04); }
     100% { opacity: 1; transform: scale(1); }
-  }
-  @keyframes bkFlash {
-    0%, 100% { box-shadow: inset 0 0 0 1.5px ${'#C29A45'}; }
-    50%      { box-shadow: inset 0 0 0 2.5px ${'#C29A45'}, 0 0 16px ${'rgba(194,154,69,0.45)'}; }
   }
   @keyframes bkTrophy {
     0%   { opacity: 0; transform: translateY(10px) scale(0.7); }
     70%  { opacity: 1; transform: translateY(0) scale(1.15); }
     100% { opacity: 1; transform: translateY(0) scale(1); }
   }
-  .bk-draw  { animation: bkDraw 0.55s ease-out both; }
   .bk-land  { animation: bkLand 0.45s cubic-bezier(0.2,0.9,0.3,1.2) both; }
-  .bk-flash { animation: bkFlash 0.8s ease-in-out 2; }
   .bk-trophy { animation: bkTrophy 0.7s cubic-bezier(0.2,0.9,0.3,1.3) both; }
   @media (prefers-reduced-motion: reduce) {
-    .bk-draw, .bk-land, .bk-flash, .bk-trophy { animation: none !important; }
+    .bk-land, .bk-trophy { animation: none !important; }
   }
 
   .marquee-track { animation: marquee 48s linear infinite; will-change: transform; }

@@ -3,7 +3,7 @@
 // (CupBracketModal, App.jsx — continua lá para o modo clássico) e virou
 // parte da página. Só LÊ o save: fases, confrontos, placares e vencedores
 // vêm de copaEngine.js via engine/copaView.js. Nenhuma regra/sorteio muda.
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { formatCalendarDay } from '../engine/calendar.js';
 import { COPA_ROUND_LABELS } from '../engine/copaEngine.js';
@@ -21,6 +21,7 @@ import '../components/careerShell.css';
 import './careerSquad.css';
 import './careerCopa.css';
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
+import { CupBracket, bracketPathKeys } from '../../components/football/CupBracket.jsx';
 
 const clubOf = (id) => TEAMS.find(t => t.id === id);
 const nameOf = (id) => displayName(clubOf(id)?.club || '');
@@ -53,21 +54,9 @@ export function CareerCopaScreen({ save, onNavigate, onPlayNext }) {
   const scorers = useMemo(() => copaScorers(save), [save]);
   const next = useMemo(() => upcomingFixtures(save, 1)[0] || null, [save]);
 
-  const isMq = (q) => typeof window !== 'undefined' && window.matchMedia?.(q).matches;
-  const [isMobile, setIsMobile] = useState(() => isMq('(max-width: 768px)'));
-  useEffect(() => {
-    const mq = window.matchMedia?.('(max-width: 768px)');
-    if (!mq) return undefined;
-    const on = () => setIsMobile(mq.matches);
-    mq.addEventListener?.('change', on);
-    return () => mq.removeEventListener?.('change', on);
-  }, []);
 
   const [tab, setTab] = useState('bracket');
-  const [side, setSide] = useState('all');
-  const [pop, setPop] = useState(null); // { key, x, y, tie, phase }
   const [phaseView, setPhaseView] = useState(() => (copa?.phase === 'active' ? copa.round : FINAL_PHASE));
-  const [mobilePhase, setMobilePhase] = useState(() => Math.max(1, Math.min(FINAL_PHASE, copa?.round || 1)));
 
   const curPhase = copa.phase === 'active' ? copa.round : null;
   const curLeg = curPhase != null && curPhase !== FINAL_PHASE ? copa.leg : null;
@@ -254,130 +243,13 @@ export function CareerCopaScreen({ save, onNavigate, onPlayNext }) {
     );
   };
 
-  // ── Chaveamento ──
-  const myKeys = useMemo(() => {
-    const mine = new Set(), pathK = new Set();
-    const lk = run.lastKnown;
-    if (lk && lk.phase >= 1) {
-      mine.add(`${lk.phase}-${lk.idx}`);
-      if (run.eliminatedAt == null && !run.champion) for (let q = lk.phase + 1; q <= FINAL_PHASE; q++) pathK.add(`${q}-${lk.idx >> (q - lk.phase)}`);
-    }
-    return { mine, pathK };
-  }, [run]);
-  const mySide = run.lastKnown && run.lastKnown.phase >= 1 ? ((run.lastKnown.idx << (run.lastKnown.phase - 1)) < 8 ? 'left' : 'right') : null;
-  const nextPathKey = [...myKeys.pathK][0];
-
-  const COLS_LEFT = [1, 2, 3, 4].map(p => ({ phase: p, idxs: Array.from({ length: (16 >> (p - 1)) / 2 }, (_, i) => i) }));
-  const COLS_RIGHT = [4, 3, 2, 1].map(p => ({ phase: p, idxs: Array.from({ length: (16 >> (p - 1)) / 2 }, (_, i) => i + (16 >> (p - 1)) / 2) }));
-  const cols = [
-    ...(side === 'mine' && mySide === 'right' ? [] : COLS_LEFT.map(c => ({ ...c, side: 'left' }))),
-    { phase: FINAL_PHASE, idxs: [0], side: 'center' },
-    ...(side === 'mine' && mySide === 'left' ? [] : COLS_RIGHT.map(c => ({ ...c, side: 'right' }))),
-  ];
-
-  const bkRef = useRef(null);
-  const scrollRef = useRef(null);
-  const [lines, setLines] = useState([]);
-  useLayoutEffect(() => {
-    const box = bkRef.current;
-    if (!box || tab !== 'bracket' || isMobile) return undefined;
-    const compute = () => {
-      const bb = box.getBoundingClientRect();
-      const rect = (k) => box.querySelector(`[data-tie="${k}"]`)?.getBoundingClientRect();
-      const out = [];
-      for (let q = 2; q <= FINAL_PHASE; q++) {
-        const n = 16 >> (q - 1);
-        for (let j = 0; j < n; j++) {
-          const to = rect(`${q}-${j}`);
-          if (!to) continue;
-          for (const f of [2 * j, 2 * j + 1]) {
-            const from = rect(`${q - 1}-${f}`);
-            if (!from) continue;
-            const leftSide = from.left < to.left;
-            const x1 = (leftSide ? from.right : from.left) - bb.left;
-            const y1 = from.top + from.height / 2 - bb.top;
-            const x2 = (leftSide ? to.left : to.right) - bb.left;
-            const y2 = to.top + to.height / 2 - bb.top;
-            const mx = (x1 + x2) / 2;
-            const hl = myKeys.pathK.has(`${q}-${j}`) && (myKeys.mine.has(`${q - 1}-${f}`) || myKeys.pathK.has(`${q - 1}-${f}`));
-            out.push({ d: `M${x1},${y1} H${mx} V${y2} H${x2}`, hl });
-          }
-        }
-      }
-      setLines(out);
-    };
-    compute();
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(compute) : null;
-    ro?.observe(box);
-    return () => ro?.disconnect();
-  }, [tab, side, isMobile, myKeys, T]);
-
-  // ≤1200: chave com scroll próprio, já rolada até o meu lado
-  useEffect(() => {
-    const el = scrollRef.current;
-    if (!el || tab !== 'bracket') return;
-    if (el.scrollWidth > el.clientWidth) el.scrollLeft = mySide === 'right' ? el.scrollWidth : 0;
-  }, [tab, side, mySide]);
-
-  useEffect(() => {
-    if (!pop) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setPop(null); };
-    const onDoc = (e) => { if (!e.target.closest?.('.cp-pop') && !e.target.closest?.('.cp-tie')) setPop(null); };
-    window.addEventListener('keydown', onKey);
-    document.addEventListener('mousedown', onDoc);
-    return () => { window.removeEventListener('keydown', onKey); document.removeEventListener('mousedown', onDoc); };
-  }, [pop]);
-
-  const openPop = (e, t, phase, key) => {
-    if (!t) return;
-    const box = bkRef.current?.getBoundingClientRect();
-    const r = e.currentTarget.getBoundingClientRect();
-    if (!box) { setPop({ key, t, phase, x: 0, y: 0 }); return; }
-    setPop({ key, t, phase, x: Math.min(r.left - box.left, box.width - 250), y: r.bottom - box.top + 6 });
-  };
-
-  const TieBox = ({ phase, idx }) => {
-    const t = T[phase]?.[idx] || null;
-    const key = `${phase}-${idx}`;
-    const mine = myKeys.mine.has(key);
-    const inPath = myKeys.pathK.has(key);
-    if (phase === FINAL_PHASE && !t) {
-      return (
-        <div key={key} className={`cp-tie cp-final${inPath ? ' cp-path-k' : ''}`} data-tie={key} aria-label={tieAria(null, phase)} role="img">
-          <Icon name="trophy" size={20} /><span>Final · jogo único</span><small>{shortDay(phaseDays(FINAL_PHASE)[0])}</small>
-        </div>
-      );
-    }
-    if (!t) {
-      return <div key={key} className={`cp-tie cp-tbd${inPath ? ' cp-path-k' : ''}`} data-tie={key} role="img" aria-label={tieAria(null, phase)}><span>{key === nextPathKey ? 'Seu possível jogo' : 'a definir'}</span></div>;
-    }
-    const row = (id, goals) => {
-      const won = t.decided && t.winnerId === id;
-      const lost = t.decided && t.winnerId !== id;
-      return (
-        <span className={`cp-tm${id === me ? ' cp-me' : ''}${won ? ' cp-won' : ''}${lost ? ' cp-lost' : ''}`}>
-          <Crest id={id} size={15} /><span className="cp-tm-n">{nameOf(id)}</span>
-          {goals != null && <span className="cp-tm-g">{goals}{won && t.onPens ? '*' : ''}</span>}
-        </span>
-      );
-    };
-    return (
-      <button key={key} type="button" className={`cp-tie${mine ? ' cp-mine' : ''}${phase === FINAL_PHASE ? ' cp-final-t' : ''}${pop?.key === key ? ' cp-open' : ''}`} data-tie={key} aria-label={tieAria(t, phase)} onClick={(e) => openPop(e, t, phase, key)}>
-        {phase === FINAL_PHASE && <span className="cp-final-h"><Icon name="trophy" size={14} />Final</span>}
-        {row(t.aId, t.aggA)}
-        {row(t.bId, t.aggB)}
-      </button>
-    );
-  };
-
-  const Popover = () => {
-    if (!pop) return null;
-    const { t, phase } = pop;
+  // ── Chaveamento (components/football/CupBracket) ──
+  const { myKeys, mySide, nextPathKey } = useMemo(() => bracketPathKeys(run.lastKnown, run.eliminatedAt == null && !run.champion), [run]);
+  const popoverContent = (t, phase) => {
     const isFinal = phase === FINAL_PHASE;
     const days = phaseDays(phase);
     return (
-      <div className="cp-pop" style={{ left: Math.max(0, pop.x), top: pop.y }} role="dialog" aria-label={`Placares: ${nameOf(t.aId)} x ${nameOf(t.bId)}`}>
-        <div className="cp-pop-h"><b>{COPA_ROUND_LABELS[phase]}</b><button type="button" className="cp-x" onClick={() => setPop(null)} aria-label="Fechar"><Icon name="close" size={14} /></button></div>
+      <>
         {isFinal ? (
           <div className="cp-pop-r"><span>Jogo único · {shortDay(days[0])}</span><b>{nameOf(t.aId)} {score(t.single) || '×'} {nameOf(t.bId)}</b></div>
         ) : t.aggOnly ? (
@@ -389,57 +261,33 @@ export function CareerCopaScreen({ save, onNavigate, onPlayNext }) {
           </>
         )}
         <div className="cp-pop-r"><span>{isFinal ? 'Resultado' : 'Agregado'}</span><b>{aggText(t) || 'a jogar'}{t.decided ? ` · passa ${nameOf(t.winnerId)}${t.onPens ? ' nos pênaltis' : t.decider ? ' no jogo extra' : ''}` : ''}</b></div>
-      </div>
+      </>
     );
   };
 
-  const MobileBracket = () => (
-    <div>
-      <div className="cp-mtabs" role="tablist" aria-label="Fase do chaveamento">
-        {[1, 2, 3, 4, 5].map(p => <button key={p} type="button" role="tab" aria-selected={mobilePhase === p} className={mobilePhase === p ? 'cp-on' : ''} onClick={() => setMobilePhase(p)}>{PHASE_SHORT[p]}</button>)}
-      </div>
-      <div className="cp-mlist">
-        {Array.from({ length: 16 >> (mobilePhase - 1) }, (_, i) => TieBox({ phase: mobilePhase, idx: i }))}
-      </div>
-    </div>
-  );
-
   const BracketCard = () => (
     <div className="ch-card cp-bkc">
-      <div className="cp-bk-top">
-        <h3>Chaveamento</h3>
-        {!isMobile && (
-          <div className="cf-seg" role="tablist" aria-label="Lados da chave">
-            <button type="button" role="tab" aria-selected={side === 'all'} className={side === 'all' ? 'cf-on' : ''} onClick={() => setSide('all')}>Chave completa</button>
-            <button type="button" role="tab" aria-selected={side === 'mine'} className={side === 'mine' ? 'cf-on' : ''} onClick={() => setSide('mine')} disabled={!mySide} title={mySide ? undefined : 'Disponível depois do sorteio dos 16 avos'}>Só meu lado</button>
+      <CupBracket
+        ties={T}
+        nameOf={nameOf}
+        crestOf={(id, size) => <Crest id={id} size={size} />}
+        myId={me}
+        myKeys={myKeys}
+        mySide={mySide}
+        nextPathKey={nextPathKey}
+        tieAria={tieAria}
+        renderPopover={popoverContent}
+        initialMobilePhase={copa?.round || 1}
+        finalPlaceholder={<><Icon name="trophy" size={20} /><span>Final · jogo único</span><small>{shortDay(phaseDays(FINAL_PHASE)[0])}</small></>}
+        emptyNote={!T[1]?.length ? <div className="mk-locked" style={{ marginBottom: 12 }}><Icon name="info" size={16} />Os 16 avos ainda não foram sorteados: o chaveamento sai quando a primeira fase terminar.</div> : null}
+        legend={(
+          <div className="cp-bkl">
+            <span><i style={{ background: '#F6EEDB', border: '2px solid var(--gold)' }} />Seu confronto e seu caminho</span>
+            <span><i style={{ border: '1px dashed var(--line-strong)' }} />A definir</span>
+            <span>Eliminados ficam apagados · * decidido nos pênaltis</span>
           </div>
         )}
-      </div>
-      {!T[1]?.length && <div className="mk-locked" style={{ marginBottom: 12 }}><Icon name="info" size={16} />Os 16 avos ainda não foram sorteados: o chaveamento sai quando a primeira fase terminar.</div>}
-      {isMobile ? MobileBracket() : (
-        <div className="cp-bk-scroll" ref={scrollRef}>
-          <div className={`cp-bk-inner${side === 'mine' ? ' cp-half' : ''}`} ref={bkRef}>
-            <div className="cp-bk-h" style={{ gridTemplateColumns: cols.map(c => (c.side === 'center' ? 'minmax(0,1.1fr)' : c.phase === 1 ? 'minmax(0,1.45fr)' : 'minmax(0,0.95fr)')).join(' ') }}>
-              {cols.map((c, i) => <span key={i} className={c.side === 'center' ? 'cp-fin' : ''}>{PHASE_SHORT[c.phase]}</span>)}
-            </div>
-            <div className="cp-bk" style={{ gridTemplateColumns: cols.map(c => (c.side === 'center' ? 'minmax(0,1.1fr)' : c.phase === 1 ? 'minmax(0,1.45fr)' : 'minmax(0,0.95fr)')).join(' ') }}>
-              <svg className="cp-lines" aria-hidden="true" focusable="false">
-                {lines.map((l, i) => <path key={i} d={l.d} className={l.hl ? 'cp-ln-hl' : ''} />)}
-              </svg>
-              {cols.map((c, i) => (
-                <div key={i} className="cp-col">{c.idxs.map(idx => TieBox({ phase: c.phase, idx }))}</div>
-              ))}
-            </div>
-            {Popover()}
-          </div>
-        </div>
-      )}
-      {isMobile && pop && <div className="cp-pop-m">{Popover()}</div>}
-      <div className="cp-bkl">
-        <span><i style={{ background: '#F6EEDB', border: '2px solid var(--gold)' }} />Seu confronto e seu caminho</span>
-        <span><i style={{ border: '1px dashed var(--line-strong)' }} />A definir</span>
-        <span>Eliminados ficam apagados · * decidido nos pênaltis</span>
-      </div>
+      />
     </div>
   );
 
