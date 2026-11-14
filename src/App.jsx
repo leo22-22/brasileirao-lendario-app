@@ -18,6 +18,7 @@ import { applyResults, revertResults, positionsOf, zoneFor as standingsZoneFor, 
 import { StandingsTable } from './components/football/StandingsTable.jsx';
 import { PlayerList } from './components/football/PlayerList.jsx';
 import { LeaderboardGrid } from './components/football/LeaderboardCard.jsx';
+import { SeasonEndSummary } from './components/football/SeasonEndSummary.jsx';
 import { buildLeaderboards } from './lib/leaders.js';
 import { teamInk, readableOn, textOn } from './lib/color.js';
 import { FIRST_YEAR, LAST_YEAR } from './lib/eras.js';
@@ -12410,70 +12411,7 @@ function AnthemPlayer({ club }) {
   );
 }
 
-// Escudo do campeão no topo da tela de resultado — antes desse ponto era só
-// um emoji genérico (🏆/🥈/⚽), a mesma coisa pra qualquer time. Prioriza o
-// escudo de verdade (do próprio jogador se ele venceu, ou do rival
-// histórico); cai pro emblema em emoji e por último pro emoji genérico.
-function ChampionCrest({ logoUrl, badgeEmoji, fallback, mc }) {
-  const [failed, setFailed] = useState(false);
-  const size = 104;
-  const box = {
-    width: size, height: size, borderRadius: '50%', margin: '0 auto 14px',
-    display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-    background: hexToRgba(mc, 0.12), border: `2px solid ${hexToRgba(mc, 0.6)}`,
-    boxShadow: `0 0 24px ${hexToRgba(mc, 0.25)}`, overflow: 'hidden',
-  };
-  if (logoUrl && !failed) {
-    return (
-      <div style={box}>
-        <img src={logoUrl} alt="" onError={() => setFailed(true)} style={{ width: '78%', height: '78%', objectFit: 'contain' }} />
-      </div>
-    );
-  }
-  return <div style={box}><span style={{ fontSize: 52 }}>{badgeEmoji || fallback}</span></div>;
-}
 
-// Faixa de comemoração do campeão — segura um instante em suspense (tipo
-// abertura de envelope) antes de soltar a frase em loop tipo painel de
-// estádio, pra dar um clímax maior que só cravar o texto na tela de cara.
-function ChampionMarquee({ teamLabel, color }) {
-  const [revealed, setRevealed] = useState(false);
-  useEffect(() => {
-    // Era 1800ms — mas pra quem chegou aqui pela rodada 38 (auto), já tinha
-    // acabado de ver "🏆 Revelando o campeão em 3s...2s...1s..." antes
-    // disso. Duas esperas seguidas fazendo o mesmo trabalho (criar
-    // suspense) só davam a sensação de trava; um respiro curto basta.
-    const t = setTimeout(() => setRevealed(true), 700);
-    return () => clearTimeout(t);
-  }, []);
-  const mc = teamInk(color || '#C29A45');
-  const phrase = `PUTA QUE PARIU, É O MELHOR TIME DO BRASIL: ${(teamLabel || '').toUpperCase()}!`;
-
-  if (!revealed) {
-    return (
-      <div className="champion-suspense" style={{ textAlign: 'center', padding: '10px 0 18px', fontFamily: 'var(--font-mono)', fontSize: 13, letterSpacing: 3, color: mc, textTransform: 'uppercase' }}>
-        🏆 revelando o campeão...
-      </div>
-    );
-  }
-
-  return (
-    <div style={{
-      overflow: 'hidden', margin: '4px 0 18px', padding: '10px 0',
-      background: hexToRgba(mc, 0.08), border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 10,
-      maskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
-      WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent)',
-    }}>
-      <div className="champion-marquee-track" style={{ display: 'flex', width: 'max-content' }}>
-        {[0, 1].map(i => (
-          <span key={i} style={{ whiteSpace: 'nowrap', fontFamily: 'var(--font-serif)', fontWeight: 800, fontSize: 18, color: mc, paddingRight: 48 }}>
-            {phrase} &nbsp;🏆&nbsp; {phrase} &nbsp;🏆&nbsp;
-          </span>
-        ))}
-      </div>
-    </div>
-  );
-}
 
 // Convite pra criar conta no melhor momento possível — logo que a pessoa
 // termina uma temporada jogando como convidado (satisfação alta, e sem
@@ -12506,21 +12444,13 @@ function GuestConversionBanner({ myTeamColor, onOpenAccount }) {
 // Antes a tela inteira (Copa e Brasileirão) era uma pilha de ~12 blocos soltos
 // no mesmo fundo, sem nada separando um do outro visualmente — daí a
 // confusão. Cada ResultSection é um "cartão" próprio, com título e ícone.
-function ResultSection({ icon, label, mc, children, style }) {
+function ResultSection({ label, children, style }) {
+  // Seção da tela de resultado no padrão creme (sem emoji no título).
   return (
-    <div style={{
-      background: `linear-gradient(135deg, ${hexToRgba(mc, 0.1)}, var(--surface))`,
-      border: `1px solid ${hexToRgba(mc, 0.28)}`,
-      borderRadius: 14, padding: '16px 18px', marginTop: 16,
-      ...style,
-    }}>
-      {label && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1.3, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>
-          {icon && <span style={{ fontSize: 14 }}>{icon}</span>}{label}
-        </div>
-      )}
+    <section className="rs-sec" style={style}>
+      {label && <h3 className="rs-h">{label}</h3>}
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -12600,40 +12530,23 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
   // Vitória mostra o MEU escudo (fui campeão do confronto), não o do
   // adversário — mesmo padrão do Results de temporada (championLogo).
   const crestLogo = result === 'win' ? myTeamLogo : oppTeam?.clubLogo;
+  const myLabel = leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time';
   return (
     <div style={styles.card} className="card-mob">
-      <div style={{ textAlign: 'center' }}>
-        <ChampionCrest
-          logoUrl={crestLogo}
-          badgeEmoji={result === 'win' ? myTeamBadge : null}
-          fallback={result === 'win' ? '🏆' : result === 'draw' ? '🤝' : '😮'}
-          mc={mc}
-        />
-      </div>
-      <div style={styles.eyebrow}>Supercopa do Brasil</div>
-      <h1 style={styles.h1} className="h1-mob">
-        {result === 'win' ? 'VITÓRIA!' : result === 'draw' ? 'EMPATE' : 'DERROTA'}
-      </h1>
-      <div style={{ textAlign: 'center', fontSize: 26, fontWeight: 700, margin: '10px 0 4px', fontFamily: 'var(--font-mono)', color: mc }}>
-        {myGoals} × {oppGoals}
-      </div>
-      <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>vs {oppTeam?.label}</div>
-      <p style={{ fontSize: 13, color: 'var(--ink-2)', textAlign: 'center', lineHeight: 1.5, marginBottom: 8 }}>
-        {result === 'win' && 'Time montado do zero derrubou um time lendário — levou a Supercopa de hoje!'}
-        {result === 'draw' && 'Ficou tudo igual contra o time lendário de hoje — tenta desempatar amanhã, com outro adversário.'}
-        {result === 'loss' && 'O time lendário de hoje levou a melhor — volta amanhã pra outro confronto e tenta de novo.'}
-      </p>
-      {result === 'win' && currentUser && (
-        <div style={{ textAlign: 'center', fontSize: 12.5, fontWeight: 700, color: mc, marginBottom: 8 }}>
-          +50 pontos no ranking global 🏆
-        </div>
-      )}
-      <div style={{ textAlign: 'center', fontSize: 11, color: 'var(--muted)', marginBottom: 22 }}>
-        Só dá pra jogar a Supercopa do Brasil uma vez por dia — volta amanhã pra outro time lendário.
-      </div>
-      <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }} onClick={onExit}>
-        Voltar à home →
-      </button>
+      <SeasonEndSummary
+        eyebrow="Supercopa do Brasil · jogo único"
+        title={result === 'win' ? 'Vitória!' : result === 'draw' ? 'Empate' : 'Derrota'}
+        mine={result === 'win'}
+        championLabel={result === 'win' ? 'Campeão da Supercopa de hoje' : 'Placar final'}
+        crest={<ClubCrest logo={crestLogo} badge={result === 'win' ? myTeamBadge : null} name={result === 'win' ? myLabel : oppTeam?.label} color={result === 'win' ? mc : (oppTeam?.colors?.p || oppTeam?.color)} size={92} frame frameClass="fb-crest-ring" scale={0.72} />}
+        championName={`${myLabel} ${myGoals} × ${oppGoals} ${parseTeamLabel(oppTeam?.label || '').baseName}`}
+        facts={[
+          { title: 'O que aconteceu', text: result === 'win' ? 'O time montado do zero derrubou o time lendário de hoje e levou a Supercopa!' : result === 'draw' ? 'Ficou tudo igual contra o time lendário de hoje. Amanhã tem outro adversário.' : 'O time lendário de hoje levou a melhor. Amanhã tem outro confronto.' },
+          ...(result === 'win' && currentUser ? [{ title: 'Ranking', text: '+50 pontos no ranking global.' }] : []),
+          { title: 'Uma por dia', text: 'Só dá para jogar a Supercopa do Brasil uma vez por dia; amanhã sai outro time lendário.' },
+        ]}
+        actions={<Button variant="gold" iconRight="arrowRight" onClick={onExit}>Voltar ao início</Button>}
+      />
     </div>
   );
 }
@@ -12691,36 +12604,22 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
     const championLogo = userWon ? myTeamLogo : winner?.clubLogo;
     return (
       <div style={styles.card} className="card-mob">
-        <div style={{ textAlign: 'center', padding: '12px 0 28px' }}>
-          <ChampionCrest logoUrl={championLogo} badgeEmoji={userWon ? myTeamBadge : null} fallback={userWon ? '🏆' : wasRunnerUp ? '🥈' : '⚽'} mc={mc} />
-          <div style={styles.eyebrow}>Copa do Brasil — Resultado Final</div>
-          <h1 style={{ ...styles.h1, color: userWon ? mc : 'var(--ink)', marginTop: 8 }}>
-            {userWon ? 'CAMPEÃO!' : wasRunnerUp ? 'VICE-CAMPEÃO' : 'Copa encerrada'}
-          </h1>
-          <div style={{ fontSize: 15, color: 'var(--ink-2)', marginBottom: 20 }}>
-            {userWon
-              ? `${myTeamBadge || ''} ${myTeamBadge ? ' ' : ''}Seu time conquistou a Copa do Brasil!`
-              : <>Campeão: <b style={{ color: 'var(--gold-ink)' }}>{winner?.label ?? '-'}</b></>
-            }
-          </div>
-          {!userWon && myTeamBadge && (
-            <div style={styles.badgeMuted}>
-              {wasRunnerUp
-                ? 'Seu time chegou à decisão e perdeu a final. Faltou pouco!'
-                : 'Seu time foi eliminado antes da final. Tente de novo!'}
-            </div>
-          )}
-          {userWon && <div style={styles.badge}>Copa do Brasil conquistada! Time lendário!</div>}
-        </div>
-        <ChampionMarquee teamLabel={winner?.label} color={mc} />
-        {/* O hino sobe pra logo abaixo da faixa de revelação — antes ficava
-            no meio da tela, sem nenhuma ligação com o momento em que o
-            campeão é anunciado. */}
+        <SeasonEndSummary
+          eyebrow="Copa do Brasil · resultado final"
+          title={userWon ? 'Campeão!' : wasRunnerUp ? 'Vice-campeão' : 'Copa encerrada'}
+          mine={userWon}
+          crest={<ClubCrest logo={championLogo} badge={userWon ? myTeamBadge : null} name={winner?.label} color={userWon ? mc : (winner?.colors?.p || winner?.color)} size={92} frame frameClass="fb-crest-ring" scale={0.72} />}
+          championName={userWon ? (winner?.label || 'Meu Time') : parseTeamLabel(winner?.label || '-').baseName}
+          facts={[
+            { title: 'Sua campanha', text: userWon ? 'Seu time conquistou a Copa do Brasil!' : wasRunnerUp ? 'Chegou à decisão e perdeu a final. Faltou pouco!' : `Eliminado${eliminationRoundName ? ` nas ${eliminationRoundName}`.replace('nas Final', 'na Final').replace('nas Semifinal', 'na Semifinal') : ''}. Tente de novo!` },
+            ...(resultBoards.goals[0] ? [{ title: 'Artilheiro da Copa', text: `${resultBoards.goals[0].name} (${resultBoards.goals[0].team}) · ${resultBoards.goals[0].v} gols` }] : []),
+          ]}
+        />
         <AnthemPlayer club={champClub} />
         {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
 
         {seasonAwards?.length > 0 && (
-          <ResultSection icon="🏆" label="Prêmios da Temporada" mc={mc}>
+          <ResultSection label="Prêmios da Temporada" mc={mc}>
             {seasonAwards.map(a => (
               <div key={a.reason} style={{ fontSize: 13, padding: '3px 0' }}>
                 <b>{a.name}</b> — {a.reason} <span style={{ color: mc, fontWeight: 700 }}>(+{SEASON_AWARD_BONUS} OVR)</span>
@@ -12729,7 +12628,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           </ResultSection>
         )}
 
-        <ResultSection icon="🏅" label="Destaques da Copa" mc={mc}><LeaderboardGrid boards={resultBoards} crestOf={resultCrestOf} myIds={[myTeamId]} /></ResultSection>
+        <ResultSection label="Destaques da Copa" mc={mc}><LeaderboardGrid boards={resultBoards} crestOf={resultCrestOf} myIds={[myTeamId]} /></ResultSection>
 
         {cupRounds?.length > 0 && (
           <button
@@ -12753,7 +12652,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         )}
 
         {campaignLines.length > 0 && (
-          <ResultSection icon="📋" label="Campanha" mc={mc}>
+          <ResultSection label="Campanha" mc={mc}>
             <button onClick={() => setShowCampaign(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
               {showCampaign ? '▾' : '▸'} Ver todas as partidas ({campaignLines.length})
             </button>
@@ -12784,24 +12683,38 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
   const champion = leagueTable[0];
   const isChampion = pos === 1;
   const podium = pos <= 3;
+  const divisionText = divisionMove === 'relegated' ? `Terminou em ${pos}º lugar na Série A e caiu para a Série B na próxima temporada.`
+    : divisionMove === 'promoted' ? (promotionTie?.aggMine != null ? `Venceu o mata-mata de acesso contra ${promotionTie.opponentLabel} (agregado ${promotionTie.aggMine}-${promotionTie.aggOpp}) e subiu para a Série A!` : `Terminou em ${pos}º lugar na Série B: acesso direto à Série A na próxima temporada!`)
+      : myDivision === 'B' ? (promotionTie?.aggMine != null ? `Perdeu o mata-mata de acesso contra ${promotionTie.opponentLabel} (agregado ${promotionTie.aggMine}-${promotionTie.aggOpp}) e segue na Série B.` : `Terminou em ${pos}º lugar na Série B e segue na mesma divisão.`)
+        : `Terminou em ${pos}º lugar na Série A e segue na mesma divisão.`;
   const champTeam = leagueTeams?.find(t => t.id === champion?.id);
   const champClub = champTeam?.club || getMostCommonClub(champTeam?.players);
   const championLogo = isChampion ? myTeamLogo : champTeam?.clubLogo;
 
   return (
     <div style={styles.card} className="card-mob">
-      <div style={{ textAlign: 'center' }}>
-        <ChampionCrest logoUrl={championLogo} badgeEmoji={isChampion ? myTeamBadge : null} fallback={isChampion ? '🏆' : podium ? '🥉' : '⚽'} mc={mc} />
-      </div>
-      <div style={styles.eyebrow}>{gameMode === 'serieab' ? `Fim da Série ${myDivision}` : 'Fim do Brasileirão · Série A'}</div>
-      <h1 style={styles.h1} className="h1-mob">
-        {isChampion ? 'CAMPEÃO!' : podium ? `${pos}º lugar — pódio!` : `${pos}º lugar`}
-      </h1>
-
-      <ChampionMarquee teamLabel={champion?.label} color={mc} />
-      {/* O hino sobe pra logo abaixo da faixa de revelação — antes ficava
-          no meio da tela, sem nenhuma ligação com o momento em que o
-          campeão é anunciado. */}
+      <SeasonEndSummary
+        eyebrow={gameMode === 'serieab' ? `Fim da Série ${myDivision}` : 'Fim do Brasileirão · Série A'}
+        title={isChampion ? 'Campeão!' : podium ? `${pos}º lugar: pódio!` : `${pos}º lugar`}
+        mine={isChampion}
+        crest={<ClubCrest logo={championLogo} badge={isChampion ? myTeamBadge : null} name={champion?.label} color={isChampion ? mc : (champTeam?.colors?.p || champTeam?.color)} size={92} frame frameClass="fb-crest-ring" scale={0.72} />}
+        championName={isChampion ? (champion?.label || 'Meu Time') : parseTeamLabel(champion?.label || '').baseName}
+        championSub={`${champion?.pts ?? 0} pts · ${champion?.v ?? 0} vitórias · saldo ${(champion?.gp ?? 0) - (champion?.gc ?? 0) > 0 ? '+' : ''}${(champion?.gp ?? 0) - (champion?.gc ?? 0)}`}
+        stats={[
+          { label: 'Pontos', value: myRow.pts ?? 0 }, { label: 'Vitórias', value: myRow.v ?? 0 }, { label: 'Empates', value: myRow.e ?? 0 },
+          { label: 'Derrotas', value: myRow.d ?? 0 }, { label: 'Gols pró', value: myRow.gp ?? 0 }, { label: 'Gols contra', value: myRow.gc ?? 0 },
+        ]}
+        facts={[
+          ...(gameMode === 'serieab' && divisionMove ? [{ title: divisionMove === 'promoted' ? 'Acesso!' : divisionMove === 'relegated' ? 'Rebaixado' : 'Situação', text: divisionText }] : []),
+          ...((gameMode === 'serieab' ? myDivision : 'A') === 'A' ? [
+            { title: 'Libertadores (G4)', text: leagueTable.slice(0, 4).map(r => (r.id === myTeamId ? r.label : parseTeamLabel(r.label).baseName)).join(', ') },
+            { title: 'Rebaixados', text: leagueTable.slice(-4).map(r => (r.id === myTeamId ? r.label : parseTeamLabel(r.label).baseName)).join(', ') },
+          ] : [
+            { title: 'Acesso direto', text: leagueTable.slice(0, 2).map(r => (r.id === myTeamId ? r.label : parseTeamLabel(r.label).baseName)).join(', ') },
+          ]),
+          ...(resultBoards.goals[0] ? [{ title: 'Artilheiro', text: `${resultBoards.goals[0].name} (${resultBoards.goals[0].team}) · ${resultBoards.goals[0].v} gols` }] : []),
+        ]}
+      />
       <AnthemPlayer club={champClub} />
       {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
 
@@ -12809,33 +12722,11 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           verdade: sem ele, promoção e rebaixamento aconteciam por baixo dos
           panos e só se refletiam na temporada seguinte, sem nenhum
           reconhecimento na hora. */}
-      {gameMode === 'serieab' && divisionMove && (
-        <ResultSection
-          icon={divisionMove === 'promoted' ? '🎉' : divisionMove === 'relegated' ? '📉' : '📋'}
-          label={divisionMove === 'promoted' ? 'Promovido!' : divisionMove === 'relegated' ? 'Rebaixado' : 'Situação na Tabela'}
-          mc={mc}
-        >
-          <div style={{ fontSize: 14, lineHeight: 1.5 }}>
-            {divisionMove === 'relegated' && `Terminou em ${pos}º lugar na Série A e caiu para a Série B na próxima temporada.`}
-            {divisionMove === 'promoted' && promotionTie?.aggMine != null &&
-              `Venceu o mata-mata de acesso contra ${promotionTie.opponentLabel} (agregado ${promotionTie.aggMine}-${promotionTie.aggOpp}) e subiu para a Série A!`}
-            {divisionMove === 'promoted' && promotionTie?.aggMine == null &&
-              `Terminou em ${pos}º lugar na Série B — acesso direto à Série A na próxima temporada!`}
-            {divisionMove === 'stayed' && myDivision === 'B' && promotionTie?.aggMine != null &&
-              `Perdeu o mata-mata de acesso contra ${promotionTie.opponentLabel} (agregado ${promotionTie.aggMine}-${promotionTie.aggOpp}) — segue na Série B.`}
-            {divisionMove === 'stayed' && myDivision === 'B' && promotionTie?.aggMine == null &&
-              `Terminou em ${pos}º lugar na Série B — segue na mesma divisão na próxima temporada.`}
-            {divisionMove === 'stayed' && myDivision === 'A' &&
-              `Terminou em ${pos}º lugar na Série A — segue na mesma divisão na próxima temporada.`}
-          </div>
-        </ResultSection>
-      )}
-
       {/* Divisão espelho (só IA) — existia calculada há tempos (é dela que
           vem quem sobe/desce do outro lado), mas não tinha jeito nenhum de
           ver o resultado final, nem aqui nem durante a temporada. */}
       {gameMode === 'serieab' && otherDivision && (
-        <ResultSection icon="🔭" label={`Como terminou a Série ${myDivision === 'A' ? 'B' : 'A'}`} mc={mc}>
+        <ResultSection label={`Como terminou a Série ${myDivision === 'A' ? 'B' : 'A'}`} mc={mc}>
           <button
             onClick={() => setShowOtherDivision(v => !v)}
             style={{ background: 'none', border: 'none', color: mc, cursor: 'pointer', fontSize: 13, fontWeight: 600, padding: 0, marginBottom: showOtherDivision ? 12 : 0 }}
@@ -12858,29 +12749,9 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         </ResultSection>
       )}
 
-      <ResultSection icon="📊" label="Seu Desempenho" mc={mc}>
-        {!isChampion && (
-          <div style={{ ...styles.championBox, marginBottom: 14 }}>
-            Campeao: <b>{champion?.label}</b> — {champion?.pts} pts
-          </div>
-        )}
-        <div style={{ ...styles.finalStats, marginBottom: 0 }} className="stats-grid-3">
-          <Stat label="Pontos" value={myRow.pts ?? 0} />
-          <Stat label="Vitorias" value={myRow.v ?? 0} />
-          <Stat label="Empates" value={myRow.e ?? 0} />
-          <Stat label="Derrotas" value={myRow.d ?? 0} />
-          <Stat label="Gols pro" value={myRow.gp ?? 0} />
-          <Stat label="Gols contra" value={myRow.gc ?? 0} />
-        </div>
-        <div style={{ marginTop: 12, fontSize: 13, opacity: 0.85 }}>
-          {isChampion && '🏆 Brasileirão conquistado! Você montou um time lendário.'}
-          {!isChampion && podium && '🥉 Campanha sólida — faltou pouco pra vencer!'}
-          {!podium && 'Campanha difícil. Tente montar um time mais equilibrado.'}
-        </div>
-      </ResultSection>
 
       {seasonAwards?.length > 0 && (
-        <ResultSection icon="🏆" label="Prêmios da Temporada" mc={mc}>
+        <ResultSection label="Prêmios da Temporada" mc={mc}>
           {seasonAwards.map(a => (
             <div key={a.reason} style={{ fontSize: 13, padding: '3px 0' }}>
               <b>{a.name}</b> — {a.reason} <span style={{ color: mc, fontWeight: 700 }}>(+{SEASON_AWARD_BONUS} OVR)</span>
@@ -12889,9 +12760,9 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         </ResultSection>
       )}
 
-      <ResultSection icon="🏅" label="Destaques da temporada" mc={mc}><LeaderboardGrid boards={resultBoards} crestOf={resultCrestOf} myIds={[myTeamId]} /></ResultSection>
+      <ResultSection label="Destaques da temporada" mc={mc}><LeaderboardGrid boards={resultBoards} crestOf={resultCrestOf} myIds={[myTeamId]} /></ResultSection>
 
-      <ResultSection icon="📈" label="Classificação Final" mc={mc}>
+      <ResultSection label="Classificação Final" mc={mc}>
       <StandingsTable
         rows={leagueTable}
         zoneFor={(pos, total) => standingsZoneFor(gameMode === 'serieab' ? myDivision : 'A', pos, total)}
@@ -12909,7 +12780,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
       </ResultSection>
 
       {campaignLines.length > 0 && (
-        <ResultSection icon="📋" label="Campanha" mc={mc}>
+        <ResultSection label="Campanha" mc={mc}>
           <button onClick={() => setShowCampaign(s => !s)} className="tap-target-sm" style={{ background: 'none', border: 'none', minHeight: 34, color: mc, fontFamily: 'var(--font-mono)', fontSize: 12, cursor: 'pointer', padding: '4px 0' }}>
             {showCampaign ? '▾' : '▸'} Ver todas as partidas ({campaignLines.length})
           </button>

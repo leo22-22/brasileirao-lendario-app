@@ -26,6 +26,4 @@
 .fb-ld-unit { font-size: 12.5px; color: var(--muted); }
 .fb-ld-empty { padding: 4px 20px 20px; color: var(--muted); font-size: 13.5px; }
 .fb-ld-more:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
-.fb-ld-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 18px; align-items: start; }
-@media (max-width: 1100px) { .fb-ld-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-@media (max-width: 768px) { .fb-ld-grid { grid-template-columns: minmax(0, 1fr); } }
+.fb-ld-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 260px), 1fr)); gap: 18px; align-items: start; }

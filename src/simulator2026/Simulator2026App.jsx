@@ -38,6 +38,7 @@ import { ClubCrest } from '../components/football/ClubCrest.jsx';
 import { StandingsTable } from '../components/football/StandingsTable.jsx';
 import { zoneFor, ZONE_LEGEND } from '../lib/standings.js';
 import { MatchPreviewCard, RoundGames } from '../components/football/MatchPreviewCard.jsx';
+import { SeasonEndSummary } from '../components/football/SeasonEndSummary.jsx';
 
 const SAVE_KEY = 'brl_simulator2026_save';
 // Índice 0-based da rodada 35 em SERIE_A_2026_FIXTURES (rodada 1 = índice 0).
@@ -501,25 +502,18 @@ export function Simulator2026App({ onExit }) {
     const champ = table[0];
     const rel = table.slice(-4);
     hero = (
-      <section className="sm-hero sm-end" aria-labelledby="sm-end-h">
-        <span className="sm-ring" aria-hidden="true" />
-        <span className="ng-mono sm-k">Brasileirão 2026 · simulação encerrada</span>
-        <div className="sm-champ">
-          <TeamCrest team={teamById[champ.id]} size={92} ring />
-          <div>
-            <span className="ng-mono" style={{ color: 'var(--gold)' }}>Campeão</span>
-            <h2 id="sm-end-h">{nameOf(champ.id)}</h2>
-            <small>{champ.pts} pts · {champ.v} vitórias · saldo {champ.gp - champ.gc > 0 ? '+' : ''}{champ.gp - champ.gc}</small>
-          </div>
-        </div>
-        <div className="sm-stakes">
-          <div className="sm-stk"><b>Libertadores (G4)</b>{table.slice(0, 4).map(r => nameOf(r.id)).join(', ')}</div>
-          <div className="sm-stk"><b>Rebaixados</b>{rel.map(r => nameOf(r.id)).join(', ')}</div>
-        </div>
-        <div className="sm-acts">
-          <button type="button" className="sm-b-g" onClick={handleSimulateAgain}><Icon name="forward" size={16} />Simular tudo novamente</button>
-        </div>
-      </section>
+      <SeasonEndSummary
+        id="sm-end-h"
+        eyebrow="Brasileirão 2026 · simulação encerrada"
+        crest={<TeamCrest team={teamById[champ.id]} size={92} ring />}
+        championName={nameOf(champ.id)}
+        championSub={`${champ.pts} pts · ${champ.v} vitórias · saldo ${champ.gp - champ.gc > 0 ? '+' : ''}${champ.gp - champ.gc}`}
+        facts={[
+          { title: 'Libertadores (G4)', text: table.slice(0, 4).map(r => nameOf(r.id)).join(', ') },
+          { title: 'Rebaixados', text: rel.map(r => nameOf(r.id)).join(', ') },
+        ]}
+        actions={<button type="button" className="sm-b-g" onClick={handleSimulateAgain}><Icon name="forward" size={16} />Simular tudo novamente</button>}
+      />
     );
   }
 
