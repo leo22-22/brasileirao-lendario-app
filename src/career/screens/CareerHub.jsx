@@ -47,21 +47,21 @@ export function eventLine(ev, myClubId) {
     const myTeam = TEAMS.find(t => t.id === myClubId);
     const myGoals = isHome ? ev.homeGoals : ev.awayGoals;
     const oppGoals = isHome ? ev.awayGoals : ev.homeGoals;
-    const result = myGoals > oppGoals ? '🟢' : myGoals < oppGoals ? '🔴' : '🟡';
-    return `${result} ${displayName(myTeam?.club || '')} ${myGoals} x ${oppGoals} ${displayName(oppTeam?.club || '')}`;
+    const result = myGoals > oppGoals ? 'Vitória' : myGoals < oppGoals ? 'Derrota' : 'Empate';
+    return `${result}: ${displayName(myTeam?.club || '')} ${myGoals} x ${oppGoals} ${displayName(oppTeam?.club || '')}`;
   }
   if (ev.type === 'transfer-ai') {
     const from = TEAMS.find(t => t.id === ev.fromClubId);
     const to = TEAMS.find(t => t.id === ev.toClubId);
-    return `🔄 ${displayName(from?.club)} comprou ${ev.playerName} do ${displayName(to?.club)} por ${formatMoney(ev.amount)}`;
+    return `${displayName(from?.club)} comprou ${ev.playerName} do ${displayName(to?.club)} por ${formatMoney(ev.amount)}`;
   }
   if (ev.type === 'offer') {
     return ev.offerKind === 'loan'
-      ? `🔁 Proposta de empréstimo recebida pelo ${ev.playerName}`
-      : `📨 Proposta recebida pelo ${ev.playerName}`;
+      ? `Proposta de empréstimo recebida pelo ${ev.playerName}`
+      : `Proposta recebida pelo ${ev.playerName}`;
   }
   if (ev.type === 'copa-round') {
-    return `🏆 Copa do Brasil — ${ev.roundLabel} resolvida`;
+    return `Copa do Brasil: ${ev.roundLabel} resolvida`;
   }
   return null;
 }

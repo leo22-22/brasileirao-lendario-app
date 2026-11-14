@@ -415,7 +415,7 @@ export function CareerApp({ onExit, onHudChange }) {
       <CareerTwoLegScreen
         title="Mata-mata de acesso"
         subtitle={`Ida e volta contra ${displayName(oppTeam?.club)} — quem passar garante vaga na Série A.`}
-        winLabel="🏆 Vaga garantida na Série A!"
+        winLabel="Vaga garantida na Série A!"
         loseLabel="Eliminado — segue na Série B"
         prepare={() => simulateUserTie(save)}
         onContinue={handleResolvePlayoffTie}
@@ -430,7 +430,7 @@ export function CareerApp({ onExit, onHudChange }) {
     // Brasileirão (CareerMatchDayScreen), só passando o jogo e o rótulo da
     // Copa por fora. As outras fases continuam ida+volta de verdade.
     if (tie.isFinal) {
-      return <CareerMatchDayScreen save={save} pending={tie.finalMatch} competitionLabel="🏆 Copa do Brasil — Final" onFinish={handleFinishCopaFinal} onApplyLineupChange={handleApplyLiveLineupChange} />;
+      return <CareerMatchDayScreen save={save} pending={tie.finalMatch} competitionLabel="Copa do Brasil · Final" onFinish={handleFinishCopaFinal} onApplyLineupChange={handleApplyLiveLineupChange} />;
     }
     const roundLabel = COPA_ROUND_LABELS[save.copa.round];
     const title = `Copa do Brasil — ${roundLabel}`;

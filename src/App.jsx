@@ -2124,8 +2124,8 @@ function AchievementProgressCard({ id, user, unlockedSet, light }) {
         )}
       </div>
       {isUnlocked
-        ? <span style={{ fontSize: 16, flexShrink: 0 }}>✅</span>
-        : <span style={{ fontSize: 15, flexShrink: 0, color: 'var(--muted)' }}>🔒</span>
+        ? <span style={{ flexShrink: 0 }}><Icon name="check" size={16} /></span>
+        : <span style={{ flexShrink: 0, color: 'var(--muted)' }}><Icon name="lock" size={15} /></span>
       }
     </div>
   );
@@ -2139,7 +2139,7 @@ function AchievementsModal({ user, onClose }) {
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, padding: 24, position: 'relative' }}>
-        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}><Icon name="close" size={18} /></button>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, marginBottom: 2 }}>Conquistas</div>
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18, fontFamily: 'var(--font-mono)' }}>{unlocked.size}/{totalCount} desbloqueadas</div>
         {ACHIEVEMENT_CATEGORIES.map(group => (
@@ -2158,20 +2158,6 @@ function AchievementsModal({ user, onClose }) {
 // Compatibilidade entre slot do campinho e posições do jogador.
 // MD aceita jogadores com PD, MEI ou MD. ME aceita PE, MEI ou ME.
 // VOL aceita VOL ou MEI. Sem mapeamento = exige a posição exata.
-const POS_COMPAT = {
-  GOL: ['GOL'],
-  LD: ['LD', 'ZAG'],
-  LE: ['LE', 'ZAG'],
-  ZAG: ['ZAG', 'LD', 'LE'],
-  VOL: ['VOL', 'MEI', 'MC'],
-  MEI: ['MEI', 'VOL', 'MC', 'MD', 'ME'],
-  MC: ['MC', 'MEI', 'VOL', 'MD', 'ME'],
-  MD: ['MD', 'PD', 'MEI', 'MC'],
-  ME: ['ME', 'PE', 'MEI', 'MC'],
-  PD: ['PD', 'MD', 'ATA', 'MEI'],
-  PE: ['PE', 'ME', 'ATA', 'MEI'],
-  ATA: ['ATA', 'PD', 'PE'],
-};
 
 // Números do conteúdo do jogo (clubes, elencos, jogadores) — usados como
 // selo de "isso aqui é grande" na home e no ranking. Preferido a mostrar
@@ -2300,18 +2286,6 @@ const CLUB_ANTHEMS = {
   'Atletico-GO': 'GHZsE4wLGMQ',
 };
 
-// Estádio de cada clube jogável (não cobre os "extras", que são só emblema
-// pessoal e nunca mandam uma partida de verdade). Nome atual — clubes que
-// vendem naming rights (Corinthians, Palmeiras, São Paulo, Atlético-MG,
-// Athletico-PR) mudam de nome de tempos em tempos; o resto usa o nome
-// tradicional, que já É o nome oficial atual.
-function expandPlayerPositions(playerPos) {
-  const result = new Set(playerPos);
-  Object.entries(POS_COMPAT).forEach(([slotType, accepts]) => {
-    if (playerPos.some(p => accepts.includes(p))) result.add(slotType);
-  });
-  return [...result];
-}
 
 function needsDark(hex) {
   if (!hex || !hex.startsWith('#') || hex.length < 7) return false;
@@ -6373,7 +6347,7 @@ export default function App() {
           fontSize: 12, fontFamily: 'var(--font-mono)', padding: '6px 12px',
           borderBottom: '1px solid rgba(194,154,69,0.5)',
         }}>
-          📡 Sem conexão — jogando offline. Login, ranking e multiplayer ficam indisponíveis até a rede voltar.
+          Sem conexão — jogando offline. Login, ranking e multiplayer ficam indisponíveis até a rede voltar.
         </div>
       )}
       {installPromptEvent && !installDismissed && (
@@ -6383,7 +6357,7 @@ export default function App() {
           display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
           flexWrap: 'wrap', justifyContent: 'center',
         }}>
-          <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>📲 Instale o Brasileirão Lendário como app pra abrir mais rápido</span>
+          <span style={{ fontSize: 12.5, color: 'var(--ink)' }}>Instale o Brasileirão Lendário como app pra abrir mais rápido</span>
           <button onClick={handleInstallClick} style={{ background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', fontWeight: 700, fontSize: 12, cursor: 'pointer' }}>Instalar</button>
           <button onClick={dismissInstallBanner} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 12, cursor: 'pointer' }}>Agora não</button>
         </div>
@@ -6411,7 +6385,7 @@ export default function App() {
           <div style={{ maxWidth: 480, margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: myTeamColor || 'var(--gold-ink)' }}>
-                📋 Escalação — Brasileirão Atual
+                Escalação — Brasileirão Atual
               </div>
               {!showFormationSwap && (
                 <button
@@ -6419,7 +6393,7 @@ export default function App() {
                   className="tap-target-sm"
                   style={{ background: 'none', border: `1px solid ${hexToRgba(myTeamColor || '#C29A45', 0.4)}`, borderRadius: 999, color: myTeamColor || 'var(--gold-ink)', fontSize: 11.5, fontWeight: 600, padding: '5px 10px', cursor: 'pointer' }}
                 >
-                  🔄 Trocar formação
+                  Trocar formação
                 </button>
               )}
             </div>
@@ -6431,13 +6405,15 @@ export default function App() {
                 myTeamColor={myTeamColor}
               />
             ) : (
-              <Squad
+              <SquadReadyScreen
+                title="Escalação"
+                subtitle="Troque titulares, posições e capitão para as próximas rodadas."
+                modeLabel="Brasileirão Atual"
                 pitch={pitch} pitchSlots={pitchSlots}
                 formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
                 captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
                 onConfirm={applyMidSeasonLineup}
                 confirmLabel="Salvar e fechar"
-                myTeamColor={myTeamColor}
                 selectedPlayer={selectedPlayer}
                 repositioningSlot={repositioningSlot}
                 eligibleSlotsForPlayer={eligibleSlotsForPlayer}
@@ -6962,7 +6938,7 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, padding: 28, position: 'relative' }}>
-        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}><Icon name="close" size={18} /></button>
 
         {mode === 'choice' && (
           <>
@@ -7080,7 +7056,7 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
       <div style={{ width: '100%', maxWidth: 460, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 28, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
-        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}><Icon name="close" size={18} /></button>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{user.username}</div>
         <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 20 }}>{user.email}</div>
 
@@ -7155,7 +7131,7 @@ function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose }) {
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line-strong)', borderRadius: 20, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-          <div style={{ fontWeight: 700, fontSize: 15 }}>🏆 Supercopa do Brasil</div>
+          <div style={{ fontWeight: 700, fontSize: 15 }}>Supercopa do Brasil</div>
           <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
         </div>
         <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 16 }}>
@@ -7199,9 +7175,9 @@ const ACHIEVEMENTS_PREVIEW_LIMIT = 11;
 // número de cara.
 function GameStatsBar({ style }) {
   const items = [
-    ['🏟️', GAME_STATS.clubs, 'clubes'],
-    ['📚', GAME_STATS.squads, 'elencos históricos'],
-    ['⚽', GAME_STATS.players.toLocaleString('pt-BR'), 'jogadores'],
+    ['home', GAME_STATS.clubs, 'clubes'],
+    ['list', GAME_STATS.squads, 'elencos históricos'],
+    ['ball', GAME_STATS.players.toLocaleString('pt-BR'), 'jogadores'],
   ];
   return (
     <div style={style}>
@@ -7209,7 +7185,7 @@ function GameStatsBar({ style }) {
         <span key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: '6px 0' }}>
           {i > 0 && <span style={styles.gameStatsDivider} />}
           <span style={styles.gameStatsPill}>
-            <span style={{ fontSize: 12, opacity: 0.85 }}>{icon}</span>
+            <span style={{ opacity: 0.85, display: 'inline-flex' }}><Icon name={icon} size={13} /></span>
             <b style={{ color: 'var(--ink)' }}>{n}</b> {label}
           </span>
         </span>
@@ -7441,7 +7417,7 @@ function WeeklyTeamModal({ onClose }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 4 }}>
           <div>
             <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--gold-ink)' }}>
-              🌟 Seleção da Semana
+              Seleção da Semana
             </div>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
               {w.label}
@@ -7501,7 +7477,7 @@ function WeeklyTeamModal({ onClose }) {
                     textShadow: '0 1px 3px rgba(0,0,0,0.7)', lineHeight: 1.2, maxWidth: 64,
                     overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   }}>
-                    {isCraque ? '👑 ' : ''}{shortName(p.name)}
+                    {shortName(p.name)}
                   </div>
                 </div>
               );
@@ -7524,7 +7500,7 @@ function WeeklyTeamModal({ onClose }) {
                 )}
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--ink)' }}>
-                    {isCraque ? '👑 ' : ''}{wp.name}
+                    {wp.name}
                     {wp.player && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: gold, marginLeft: 6 }}>{wp.player.ovr} OVR</span>}
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--muted)' }}>{wp.posLabel}{wp.team ? ` · ${wp.team.club}` : ''}</div>
@@ -7731,18 +7707,18 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
       )}
       {showAchievements && <AchievementsModal user={user} onClose={() => setShowAchievements(false)} />}
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: '88vh', overflowY: 'auto', background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, position: 'relative' }}>
-        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', zIndex: 1, padding: 6, lineHeight: 1 }}>✕</button>
+        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', zIndex: 1, padding: 6, lineHeight: 1 }}><Icon name="close" size={18} /></button>
         <div style={{ padding: '28px 24px 20px', textAlign: 'center', background: `linear-gradient(180deg, ${hexToRgba(mc, 0.18)}, transparent)`, borderBottom: '1px solid var(--line)' }}>
           {myTeamLogo
             ? <img src={myTeamLogo} alt="" style={{ width: 64, height: 64, borderRadius: 16, objectFit: 'cover', marginBottom: 10 }} />
-            : <div style={{ fontSize: 48, marginBottom: 6 }}>{myTeamBadge || '⭐'}</div>
+            : <div style={{ fontSize: 48, marginBottom: 6 }}>{myTeamBadge || ''}</div>
           }
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700 }}>{user?.team_name || 'Meu Time'}</div>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
             {user?.team_city || ''}{user?.team_coach ? ` · Téc. ${user.team_coach}` : ''}
           </div>
           {user?.team_stadium && (
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>🏟️ {user.team_stadium}</div>
+            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>{user.team_stadium}</div>
           )}
           {user?.created_at && (
             <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 4 }}>
@@ -7768,14 +7744,14 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                   >
                     {myTeamLogo
                       ? <img src={myTeamLogo} alt="logo" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                      : <span style={{ fontSize: 32, color: 'var(--muted)' }}>📷</span>
+                      : <span style={{ color: 'var(--muted)' }}><Icon name="edit" size={22} /></span>
                     }
                   </div>
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     style={{ fontSize: 11, fontWeight: 600, color: mc, background: hexToRgba(mc, 0.12), border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 6, padding: '3px 10px', cursor: 'pointer' }}
                   >
-                    📷 Upload logo
+                    Upload logo
                   </button>
                 </div>
                 <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileChange} style={{ display: 'none' }} />
@@ -7936,7 +7912,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🏅</div>
+                <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="medal" size={16} /></div>
                 <div>
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>{unlockedCount}/{totalAchievements}</div>
                   <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700 }}>Conquistas</div>
@@ -7984,7 +7960,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
               }}>
                 <div style={{ position: 'absolute', inset: 0, opacity: 0.05, backgroundImage: 'repeating-linear-gradient(45deg, #fff 0, #fff 1px, transparent 1px, transparent 40px)', pointerEvents: 'none' }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14, position: 'relative' }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🎙️</div>
+                  <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="mic" size={16} /></div>
                   <div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Transmissão</div>
                     <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700 }}>Áudio ambiente</div>
@@ -8002,7 +7978,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s',
                     }}
                   >
-                    <span style={{ fontSize: 18 }}>🎵</span>
+                    <span style={{ display: 'inline-flex' }}><Icon name="sound" size={18} /></span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>Trilha padrão</div>
                       <div style={{ fontSize: 11, color: 'var(--muted)' }}>Som ambiente clássico do jogo</div>
@@ -8022,7 +7998,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s', opacity: anthemId ? 1 : 0.45,
                     }}
                   >
-                    <span style={{ fontSize: 18 }}>🏆</span>
+                    <span style={{ display: 'inline-flex' }}><Icon name="trophy" size={18} /></span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>Hino {anthemClub ? `do ${anthemClub.replace(/-/g, ' ')}` : 'do seu time'}</div>
                       <div style={{ fontSize: 11, color: 'var(--muted)' }}>{anthemId ? 'Hino oficial do clube' : 'Escolha um emblema oficial acima pra liberar'}</div>
@@ -8034,7 +8010,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                           title="Autoplay só é permitido sem som — clique pra ativar"
                           style={{ fontSize: 10.5, fontWeight: 700, color: mc, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.5)}`, borderRadius: 999, padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}
                         >
-                          🔊 Ativar som
+                          Ativar som
                         </span>
                       ) : ambientPlayer.playing ? <EqBars color={mc} /> : null
                     )}
@@ -8050,7 +8026,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s',
                     }}
                   >
-                    <span style={{ fontSize: 18 }}>🔗</span>
+                    <span style={{ display: 'inline-flex' }}><Icon name="share" size={18} /></span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>Link personalizado</div>
                       <div style={{ fontSize: 11, color: 'var(--muted)' }}>Cole um link do YouTube</div>
@@ -8062,7 +8038,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                           title="Autoplay só é permitido sem som — clique pra ativar"
                           style={{ fontSize: 10.5, fontWeight: 700, color: mc, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.5)}`, borderRadius: 999, padding: '3px 8px', cursor: 'pointer', flexShrink: 0 }}
                         >
-                          🔊 Ativar som
+                          Ativar som
                         </span>
                       ) : ambientPlayer.playing ? <EqBars color={mc} /> : null
                     )}
@@ -8105,7 +8081,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                 borderRadius: 16, padding: '18px 20px', position: 'relative', overflow: 'hidden',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                  <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>⚽</div>
+                  <div style={{ width: 34, height: 34, borderRadius: 8, background: hexToRgba(mc, 0.18), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="ball" size={16} /></div>
                   <div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>Comemoração</div>
                     <div style={{ fontFamily: 'var(--font-serif)', fontSize: 16, fontWeight: 700 }}>Áudio de gol do meu time</div>
@@ -8133,7 +8109,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s',
                     }}
                   >
-                    <span style={{ fontSize: 18 }}>🎙️</span>
+                    <span style={{ display: 'inline-flex' }}><Icon name="mic" size={18} /></span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>Gravar</div>
                       <div style={{ fontSize: 11, color: 'var(--muted)' }}>Grave até 5 segundos pelo microfone</div>
@@ -8150,7 +8126,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s',
                     }}
                   >
-                    <span style={{ fontSize: 18 }}>🔗</span>
+                    <span style={{ display: 'inline-flex' }}><Icon name="share" size={18} /></span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>Link de áudio</div>
                       <div style={{ fontSize: 11, color: 'var(--muted)' }}>Cole a URL direta de um arquivo de áudio</div>
@@ -8166,7 +8142,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                       color: 'var(--ink)', textAlign: 'left', transition: 'all 0.15s',
                     }}
                   >
-                    <span style={{ fontSize: 18 }}>📁</span>
+                    <span style={{ display: 'inline-flex' }}><Icon name="list" size={18} /></span>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, fontSize: 13 }}>Enviar arquivo</div>
                       <div style={{ fontSize: 11, color: 'var(--muted)' }}>Escolha um arquivo de áudio do seu dispositivo</div>
@@ -8285,7 +8261,7 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
         onClick={onCreateRoom}
         disabled={connecting}
       >
-        {connecting ? '⏳ Conectando…' : '✦ Criar sala'}
+        {connecting ? 'Conectando…' : 'Criar sala'}
       </button>
       {error && (
         <div style={{ fontSize: 12, color: 'var(--danger)', background: 'rgba(178,59,59,0.1)', border: '1px solid rgba(178,59,59,0.35)', borderRadius: 8, padding: '8px 12px', marginBottom: 10 }}>
@@ -8309,7 +8285,7 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
           style={{ ...styles.teamInput, flex: 1, margin: 0, fontFamily: 'monospace', fontSize: 13, opacity: connecting ? 0.6 : 1 }}
         />
         <button onClick={onJoinRoom} disabled={connecting} style={{ ...styles.btnPrimary, margin: 0, padding: '0 18px', whiteSpace: 'nowrap', opacity: connecting ? 0.7 : 1 }}>
-          {connecting ? '⏳' : 'Entrar'}
+          {connecting ? '…' : 'Entrar'}
         </button>
       </div>
       <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, textAlign: 'center' }}>Cole o código que o criador da sala compartilhou</div>
@@ -8322,7 +8298,7 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
           color: 'var(--ink)', fontSize: 13, fontWeight: 600, cursor: 'pointer',
         }}
       >
-        🔎 Ver salas abertas
+        Ver salas abertas
       </button>
       <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, textAlign: 'center' }}>Não conhece ninguém? Entre numa sala aberta pra estranhos</div>
     </div>
@@ -8382,7 +8358,7 @@ function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
                   opacity: isOpen ? 1 : 0.55,
                 }}
               >
-                <span style={{ fontSize: 18, flexShrink: 0 }}>{room.gameMode === 'copa' ? '🏅' : room.gameMode === 'atual2026' ? '📅' : '🏆'}</span>
+                <span style={{ fontSize: 18, flexShrink: 0 }}><Icon name={room.gameMode === 'copa' ? 'medal' : room.gameMode === 'atual2026' ? 'calendar' : 'trophy'} size={18} /></span>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{room.label}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)' }}>
@@ -8395,10 +8371,10 @@ function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
                     disabled={joiningCode !== null}
                     style={{ ...styles.btnPrimary, margin: 0, padding: '7px 14px', fontSize: 12.5, flexShrink: 0, opacity: joiningCode !== null ? 0.7 : 1 }}
                   >
-                    {joiningCode === room.code ? '⏳' : 'Entrar'}
+                    {joiningCode === room.code ? '…' : 'Entrar'}
                   </button>
                 ) : (
-                  <span title="Partida em andamento" style={{ fontSize: 16, flexShrink: 0 }}>🔒</span>
+                  <span title="Partida em andamento" style={{ flexShrink: 0 }}><Icon name="lock" size={16} /></span>
                 )}
               </div>
             );
@@ -8495,10 +8471,10 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             </div>
             <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
               <button onClick={copyCode} style={{ fontSize: 12, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '5px 14px', color: copied ? 'var(--success)' : 'var(--muted)', cursor: 'pointer' }}>
-                {copied ? '✓ Copiado!' : '📋 Copiar código'}
+                {copied ? 'Copiado!' : 'Copiar código'}
               </button>
               <button onClick={shareInvite} style={{ fontSize: 12, background: hexToRgba(mc, 0.12), border: `1px solid ${hexToRgba(mc, 0.4)}`, borderRadius: 8, padding: '5px 14px', color: inviteCopied ? 'var(--success)' : mc, cursor: 'pointer' }}>
-                {inviteCopied ? '✓ Link copiado!' : '📤 Convidar amigos'}
+                {inviteCopied ? 'Link copiado!' : 'Convidar amigos'}
               </button>
             </div>
             <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6 }}>Envie o código ou o link de convite pros seus amigos entrarem na sala</div>
@@ -8524,7 +8500,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
               }}>
                 {p.logo
                   ? <img src={p.logo} alt="" style={{ width: 28, height: 28, borderRadius: 7, objectFit: 'contain', background: 'var(--surface)', flexShrink: 0 }} />
-                  : <div style={{ width: 28, height: 28, borderRadius: 7, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>⚽</div>
+                  : <div style={{ width: 28, height: 28, borderRadius: 7, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}><Icon name="ball" size={13} /></div>
                 }
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{
@@ -8537,7 +8513,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
                   {p.isAI && !isRevealing && <div style={{ fontSize: 9.5, color: 'var(--muted)', letterSpacing: 0.5 }}>TIME SORTEADO</div>}
                   {pid === roomData.leaderId && !p.isAI && <div style={{ fontSize: 9.5, color: 'var(--gold-ink)' }}>LÍDER</div>}
                 </div>
-                {!isRevealing && <span style={{ fontSize: 13, flexShrink: 0 }}>{p.ready ? '✅' : '⏳'}</span>}
+                {!isRevealing && <span style={{ fontSize: 13, flexShrink: 0 }}><Icon name={p.ready ? 'check' : 'clock'} size={14} /></span>}
               </div>
             );
           })}
@@ -8586,7 +8562,7 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
   return (
     <div style={styles.card} className="card-mob">
       <div style={{ textAlign: 'center', padding: '16px 0 20px' }}>
-        <div style={{ fontSize: 40, marginBottom: 10 }}>✅</div>
+        <div style={{ marginBottom: 10 }}><Icon name="check" size={22} /></div>
         <div style={styles.eyebrow}>Time montado!</div>
         <h2 style={styles.h2}>Aguardando os outros jogadores…</h2>
         <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{readyCount} de {players.length} prontos</div>
@@ -8597,14 +8573,14 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
           <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
             {p.logo
               ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'var(--surface)' }} />
-              : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚽</div>
+              : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', }}><Icon name="ball" size={14} /></div>
             }
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: p.color || 'var(--ink)' }}>{p.name || 'Jogador'}</div>
               {p.ovr > 0 && <div style={{ fontSize: 11, color: 'var(--muted)' }}>OVR {p.ovr}</div>}
             </div>
             {pid === myId && <span style={{ fontSize: 10, color: 'var(--muted)', border: '1px solid var(--line-strong)', borderRadius: 4, padding: '1px 6px' }}>VOCÊ</span>}
-            <span style={{ fontSize: 16 }}>{p.ready ? '✅' : '⏳'}</span>
+            <span style={{ fontSize: 16 }}><Icon name={p.ready ? 'check' : 'clock'} size={14} /></span>
           </div>
         ))}
       </div>
@@ -8636,7 +8612,7 @@ function MultiFormationWaitScreen({ roomData, myId }) {
   return (
     <div style={styles.card} className="card-mob">
       <div style={{ textAlign: 'center', padding: '16px 0 20px' }}>
-        <div style={{ fontSize: 40, marginBottom: 10 }}>🧩</div>
+        <div style={{ marginBottom: 10 }}><Icon name="grid" size={22} /></div>
         <div style={styles.eyebrow}>Formação escolhida!</div>
         <h2 style={styles.h2}>Aguardando os outros escolherem…</h2>
         <div style={{ fontSize: 13, color: 'var(--muted)', marginTop: 4 }}>{readyCount} de {players.length} prontos</div>
@@ -8647,7 +8623,7 @@ function MultiFormationWaitScreen({ roomData, myId }) {
           <div key={pid} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 0', borderBottom: '1px solid var(--line)' }}>
             {p.logo
               ? <img src={p.logo} alt="" style={{ width: 32, height: 32, borderRadius: 8, objectFit: 'contain', background: 'var(--surface)' }} />
-              : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14 }}>⚽</div>
+              : <div style={{ width: 32, height: 32, borderRadius: 8, background: p.color || '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', }}><Icon name="ball" size={14} /></div>
             }
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: p.color || 'var(--ink)' }}>{p.name || 'Jogador'}</div>
@@ -8661,7 +8637,7 @@ function MultiFormationWaitScreen({ roomData, myId }) {
               )}
             </div>
             {pid === myId && <span style={{ fontSize: 10, color: 'var(--muted)', border: '1px solid var(--line-strong)', borderRadius: 4, padding: '1px 6px', flexShrink: 0 }}>VOCÊ</span>}
-            <span style={{ fontSize: 16, flexShrink: 0 }}>{p.formationReady ? '✅' : '⏳'}</span>
+            <span style={{ fontSize: 16, flexShrink: 0 }}><Icon name={p.formationReady ? 'check' : 'clock'} size={14} /></span>
           </div>
         ))}
       </div>
@@ -8840,18 +8816,6 @@ function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [], initia
   );
 }
 
-// Cores por função tática — a mesma lógica usada no campo cheio (Pitch), pra
-// ficar consistente do início (escolha do esquema) ao fim (escalação).
-const POS_GROUP_COLOR = {
-  GOL: '#F4F1EA',
-  LD: '#4a90d9', ZAG: '#4a90d9', LE: '#4a90d9',
-  // VOL (volante, mais recuado/destruidor) ganha um tom mais escuro que o
-  // resto do meio — senão, colado perto do MC/MEI, fica impossível
-  // diferenciar um do outro só pela cor.
-  VOL: '#a67a2e',
-  MC: '#d4a23c', MEI: '#d4a23c', MD: '#d4a23c', ME: '#d4a23c',
-  PD: '#e05050', PE: '#e05050', ATA: '#e05050',
-};
 
 // Ordem fixa de exibição por posição primária (lista de jogadores no Draft).
 // Editor de formação livre: 10 jogadores de linha (goleiro fixo, só
@@ -8955,11 +8919,11 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
                 style={{ left: `${slot.x}%`, top: `${slot.y}%`, '--ring': ring, cursor: clickable ? 'pointer' : 'default', touchAction: draggable ? 'none' : undefined, zIndex: occupant ? 3 : 2 }}
               >
                 <div className="ng-sl-c pitch-spot-circle">
-                  {isCap && <span className="ng-sl-cap" aria-hidden="true">⭐</span>}
+                  {isCap && <span className="ng-sl-cap" aria-hidden="true"><Icon name="star" size={16} /></span>}
                   {occupant ? occupant.ovr : slot.label}
                 </div>
                 {occupant
-                  ? <span className="ng-sl-n">{occupant.weeklyBoost === 5 ? '👑 ' : occupant.weeklyBoost ? '🌟 ' : ''}{shortName(occupant.name)}</span>
+                  ? <span className="ng-sl-n">{shortName(occupant.name)}</span>
                   : target && targetName ? <span className="ng-sl-n">{shortName(targetName)} aqui</span> : null}
               </div>
             );
@@ -9003,11 +8967,11 @@ function Pitch({ pitch, pitchSlots, highlightSlots = [], previewSlots = [], onCl
                 transition: 'all 0.15s',
               }}>
                 {isCap && (
-                  <span style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(15,31,23,0.18))' }}>⭐</span>
+                  <span style={{ position: 'absolute', top: -8, left: '50%', transform: 'translateX(-50%)', lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(15,31,23,0.18))' }}><Icon name="star" size={11} /></span>
                 )}
                 {weeklyRing && (
                   <span style={{ position: 'absolute', top: -7, right: -6, fontSize: 11, lineHeight: 1, filter: 'drop-shadow(0 1px 2px rgba(15,31,23,0.18))' }}>
-                    {occupant.weeklyBoost === 5 ? '👑' : '🌟'}
+                    <Icon name="star" size={11} />
                   </span>
                 )}
                 {occupant ? (
@@ -9123,7 +9087,7 @@ function BenchDisplay({ pitch, pitchSlots, myTeamColor, highlightSlots = [], pre
               {p ? (
                 <>
                   <div style={{ fontWeight: 600, color: p.weeklyBoost ? (p.weeklyBoost === 5 ? 'var(--gold-ink)' : 'var(--gold-ink)') : mc }}>
-                    {p.weeklyBoost === 5 ? '👑 ' : p.weeklyBoost ? '🌟 ' : ''}{shortName(p.name)}
+                    {shortName(p.name)}
                   </div>
                   <div style={{ fontSize: 10, color: 'var(--muted)' }}>{p.pos[0]} · {p.ovr}</div>
                 </>
@@ -9586,7 +9550,7 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
               >
                 <span className={`ng-o ${ngOvrClass(p.ovr)}`}>{p.ovr}</span>
                 <span style={{ minWidth: 0 }}>
-                  <b>{p.weeklyBoost === 5 ? '👑 ' : p.weeklyBoost ? '🌟 ' : ''}{p.name}</b>
+                  <b>{p.name}</b>
                   <span className="ng-pps">
                     {p.pos.map(pos => <span key={pos} className={`ng-pos ${field.includes(pos) ? `ng-p-${ngSector(pos)}` : 'ng-off'}`}>{pos}</span>)}
                     {blocked && <span className="ng-pos ng-lock">FORA DO ESQUEMA</span>}
@@ -9613,136 +9577,6 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
   );
 }
 
-function Squad({ pitch, pitchSlots, formationLabel, captainSlot, onSetCaptain, onConfirm, onRedo, myTeamColor, selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPitchSlot, onUnplacePlayer, confirmLabel = 'Disputar →', onSlotPointerDown, dragOverKey }) {
-  const starters = Object.values(pitch).filter(p => !p.isBench);
-  const avgOvr = starters.length ? Math.round(starters.reduce((s, p) => s + p.ovr, 0) / starters.length) : 0;
-  const effectiveOvr = Math.round((avgOvr + (captainSlot && !pitch[captainSlot]?.isBench ? 2 / starters.length : 0)) * 10) / 10;
-  const starterSlots = pitchSlots.filter(s => !s.isBench).sort((a, b) => posOrderIndex(a.realPos) - posOrderIndex(b.realPos));
-  const benchSlots = pitchSlots.filter(s => s.isBench);
-  const highlightSlots = selectedPlayer ? eligibleSlotsForPlayer(selectedPlayer) : [];
-  // Time de origem aparece uma vez só: se o elenco inteiro veio do mesmo
-  // time (ex.: "Já sei qual time eu quero"), vai pro cabeçalho; se veio de
-  // vários, só aparece quando muda em relação à linha de cima.
-  const originLabels = [...new Set(Object.values(pitch).map(p => p.teamLabel).filter(Boolean))];
-  const singleOrigin = originLabels.length === 1 ? originLabels[0] : null;
-  let prevOrigin = null;
-  const originFor = (p) => {
-    if (singleOrigin) return null;
-    const show = p.teamLabel !== prevOrigin;
-    prevOrigin = p.teamLabel;
-    return show ? p.teamLabel : null;
-  };
-
-  return (
-    <div style={styles.card} className="card-mob">
-      <div style={styles.eyebrow}>{formationLabel}{singleOrigin ? ` · ${singleOrigin}` : ''}</div>
-      <h2 style={styles.h2}>OVR base <span style={{ fontFamily: 'var(--font-mono)' }}>{avgOvr}</span> · Efetivo <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--gold-ink)' }}>{effectiveOvr}</span> <span style={{ fontSize: 14, color: 'var(--muted)' }}>(11 titulares)</span></h2>
-
-      {selectedPlayer ? (
-        <div style={styles.selectedPlayerBanner}>
-          Mova <b>{selectedPlayer.name}</b> para outra posição — ou clique num jogador do campo/banco para cancelar
-        </div>
-      ) : (
-        <div style={{
-          textAlign: 'center', fontSize: 12, padding: '8px 12px',
-          background: captainSlot ? 'rgba(194,154,69,0.1)' : 'var(--surface)',
-          border: `1px solid ${captainSlot ? 'rgba(194,154,69,0.5)' : 'var(--line)'}`,
-          borderRadius: 8, marginBottom: 10, color: captainSlot ? 'var(--gold-ink)' : 'var(--muted)',
-        }}>
-          {captainSlot
-            ? `Capitão: ${pitch[captainSlot]?.name} — +2 OVR`
-            : 'Toque em um titular para definir o capitão (braçadeira +2 OVR). Clique num jogador do campo/banco pra trocar de posição.'}
-        </div>
-      )}
-
-      <Pitch
-        pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor} captainSlot={captainSlot}
-        highlightSlots={highlightSlots}
-        onClickSlot={onClickPitchSlot}
-        onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
-        onSlotPointerDown={onSlotPointerDown}
-        dragOverKey={dragOverKey}
-      />
-      <BenchDisplay
-        pitch={pitch} pitchSlots={pitchSlots} myTeamColor={myTeamColor}
-        highlightSlots={highlightSlots}
-        onClickSlot={onClickPitchSlot}
-        onUnplace={repositioningSlot === null ? onUnplacePlayer : undefined}
-        onSlotPointerDown={onSlotPointerDown}
-        dragOverKey={dragOverKey}
-      />
-
-      <div style={styles.squadList}>
-        {/* Titulares */}
-        {starterSlots.map(slot => {
-          const p = pitch[slot.key];
-          if (!p) return null;
-          const isCap = captainSlot === slot.key;
-          return (
-            <button
-              key={slot.key}
-              onClick={() => onSetCaptain(isCap ? null : slot.key)}
-              className="squad-row-g"
-              style={{
-                ...styles.squadRow,
-                cursor: 'pointer',
-                background: isCap ? 'rgba(194,154,69,0.12)' : 'transparent',
-                border: `1px solid ${isCap ? 'rgba(194,154,69,0.55)' : 'transparent'}`,
-                borderRadius: 8,
-                width: '100%',
-                textAlign: 'left',
-                color: 'var(--ink)',
-              }}
-            >
-              <span style={{ ...styles.squadPos, color: isCap ? 'var(--gold-ink)' : undefined }}>
-                {isCap ? 'C' : slot.label}
-              </span>
-              <span style={{ ...styles.squadName, fontWeight: isCap ? 700 : 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-              <span style={styles.squadTeam}>{originFor(p)}</span>
-              <span style={{ ...styles.squadOvr, color: isCap ? 'var(--gold-ink)' : undefined }}>
-                {isCap ? `${p.ovr} +2` : p.ovr}
-              </span>
-            </button>
-          );
-        })}
-        {/* Banco */}
-        {benchSlots.some(s => pitch[s.key]) && (
-          <>
-            <div style={{ fontSize: 11, color: 'var(--muted)', letterSpacing: '0.08em', padding: '12px 0 4px', fontFamily: 'var(--font-mono)' }}>BANCO</div>
-            {benchSlots.map(slot => {
-              const p = pitch[slot.key];
-              if (!p) return null;
-              return (
-                <div key={slot.key} style={{ ...styles.squadRow, opacity: 0.7 }}>
-                  <span style={styles.squadPos}>{p.pos[0]}</span>
-                  <span style={{ ...styles.squadName, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
-                  <span style={styles.squadTeam}>{originFor(p)}</span>
-                  <span style={styles.squadOvr}>{p.ovr}</span>
-                </div>
-              );
-            })}
-          </>
-        )}
-      </div>
-
-      <div style={{ ...styles.btnRow, flexWrap: 'nowrap', justifyContent: 'flex-end' }}>
-        {onRedo && <button style={{ ...styles.btnGhost, width: 'auto', marginTop: 0, flex: '0 1 auto' }} onClick={onRedo}>Trocar formação</button>}
-        <button
-          style={{ ...styles.btnPrimary, flex: '1 1 auto', maxWidth: 320, ...((captainSlot && repositioningSlot === null) ? null : styles.btnDisabled) }}
-          onClick={onConfirm}
-          disabled={!captainSlot || repositioningSlot !== null}
-          title={
-            repositioningSlot !== null
-              ? 'Termine de reposicionar o jogador primeiro'
-              : captainSlot ? '' : 'Escolha um capitão primeiro'
-          }
-        >
-          {repositioningSlot !== null ? 'Reposicionando…' : captainSlot ? confirmLabel : 'Escolha um capitão'}
-        </button>
-      </div>
-    </div>
-  );
-}
 
 // Mercado de transferências entre temporadas: libera até 2 jogadores do
 // elenco pra sortear substitutos (reaproveita o dado do draft original,
@@ -9851,7 +9685,7 @@ export function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, m
 
         {motm && (
           <div style={{ textAlign: 'center', background: hexToRgba(mc, 0.1), border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
-            🌟 Craque da partida: <b style={{ color: mc }}>{motm.name}</b> <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
+            Craque da partida: <b style={{ color: mc }}>{motm.name}</b> <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
           </div>
         )}
 
@@ -9907,14 +9741,14 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
   const clearT = () => { if (tiRef.current) clearTimeout(tiRef.current); };
 
   const getResultText = (scored, isMine) => {
-    if (scored) return isMine ? 'GOOOOOL! ⚽' : 'GOL ⚽';
+    if (scored) return isMine ? 'GOOOOOL!' : 'GOL';
     const r = Math.random();
     // Quem defende é sempre o goleiro do OUTRO lado de quem está cobrando —
     // se sou eu cobrando, quem pode ter defendido é o goleiro adversário, e
     // vice-versa (antes o goleiro citado era sempre o mesmo, do lado errado).
-    if (r < 0.35) return `DEFENDE O ${isMine ? oppGkName : myGkName}! 🧤`;
-    if (r < 0.65) return isMine ? 'ISOLOOOOU! 😩' : 'ISOLOU';
-    return isMine ? 'ERROOOOU! 😱' : 'ERROU';
+    if (r < 0.35) return `DEFENDE O ${isMine ? oppGkName : myGkName}!`;
+    if (r < 0.65) return isMine ? 'ISOLOOOOU!' : 'ISOLOU';
+    return isMine ? 'ERROOOOU!' : 'ERROU';
   };
 
   const resolveKick = (taker) => {
@@ -10039,7 +9873,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
   const renderKickDots = (results, isMe) => (
     <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
       {results.map((r, i) => (
-        <span key={i} style={{ fontSize: 16, lineHeight: 1 }}>{r.scored ? '🟢' : '🔴'}</span>
+        <span key={i} aria-label={r.scored ? 'convertido' : 'perdido'} style={{ width: 12, height: 12, borderRadius: '50%', display: 'inline-block', background: r.scored ? 'var(--success)' : 'var(--danger)' }} />
       ))}
     </div>
   );
@@ -10055,7 +9889,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
     }}>
       {/* Header */}
       <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, color: 'var(--ink)', marginBottom: 4, textAlign: 'center' }}>
-        ⚽ Disputa de Pênaltis
+        Disputa de Pênaltis
         {isSuddenDeath && <span style={{ fontSize: 12, color: 'var(--danger)', marginLeft: 8 }}>MORTE SÚBITA</span>}
       </div>
 
@@ -10127,7 +9961,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
         {phase === 'done' && (
           <div style={{ textAlign: 'center' }}>
             <div style={{ fontSize: 22, fontWeight: 700, color: mc, fontFamily: 'var(--font-serif)', marginBottom: 8 }}>
-              {winner === '__myteam__' ? '🏆 Classificado nos pênaltis!' : '💔 Eliminado nos pênaltis'}
+              {winner === '__myteam__' ? 'Classificado nos pênaltis!' : 'Eliminado nos pênaltis'}
             </div>
             <div style={{ fontSize: 14, color: 'var(--ink-2)', marginBottom: 16 }}>
               {myTeamLabel} {myGoals} × {opGoals} {oppTeamLabel}
@@ -10396,7 +10230,7 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
         ← Voltar pro app
       </button>
       <div style={{ width: '100%', maxWidth: 640, margin: '0 auto', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 24 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: mc, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>🏆 Ranking Global</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: mc, letterSpacing: 1, textTransform: 'uppercase', marginBottom: 4 }}>Ranking Global</div>
         <GameStatsBar style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 14 }} />
 
         <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
@@ -10443,7 +10277,7 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
                   color: mc, fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
                 }}
               >
-                📍 Ver minha classificação
+                Ver minha classificação
               </button>
             )}
             {notRanked && (
@@ -10506,11 +10340,11 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
                   <span style={{ width: 26, textAlign: 'right', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{rank}.</span>
                   {r.team_logo
                     ? <img src={r.team_logo} alt="" style={{ width: 22, height: 22, borderRadius: 5, objectFit: 'contain', background: 'var(--surface)', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
-                    : <span style={{ width: 22, height: 22, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, color: 'var(--muted)' }}>⚽</span>
+                    : <span style={{ width: 22, height: 22, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--muted)' }}><Icon name="ball" size={13} /></span>
                   }
                   <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 13 }}>{r.username}</span>
                   {r.team_uf && !uf && <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{r.team_uf}</span>}
-                  <span style={{ fontSize: 11, color: 'var(--muted)' }}>🏆{r.titles_brasileirao + r.titles_copa}</span>
+                  <span style={{ fontSize: 11, color: 'var(--muted)', display: 'inline-flex', alignItems: 'center', gap: 2 }}><Icon name="trophy" size={11} />{r.titles_brasileirao + r.titles_copa}</span>
                   <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 13 }}>{r.ranking_points} pts</span>
                 </div>
               );
@@ -10911,14 +10745,14 @@ function NewsNotifyPanel({ currentUser, myTeamColor }) {
   if (!currentUser) {
     return (
       <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: '10px 12px', marginBottom: 14, fontSize: 12, color: 'var(--muted)' }}>
-        🔔 Crie uma conta pra receber aviso (push ou email) toda vez que sair uma novidade.
+        Crie uma conta pra receber aviso (push ou email) toda vez que sair uma novidade.
       </div>
     );
   }
 
   return (
     <div style={{ background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
-      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--muted)', marginBottom: 8 }}>🔔 Avisar de novidade</div>
+      <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.5, color: 'var(--muted)', marginBottom: 8 }}>Avisar de novidade</div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
         {supportsPush && (
           <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
@@ -10942,7 +10776,7 @@ function NewsModal({ onClose, currentUser, myTeamColor }) {
     <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
       <div style={{ background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--gold)', borderRadius: 20, padding: 20, width: '100%', maxWidth: 460, maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold-ink)', letterSpacing: 1, textTransform: 'uppercase' }}>💡 Novidades</div>
+          <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold-ink)', letterSpacing: 1, textTransform: 'uppercase' }}>Novidades</div>
           <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 18, cursor: 'pointer' }}>×</button>
         </div>
         <NewsNotifyPanel currentUser={currentUser} myTeamColor={myTeamColor} />
@@ -11017,7 +10851,7 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
           marginLeft: 'auto', boxShadow: 'var(--shadow)',
         }}
         title="Chat da sala"
-      >💬</button>
+      ><Icon name="chat" size={20} /></button>
     </div>
   );
 }
@@ -11458,7 +11292,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
     return (
       <div style={styles.card} className="card-mob">
         <div style={{ textAlign: 'center', padding: '54px 20px' }}>
-          <div style={{ fontSize: 42, marginBottom: 16 }}>⏭️</div>
+          <div style={{ marginBottom: 16 }}><Icon name="forward" size={22} /></div>
           <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 700, color: mc, marginBottom: 10, minHeight: 26 }}>
             {fastSimStatusMsg || 'Simulando...'}
           </div>
@@ -11503,7 +11337,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             style={{ ...styles.btnGhost, width: '100%', marginTop: 14 }}
             onClick={() => setShowBracket(true)}
           >
-            🏆 Ver chaveamento
+            Ver chaveamento
           </button>
         )}
         <div style={{ marginTop: 14 }}>
@@ -11537,7 +11371,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
         return (
           <div style={styles.card} className="card-mob">
             <div style={{ textAlign: 'center', padding: '24px 0 16px' }}>
-              <div style={{ fontSize: 40, marginBottom: 10 }}>😔</div>
+              <div style={{ marginBottom: 10 }}><Icon name="info" size={22} /></div>
               <div style={{ fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, marginBottom: 6 }}>Eliminado nas {elimRoundName}</div>
               <div style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 20 }}>O torneio continua sem você.</div>
               {simMode === 'manual' && <button style={styles.btnSmall} onClick={onStartRound}>Simular próxima fase</button>}
@@ -11566,7 +11400,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
       return (
         <div style={styles.card} className="card-mob">
           <div style={{ textAlign: 'center', padding: '20px 0 10px' }}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>😔</div>
+            <div style={{ marginBottom: 12 }}><Icon name="info" size={22} /></div>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 24, fontWeight: 700, marginBottom: 8 }}>Eliminado!</div>
             <div style={{ fontSize: 14, color: 'var(--muted)', marginBottom: 6 }}>Seu time foi eliminado nas {elimRoundName}.</div>
             {elimUserAgg !== null && elimOppAgg !== null && (
@@ -11624,7 +11458,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           </div>
           {roundDone && userInCup && simMode === 'manual' && (
             <button style={{ ...styles.btnSmall, background: mc, color: '#fff' }} onClick={onNextRound}>
-              {isFinal ? '🏆 Ver campeão →' : (isLastCupRound && cupLeg === 2 ? '🏆 Ver campeão →' : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →')}
+              {isFinal ? 'Ver campeão →' : (isLastCupRound && cupLeg === 2 ? 'Ver campeão →' : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →')}
             </button>
           )}
           {roundDone && userInCup && simMode === 'auto' && autoCountdown !== null && (
@@ -11687,8 +11521,8 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               <span style={{ fontWeight: 700, fontFamily: 'monospace', fontSize: 16, color: userAgg > oppAgg ? 'var(--success)' : userAgg < oppAgg ? 'var(--danger)' : mc }}>
                 {userAgg} × {oppAgg}
               </span>
-              {userAgg > oppAgg && <span style={{ marginLeft: 8, color: 'var(--success)', fontSize: 12 }}>✓ Classificado</span>}
-              {userAgg < oppAgg && <span style={{ marginLeft: 8, color: 'var(--danger)', fontSize: 12 }}>✗ Eliminado</span>}
+              {userAgg > oppAgg && <span style={{ marginLeft: 8, color: 'var(--success)', fontSize: 12 }}>Classificado</span>}
+              {userAgg < oppAgg && <span style={{ marginLeft: 8, color: 'var(--danger)', fontSize: 12 }}>Eliminado</span>}
               {userAgg === oppAgg && <span style={{ marginLeft: 8, color: 'var(--muted)', fontSize: 12 }}>Pênaltis</span>}
             </div>
           );
@@ -12137,8 +11971,8 @@ function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamC
     const mc = teamColor || '#d4a23c';
 
     const grad = ctx.createLinearGradient(0, 0, 900, height);
-    grad.addColorStop(0, '#0B1A12');
-    grad.addColorStop(1, '#132a1c');
+    grad.addColorStop(0, '#0D3A29');
+    grad.addColorStop(1, '#14523A');
     ctx.fillStyle = grad;
     ctx.fillRect(0, 0, 900, height);
 
@@ -12157,7 +11991,7 @@ function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamC
       ctx.fillText(teamBadge || '⚽', 450, 260);
     }
 
-    ctx.fillStyle = '#F4F1EA';
+    ctx.fillStyle = '#FBF9F4';
     ctx.font = '700 40px Georgia, serif';
     ctx.fillText(teamLabel || 'Meu Time', 450, 330);
 
@@ -12190,7 +12024,7 @@ function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamC
       ctx.fillStyle = 'rgba(212,162,60,0.9)';
       ctx.font = '700 22px Georgia, serif';
       ctx.fillText('🏅 Prêmios da Temporada', 450, y);
-      ctx.fillStyle = '#F4F1EA';
+      ctx.fillStyle = '#FBF9F4';
       ctx.font = '400 20px "JetBrains Mono", monospace';
       const shownAwards = awards.slice(0, 4);
       shownAwards.forEach((a, i) => ctx.fillText(a, 450, y + 40 + i * 32));
@@ -12279,7 +12113,7 @@ function ShareResultButton({ cardData }) {
   };
   return (
     <button onClick={share} disabled={busy} style={{ ...styles.btnGhost, marginTop: 10, width: '100%' }}>
-      {busy ? 'Gerando...' : '📤 Compartilhar resultado'}
+      {busy ? 'Gerando...' : 'Compartilhar resultado'}
     </button>
   );
 }
@@ -12377,7 +12211,7 @@ function AnthemPlayer({ club }) {
       </div>
 
       {/* Indicador visual */}
-      <div style={{ fontSize: 28 }}>🎵</div>
+      <div style={{ }}><Icon name="sound" size={22} /></div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--gold-ink)' }}>Hino do Campeão</div>
         <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 2 }}>{club}{playing && muted ? ' · mudo até você ativar o som' : ''}</div>
@@ -12397,14 +12231,14 @@ function AnthemPlayer({ club }) {
           onClick={activate}
           style={{ background: 'rgba(194,154,69,0.15)', border: '1px solid var(--gold)', borderRadius: 8, color: 'var(--gold-ink)', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 700 }}
         >
-          🔊 Ativar som
+          Ativar som
         </button>
       ) : status === 'ready' && (
         <button
           onClick={togglePause}
           style={{ background: playing ? 'rgba(194,154,69,0.15)' : 'var(--surface)', border: `1px solid ${playing ? 'var(--gold)' : 'var(--line-strong)'}`, borderRadius: 8, color: playing ? 'var(--gold-ink)' : 'var(--muted)', cursor: 'pointer', padding: '6px 14px', fontSize: 13, fontWeight: 600 }}
         >
-          {playing ? '⏸ Pausar' : '▶ Tocar'}
+          {playing ? 'Pausar' : 'Tocar'}
         </button>
       )}
     </div>
@@ -12427,7 +12261,7 @@ function GuestConversionBanner({ myTeamColor, onOpenAccount }) {
       display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18, padding: '12px 14px',
       borderRadius: 12, background: hexToRgba(mc, 0.1), border: `1px solid ${hexToRgba(mc, 0.35)}`,
     }}>
-      <span style={{ fontSize: 22, flexShrink: 0 }}>🏆</span>
+      <span style={{ flexShrink: 0 }}><Icon name="trophy" size={22} /></span>
       <div style={{ flex: 1, fontSize: 12.5, lineHeight: 1.4 }}>
         <b>Curtiu a temporada?</b> Crie uma conta pra salvar seu time, entrar no Ranking Global e não perder esse progresso.
       </div>
@@ -12473,7 +12307,7 @@ function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart, isLea
           </button>
           {onOpenTransferMarket && (
             <button style={{ ...styles.btnGhost, width: '100%', marginTop: 0 }} onClick={onOpenTransferMarket}>
-              🔁 Mercado de transferências (trocar até 2)
+              Mercado de transferências (trocar até 2)
             </button>
           )}
           <button style={{ ...styles.btnGhost, width: '100%', marginTop: 0, opacity: 0.75 }} onClick={onRestart}>
@@ -12489,7 +12323,7 @@ function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart, isLea
         isLeader ? (
           <>
             <button style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }} onClick={onRematch}>
-              🔁 Jogar de novo com o mesmo grupo
+              Jogar de novo com o mesmo grupo
             </button>
             <button style={{ ...styles.btnGhost, width: '100%', marginTop: 0, opacity: 0.75 }} onClick={onRestart}>
               Sair da sala
@@ -12640,7 +12474,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
               color: mc, fontWeight: 700, fontSize: 13, cursor: 'pointer',
             }}
           >
-            🏆 Ver chaveamento
+            Ver chaveamento
           </button>
         )}
         {showBracket && (
@@ -12900,7 +12734,7 @@ const globalCss = `
     .main-pad { padding: 16px 12px 60px !important; }
     .header-inner-pad { padding: 12px 14px !important; flex-wrap: wrap !important; row-gap: 8px !important; }
     /* "Supercopa do Brasil" / "Supercopa de hoje feita" — a cauda some no
-       mobile (fica só "🏆 Supercopa" / "✅ Supercopa"), senão esse botão
+       mobile (fica só "Supercopa"), senão esse botão
        sozinho já empurrava a fileira de ações pra quebrar em 2-3 linhas. */
     .header-supercopa-tail { display: none; }
     .header-actions-h { gap: 6px !important; }
@@ -12967,111 +12801,44 @@ const globalCss = `
 
 const styles = {
   page: { minHeight: '100vh', background: 'var(--bg)', color: 'var(--ink)', fontFamily: 'var(--font-body)', position: 'relative', overflowX: 'clip' },
-  header: { borderBottom: '1px solid var(--line)', position: 'relative', zIndex: 1, background: 'var(--bg)' },
-  headerInner: { maxWidth: 1240, margin: '0 auto', padding: '14px 24px', display: 'flex', alignItems: 'center', gap: 12 },
-  crest: { width: 36, height: 36, borderRadius: 10, background: 'var(--green)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer' },
-  title: { fontFamily: 'var(--font-serif)', fontSize: 19, fontWeight: 500, letterSpacing: '-0.01em', color: 'var(--ink)' },
-  subtitle: { fontFamily: 'var(--font-mono)', fontSize: 10.5, color: 'var(--muted)', letterSpacing: 1, textTransform: 'uppercase' },
   main: { maxWidth: 760, margin: '0 auto', padding: '32px 24px 80px', position: 'relative', zIndex: 1 },
   card: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: 28, boxShadow: 'var(--shadow-sm)' },
-  h1: { fontFamily: 'var(--font-serif)', fontSize: 34, lineHeight: 1.15, margin: '0 0 16px' },
   h2: { fontFamily: 'var(--font-serif)', fontSize: 22, margin: '4px 0 20px' },
-  lead: { fontSize: 16, lineHeight: 1.6, color: 'var(--ink-2)', marginBottom: 28 },
   eyebrow: { fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--gold-ink)' },
-  skipsBadge: { fontSize: 12, padding: '6px 12px', background: 'var(--surface)', borderRadius: 999 },
   draftTopRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
   btnPrimary: { background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 999, padding: '14px 28px', minHeight: 48, fontSize: 15, fontWeight: 600 },
   btnGhost: { background: 'transparent', color: 'var(--ink)', border: '1px solid var(--line-strong)', borderRadius: 999, padding: '12px 24px', minHeight: 44, fontSize: 14, fontWeight: 500, marginTop: 16, width: '100%' },
   btnSmall: { background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 16px', minHeight: 40, fontSize: 13, fontWeight: 600 },
-  btnDisabled: { background: 'var(--surface-2)', color: 'var(--muted)', boxShadow: 'none', cursor: 'not-allowed' },
-  btnRow: { display: 'flex', gap: 12, marginTop: 24, flexWrap: 'wrap' },
-  emptyState: { background: 'rgba(178,59,59,0.1)', border: '1px solid rgba(178,59,59,0.5)', borderRadius: 10, padding: '16px 18px', fontSize: 14, lineHeight: 1.5 },
 
-  formationIntro: { fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 24, maxWidth: 520 },
   // minmax era 200px com um campinho de aspect-ratio 0.66 (mais alto que
   // largo) — cada card passava de 350px de altura só na área do campinho, e
   // no mobile (que forçava 1 coluna) virava quase uma tela inteira por
   // formação. Card menor + texto mais compacto (a descrição agora é uma
   // palavra só, sem o detalhamento entre parênteses) deixam mais formações
   // visíveis de uma vez, sem precisar rolar tanto.
-  formationGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(132px, 1fr))', gap: 10 },
   formationCard: {
     background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 12,
     padding: '12px 10px', color: 'var(--ink)', textAlign: 'center', cursor: 'pointer',
     transition: 'background 0.15s, border-color 0.15s, transform 0.15s, box-shadow 0.15s',
   },
-  formationName: { fontSize: 13, fontWeight: 700, marginBottom: 10, fontFamily: 'var(--font-mono)' },
-  formationShapeNum: { fontSize: 18, fontWeight: 800, fontFamily: 'var(--font-mono)', letterSpacing: 0.3, color: 'var(--ink)' },
-  formationShapeDesc: { fontSize: 10.5, color: 'var(--muted)', marginTop: 2, marginBottom: 8, lineHeight: 1.3 },
-  formationSectionHead: { display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 10, marginBottom: 14, paddingBottom: 10, borderBottom: '1px solid var(--line)', flexWrap: 'wrap' },
-  formationSectionTitle: { display: 'flex', alignItems: 'center', gap: 8, fontFamily: 'var(--font-mono)', fontSize: 12.5, fontWeight: 700, letterSpacing: 0.8, textTransform: 'uppercase', color: 'var(--gold-ink)' },
-  formationSectionHint: { fontSize: 11.5, color: 'var(--muted)', fontStyle: 'italic' },
   miniPitch: {
     position: 'relative', width: '100%', aspectRatio: '0.66',
     background: 'repeating-linear-gradient(180deg,var(--pitch) 0 14%,var(--pitch-2) 14% 28%)', borderRadius: 10,
     border: '1px solid rgba(15,31,23,0.15)', overflow: 'hidden',
   },
-  miniPitchHalfLine: { position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'rgba(255,255,255,0.2)', pointerEvents: 'none' },
-  miniPitchCircle: { position: 'absolute', left: '50%', top: '50%', width: 30, height: 30, marginLeft: -15, marginTop: -15, border: '1px solid rgba(255,255,255,0.2)', borderRadius: '50%', pointerEvents: 'none' },
-  miniPitchCenterDot: { position: 'absolute', left: '50%', top: '50%', width: 3, height: 3, marginLeft: -1.5, marginTop: -1.5, borderRadius: '50%', background: 'rgba(255,255,255,0.25)', pointerEvents: 'none' },
-  miniPitchArcTop: { position: 'absolute', left: '50%', top: 0, width: 46, height: 22, marginLeft: -23, border: '1px solid rgba(255,255,255,0.16)', borderTop: 'none', borderRadius: '0 0 50% 50% / 0 0 100% 100%', pointerEvents: 'none' },
-  miniPitchArcBottom: { position: 'absolute', left: '50%', bottom: 0, width: 46, height: 22, marginLeft: -23, border: '1px solid rgba(255,255,255,0.16)', borderBottom: 'none', borderRadius: '50% 50% 0 0 / 100% 100% 0 0', pointerEvents: 'none' },
   miniDot: {
     position: 'absolute', width: 22, height: 22, borderRadius: '50%', transform: 'translate(-50%,-50%)',
     display: 'flex', alignItems: 'center', justifyContent: 'center',
     border: '1px solid rgba(0,0,0,0.3)', boxShadow: '0 1px 3px rgba(0,0,0,0.35)', zIndex: 2,
   },
-  miniDotLabel: { fontSize: 7.5, fontWeight: 800, color: '#0F1F17', fontFamily: 'var(--font-mono)', lineHeight: 1, letterSpacing: -0.2 },
 
   pitchWrap: { margin: '20px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 },
   pitchField: { width: '100%', maxWidth: 380, aspectRatio: '0.68', boxShadow: 'var(--shadow)' },
 
-  rolledTeamBox: { marginTop: 24 },
-  rolledTeamHeader: { display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px', border: '2px solid', borderRadius: 12, marginBottom: 16 },
-  diceIcon: { fontSize: 24 },
-  diceIconSpin: { fontSize: 40, animation: 'spin 0.5s linear infinite' },
-  rolledTeamLabel: { fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700 },
-  rolledTeamCoach: { fontSize: 12, color: 'var(--muted)' },
-  rollingBox: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: '32px 16px', marginTop: 8 },
-  rollingName: { fontFamily: 'var(--font-serif)', fontSize: 22, fontWeight: 700, minHeight: 30 },
-  rollingHint: { fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: 1, textTransform: 'uppercase' },
-  selectedPlayerBanner: { textAlign: 'center', fontSize: 13, padding: '10px 14px', background: 'rgba(31,122,77,0.12)', border: '1px solid rgba(31,122,77,0.5)', borderRadius: 8, margin: '12px 0' },
-  elevenGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 10 },
-  elevenCard: { background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 10, padding: '12px 10px', textAlign: 'center', color: 'var(--ink)', fontFamily: 'inherit' },
-  elevenOvr: { fontFamily: 'var(--font-mono)', fontSize: 18, fontWeight: 700, color: 'var(--gold-ink)' },
-  elevenName: { fontSize: 13, fontWeight: 600, margin: '4px 0 2px', minHeight: 32 },
-  elevenPos: { fontSize: 10, color: 'var(--muted)', marginBottom: 4, fontFamily: 'var(--font-mono)' },
-  elevenBlocked: { fontSize: 10, color: 'var(--muted)', fontStyle: 'italic', padding: '6px 0' },
-  elevenMultiHint: { fontSize: 9, color: 'var(--muted)', marginTop: 2, lineHeight: 1.3 },
-  elevenSelectedHint: { fontSize: 10, color: 'var(--success)', fontWeight: 700, marginTop: 2 },
 
-  squadList: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 20 },
-  squadRow: { display: 'grid', gridTemplateColumns: '50px minmax(0,1fr) auto 40px', gap: 12, alignItems: 'center', padding: '10px 12px', minHeight: 44, background: 'var(--surface)', borderRadius: 10 },
-  squadPos: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)' },
-  squadName: { fontWeight: 600, fontSize: 15 },
-  squadTeam: { fontSize: 12, color: 'var(--muted)', maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  squadOvr: { fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--gold-ink)', textAlign: 'right' },
 
   // Jogo ao vivo
-  statRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid var(--line)', fontSize: 13 },
-  statRank: { width: 20, textAlign: 'right', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 11 },
-  statName: { flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  statTeam: { fontSize: 11, color: 'var(--muted)', flexShrink: 1, minWidth: 0, maxWidth: '38%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
-  statValue: { fontFamily: 'var(--font-mono)', fontWeight: 700 },
-  bracketCrestSlot: { width: 20, height: 20, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' },
-  bracketCrestImg: { width: 20, height: 20, objectFit: 'contain', flexShrink: 0, borderRadius: 4, background: 'rgba(255,255,255,0.9)', padding: 1 },
-  bracketCrestEmoji: { fontSize: 16, lineHeight: 1 },
-  tableCrestImg: { width: 20, height: 20, objectFit: 'contain', flexShrink: 0, borderRadius: 4, background: 'rgba(255,255,255,0.9)', padding: 1 },
-  tableCrestEmoji: { fontSize: 17, lineHeight: 1, flexShrink: 0 },
-  liveTeamsRow: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'center', gap: 12, marginBottom: 12 },
-  liveTeamName: { fontSize: 14, lineHeight: 1.3 },
-  liveScoreBlock: { display: 'flex', alignItems: 'center', gap: 8, background: 'var(--surface-2)', borderRadius: 10, padding: '8px 16px' },
-  liveScoreNum: { fontFamily: 'var(--font-mono)', fontSize: 28, fontWeight: 700, color: 'var(--ink)', minWidth: 24, textAlign: 'center' },
-  liveScoreDash: { fontFamily: 'var(--font-mono)', fontSize: 20, color: 'var(--muted)' },
-  clockRow: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 12 },
-  clock: { fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700 },
   clockPulse: { width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', animation: 'pulse 1s ease-in-out infinite' },
-  clockFull: { fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' },
 
   // Outros jogos da rodada
   otherMatchesBox: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '16px', marginBottom: 20 },
@@ -13080,30 +12847,18 @@ const styles = {
   otherScore: { fontFamily: 'var(--font-mono)', fontWeight: 700, textAlign: 'center', minWidth: 48, flexShrink: 0, background: 'var(--surface)', borderRadius: 6, padding: '2px 6px' },
 
   // Tabela de classificação
-  tableSection: { marginTop: 8 },
   sectionLabel: { fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--gold-ink)', marginBottom: 8, marginTop: 20 },
-  tableHeaderRow: { display: 'flex', alignItems: 'center', padding: '6px 10px', fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)', letterSpacing: 0.5, borderBottom: '1px solid var(--line)' },
-  tableRow: { display: 'flex', alignItems: 'center', padding: '7px 10px', fontSize: 12, borderBottom: '1px solid var(--line)', transition: 'background 0.15s' },
-  tablePos: { width: 22, fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)', textAlign: 'center', flexShrink: 0 },
-  tableCell: { width: 32, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, flexShrink: 0 },
 
   // Resultado final
-  finalStats: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10, marginBottom: 20, marginTop: 8 },
   statBox: { background: 'var(--surface)', borderRadius: 10, padding: '14px 10px', textAlign: 'center' },
   finalStatValue: { fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, color: 'var(--gold-ink)' },
   statLabel: { fontSize: 11, color: 'var(--muted)', marginTop: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
-  badge: { background: 'rgba(194,154,69,0.15)', border: '1px solid var(--gold)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, fontWeight: 600 },
-  badgeInfo: { background: 'rgba(31,122,77,0.1)', border: '1px solid rgba(31,122,77,0.4)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, fontSize: 14 },
-  badgeMuted: { background: 'var(--surface)', borderRadius: 10, padding: '14px 18px', marginBottom: 16, color: 'var(--ink-2)', fontSize: 14 },
-  championBox: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 10, padding: '12px 16px', marginBottom: 16, fontSize: 14 },
 
   // Editor de time
   teamEditCard: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '20px', marginBottom: 28, textAlign: 'left' },
-  teamEditPreview: { display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 },
   teamEditSep: { height: 1, background: 'var(--surface)', margin: '0 0 16px' },
   teamEditSection: { marginBottom: 14 },
   teamEditLabel: { display: 'block', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 1.2, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 },
-  badgeGrid: { display: 'flex', flexWrap: 'wrap', gap: 6 },
   colorGrid: { display: 'flex', gap: 8, flexWrap: 'wrap' },
   teamInput: { width: '100%', background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '9px 12px', color: 'var(--ink)', fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' },
   // O popup nativo de <option> ignora o background semi-transparente do
@@ -13122,27 +12877,15 @@ const styles = {
   gameStatsDivider: { width: 3, height: 3, borderRadius: '50%', background: 'rgba(194,154,69,0.2)', flexShrink: 0 },
 
   // Intro screen
-  introCard: { textAlign: 'center', padding: '44px 28px 36px', position: 'relative', overflow: 'hidden' },
   introGlow: {
     position: 'absolute', top: '-18%', left: '50%', transform: 'translateX(-50%)',
     width: 560, height: 360, borderRadius: '50%', pointerEvents: 'none', zIndex: 0,
     background: 'radial-gradient(circle, rgba(194,154,69,0.16), rgba(194,154,69,0.1) 70%)',
   },
-  introTopBar: { position: 'absolute', top: 0, left: 0, right: 0, height: 3 },
-  introBadge: { display: 'inline-block', fontFamily: 'var(--font-mono)', fontSize: 10, letterSpacing: 2, textTransform: 'uppercase', color: 'var(--gold-ink)', background: 'rgba(194,154,69,0.12)', border: '1px solid var(--gold)', borderRadius: 999, padding: '5px 14px', marginBottom: 22 },
-  introTitle: { fontFamily: 'var(--font-serif)', fontSize: 42, fontWeight: 700, lineHeight: 1.12, letterSpacing: '-0.01em', margin: '0 0 16px' },
   introTitleAccent: {
     background: 'linear-gradient(135deg, var(--gold), var(--gold) 60%, #a87a28)',
     WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
   },
-  introLead: { fontSize: 16, lineHeight: 1.65, color: 'var(--ink-2)', maxWidth: 480, margin: '0 auto 36px' },
-  featGrid: { display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14, marginBottom: 36 },
-  featCard: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: '24px 16px 20px', position: 'relative', transition: 'border-color 0.15s, transform 0.15s, background 0.15s' },
-  featIconWrap: { width: 52, height: 52, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px', fontSize: 23 },
-  featIndex: { position: 'absolute', top: 12, right: 14, fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)', fontWeight: 700 },
-  featIcon: { fontSize: 24, marginBottom: 8 },
-  featTitle: { fontWeight: 700, fontSize: 13.5, marginBottom: 7, letterSpacing: 0.1 },
-  featDesc: { fontSize: 11.5, color: 'var(--muted)', lineHeight: 1.55 },
   // Rótulo de seção "— TEXTO —" com linhas finas dos dois lados, em vez de
   // texto solto centralizado: dá uma separação visual mais elegante entre
   // os blocos da home sem precisar de uma borda/divisória cheia.
@@ -13151,8 +12894,6 @@ const styles = {
     fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 11, letterSpacing: 2,
     textTransform: 'uppercase', opacity: 0.55, marginBottom: 16, color: 'var(--ink)',
   },
-  introSectionLabelLine: { flex: '0 1 48px', height: 1, background: 'linear-gradient(90deg, transparent, rgba(194,154,69,0.2))' },
-  introSectionLabelLineR: { flex: '0 1 48px', height: 1, background: 'linear-gradient(90deg, rgba(194,154,69,0.2), transparent)' },
   // Título de seção da home (Conquistas em destaque, Escolha o modo) — bem
   // maior/mais chamativo que teamEditLabel (que é um rótulo de campo
   // pequeno, usado em formulário/dificuldade/etc e não pode crescer senão
@@ -13163,40 +12904,17 @@ const styles = {
     fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 18, letterSpacing: 0.2,
     opacity: 0.95, marginBottom: 14, color: 'var(--ink)',
   },
-  homeSectionTitleBar: { width: 4, height: 18, borderRadius: 2, background: 'var(--gold)', flexShrink: 0 },
   introMarqueeWrap: {
     overflow: 'hidden', marginBottom: 36,
     maskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
     WebkitMaskImage: 'linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent)',
   },
-  introMarqueeTrack: { display: 'flex', gap: 10, width: 'max-content' },
-  introTeamChip: { display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11, whiteSpace: 'nowrap', color: 'var(--ink-2)', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 999, padding: '5px 14px 5px 8px' },
-  introTeamChipCrest: { width: 16, height: 16, objectFit: 'contain', borderRadius: '50%', flexShrink: 0 },
   // Card base reusada por todo mode-card/spotlight/social da home — ícone
   // num badge quadrado arredondado (em vez do emoji solto flutuando), pra
   // ler como um sistema de cards único em vez de botões com estilos soltos.
-  modeIconBadge: { width: 44, height: 44, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 21, flexShrink: 0 },
-  modeCardArrow: { fontSize: 16, color: 'var(--muted)', flexShrink: 0, transition: 'transform 0.15s, opacity 0.15s' },
   btnIntro: { background: 'var(--green)', color: '#fff', border: 'none', borderRadius: 999, padding: '16px 40px', fontSize: 17, fontWeight: 700, cursor: 'pointer', letterSpacing: 0.3 },
 
   // Draft side-by-side layout
   // 380px = o maxWidth do próprio campinho (`pitchField`) — dar mais que
   // isso à coluna não deixaria ele maior, só sobraria vão vazio ao lado.
-  draftLayout: { display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, marginTop: 16, alignItems: 'start' },
-  draftLeft: { display: 'flex', flexDirection: 'column', gap: 0, maxHeight: '72vh', overflowY: 'auto', paddingRight: 4 },
-  draftRight: { position: 'sticky', top: 16 },
-  teamHeaderCard: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '14px 16px', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 10 },
-  playersList: { display: 'flex', flexDirection: 'column', gap: 2 },
-  playerRow: { display: 'grid', gridTemplateColumns: '38px 1fr auto', gap: 10, alignItems: 'center', padding: '9px 12px', borderRadius: 8, background: 'var(--surface)', border: '1px solid transparent', cursor: 'pointer', transition: 'background 0.15s, border-color 0.15s' },
-  playerOvr: { fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 14, textAlign: 'center' },
-  playerInfo: { display: 'flex', flexDirection: 'column', gap: 1 },
-  playerName: { fontSize: 13, fontWeight: 600 },
-  playerPos: { fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--muted)' },
-  playerHint: { fontSize: 10, color: 'var(--success)', fontStyle: 'italic' },
-  skipsBox: { background: 'rgba(194,154,69,0.12)', border: '1px solid var(--gold)', borderRadius: 10, padding: '8px 14px', textAlign: 'center', minWidth: 54 },
-  skipsNum: { fontFamily: 'var(--font-mono)', fontSize: 20, fontWeight: 700, color: 'var(--gold-ink)', display: 'block' },
-  skipsLabel: { fontSize: 10, color: 'var(--ink-2)', textTransform: 'uppercase', letterSpacing: 0.5 },
-  progressBar: { height: 4, background: 'var(--surface-2)', borderRadius: 999, overflow: 'hidden' },
-  progressFill: { height: '100%', background: 'var(--gold)', borderRadius: 999, transition: 'width 0.3s ease' },
-  btnSkip: { background: 'transparent', color: 'var(--ink)', border: '1px solid var(--line-strong)', borderRadius: 8, padding: '8px 16px', fontSize: 12, cursor: 'pointer', marginTop: 8, width: '100%' },
 };

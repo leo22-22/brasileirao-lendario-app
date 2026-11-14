@@ -59,7 +59,7 @@ function PlayerRow({ p }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
         <div style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-          {p.stats.matches}j · {p.stats.goals}g · {p.stats.assists}a{isGk ? ` · ${p.stats.cleanSheets} sg` : ''} · 🟨{p.stats.yellows} 🟥{p.stats.reds}
+          {p.stats.matches}j · {p.stats.goals}g · {p.stats.assists}a{isGk ? ` · ${p.stats.cleanSheets} sg` : ''} · {p.stats.yellows} amar. · {p.stats.reds} verm.
         </div>
       </div>
       <span style={{

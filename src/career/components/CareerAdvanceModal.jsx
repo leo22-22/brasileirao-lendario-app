@@ -132,7 +132,7 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, o
     <div style={{ position: 'fixed', inset: 0, background: 'var(--surface)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
-          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>📅 Calendário avançando</div>
+          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Calendário avançando</div>
           {!eventsVisible && (
             <>
               <div style={{ display: 'flex', borderRadius: 999, border: '1px solid var(--line-strong)', overflow: 'hidden' }}>
@@ -155,7 +155,7 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, o
                   padding: '3px 10px', borderRadius: 999, border: '1px solid var(--line-strong)',
                   background: 'var(--surface)', color: 'var(--ink)', cursor: 'pointer',
                 }}
-              >⏹ Parar</button>
+              >Parar</button>
             </>
           )}
         </div>

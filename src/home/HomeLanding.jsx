@@ -131,7 +131,7 @@ export function HomeLanding({
                         ? <img src={CLUB_LOGOS[p.team.club]} alt="" />
                         : p.abbr}
                     </div>
-                    <span className="hl-n">{isCraque ? '👑 ' : ''}{p.name}</span>
+                    <span className="hl-n">{p.name}</span>
                   </div>
                 );
               }))}
@@ -153,7 +153,7 @@ export function HomeLanding({
                 <div className="hl-k">Supercopa do dia</div>
                 <div className="hl-v">
                   {dailyChallengeAlreadyPlayed
-                    ? 'Feita hoje ✅'
+                    ? 'Feita hoje'
                     : `vs. ${parseTeamLabel(dailyChallenge.opponent.label).baseName}`}
                 </div>
               </button>
@@ -250,7 +250,7 @@ export function HomeLanding({
           >
             <div className="hl-l">
               <div className="hl-ic"><ModeIcon id="supercopa" size={18} /></div>
-              <div><h4>Supercopa</h4><small>{dailyChallengeAlreadyPlayed ? 'Jogada hoje ✅' : 'Campeões frente a frente'}</small></div>
+              <div><h4>Supercopa</h4><small>{dailyChallengeAlreadyPlayed ? 'Jogada hoje' : 'Campeões frente a frente'}</small></div>
             </div>
             <ArrowIcon />
           </button>

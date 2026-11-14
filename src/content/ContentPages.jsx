@@ -36,7 +36,7 @@ export function EmailLink({ subject, style, label }) {
   };
   return (
     <a href={mailto} onClick={handleClick} style={style}>
-      {copied ? '✅ Email copiado!' : label}
+      {copied ? 'Email copiado!' : label}
     </a>
   );
 }

@@ -3,6 +3,7 @@
 // próxima abertura, seja janeiro ou julho, o que vier primeiro). Usado no
 // Hub e no Mercado pra manter o mesmo visual nos dois lugares.
 import { isTransferWindowOpen, currentWindowCloseDay, nextWindowOpenDay, formatCalendarDay } from '../engine/calendar.js';
+import { Icon } from '../../ui/index.jsx';
 
 export function TransferWindowBadge({ day, style }) {
   const open = isTransferWindowOpen(day);
@@ -14,7 +15,7 @@ export function TransferWindowBadge({ day, style }) {
       background: `${color}1a`, border: `1px solid ${color}4d`, fontSize: 12, color, fontWeight: 600,
       ...style,
     }}>
-      <span style={{ fontSize: 15 }}>🔁</span>
+      <Icon name="swap" size={15} />
       <span>
         {open ? 'Janela de transferências aberta' : 'Janela de transferências fechada'}
         {' — '}

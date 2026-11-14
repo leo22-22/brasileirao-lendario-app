@@ -36,6 +36,8 @@ export function SquadReadyScreen({
   selectedPlayer, repositioningSlot, eligibleSlotsForPlayer, onClickPitchSlot, onUnplacePlayer,
   confirmLabel = 'Disputar', onSlotPointerDown, dragOverKey,
   modeLabel, steps, difficultyText,
+  // Reuso fora do novo jogo (editor de escalação do Brasileirão Atual).
+  title = 'Seu time está pronto', subtitle = 'Escolha o capitão e ajuste as posições antes de entrar no campeonato.',
 }) {
   const [menu, setMenu] = useState(null); // { key, x, y }
   const [announce, setAnnounce] = useState('');
@@ -154,9 +156,9 @@ export function SquadReadyScreen({
     <div className="sr-wrap">
       <div className="sr-top">
         <div style={{ minWidth: 0 }}>
-          <span className="sr-mono">{modeLabel} · {formationLabel} · {singleOrigin ? 'time pronto' : 'draft completo'}</span>
-          <h1>Seu time está pronto</h1>
-          <p>Escolha o capitão e ajuste as posições antes de entrar no campeonato.</p>
+          <span className="sr-mono">{[modeLabel, formationLabel, singleOrigin ? 'time pronto' : 'draft completo'].filter(Boolean).join(' · ')}</span>
+          <h1>{title}</h1>
+          <p>{subtitle}</p>
         </div>
         {steps && (
           <FlowStepper steps={steps} current={2} />
