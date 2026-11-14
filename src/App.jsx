@@ -29,6 +29,7 @@ import { LeagueHeader } from './game/league/LeagueHeader.jsx';
 import { AppHeader, HeaderMenu } from './ui/AppHeader.jsx';
 import { ClubCrest } from './components/football/ClubCrest.jsx';
 import { PitchSurface } from './components/football/Pitch.jsx';
+import { FlowStepper } from './components/football/FlowStepper.jsx';
 import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton } from './components/football/LiveMatchView.jsx';
 import { ResultChip, RoundStrip, MonthGrid, COMP_COLORS } from './components/football/SeasonCalendar.jsx';
 import { CupBracket, bracketPathKeys } from './components/football/CupBracket.jsx';
@@ -6401,7 +6402,7 @@ export default function App() {
           initialSelected={livreTeamIds || []}
           initialFormat={gameMode}
           onClose={() => setShowLivrePicker(false)}
-          onConfirm={(ids, format) => { setLivreTeamIds(ids); setGameMode(format); setShowLivrePicker(false); setShowGameModeModal(false); }}
+          onConfirm={(ids, format) => { setLivreTeamIds(ids); setGameMode(format); setShowLivrePicker(false); }}
         />
       )}
       {showLineupEditor && (
@@ -8726,14 +8727,7 @@ function FormationPicker({ onChoose, onChooseCustom, onBack, gameMode, onSetGame
           <p>{total} esquemas organizados pela linha de defesa. Clique em um para {steps ? 'começar o draft' : 'trocar a formação'}.</p>
         </div>
         {steps && (
-          <ol className="ng-steps" aria-label="Etapas do novo jogo">
-            {steps.map((s, i) => (
-              <React.Fragment key={s}>
-                {i > 0 && <span className="ng-sline" aria-hidden="true" />}
-                <li className={`ng-sp${i === 0 ? ' ng-on' : ''}`} aria-current={i === 0 ? 'step' : undefined}><i>{i + 1}</i>{s}</li>
-              </React.Fragment>
-            ))}
-          </ol>
+          <FlowStepper steps={steps} current={0} />
         )}
       </div>
 
@@ -8825,154 +8819,23 @@ function TeamPickerModal(props) {
   return <ReadyMadeTeamModal {...props} />;
 }
 
-// "Modo de jogo" virou um botão-resumo na home (ver Intro) que abre este
-// modal — cresce bem melhor que o grid antigo agora que são 4 opções.
-// Brasileirão/Copa continuam marcando `gameMode`; Brasileirão Atual e Modo
-// Livre são navegação/configuração à parte (não ficam "selecionados").
-// Modo Livre: em vez de sortear entre os 200 times históricos, o draft
-// sorteia só entre os 16 escolhidos aqui — controle total sobre quais eras/
-// times podem aparecer, sem trocar a liga em si (Brasileirão/Copa continuam
-// os mesmos por baixo). Múltipla escolha (não é "pick um time" como o
-// TeamPickerModal) — por isso um componente à parte em vez de reaproveitar.
-// Página única do Modo Livre: escolher os 16 times (esquerda) e o formato do
-// campeonato — Brasileirão ou Copa do Brasil (direita) — antes de seguir pro
-// campinho/draft. Em telas largas os dois ficam lado a lado; no celular o
-// formato vira uma fileira de 2 botões acima da lista (ver
-// .livre-picker-* no bloco de mídia queries).
+// Modo Livre: o mesmo seletor do Time pronto (ReadyMadeTeamModal), em modo de
+// seleção múltipla (16 times) com a escolha do campeonato.
 function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [], initialFormat = 'serieab' }) {
-  const POOL_SIZE = 16;
-  const [query, setQuery] = useState('');
-  const [selected, setSelected] = useState(() => new Set(initialSelected));
-  const [format, setFormat] = useState(initialFormat === 'copa' ? 'copa' : 'serieab');
-  const sorted = useMemo(() => [...LEGACY_TEAMS].sort((a, b) => b.year - a.year), []);
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return sorted;
-    return sorted.filter(t => t.label.toLowerCase().includes(q) || String(t.year).includes(q));
-  }, [sorted, query]);
-  const toggle = (id) => {
-    setSelected(prev => {
-      if (prev.has(id)) { const next = new Set(prev); next.delete(id); return next; }
-      if (prev.size >= POOL_SIZE) return prev; // já no limite — ignora até desmarcar outro
-      return new Set(prev).add(id);
-    });
-  };
-  const count = selected.size;
-  const canConfirm = count === POOL_SIZE;
-  const FORMATS = [
-    { id: 'serieab', label: 'Brasileirão', sub: '40 times · Série A e B' },
-    { id: 'copa', label: 'Copa do Brasil', sub: '32 times · Mata-mata' },
-  ];
-
   return (
-    <div onClick={onClose} className="livre-picker-wrap" style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} className="livre-picker-panel" style={{ width: '100%', maxWidth: 760, maxHeight: '88vh', display: 'flex', flexDirection: 'row', gap: 20, background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line-strong)', borderRadius: 20, padding: 18 }}>
-        <div className="livre-picker-main" style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-            <div style={{ fontWeight: 700, fontSize: 14 }}>🎯 Modo Livre — escolha {POOL_SIZE} times</div>
-            <button onClick={onClose} className="tap-target-sm livre-picker-close" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
-          </div>
-          <div style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 10 }}>
-            O draft vai sortear só entre os times marcados — nenhum outro time aparece.
-          </div>
-          {/* No celular o formato mora aqui em cima, como fileira de 2
-              botões — a coluna da direita (.livre-picker-side) some via
-              media query e este bloco assume o lugar dela. */}
-          <div className="livre-picker-format-mobile" style={{ display: 'none', gap: 8, marginBottom: 12 }}>
-            {FORMATS.map(f => (
-              <button
-                key={f.id}
-                onClick={() => setFormat(f.id)}
-                style={{
-                  flex: 1, padding: '9px 10px', borderRadius: 10, border: `1.5px solid ${format === f.id ? 'var(--gold)' : 'var(--line-strong)'}`,
-                  background: format === f.id ? 'rgba(194,154,69,0.12)' : 'var(--surface)',
-                  color: format === f.id ? 'var(--gold-ink)' : 'var(--ink)', cursor: 'pointer', textAlign: 'center', fontSize: 11.5, fontWeight: 700,
-                }}
-              >
-                {f.label}
-              </button>
-            ))}
-          </div>
-          <input
-            autoFocus
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Buscar por time ou ano..."
-            style={{ ...styles.teamInput, marginBottom: 10, flexShrink: 0 }}
-          />
-          <div style={{ overflowY: 'auto', flex: 1, display: 'grid', gap: 6, minHeight: 0 }}>
-            {filtered.length === 0 && (
-              <div style={{ fontSize: 12, color: 'var(--muted)', textAlign: 'center', padding: 16 }}>Nenhum time encontrado.</div>
-            )}
-            {filtered.map(team => {
-              const isSel = selected.has(team.id);
-              const { baseName, achievement } = parseTeamLabel(team.label);
-              return (
-                <button
-                  key={team.id}
-                  onClick={() => toggle(team.id)}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', borderRadius: 10,
-                    border: `1.5px solid ${isSel ? 'var(--success)' : 'var(--line)'}`,
-                    background: isSel ? 'rgba(31,122,77,0.12)' : 'var(--surface)',
-                    color: 'var(--ink)', textAlign: 'left', cursor: 'pointer',
-                  }}
-                >
-                  <div style={{
-                    width: 20, height: 20, borderRadius: 5, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    border: `1.5px solid ${isSel ? 'var(--success)' : 'var(--line-strong)'}`, background: isSel ? 'var(--success)' : 'transparent',
-                    color: 'var(--ink)', fontSize: 12, fontWeight: 900,
-                  }}>{isSel ? '✓' : ''}</div>
-                  {CLUB_LOGOS[team.club] && (
-                    <img src={CLUB_LOGOS[team.club]} alt="" style={{ width: 24, height: 24, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
-                  )}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: 13 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{team.year}</span></div>
-                    {achievement && <div style={{ fontSize: 11, color: 'var(--gold-ink)', marginTop: 1 }}>{achievement}</div>}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-          <div style={{ paddingTop: 12, marginTop: 8, borderTop: '1px solid var(--line)', flexShrink: 0 }}>
-            <button
-              onClick={() => canConfirm && onConfirm([...selected], format)}
-              disabled={!canConfirm}
-              style={{
-                width: '100%', padding: '13px 16px', borderRadius: 10, border: 'none', fontSize: 14, fontWeight: 700,
-                background: canConfirm ? 'var(--gold)' : 'var(--surface-2)',
-                color: canConfirm ? 'var(--ink)' : 'var(--muted)',
-                cursor: canConfirm ? 'pointer' : 'not-allowed',
-              }}
-            >
-              {canConfirm ? `Confirmar ${POOL_SIZE} times →` : `Escolha mais ${POOL_SIZE - count} (${count}/${POOL_SIZE})`}
-            </button>
-          </div>
-        </div>
-        {/* Coluna da direita — só em telas largas (some no celular via
-            media query, o bloco .livre-picker-format-mobile assume). */}
-        <div className="livre-picker-side" style={{ width: 220, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={styles.teamEditLabel}>Formato do campeonato</div>
-          {FORMATS.map(f => (
-            <button
-              key={f.id}
-              onClick={() => setFormat(f.id)}
-              style={{
-                textAlign: 'left', padding: '12px 12px', borderRadius: 10, border: `1.5px solid ${format === f.id ? 'var(--gold)' : 'var(--line-strong)'}`,
-                background: format === f.id ? 'rgba(194,154,69,0.12)' : 'var(--surface)',
-                color: format === f.id ? 'var(--gold-ink)' : 'var(--ink)', cursor: 'pointer',
-              }}
-            >
-              <div style={{ fontWeight: 700, fontSize: 13 }}>{f.label}</div>
-              <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 2 }}>{f.sub}</div>
-            </button>
-          ))}
-          <div style={{ fontSize: 10.5, color: 'var(--muted)', marginTop: 4, lineHeight: 1.4 }}>
-            É o campeonato que você vai jogar com o elenco montado a partir desses 16 times.
-          </div>
-        </div>
-      </div>
-    </div>
+    <ReadyMadeTeamModal
+      onClose={onClose}
+      multi={{
+        max: 16,
+        initial: initialSelected,
+        initialFormat: initialFormat === 'copa' ? 'copa' : 'serieab',
+        formats: [
+          { id: 'serieab', label: 'Brasileirão', sub: '40 times · Série A e B' },
+          { id: 'copa', label: 'Copa do Brasil', sub: '32 times · Mata-mata' },
+        ],
+        onConfirm,
+      }}
+    />
   );
 }
 
@@ -13170,13 +13033,6 @@ const globalCss = `
        sozinho já empurrava a fileira de ações pra quebrar em 2-3 linhas. */
     .header-supercopa-tail { display: none; }
     .header-actions-h { gap: 6px !important; }
-    /* Modo Livre: no celular vira bottom-sheet de 1 coluna de novo — o
-       formato (que em telas largas é uma coluna à direita) passa a ser a
-       fileira de 2 botões que já está desenhada em cima da busca. */
-    .livre-picker-wrap { align-items: flex-end !important; padding: 0 !important; }
-    .livre-picker-panel { flex-direction: column !important; max-width: 100% !important; max-height: 92vh !important; border-radius: 16px 16px 0 0 !important; }
-    .livre-picker-side { display: none !important; }
-    .livre-picker-format-mobile { display: flex !important; }
     .header-title-h { font-size: 15px !important; line-height: 1.2 !important; }
     .header-subtitle-h { font-size: 9px !important; }
     /* Título+logo numa "linha" e os botões (áudio/ranking/conta) na linha de

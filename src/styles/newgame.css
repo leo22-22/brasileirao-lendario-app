@@ -42,13 +42,6 @@
 .ng-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
 .ng-top h1 { font-family: var(--font-serif); font-weight: 400; font-size: 42px; letter-spacing: -.03em; line-height: 1; margin: 8px 0 0; }
 .ng-top p { color: var(--muted); margin: 8px 0 0; }
-.ng-steps { display: flex; gap: 6px; align-items: center; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
-.ng-sp { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px 0 6px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--muted); }
-.ng-sp i { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11.5px; font-weight: 700; background: var(--surface-2); color: var(--ink-2); }
-.ng-sp.ng-on { border-color: var(--ink); color: var(--ink); font-weight: 600; }
-.ng-sp.ng-on i { background: var(--ink); color: #fff; }
-.ng-sp.ng-done i { background: var(--green-2); color: #fff; }
-.ng-sline { width: 18px; height: 1px; background: var(--line-strong); }
 .ng-sc { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .ng-short { display: flex; gap: 16px; align-items: center; padding: 18px 20px; border-radius: 20px; border: 1px solid var(--line); background: var(--surface); cursor: pointer; text-align: left; font-family: var(--font-body); color: var(--ink); }
 .ng-short:hover { border-color: var(--line-strong); }
@@ -168,7 +161,6 @@
   .ng-tb { gap: 12px; }
   .ng-prog { margin-left: 0; max-width: none; }
   .ng-skip { margin-left: 0; width: 100%; justify-content: space-between; }
-  .ng-sline { display: none; }
   .ng-vsep { display: none; }
 }
 @media (max-width: 480px) {

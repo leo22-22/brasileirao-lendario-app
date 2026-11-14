@@ -10,6 +10,7 @@ import { displayName } from '../lib/displayName.js';
 import { Icon } from '../ui/index.jsx';
 import './squadReady.css';
 import { PitchSurface } from '../components/football/Pitch.jsx';
+import { FlowStepper } from '../components/football/FlowStepper.jsx';
 
 const SECTOR_LABEL = { gk: 'goleiro', df: 'defensor', md: 'meio-campista', at: 'atacante' };
 const fmt1 = (x) => x.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
@@ -158,14 +159,7 @@ export function SquadReadyScreen({
           <p>Escolha o capitão e ajuste as posições antes de entrar no campeonato.</p>
         </div>
         {steps && (
-          <ol className="sr-steps" aria-label="Etapas do novo jogo">
-            {steps.map((s, i) => (
-              <li key={s} className={`sr-sp${i < 2 ? ' sr-dn' : i === 2 ? ' sr-on' : ''}`} aria-current={i === 2 ? 'step' : undefined}>
-                {i > 0 && <span className="sr-sline" aria-hidden="true" />}
-                <i>{i < 2 ? '✓' : i + 1}</i>{s}
-              </li>
-            ))}
-          </ol>
+          <FlowStepper steps={steps} current={2} />
         )}
       </div>
 

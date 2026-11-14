@@ -67,7 +67,9 @@ function sectorStrength(team) {
   return { at: avg('at'), md: avg('md'), df: avg('df'), gk: avg('gk') };
 }
 
-export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title }) {
+// multi: { max, initial: [ids], formats: [{ id, label, sub }], initialFormat, onConfirm(ids, format) }
+// — seleção de vários times (Modo Livre). Sem `multi`, seleção única (onPick).
+export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title, multi = null }) {
   const restricted = !!onlyIds;
   const base = useMemo(() => {
     const list = restricted ? TEAMS.filter(t => onlyIds.includes(t.id)) : TEAMS.filter(t => t.year !== 2026);
@@ -85,6 +87,14 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title }) {
   const [limit, setLimit] = useState(PAGE);
   const [selId, setSelId] = useState(null);
   const [sheet, setSheet] = useState(false);
+  const [picked, setPicked] = useState(() => new Set(multi?.initial || []));
+  const [format, setFormat] = useState(() => (multi?.formats?.some(f => f.id === multi.initialFormat) ? multi.initialFormat : multi?.formats?.[0]?.id));
+  const togglePick = (id) => setPicked(prev => {
+    const next = new Set(prev);
+    if (next.has(id)) next.delete(id);
+    else if (next.size < (multi?.max || Infinity)) next.add(id);
+    return next;
+  });
   const searchRef = useRef(null);
 
   useEffect(() => { searchRef.current?.focus(); }, []);
@@ -120,9 +130,46 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title }) {
   const selSectors = useMemo(() => (sel ? sectorStrength(sel.team) : null), [sel]);
   const selTop = useMemo(() => (sel ? [...sel.team.players].sort((a, b) => b.ovr - a.ovr || posOrderIndex(a.pos[0]) - posOrderIndex(b.pos[0])).slice(0, 4) : []), [sel]);
 
-  const select = (id) => { setSelId(id); setSheet(true); };
-  const confirm = (x) => onPick((x || sel).team);
-  const heading = title && title !== 'Escolha um time pronto' ? title : restricted ? 'Escolha seu clube' : 'Escolha um time histórico';
+  const select = (id) => { if (multi) { togglePick(id); setSelId(id); return; } setSelId(id); setSheet(true); };
+  const confirm = (x) => { if (multi) return; onPick((x || sel).team); };
+  const heading = multi ? `Escolha ${multi.max} times` : title && title !== 'Escolha um time pronto' ? title : restricted ? 'Escolha seu clube' : 'Escolha um time histórico';
+  const pickedList = multi ? base.filter(x => picked.has(x.team.id)) : [];
+  const multiPanel = multi ? (
+    <div className="rm-multi">
+      <div className="rm-sec">
+        <h4>Seleção · {picked.size} de {multi.max}</h4>
+        <div className="rm-mcells" role="img" aria-label={`${picked.size} de ${multi.max} times escolhidos`}>
+          {Array.from({ length: multi.max }, (_, i) => <i key={i} className={i < picked.size ? 'rm-mc-on' : undefined} />)}
+        </div>
+      </div>
+      {multi.formats?.length > 1 && (
+        <div className="rm-sec">
+          <h4>Campeonato</h4>
+          <div className="rm-fmt" role="radiogroup" aria-label="Campeonato">
+            {multi.formats.map(f => (
+              <button key={f.id} type="button" role="radio" aria-checked={format === f.id} className={`rm-fmt-b${format === f.id ? ' rm-on' : ''}`} onClick={() => setFormat(f.id)}>
+                <b>{f.label}</b><small>{f.sub}</small>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div className="rm-sec rm-msel">
+        <h4>Escolhidos</h4>
+        {pickedList.length === 0 && <p className="rm-small">Toque nos cards para escolher.</p>}
+        {pickedList.map(x => (
+          <button key={x.team.id} type="button" className="rm-mitem" onClick={() => togglePick(x.team.id)} aria-label={`Tirar ${x.baseName} ${x.team.year}`}>
+            <span className="rm-ell">{x.baseName} {x.team.year}</span><Icon name="close" size={13} />
+          </button>
+        ))}
+      </div>
+      <div className="rm-pv-ft">
+        <button type="button" className="rm-go" disabled={picked.size !== multi.max} onClick={() => multi.onConfirm([...picked], format)}>
+          {picked.size === multi.max ? <>Confirmar {multi.max} times<Icon name="chevronRight" size={16} /></> : `Escolha mais ${multi.max - picked.size} (${picked.size}/${multi.max})`}
+        </button>
+      </div>
+    </div>
+  ) : null;
 
   const preview = sel ? (() => {
     const [p, s] = bandColors(sel.team);
@@ -172,9 +219,9 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title }) {
         {onClose && <button type="button" className="rm-x" onClick={onClose} aria-label="Fechar"><Icon name="close" size={16} /></button>}
         <div className="rm-lf">
           <div className="rm-mh">
-            <span className="rm-mono">{restricted ? 'Brasileirão Atual · elencos reais de 2026' : 'Elenco pronto · pula o sorteio'}</span>
+            <span className="rm-mono">{multi ? 'Modo Livre · monte a sua liga' : restricted ? 'Brasileirão Atual · elencos reais de 2026' : 'Elenco pronto · pula o sorteio'}</span>
             <h2 id="rm-h">{heading}</h2>
-            <p>{restricted ? 'Você joga com o elenco real do clube e escolhe a formação depois.' : 'Você joga com o elenco completo do time. Dá para trocar a formação depois.'}</p>
+            <p>{multi ? 'O seu elenco é montado no draft a partir destes times, que também formam a liga.' : restricted ? 'Você joga com o elenco real do clube e escolhe a formação depois.' : 'Você joga com o elenco completo do time. Dá para trocar a formação depois.'}</p>
           </div>
           <div className="rm-flt">
             <label className="rm-search">
@@ -219,7 +266,7 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title }) {
             <div className="rm-grid">
               {shown.map(x => {
                 const [p, s] = bandColors(x.team);
-                const on = x.team.id === selId;
+                const on = multi ? picked.has(x.team.id) : x.team.id === selId;
                 return (
                   <button
                     key={x.team.id} type="button" className={`rm-tc${on ? ' rm-sel-on' : ''}`}
@@ -245,10 +292,14 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title }) {
             )}
           </div>
         </div>
-        <aside className={`rm-pv${sel && sheet ? ' rm-pv-open' : ''}`} aria-labelledby={sel ? 'rm-pv-h' : undefined}>
-          {sel && <button type="button" className="rm-sheet-x" onClick={() => setSheet(false)} aria-label="Fechar prévia"><Icon name="close" size={16} /></button>}
-          {preview}
-        </aside>
+        {multi ? (
+          <aside className="rm-pv rm-pv-multi" aria-label="Times escolhidos">{multiPanel}</aside>
+        ) : (
+          <aside className={`rm-pv${sel && sheet ? ' rm-pv-open' : ''}`} aria-labelledby={sel ? 'rm-pv-h' : undefined}>
+            {sel && <button type="button" className="rm-sheet-x" onClick={() => setSheet(false)} aria-label="Fechar prévia"><Icon name="close" size={16} /></button>}
+            {preview}
+          </aside>
+        )}
       </div>
     </div>
   );

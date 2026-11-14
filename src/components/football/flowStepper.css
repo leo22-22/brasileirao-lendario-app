@@ -1,0 +1,14 @@
+/* FlowStepper (components/football/FlowStepper.jsx) — valores de jogo-esquema-tatico-mockup.html */
+.fs-steps { display: flex; gap: 6px; align-items: center; list-style: none; margin: 0; padding: 0; flex-wrap: wrap; }
+.fs-sp { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px 0 6px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); font-size: 13px; color: var(--muted); position: relative; margin-left: 22px; }
+.fs-sp:first-child { margin-left: 0; }
+.fs-line { position: absolute; left: -22px; top: 50%; width: 16px; height: 1px; background: var(--line-strong); }
+.fs-sp i { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 11.5px; font-weight: 700; background: var(--surface-2); color: var(--ink-2); }
+.fs-sp.fs-on { border-color: var(--ink); color: var(--ink); font-weight: 600; }
+.fs-sp.fs-on i { background: var(--ink); color: #fff; }
+.fs-sp.fs-done { color: var(--success); }
+.fs-sp.fs-done i { background: var(--success-soft); color: var(--success); }
+@media (max-width: 768px) {
+  .fs-line { display: none; }
+  .fs-sp { margin-left: 0; }
+}
