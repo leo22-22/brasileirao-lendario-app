@@ -1,0 +1,83 @@
+/* Calendário da temporada (components/football/SeasonCalendar.jsx) — valores do modo-carreira-calendario-mockup.html */
+.cl-chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.cl-chip { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: 13px; display: inline-flex; align-items: center; gap: 7px; color: var(--ink-2); background: var(--surface); font-family: var(--font-body); font-weight: 500; cursor: pointer; }
+.cl-chip i { width: 8px; height: 8px; border-radius: 50%; }
+.cl-chip.cl-on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.cl-chip:disabled { opacity: .45; cursor: not-allowed; }
+.cl-chip:focus-visible, .cl-rd:focus-visible, .cl-dc:focus-visible, .cl-arw:focus-visible, .cl-li:focus-visible, .cl-ev:focus-visible, .cl-nextfrom:focus-visible, .cl-day button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.cl-strip-inner { position: relative; }
+.cl-rounds { display: grid; gap: 3px; }
+.cl-rd { height: 30px; min-width: 0; border-radius: 5px; background: var(--surface-2); border: none; display: grid; place-items: center; font-family: var(--font-mono); font-size: 9.5px; color: var(--muted); cursor: pointer; padding: 0; }
+.cl-rd:hover { filter: brightness(.96); }
+.cl-rd-v { background: #2E8B57; color: #fff; }
+.cl-rd-e { background: #8C958F; color: #fff; }
+.cl-rd-d { background: #C24747; color: #fff; }
+.cl-rd-nx { background: var(--surface); box-shadow: inset 0 0 0 2px var(--gold); color: var(--gold-ink); font-weight: 700; }
+.cl-rd-turn { box-shadow: inset 0 -3px 0 var(--ink-2); }
+.cl-rd-nx.cl-rd-turn { box-shadow: inset 0 0 0 2px var(--gold), inset 0 -4px 0 var(--ink-2); }
+.cl-rd-sel { outline: 2px solid var(--ink); outline-offset: 1px; }
+.cl-marks { position: relative; margin-top: 6px; }
+.cl-marks span { position: absolute; font-size: 11px; color: var(--muted); white-space: nowrap; transform: translateX(-50%); line-height: 1.2; }
+.cl-marks span::before { content: ""; display: block; width: 1px; height: 5px; background: var(--line-strong); margin: 0 auto 1px; }
+.cl-marks .cl-mk-cb { color: var(--info); }
+.cl-nav2 { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+.cl-nav2 h3 { font-family: var(--font-serif); font-weight: 400; font-size: 28px; margin: 0; min-width: 0; }
+.cl-arw { width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--line-strong); display: grid; place-items: center; color: var(--ink-2); background: var(--surface); cursor: pointer; flex-shrink: 0; }
+.cl-arw:disabled { opacity: .35; cursor: default; }
+.cl-today-btn { margin-left: auto; }
+.cl-wd, .cl-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.cl-wd span { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .06em; color: var(--muted); text-transform: uppercase; padding: 0 8px 8px; }
+.cl-dc { height: 94px; min-width: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); padding: 8px 9px; display: flex; flex-direction: column; align-items: stretch; text-align: left; position: relative; cursor: pointer; font-family: var(--font-body); color: var(--ink); }
+.cl-dc:hover { border-color: var(--line-strong); }
+.cl-dn { font-family: var(--font-mono); font-size: 12px; color: var(--ink-2); }
+.cl-dn em { font-style: normal; font-family: var(--font-body); font-size: 10px; font-weight: 600; color: var(--ink); margin-left: 2px; }
+.cl-out { background: transparent; border-style: dashed; opacity: .45; cursor: default; }
+.cl-win { background: #EEF5F0; }
+.cl-td { border: 2px solid var(--ink); padding: 7px 8px; }
+.cl-sel { background: #F6EEDB; border: 2px solid var(--gold); padding: 7px 8px; }
+.cl-comp { position: absolute; top: 9px; right: 9px; width: 7px; height: 7px; border-radius: 50%; }
+.cl-m { margin-top: auto; display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.cl-op { min-width: 0; display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+.cl-op small { font-weight: 400; color: var(--muted); font-size: 11px; }
+.cl-crest-q { display: inline-grid; place-items: center; border-radius: 50%; background: var(--surface-2); color: var(--muted); font-size: 10px; flex-shrink: 0; }
+.cl-res { white-space: nowrap; display: inline-flex; align-items: center; gap: 4px; font-family: var(--font-mono); font-size: 11px; height: 20px; padding: 0 6px; border-radius: 6px; width: max-content; max-width: 100%; }
+.cl-r-v { background: var(--success-soft); color: var(--success); }
+.cl-r-d { background: var(--danger-soft); color: var(--danger); }
+.cl-r-e { background: var(--surface-2); color: var(--ink-2); }
+.cl-r-nx { background: var(--gold); color: #fff; font-weight: 600; }
+.cl-r-up { background: var(--surface-2); color: var(--ink-2); }
+.cl-lg { display: flex; gap: 8px 16px; flex-wrap: wrap; margin-top: 14px; font-size: 12px; color: var(--muted); }
+.cl-lg i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.cl-lg i.cl-lg-dot { border-radius: 50%; }
+@media (max-width: 768px) {
+  .cl-strip-inner { width: 1140px; }
+  .cl-nav2 { gap: 8px; }
+  .cl-nav2 h3 { font-size: 20px; white-space: nowrap; }
+  .cl-arw { width: 32px; height: 32px; }
+  .cl-today-btn { height: 32px; padding: 0 10px; font-size: 12px; white-space: nowrap; }
+  .cl-wd, .cl-grid { gap: 3px; }
+  .cl-wd span { padding: 0 0 6px; text-align: center; }
+  .cl-dc { height: 52px; padding: 5px; border-radius: 9px; align-items: center; }
+  .cl-td, .cl-sel { padding: 4px; }
+  .cl-dn em { display: none; }
+  .cl-m { display: none; }
+  .cl-comp { position: static; margin-top: auto; width: 8px; height: 8px; }
+}
+
+/* Calendário em modal (liga clássica) */
+.scal-modal { padding: 22px 22px 20px; }
+.scal-head { margin-bottom: 12px; padding-right: 40px; }
+.scal-head h2 { font-family: var(--font-serif); font-weight: 400; font-size: 26px; margin: 4px 0 0; }
+.scal-strip { margin-bottom: 18px; }
+.scal-empty { margin-top: 8px; text-align: center; font-size: 12.5px; color: var(--muted); }
+.scal-games { margin-top: 18px; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.scal-games-h { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 14px 20px 10px; }
+.scal-games-h h3 { font-family: var(--font-serif); font-weight: 500; font-size: 18px; margin: 0; }
+.scal-ctrl { margin-top: 16px; display: flex; flex-direction: column; gap: 8px; }
+.scal-speed { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.scal-hint { margin: 0; text-align: center; font-size: 12.5px; color: var(--muted); }
+@media (max-width: 768px) {
+  .scal-modal { padding: 18px 14px 16px; }
+  .scal-strip { overflow-x: auto; }
+  .scal-strip .cl-strip-inner { width: 760px; }
+}

@@ -30,11 +30,13 @@ import { AppHeader, HeaderMenu } from './ui/AppHeader.jsx';
 import { ClubCrest } from './components/football/ClubCrest.jsx';
 import { PitchSurface } from './components/football/Pitch.jsx';
 import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton } from './components/football/LiveMatchView.jsx';
+import { ResultChip, RoundStrip, MonthGrid, COMP_COLORS } from './components/football/SeasonCalendar.jsx';
+import { RoundGames } from './components/football/MatchPreviewCard.jsx';
 import { MatchTab } from './game/league/MatchTab.jsx';
 import { TableTab } from './game/league/TableTab.jsx';
 import { SquadTab } from './game/league/SquadTab.jsx';
 import { StatsTab } from './game/league/StatsTab.jsx';
-import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter, EmptyState } from './ui/index.jsx';
+import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter, EmptyState, Segmented } from './ui/index.jsx';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
 import { HomeLanding } from './home/HomeLanding.jsx';
@@ -1183,7 +1185,6 @@ function monthMatrix(year, month) {
   return weeks;
 }
 const MONTH_NAMES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-const WEEKDAY_LABELS = ['SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB', 'DOM'];
 
 // Copa do Brasil — tabela de eliminatórias
 const CUP_ROUND_NAMES = ['16 Avos de Final', 'Oitavas de Final', 'Quartas de Final', 'Semifinal', 'Final'];
@@ -11618,24 +11619,11 @@ function userRoundResult(roundResults, myTeamId) {
 }
 const RESULT_COLORS = { V: '#1F7A4D', D: '#B23B3B', E: '#8A938C' };
 
-// Calendário da temporada — grade do mês com as rodadas marcadas, resultado
-// de cada uma (selo V/D/E + placar) e a simulação "dia a dia" até a rodada
-// que a pessoa escolher.
-// Escudo pequeno de um time da liga, com dois cuidados que o <img> cru não
-// tem: nem todo time tem imagem (o time do próprio jogador pode ter só um
-// emblema de texto), e a URL vem do TheSportsDB, que pode falhar. Nos dois
-// casos cai nas iniciais do clube em vez de deixar um buraco no layout.
-// `ring` desenha o resultado em volta do escudo — assim o calendário mostra
-// QUEM foi o adversário e COMO terminou sem precisar de duas linhas.
-function TinyCrest({ team, size = 20, ring = null, title }) {
-  return <ClubCrest team={team} size={size} frame={!!ring} scale={0.7} ringColor={ring || undefined} title={title} />;
-}
 
 function SeasonCalendarModal({
   fixtures, seasonDates, currentRound, roundHistory, leagueTeams, myTeamId, myTeamColor,
   simActive, cursorDate, speed, onSetSpeed, onSimulateTo, onSimulateAll, onStop, onClose,
 }) {
-  const mc = teamInk(myTeamColor || '#C29A45');
   const dateMap = useMemo(() => roundDateMap(seasonDates), [seasonDates]);
   const refDate = seasonDates[Math.min(currentRound, seasonDates.length - 1)] || new Date();
   const [view, setView] = useState({ year: refDate.getFullYear(), month: refDate.getMonth() });
@@ -11705,166 +11693,109 @@ function SeasonCalendarModal({
   const selectedMatches = fixtures[selectedRound] || [];
   const selectedResults = roundHistory?.[selectedRound] || null;
   const cursorKey = cursorDate ? dateKey(cursorDate) : null;
+  const shortName = (t) => parseTeamLabel(t?.label || '').baseName;
+  const fmtDay = (d) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+
+  // Faixa da temporada (mesma da carreira): uma célula por rodada com V/E/D.
+  const strip = (fixtures || []).map((_, r) => {
+    const res = roundHistory?.[r] ? userRoundResult(roundHistory[r], myTeamId) : null;
+    const opp = roundOpponent[r];
+    return {
+      key: r, label: r + 1,
+      res: res ? res.res : null,
+      next: !res && r === currentRound,
+      selected: r === selectedRound,
+      turn: r === Math.floor(fixtures.length / 2) - 1,
+      disabled: simActive,
+      onClick: () => { setSelectedRound(r); const d = seasonDates[r]; if (d) setView({ year: d.getFullYear(), month: d.getMonth() }); },
+      aria: `Rodada ${r + 1}${seasonDates[r] ? `, ${fmtDay(seasonDates[r])}` : ''}${opp?.team ? `, ${opp.isHome ? 'em casa contra' : 'fora contra'} ${shortName(opp.team)}` : ''}${res ? `, ${res.res === 'V' ? 'vitória' : res.res === 'D' ? 'derrota' : 'empate'} ${res.gf} a ${res.ga}` : ''}`,
+      title: `R${r + 1}${seasonDates[r] ? ` · ${fmtDay(seasonDates[r])}` : ''}${opp?.team ? ` · ${opp.isHome ? '' : '@ '}${shortName(opp.team)}` : ''}${res ? ` · ${res.gf}–${res.ga}` : ''}`,
+    };
+  });
+  const played = strip.filter(r => r.res);
+  const tally = { V: played.filter(r => r.res === 'V').length, E: played.filter(r => r.res === 'E').length, D: played.filter(r => r.res === 'D').length };
+
+  const cells = monthMatrix(view.year, view.month).flat().map((day, i) => {
+    if (!day) return { key: `o${i}`, out: true, dom: '' };
+    const key = dateKey(day);
+    const round = dateMap[key];
+    const hasRound = round !== undefined;
+    const res = hasRound && roundHistory?.[round] ? userRoundResult(roundHistory[round], myTeamId) : null;
+    const opp = hasRound ? roundOpponent[round] : null;
+    return {
+      key, dom: day.getDate(),
+      today: cursorKey === key,
+      selected: hasRound && round === selectedRound,
+      aria: hasRound ? `${fmtDay(day)}: rodada ${round + 1}${opp?.team ? `, ${opp.isHome ? 'em casa contra' : 'fora contra'} ${shortName(opp.team)}` : ''}${res ? `, ${res.res} ${res.gf} a ${res.ga}` : ''}` : `${fmtDay(day)}: sem jogo`,
+      onClick: () => handleDayClick(day),
+      ev: hasRound ? {
+        color: COMP_COLORS.br,
+        crest: <ClubCrest team={opp?.team} size={16} unknown="q" unknownClass="cl-crest-q" />,
+        abbr: opp?.team ? shortName(opp.team).split(' ')[0].slice(0, 3).toUpperCase() : `R${round + 1}`,
+        side: opp ? (opp.isHome ? 'casa' : 'fora') : '',
+        chip: <ResultChip result={res} next={!res && round === currentRound} label={`R${round + 1}`} />,
+      } : null,
+    };
+  });
 
   return (
-    <div onClick={simActive ? undefined : onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 760, maxHeight: '94vh', overflowY: 'auto', background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, padding: 22, position: 'relative' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: 1.5, textTransform: 'uppercase', color: mc, fontWeight: 700 }}>
-            📅 Calendário de jogos
-          </div>
-          {!simActive && (
-            <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}>✕</button>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, marginBottom: 10 }}>
-          <button onClick={() => shiftMonth(-1)} disabled={simActive} aria-label="Mês anterior" className="tap-target-sm" style={{ background: 'none', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>‹</button>
-          <div style={{ fontFamily: 'var(--font-serif)', fontSize: 15, fontWeight: 700, minWidth: 150, textAlign: 'center' }}>
-            {MONTH_NAMES[view.month]} {view.year}
-          </div>
-          <button onClick={() => shiftMonth(1)} disabled={simActive} aria-label="Próximo mês" className="tap-target-sm" style={{ background: 'none', border: '1px solid var(--line-strong)', borderRadius: 8, color: 'var(--ink)', width: 28, height: 28, cursor: simActive ? 'default' : 'pointer', opacity: simActive ? 0.3 : 1 }}>›</button>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
-          {WEEKDAY_LABELS.map(w => (
-            <div key={w} style={{ textAlign: 'center', fontSize: 10.5, fontFamily: 'var(--font-mono)', color: 'var(--muted)', letterSpacing: 0.5 }}>{w}</div>
-          ))}
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
-          {monthMatrix(view.year, view.month).flat().map((day, i) => {
-            if (!day) return <div key={`e${i}`} />;
-            const key = dateKey(day);
-            const round = dateMap[key];
-            const hasRound = round !== undefined;
-            const played = hasRound && roundHistory?.[round];
-            const result = played ? userRoundResult(roundHistory[round], myTeamId) : null;
-            const isCursor = cursorKey === key;
-            const isSelected = hasRound && round === selectedRound;
-            const opponent = hasRound ? roundOpponent[round] : null;
-            return (
-              <button
-                key={key}
-                onClick={() => handleDayClick(day)}
-                title={hasRound ? `Rodada ${round + 1}` : 'Sem jogo'}
-                style={{
-                  minHeight: 70, padding: '5px 3px', borderRadius: 8, textAlign: 'center', cursor: simActive ? 'default' : 'pointer',
-                  border: `1px solid ${isCursor ? mc : isSelected ? hexToRgba(mc, 0.5) : hasRound ? 'var(--line-strong)' : 'var(--line)'}`,
-                  background: isCursor ? hexToRgba(mc, 0.22) : hasRound ? 'var(--surface)' : 'transparent',
-                  color: 'var(--ink)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1,
-                }}
-              >
-                <span style={{ fontSize: 12, fontFamily: 'var(--font-mono)', opacity: hasRound ? 0.85 : 0.35 }}>{day.getDate()}</span>
-                {/* O escudo do adversário vale mais que o número da rodada:
-                    diz de cara contra quem é o jogo. O anel em volta carrega o
-                    resultado, o que evita gastar uma linha só com o selo V/D/E
-                    — a célula tem ~40px de largura no celular. */}
-                {hasRound && (
-                  <TinyCrest
-                    team={opponent?.team}
-                    size={22}
-                    ring={result ? RESULT_COLORS[result.res] : null}
-                    title={opponent?.team
-                      ? `Rodada ${round + 1} · ${opponent.isHome ? 'em casa contra' : 'fora contra'} ${opponent.team.label}`
-                      : `Rodada ${round + 1}`}
-                  />
-                )}
-                {hasRound && !result && (
-                  <span style={{ fontSize: 9, color: mc, fontWeight: 700, lineHeight: 1, fontFamily: 'var(--font-mono)' }}>
-                    {/* Tinha um "@" aqui pra marcar jogo fora. A 9px, em Space
-                        Mono, ele lia como "a" — "a R2" em vez de "@ R2". Mando
-                        fica no tooltip do dia e na lista de jogos abaixo, que é
-                        onde dá pra mostrar sem ambiguidade. */}
-                    R{round + 1}
-                  </span>
-                )}
-                {result && (
-                  <span style={{ fontSize: 9.5, fontFamily: 'var(--font-mono)', lineHeight: 1, display: 'flex', gap: 3 }}>
-                    <span style={{ fontWeight: 800, color: RESULT_COLORS[result.res] }}>{result.res}</span>
-                    <span style={{ opacity: 0.6 }}>{result.gf}-{result.ga}</span>
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-
-        {emptyMsg && (
-          <div style={{ marginTop: 8, textAlign: 'center', fontSize: 11.5, color: 'var(--muted)' }}>{emptyMsg}</div>
-        )}
-
-        <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid var(--line)' }}>
-          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--muted)', marginBottom: 6 }}>
-            Jogos da rodada {selectedRound + 1}
-            {seasonDates[selectedRound] && ` · ${seasonDates[selectedRound].toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`}
-          </div>
-          {selectedMatches.map((m, i) => {
-            const r = selectedResults?.[i];
-            const isMine = m.homeId === myTeamId || m.awayId === myTeamId;
-            return (
-              <div key={`${m.homeId}-${m.awayId}`} style={{
-                display: 'flex', alignItems: 'center', gap: 8, padding: '5px 6px', fontSize: 11.5,
-                borderBottom: '1px solid var(--line)',
-                background: isMine ? hexToRgba(mc, 0.08) : 'transparent',
-                fontWeight: isMine ? 700 : 400,
-              }}>
-                <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 6 }}>
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel(m.homeId)}</span>
-                  <TinyCrest team={teamById(m.homeId)} size={16} />
-                </span>
-                <span style={{ fontFamily: 'var(--font-mono)', minWidth: 34, textAlign: 'center', flexShrink: 0, color: r ? mc : 'var(--muted)' }}>
-                  {r ? `${r.homeGoals}-${r.awayGoals}` : 'x'}
-                </span>
-                <span style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <TinyCrest team={teamById(m.awayId)} size={16} />
-                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel(m.awayId)}</span>
-                </span>
-              </div>
-            );
-          })}
-        </div>
-
-        <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {/* Velocidade da passagem dos dias — sempre visível (dá pra trocar
-              no meio da simulação, o loop lê o valor a cada passo). */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, marginBottom: 2 }}>
-            <span style={{ fontSize: 10.5, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>VELOCIDADE</span>
-            {CALENDAR_SPEEDS.map(s => (
-              <button
-                key={s}
-                onClick={() => onSetSpeed(s)}
-                className="tap-target-sm"
-                style={{
-                  fontFamily: 'var(--font-mono)', fontSize: 11, fontWeight: speed === s ? 700 : 400,
-                  padding: '3px 10px', borderRadius: 6, cursor: 'pointer',
-                  border: `1px solid ${speed === s ? mc : 'var(--line-strong)'}`,
-                  background: speed === s ? hexToRgba(mc, 0.15) : 'transparent',
-                  color: speed === s ? mc : 'var(--ink-2)',
-                }}
-              >{s}x</button>
-            ))}
-          </div>
-          {simActive ? (
-            <button onClick={onStop} style={{ ...styles.btnPrimary, width: '100%', background: 'var(--danger)', color: '#fff' }}>
-              ⏸ Parar no próximo jogo
-            </button>
-          ) : (
-            <>
-              <div style={{ fontSize: 11, color: 'var(--muted)', textAlign: 'center' }}>
-                Clique no dia de um jogo futuro pra simular até ele.
-              </div>
-              <button onClick={onSimulateAll} style={{ ...styles.btnGhost, marginTop: 0, width: '100%' }}>
-                ⏭ Simular até o fim da temporada
-              </button>
-              <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }}>
-                Ir pra minha liga
-              </button>
-            </>
-          )}
-        </div>
+    <Modal onClose={simActive ? undefined : onClose} maxWidth={860} labelledBy="scal-title" className="scal-modal">
+      <div className="scal-head">
+        <span className="ui-label">Brasileirão · {played.length} de {fixtures.length} rodadas · {tally.V}V {tally.E}E {tally.D}D</span>
+        <h2 id="scal-title">Calendário da temporada</h2>
       </div>
-    </div>
+      <div className="cl-strip-scroll scal-strip"><RoundStrip rounds={strip} /></div>
+      <MonthGrid
+        title={`${MONTH_NAMES[view.month]} ${view.year}`}
+        onPrev={() => shiftMonth(-1)}
+        onNext={() => shiftMonth(1)}
+        prevDisabled={simActive}
+        nextDisabled={simActive}
+        cells={cells}
+        ariaLabel={`${MONTH_NAMES[view.month]}: dias da temporada`}
+        todayLabel="agora"
+        legend={[
+          { label: 'Brasileirão', dot: true, style: { background: COMP_COLORS.br } },
+          { label: 'Dia em simulação', style: { border: '2px solid var(--ink)' } },
+          { label: 'Rodada selecionada', style: { background: '#F6EEDB', border: '2px solid var(--gold)' } },
+        ]}
+      />
+      {emptyMsg && <div className="scal-empty" role="status">{emptyMsg}</div>}
+
+      <section className="scal-games">
+        <div className="scal-games-h">
+          <h3>Jogos da rodada {selectedRound + 1}</h3>
+          {seasonDates[selectedRound] && <span className="lg-small">{fmtDay(seasonDates[selectedRound])}</span>}
+        </div>
+        <RoundGames games={selectedMatches.map((m, i) => {
+          const r = selectedResults?.[i];
+          return {
+            key: `${m.homeId}-${m.awayId}`,
+            home: { name: shortName(teamById(m.homeId)) || teamLabel(m.homeId), crest: <ClubCrest team={teamById(m.homeId)} size={18} /> },
+            away: { name: shortName(teamById(m.awayId)) || teamLabel(m.awayId), crest: <ClubCrest team={teamById(m.awayId)} size={18} /> },
+            score: r ? { h: r.homeGoals, a: r.awayGoals } : null,
+            status: r ? 'played' : 'pending',
+            mine: m.homeId === myTeamId || m.awayId === myTeamId,
+          };
+        })} />
+      </section>
+
+      <div className="scal-ctrl">
+        <div className="scal-speed">
+          <span className="ui-label">Velocidade</span>
+          <Segmented size="sm" role="group" label="Velocidade da simulação" options={CALENDAR_SPEEDS.map(s2 => ({ id: s2, label: `${s2}x` }))} value={speed} onChange={onSetSpeed} />
+        </div>
+        {simActive ? (
+          <Button variant="danger" block icon="clock" onClick={onStop}>Parar no próximo jogo</Button>
+        ) : (
+          <>
+            <p className="scal-hint">Toque no dia de um jogo futuro para simular até ele.</p>
+            <Button variant="ghost" block icon="forward" onClick={onSimulateAll}>Simular até o fim da temporada</Button>
+            <Button variant="dark" block onClick={onClose}>Voltar para a liga</Button>
+          </>
+        )}
+      </div>
+    </Modal>
   );
 }
 

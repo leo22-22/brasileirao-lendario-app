@@ -23,12 +23,12 @@ import '../components/careerShell.css';
 import './careerSquad.css';
 import './careerCalendar.css';
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
+import { ResultChip, RoundStrip, MonthGrid, COMP_COLORS } from '../../components/football/SeasonCalendar.jsx';
 
 const COMP = {
-  br: { label: 'Brasileirão', color: '#1F7A4D' },
-  cb: { label: 'Copa do Brasil', color: '#4E86C2' },
+  br: { label: 'Brasileirão', color: COMP_COLORS.br },
+  cb: { label: 'Copa do Brasil', color: COMP_COLORS.cb },
 };
-const WEEKDAYS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 const WEEKDAY_FULL = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
 const MONTH_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -135,16 +135,12 @@ function buildEvents(save) {
   return events.sort((a, b) => a.day - b.day);
 }
 
-function ResChip({ ev, isNext }) {
-  if (ev.result) {
-    const cls = ev.result.res === 'V' ? 'cl-r-v' : ev.result.res === 'D' ? 'cl-r-d' : 'cl-r-e';
-    return <span className={`cl-res ${cls}`}>{ev.result.res} {ev.result.gf}–{ev.result.ga}{ev.result.pens ? ' p' : ''}</span>;
-  }
-  if (ev.played) return <span className="cl-res cl-r-up">jogado</span>;
-  if (isNext) return <span className="cl-res cl-r-nx">Próximo</span>;
-  if (ev.comp === 'br') return <span className="cl-res cl-r-up">R{ev.round + 1}</span>;
-  return <span className="cl-res cl-r-up">{ev.leg === 'volta' ? 'volta' : ev.leg === 'ida' ? 'ida' : 'final'}</span>;
-}
+const ResChip = ({ ev, isNext }) => (
+  <ResultChip
+    result={ev.result} played={ev.played} next={isNext}
+    label={ev.comp === 'br' ? `R${ev.round + 1}` : ev.leg === 'volta' ? 'volta' : ev.leg === 'ida' ? 'ida' : 'final'}
+  />
+);
 
 export function CareerCalendarScreen({ save, onNavigate, onPlayNext }) {
   const me = save.myClubId;
@@ -511,80 +507,70 @@ export function CareerCalendarScreen({ save, onNavigate, onPlayNext }) {
           <span className="ch-small cl-strip-hint">Toque numa rodada para ir até a data</span>
         </div>
         <div className="cl-strip-scroll" ref={stripRef}>
-          <div className="cl-strip-inner">
-            <div className="cl-rounds" style={{ gridTemplateColumns: `repeat(${totalRounds}, minmax(0, 1fr))` }}>
-              {brEvents.map(e => {
-                const nx = isNextEv(e);
-                const cls = e.result ? `cl-rd-${e.result.res.toLowerCase()}` : nx ? 'cl-rd-nx' : '';
-                const turn = e.round === 18 || e.round === totalRounds - 1;
-                return (
-                  <button
-                    key={e.key} type="button" className={`cl-rd ${cls}${turn ? ' cl-rd-turn' : ''}${selDay === e.day ? ' cl-rd-sel' : ''}`}
-                    onClick={() => selectDay(e.day)}
-                    aria-label={`Rodada ${e.round + 1}, ${formatCalendarDay(e.day)}, ${e.isHome ? 'em casa contra' : 'fora contra'} ${nameOf(e.oppId)}${e.result ? `, ${e.result.res === 'V' ? 'vitória' : e.result.res === 'D' ? 'derrota' : 'empate'} ${e.result.gf} a ${e.result.ga}` : nx ? ', próximo jogo' : ''}`}
-                    title={`R${e.round + 1} · ${ddmm(e.day)} · ${e.isHome ? '' : '@ '}${nameOf(e.oppId)}${e.result ? ` · ${e.result.gf}–${e.result.ga}` : ''}`}
-                  >{e.round + 1}</button>
-                );
-              })}
-            </div>
+          <RoundStrip rounds={brEvents.map(e => {
+            const nx = isNextEv(e);
+            return {
+              key: e.key,
+              label: e.round + 1,
+              res: e.result ? e.result.res : null,
+              next: !e.result && nx,
+              turn: e.round === 18 || e.round === totalRounds - 1,
+              selected: selDay === e.day,
+              onClick: () => selectDay(e.day),
+              aria: `Rodada ${e.round + 1}, ${formatCalendarDay(e.day)}, ${e.isHome ? 'em casa contra' : 'fora contra'} ${nameOf(e.oppId)}${e.result ? `, ${e.result.res === 'V' ? 'vitória' : e.result.res === 'D' ? 'derrota' : 'empate'} ${e.result.gf} a ${e.result.ga}` : nx ? ', próximo jogo' : ''}`,
+              title: `R${e.round + 1} · ${ddmm(e.day)} · ${e.isHome ? '' : '@ '}${nameOf(e.oppId)}${e.result ? ` · ${e.result.gf}–${e.result.ga}` : ''}`,
+            };
+          })}>
             <div className="cl-marks" style={{ height: markerRows * 18 + 6 }} aria-hidden="true">
               {markers.map(m => (
                 <span key={m.text} style={{ left: `${m.pct}%`, top: m.row * 18, transform: m.pct > 92 ? 'translateX(-100%)' : m.pct < 6 ? 'none' : undefined }} className={m.cb ? 'cl-mk-cb' : ''}>{m.text}</span>
               ))}
             </div>
-          </div>
+          </RoundStrip>
         </div>
       </div>
 
       <div className="cl-lay">
         {mode === 'month' ? (
           <div className="ch-card cl-cal">
-            <div className="cl-nav2">
-              <button type="button" className="cl-arw" onClick={() => setViewMonth(m => Math.max(0, m - 1))} disabled={viewMonth === 0} aria-label="Mês anterior"><Icon name="chevronLeft" size={16} /></button>
-              <h3 aria-live="polite">{MONTH_NAMES[viewMonth]} {GRID_YEAR + save.season - 1}</h3>
-              <button type="button" className="cl-arw" onClick={() => setViewMonth(m => Math.min(11, m + 1))} disabled={viewMonth === 11} aria-label="Próximo mês"><Icon name="chevronRight" size={16} /></button>
-              <button type="button" className="cl-chip cl-today-btn" onClick={() => { selectDay(today); focusPending.current = true; }}>Ir para hoje</button>
-            </div>
-            <div className="cl-wd" aria-hidden="true">{WEEKDAYS.map(w => <span key={w}>{w}</span>)}</div>
-            <div className="cl-grid" ref={gridRef} role="grid" aria-label={`${MONTH_NAMES[viewMonth]}: dias da temporada`} onKeyDown={onGridKey}>
-              {gridCells.map((c, i) => {
-                if (c.out) return <div key={`o${i}`} className="cl-dc cl-out" aria-hidden="true"><span className="cl-dn">{c.dom}</span></div>;
+            <MonthGrid
+              title={`${MONTH_NAMES[viewMonth]} ${GRID_YEAR + save.season - 1}`}
+              onPrev={() => setViewMonth(m => Math.max(0, m - 1))}
+              onNext={() => setViewMonth(m => Math.min(11, m + 1))}
+              prevDisabled={viewMonth === 0}
+              nextDisabled={viewMonth === 11}
+              headerExtra={<button type="button" className="cl-chip cl-today-btn" onClick={() => { selectDay(today); focusPending.current = true; }}>Ir para hoje</button>}
+              gridRef={gridRef}
+              onKeyDown={onGridKey}
+              ariaLabel={`${MONTH_NAMES[viewMonth]}: dias da temporada`}
+              cells={gridCells.map((c, i) => {
+                if (c.out) return { key: `o${i}`, out: true, dom: c.dom };
                 const evs = eventsByDay[c.doy] || [];
                 const ev = evs[0];
-                const cls = [
-                  'cl-dc',
-                  isTransferWindowOpen(c.doy) ? 'cl-win' : '',
-                  c.doy === today ? 'cl-td' : '',
-                  c.doy === selDay ? 'cl-sel' : '',
-                  ev ? 'cl-has' : '',
-                ].filter(Boolean).join(' ');
-                return (
-                  <button
-                    key={c.doy} type="button" className={cls} data-doy={c.doy}
-                    tabIndex={c.doy === focusInMonth ? 0 : -1}
-                    aria-label={dayAria(c.doy, evs)} aria-pressed={c.doy === selDay}
-                    onClick={() => selectDay(c.doy, { openSheet: true })}
-                    onFocus={() => setFocusDay(c.doy)}
-                  >
-                    <span className="cl-dn">{c.dom}{c.doy === today && <em> hoje</em>}</span>
-                    {ev && <i className="cl-comp" style={{ background: COMP[ev.comp].color }} aria-hidden="true" />}
-                    {ev && (
-                      <span className="cl-m">
-                        <span className="cl-op">{ev.oppId ? <Crest id={ev.oppId} size={16} /> : <span className="cl-crest-q" style={{ width: 16, height: 16 }}>?</span>}{ev.oppId ? clubAbbr(ev.oppId) : 'A DEF.'} <small>{ev.isHome == null ? (ev.oppId ? 'neutro' : '') : ev.isHome ? 'casa' : 'fora'}</small></span>
-                        <ResChip ev={ev} isNext={isNextEv(ev)} />
-                      </span>
-                    )}
-                  </button>
-                );
+                return {
+                  key: c.doy, doy: c.doy, dom: c.dom,
+                  win: isTransferWindowOpen(c.doy), today: c.doy === today, selected: c.doy === selDay,
+                  tabIndex: c.doy === focusInMonth ? 0 : -1,
+                  aria: dayAria(c.doy, evs),
+                  onClick: () => selectDay(c.doy, { openSheet: true }),
+                  onFocus: () => setFocusDay(c.doy),
+                  ev: ev ? {
+                    color: COMP[ev.comp].color,
+                    crest: ev.oppId ? <Crest id={ev.oppId} size={16} /> : <span className="cl-crest-q" style={{ width: 16, height: 16 }}>?</span>,
+                    abbr: ev.oppId ? clubAbbr(ev.oppId) : 'A DEF.',
+                    side: ev.isHome == null ? (ev.oppId ? 'neutro' : '') : ev.isHome ? 'casa' : 'fora',
+                    chip: <ResChip ev={ev} isNext={isNextEv(ev)} />,
+                  } : null,
+                };
               })}
-            </div>
-            <div className="cl-lg">
-              <span><i className="cl-lg-dot" style={{ background: COMP.br.color }} />Brasileirão</span>
-              <span><i className="cl-lg-dot" style={{ background: COMP.cb.color }} />Copa do Brasil</span>
-              <span><i style={{ background: '#EEF5F0', border: '1px solid var(--line-strong)' }} />Janela de transferências aberta</span>
-              <span><i style={{ border: '2px solid var(--ink)' }} />Hoje</span>
-              <span><i style={{ background: '#F6EEDB', border: '2px solid var(--gold)' }} />Selecionado</span>
-            </div>
+              legend={[
+                { label: 'Brasileirão', dot: true, style: { background: COMP.br.color } },
+                { label: 'Copa do Brasil', dot: true, style: { background: COMP.cb.color } },
+                { label: 'Janela de transferências aberta', style: { background: '#EEF5F0', border: '1px solid var(--line-strong)' } },
+                { label: 'Hoje', style: { border: '2px solid var(--ink)' } },
+                { label: 'Selecionado', style: { background: '#F6EEDB', border: '2px solid var(--gold)' } },
+              ]}
+            />
           </div>
         ) : (
           <div className="ch-card cl-list" ref={listRef}>
