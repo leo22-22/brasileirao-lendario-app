@@ -5,6 +5,7 @@
 import { Icon } from '../../ui/index.jsx';
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 import { MiniStandings } from '../../components/football/StandingsTable.jsx';
+import { RoundGames } from '../../components/football/MatchPreviewCard.jsx';
 import './matchTab.css';
 
 const FORM_CLASS = { V: 'lg-fv', E: 'lg-fe', D: 'lg-fd' };
@@ -225,17 +226,13 @@ export function MatchTab({
         {otherGames.length > 0 && (
           <section className="lg-card">
             <div className="lg-ch"><h3>Outros jogos</h3><span className="lg-small">{otherNote}</span></div>
-            {otherGames.map(g => {
-              const hw = g.score && g.score.h > g.score.a;
-              const aw = g.score && g.score.a > g.score.h;
-              return (
-                <div key={g.key} className="lg-gm">
-                  <span className={`lg-gm-h${hw ? ' lg-win' : ''}`}><span className="lg-ell">{g.home.label}</span><ClubCrest logo={g.home.logo} badge={g.home.badge} name={g.home.label} color={g.home.color} size={18} /></span>
-                  <span className="lg-gm-sc">{g.score ? `${g.score.h} – ${g.score.a}` : '×'}</span>
-                  <span className={`lg-gm-a${aw ? ' lg-win' : ''}`}><ClubCrest logo={g.away.logo} badge={g.away.badge} name={g.away.label} color={g.away.color} size={18} /><span className="lg-ell">{g.away.label}</span></span>
-                </div>
-              );
-            })}
+            <RoundGames games={otherGames.map(g => ({
+              key: g.key,
+              home: { name: g.home.label, crest: <ClubCrest logo={g.home.logo} badge={g.home.badge} name={g.home.label} color={g.home.color} size={18} /> },
+              away: { name: g.away.label, crest: <ClubCrest logo={g.away.logo} badge={g.away.badge} name={g.away.label} color={g.away.color} size={18} /> },
+              score: g.score,
+              status: g.score ? 'played' : 'pending',
+            }))} />
           </section>
         )}
 

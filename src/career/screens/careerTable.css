@@ -19,12 +19,6 @@
 .tb-gap { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
 .tb-gap b { font-family: var(--font-mono); font-size: 12.5px; white-space: nowrap; }
 .tb-pace { margin-top: 12px; padding: 12px 14px; border-radius: 12px; background: var(--bg); font-size: 13px; line-height: 1.5; color: var(--ink-2); }
-.tb-fx { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr); gap: 8px; align-items: center; padding: 9px 20px; border-top: 1px solid var(--line); font-size: 13px; }
-.tb-fx-h { display: flex; align-items: center; gap: 8px; justify-content: flex-end; min-width: 0; text-align: right; }
-.tb-fx-a { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.tb-fx-x { text-align: center; color: var(--muted); font-size: 12px; }
-.tb-fx-mine { background: #F6EEDB; font-weight: 600; }
-.tb-fx-key .tb-fx-x { color: var(--warning); font-weight: 700; }
 
 @media (max-width: 1200px) {
   .tb-lay { grid-template-columns: minmax(0, 1fr); }

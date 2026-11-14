@@ -31,19 +31,6 @@
 .sm-ring { position: absolute; right: -100px; top: -100px; width: 320px; height: 320px; border: 1px solid rgba(194,154,69,.3); border-radius: 50%; pointer-events: none; }
 .sm-hero .ng-mono { color: #B6CBBF; }
 .sm-k { display: flex; justify-content: space-between; gap: 10px; flex-wrap: wrap; position: relative; }
-.sm-duel { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; margin: 24px 0 18px; text-align: center; gap: 10px; position: relative; }
-.sm-side { display: flex; flex-direction: column; align-items: center; min-width: 0; }
-.sm-side b { display: block; font-family: var(--font-serif); font-weight: 500; font-size: 26px; margin-top: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.sm-side small { display: block; color: #B6CBBF; font-size: 12.5px; margin-top: 2px; }
-.sm-crest-ring { border-radius: 50%; background: #fff; display: inline-grid; place-items: center; box-shadow: 0 0 0 3px #fff; flex-shrink: 0; }
-.sm-form { display: flex; gap: 4px; justify-content: center; margin-top: 10px; }
-.sm-form i { width: 22px; height: 22px; border-radius: 6px; display: grid; place-items: center; font-style: normal; font-size: 10.5px; font-weight: 700; color: #fff; }
-.sm-fV { background: #2E8B57; } .sm-fE { background: #8C9A91; } .sm-fD { background: #C24747; }
-.sm-vsx { font-family: var(--font-serif); font-size: 24px; color: #B6CBBF; }
-.sm-vsx small { display: block; font-family: var(--font-body); font-size: 12px; margin-top: 6px; }
-.sm-pr { display: flex; justify-content: space-between; gap: 8px; font-size: 12.5px; color: #DCE7E0; margin-bottom: 7px; position: relative; }
-.sm-pb { height: 8px; border-radius: 99px; background: rgba(255,255,255,.12); display: flex; overflow: hidden; position: relative; }
-.sm-pb i { display: block; height: 100%; }
 .sm-stakes { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 18px; position: relative; }
 .sm-stk { border-radius: 14px; background: rgba(255,255,255,.07); padding: 12px 14px; font-size: 13px; line-height: 1.45; color: #DCE7E0; }
 .sm-stk b { color: #fff; display: block; margin-bottom: 2px; }
@@ -56,13 +43,6 @@
 .sm-champ small { color: #B6CBBF; font-size: 13px; }
 
 /* Rodada e disputas */
-.sm-gm { display: grid; grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr); gap: 8px; align-items: center; padding: 10px 20px; border-top: 1px solid var(--line); font-size: 13.5px; }
-.sm-gh { display: flex; align-items: center; gap: 8px; justify-content: flex-end; text-align: right; min-width: 0; }
-.sm-ga { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.sm-sc { text-align: center; font-family: var(--font-mono); font-size: 13px; font-weight: 600; }
-.sm-nx { background: var(--gold); color: #fff; border-radius: 999px; font-family: var(--font-body); font-size: 11px; height: 22px; display: grid; place-items: center; }
-.sm-pd { color: var(--line-strong); }
-.sm-now { background: #F6EEDB; font-weight: 600; }
 .sm-more { padding: 10px 20px 14px; border-top: 1px solid var(--line); }
 .sm-more button { border: none; background: none; color: var(--gold-ink); font-weight: 600; cursor: pointer; padding: 0; font-size: 13px; font-family: var(--font-body); }
 .sm-race { padding: 16px 20px; border-top: 1px solid var(--line); }
@@ -101,7 +81,6 @@
   .sm-rds { min-width: 640px; }
   .sm-two { grid-template-columns: minmax(0, 1fr); }
   .sm-hero { padding: 20px 18px; }
-  .sm-side b { font-size: 19px; }
   .sm-stakes { grid-template-columns: 1fr; }
   .sm-acts .sm-b-g { display: none; }
   .sm-acts .sm-b-o { flex: 1; }

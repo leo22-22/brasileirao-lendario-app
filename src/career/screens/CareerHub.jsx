@@ -22,6 +22,7 @@ import '../components/careerShell.css';
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 import { MiniStandings } from '../../components/football/StandingsTable.jsx';
 import { zoneFor as standingsZoneFor } from '../../lib/standings.js';
+import { MatchPreviewCard } from '../../components/football/MatchPreviewCard.jsx';
 
 function formatMoney(n) {
   return 'R$ ' + n.toLocaleString('pt-BR');
@@ -89,14 +90,6 @@ const Crest = ({ clubId, size = 40, ring = false }) => (ring
   ? <ClubCrest id={clubId} size={size} frame frameClass="ch-crest-ring" scale={0.66} innerRadius={6} />
   : <ClubCrest id={clubId} size={size} />);
 
-function FormBadges({ form }) {
-  if (!form.length) return <span style={{ fontSize: 12, color: '#B6CBBF' }}>sem jogos</span>;
-  return (
-    <div className="ch-form" aria-label={`Últimos resultados: ${form.join(' ')}`}>
-      {[...form].reverse().map((r, i) => <i key={i} className={r === 'V' ? 'ch-fv' : r === 'D' ? 'ch-fd' : 'ch-fe'}>{r}</i>)}
-    </div>
-  );
-}
 
 function Sparkline({ points, color = 'var(--success)', height = 28 }) {
   if (points.length < 2) return null;
@@ -209,9 +202,6 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
     awayId = next.isHome === false ? save.myClubId : next.oppId;
     odds = matchOutcomeProbabilities(teamForSim(save, homeId), teamForSim(save, awayId));
   }
-  const pHome = odds ? Math.round(odds.homeWin * 100) : 0;
-  const pDraw = odds ? Math.round(odds.draw * 100) : 0;
-  const pAway = odds ? Math.max(0, 100 - pHome - pDraw) : 0;
   const nextLeague = agenda.find(a => a.comp === 'Brasileirão');
   const insight = next ? assistantInsight(save, nextLeague && nextLeague.day === next.day ? nextLeague : { homeId, awayId }) : null;
   const oppDivision = (id) => (save.clubs[id]?.division === 'B' ? save.divisionB : save.divisionA);
@@ -319,75 +309,51 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
 
       {/* ── Próximo jogo + agenda ── */}
       <section className="ch-row2">
-        <div className="ch-match on-dark">
-          <span className="ch-ring" aria-hidden="true" />
-          {seasonOver || !next ? (
-            <div style={{ position: 'relative' }}>
-              <span className="ch-mono">Próximo jogo</span>
-              <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, margin: '18px 0 8px' }}>{seasonOver ? `Temporada ${save.season} terminada` : 'Sem jogo marcado'}</div>
-              <p style={{ color: '#B6CBBF', margin: 0 }}>{seasonOver ? 'Feche a temporada para ver o relatório e começar a próxima.' : 'Avance o calendário para seguir com a temporada.'}</p>
-              <div className="ch-actions">
-                <button type="button" className="ch-btn ch-btn-gold" onClick={primaryAction}>
-                  <Icon name="play" size={16} />{primaryLabel}
-                </button>
-              </div>
-            </div>
-          ) : (
-            <>
-              <div className="ch-row" style={{ position: 'relative' }}>
-                <span className="ch-mono">Próximo jogo · {next.comp} · {next.detail}</span>
-                <span className="ch-mono">{next.isHome === null ? 'Jogo único' : next.isHome ? 'Em casa' : 'Fora de casa'}</span>
-              </div>
-              <button type="button" className="ch-vs" onClick={() => setPreview({ homeId, awayId })} title="Ver prévia do confronto" style={{ background: 'none', border: 'none', color: 'inherit', width: '100%', cursor: 'pointer', padding: 0, fontFamily: 'var(--font-body)' }}>
-                <div className="ch-team">
-                  <Crest clubId={homeId} size={72} ring />
-                  <b>{displayName(clubOf(homeId)?.club)}</b>
-                  <FormBadges form={clubForm(oppDivision(homeId), homeId, 5)} />
-                </div>
-                <div className="ch-mid">
-                  <div className="ch-when">{dayParts(next.day).d} {dayParts(next.day).m}</div>
-                  <small style={{ textTransform: 'capitalize' }}>{weekdayOf(save.season, next.day)}{CLUB_STADIUMS[clubOf(homeId)?.club] ? ` · ${CLUB_STADIUMS[clubOf(homeId)?.club]}` : ''}</small>
-                </div>
-                <div className="ch-team">
-                  <Crest clubId={awayId} size={72} ring />
-                  <b>{displayName(clubOf(awayId)?.club)}</b>
-                  <FormBadges form={clubForm(oppDivision(awayId), awayId, 5)} />
-                </div>
+        {seasonOver || !next ? (
+          <section className="fb-mp fb-mp-md ch-match-card">
+            <span className="fb-mp-ring" aria-hidden="true" />
+            <span className="fb-mp-mono">Próximo jogo</span>
+            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 28, margin: '18px 0 8px' }}>{seasonOver ? `Temporada ${save.season} terminada` : 'Sem jogo marcado'}</div>
+            <p style={{ color: '#B6CBBF', margin: 0 }}>{seasonOver ? 'Feche a temporada para ver o relatório e começar a próxima.' : 'Avance o calendário para seguir com a temporada.'}</p>
+            <div className="fb-mp-acts">
+              <button type="button" className="ch-btn ch-btn-gold" onClick={primaryAction}>
+                <Icon name="play" size={16} />{primaryLabel}
               </button>
-              <div className="ch-prob">
-                <span>Vitória {displayName(clubOf(homeId)?.club)} {pHome}%</span>
-                <span>Empate {pDraw}%</span>
-                <span style={{ textAlign: 'right' }}>Vitória {displayName(clubOf(awayId)?.club)} {pAway}%</span>
-              </div>
-              <div className="ch-bar" role="img" aria-label={`Probabilidades: ${pHome}% mandante, ${pDraw}% empate, ${pAway}% visitante`}>
-                <i style={{ width: `${pHome}%`, background: homeId === save.myClubId ? 'var(--gold)' : '#C24747' }} />
-                <i style={{ width: `${pDraw}%`, background: 'rgba(255,255,255,.35)' }} />
-                <i style={{ width: `${pAway}%`, background: awayId === save.myClubId ? 'var(--gold)' : '#C24747' }} />
-              </div>
-              {insight && (
-                <div className="ch-insight">
-                  <Icon name="bolt" size={18} style={{ color: 'var(--gold)', marginTop: 1 }} />
-                  <div><b>Leitura do auxiliar:</b> {insight}</div>
-                </div>
-              )}
-              <div className="ch-actions">
+            </div>
+          </section>
+        ) : (
+          <MatchPreviewCard
+            size="md"
+            className="ch-match-card"
+            eyebrow={`Próximo jogo · ${next.comp} · ${next.detail}`}
+            eyebrowRight={next.isHome === null ? 'Jogo único' : next.isHome ? 'Em casa' : 'Fora de casa'}
+            onOpen={() => setPreview({ homeId, awayId })}
+            openTitle="Ver prévia do confronto"
+            home={{ crest: <Crest clubId={homeId} size={72} ring />, name: displayName(clubOf(homeId)?.club), form: clubForm(oppDivision(homeId), homeId, 5) }}
+            away={{ crest: <Crest clubId={awayId} size={72} ring />, name: displayName(clubOf(awayId)?.club), form: clubForm(oppDivision(awayId), awayId, 5) }}
+            center={<><span className="fb-mp-when">{dayParts(next.day).d} {dayParts(next.day).m}</span><small>{weekdayOf(save.season, next.day)}{CLUB_STADIUMS[clubOf(homeId)?.club] ? ` · ${CLUB_STADIUMS[clubOf(homeId)?.club]}` : ''}</small></>}
+            probs={odds ? { home: odds.homeWin, draw: odds.draw, away: odds.awayWin } : null}
+            stakes={insight ? [{ title: 'Leitura do auxiliar', text: insight }] : []}
+            actions={(
+              <>
                 <button type="button" className="ch-btn ch-btn-ghost" onClick={() => onNavigate('formation')}>
                   <Icon name="formation" size={18} />Ajustar escalação
                 </button>
                 <button type="button" className="ch-btn ch-btn-gold" onClick={primaryAction}>
                   <Icon name={noFormation || suspendedStarters.length ? 'formation' : offerCount ? 'chat' : 'play'} size={16} />{primaryLabel}
                 </button>
+              </>
+            )}
+          >
+            {!seasonOver && (
+              <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
+                <button type="button" className="ch-sim" onClick={onSimulateSeason} disabled={advanceBlocked} title={advanceBlocked ? 'Resolva a pendência acima primeiro' : 'Simula o resto da temporada sem parar'}>
+                  <Icon name="forward" size={14} />Simular temporada até o fim
+                </button>
               </div>
-              {!seasonOver && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginTop: 12 }}>
-                  <button type="button" className="ch-sim" onClick={onSimulateSeason} disabled={advanceBlocked} title={advanceBlocked ? 'Resolva a pendência acima primeiro' : 'Simula o resto da temporada sem parar'}>
-                    <Icon name="forward" size={14} />Simular temporada até o fim
-                  </button>
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            )}
+          </MatchPreviewCard>
+        )}
 
         <div className="ch-card" style={{ overflow: 'hidden' }}>
           <div className="ch-head"><h3>Agenda</h3><button type="button" className="ch-link" onClick={() => onNavigate('calendar')}>Calendário completo</button></div>

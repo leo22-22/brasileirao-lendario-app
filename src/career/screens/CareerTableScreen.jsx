@@ -19,6 +19,7 @@ import './careerTable.css';
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 import { LeaderboardCard } from '../../components/football/LeaderboardCard.jsx';
 import { buildLeaderboards } from '../../lib/leaders.js';
+import { RoundGames } from '../../components/football/MatchPreviewCard.jsx';
 
 const clubOf = (id) => TEAMS.find(t => t.id === id);
 const nameOf = (id) => displayName(clubOf(id)?.club || '');
@@ -215,17 +216,18 @@ export function CareerTableScreen({ save, onNavigate, onOpenClubInMarket }) {
 
           <div className="ch-card" style={{ overflow: 'hidden' }}>
             <div className="ch-head"><h3>{nextRoundIdx < data.fixtures.length ? `Rodada ${nextRoundIdx + 1}` : 'Temporada encerrada'}</h3><button type="button" className="ch-link" onClick={() => onNavigate('calendar')}>Calendário</button></div>
-            {shownNext.map((m, i) => {
+            <RoundGames games={shownNext.map((m, i) => {
               const mine = m.homeId === save.myClubId || m.awayId === save.myClubId;
-              const key = !mine && rivals.has(m.homeId) && rivals.has(m.awayId);
-              return (
-                <div key={i} className={`tb-fx${mine ? ' tb-fx-mine' : ''}${key ? ' tb-fx-key' : ''}`}>
-                  <span className="tb-fx-h"><span className="cf-ell">{nameOf(m.homeId)}</span><Crest id={m.homeId} size={18} /></span>
-                  <span className="tb-fx-x" aria-label={key ? 'jogo entre rivais diretos' : 'contra'}>×</span>
-                  <span className="tb-fx-a"><Crest id={m.awayId} size={18} /><span className="cf-ell">{nameOf(m.awayId)}</span></span>
-                </div>
-              );
-            })}
+              return {
+                key: i,
+                home: { name: nameOf(m.homeId), crest: <Crest id={m.homeId} size={18} /> },
+                away: { name: nameOf(m.awayId), crest: <Crest id={m.awayId} size={18} /> },
+                score: null,
+                status: 'pending',
+                mine,
+                rival: !mine && rivals.has(m.homeId) && rivals.has(m.awayId),
+              };
+            })} />
             {orderedNext.length > 0 && (
               <div className="ch-small" style={{ padding: '10px 20px 16px', borderTop: '1px solid var(--line)' }}>
                 <b style={{ color: 'var(--warning)' }}>×</b> jogos de rivais diretos{orderedNext.length > 5 && <> · <button type="button" className="ch-link" style={{ padding: 0 }} onClick={() => setShowAllFixtures(s => !s)}>{showAllFixtures ? 'mostrar menos' : `ver os ${orderedNext.length} jogos`}</button></>}

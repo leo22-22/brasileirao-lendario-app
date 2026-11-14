@@ -37,6 +37,7 @@ import { displayName } from '../lib/displayName.js';
 import { ClubCrest } from '../components/football/ClubCrest.jsx';
 import { StandingsTable } from '../components/football/StandingsTable.jsx';
 import { zoneFor, ZONE_LEGEND } from '../lib/standings.js';
+import { MatchPreviewCard, RoundGames } from '../components/football/MatchPreviewCard.jsx';
 
 const SAVE_KEY = 'brl_simulator2026_save';
 // Índice 0-based da rodada 35 em SERIE_A_2026_FIXTURES (rodada 1 = índice 0).
@@ -119,7 +120,7 @@ function persistSave(save) {
 // Escudo do clube; sem logo, um círculo com a cor do clube. `ring` põe o
 // escudo num círculo branco (cards escuros do redesenho de 2026-11-13).
 const TeamCrest = ({ team, size = 22, ring = false }) => (ring
-  ? <ClubCrest team={team} size={size} frame frameClass="sm-crest-ring" scale={0.72} />
+  ? <ClubCrest team={team} size={size} frame frameClass="fb-crest-ring" scale={0.72} />
   : <ClubCrest team={team} size={size} />);
 
 // Monta o pacote de UMA partida (placar + timeline minuto a minuto já
@@ -375,13 +376,6 @@ const ROUND_GROUPS = (() => {
 })();
 const groupLabel = (g) => (g.postponed ? 'R21 · atr.' : `Rodada ${g.round}`);
 
-function FormChips({ form, label }) {
-  return (
-    <span className="sm-form" aria-label={`${label}: últimos ${form.length} jogos, ${form.join(', ')}`}>
-      {form.map((f, i) => <i key={i} className={`sm-f${f}`}>{f}</i>)}
-    </span>
-  );
-}
 
 export function Simulator2026App({ onExit }) {
   const [teams] = useState(buildTeams);
@@ -476,43 +470,32 @@ export function Simulator2026App({ onExit }) {
   if (nextMatch) {
     const h = teamById[nextMatch.homeId], a = teamById[nextMatch.awayId];
     const odds = matchOutcomeProbabilities(h, a);
-    const pH = Math.round(odds.homeWin * 100), pD = Math.round(odds.draw * 100), pA = Math.max(0, 100 - pH - pD);
     const side = (t) => {
       const p = pos(t.id);
       const z = zoneOf(p);
-      return (
-        <div className="sm-side">
-          <TeamCrest team={t} size={76} ring />
-          <b>{displayName(t.club)}</b>
-          <small>{p}º · {table[p - 1].pts} pts{z && (z.key === 'g4' || z.key === 'z4') ? ` · ${z.label}` : ''}</small>
-          <FormChips form={formOf(t.id, REAL_RESULTS_2026_THROUGH_R34, save.log)} label={displayName(t.club)} />
-        </div>
-      );
+      return {
+        crest: <TeamCrest team={t} size={76} ring />,
+        name: displayName(t.club),
+        sub: `${p}º · ${table[p - 1].pts} pts${z && (z.key === 'g4' || z.key === 'z4') ? ` · ${z.label}` : ''}`,
+        form: formOf(t.id, REAL_RESULTS_2026_THROUGH_R34, save.log),
+      };
     };
     hero = (
-      <section className="sm-hero" aria-labelledby="sm-next-h">
-        <span className="sm-ring" aria-hidden="true" />
-        <div className="sm-k">
-          <span className="ng-mono" id="sm-next-h">{nextMatch.postponed ? `Jogo atrasado · Rodada 21 · jogo ${save.matchIdx + 1} de ${totalMatches}` : `Próximo jogo · Rodada ${nextMatch.round} · jogo ${save.matchIdx + 1} de ${totalMatches}`}</span>
-          <span className="ng-mono">Mando do {displayName(h.club)}</span>
-        </div>
-        <div className="sm-duel">
-          {side(h)}
-          <div className="sm-vsx" aria-hidden="true">×<small>casa · fora</small></div>
-          {side(a)}
-        </div>
-        <div className="sm-pr"><span>{displayName(h.club)} {pH}%</span><span>Empate {pD}%</span><span>{displayName(a.club)} {pA}%</span></div>
-        <div className="sm-pb" role="img" aria-label={`Probabilidades: ${displayName(h.club)} ${pH}%, empate ${pD}%, ${displayName(a.club)} ${pA}%`}>
-          <i style={{ width: `${pH}%`, background: 'var(--gold)' }} /><i style={{ width: `${pD}%`, background: 'rgba(255,255,255,.35)' }} /><i style={{ width: `${pA}%`, background: '#C24747' }} />
-        </div>
-        <div className="sm-stakes">
-          {[h, a].map(t => <div key={t.id} className="sm-stk"><b>{displayName(t.club)}</b>{stakesFor(table, nextMatch, t.id, nameOf)}</div>)}
-        </div>
-        <div className="sm-acts">
-          <button type="button" className="sm-b-o" onClick={handleQuickResult}><Icon name="forward" size={16} />Só o resultado</button>
-          <button type="button" className="sm-b-g" onClick={handlePlayMatch}><Icon name="play" size={16} />Jogar ao vivo</button>
-        </div>
-      </section>
+      <MatchPreviewCard
+        id="sm-next-h"
+        eyebrow={nextMatch.postponed ? `Jogo atrasado · Rodada 21 · jogo ${save.matchIdx + 1} de ${totalMatches}` : `Próximo jogo · Rodada ${nextMatch.round} · jogo ${save.matchIdx + 1} de ${totalMatches}`}
+        eyebrowRight={`Mando do ${displayName(h.club)}`}
+        home={side(h)}
+        away={side(a)}
+        probs={{ home: odds.homeWin, draw: odds.draw, away: odds.awayWin }}
+        stakes={[h, a].map(t => ({ title: displayName(t.club), text: stakesFor(table, nextMatch, t.id, nameOf) }))}
+        actions={(
+          <>
+            <button type="button" className="sm-b-o" onClick={handleQuickResult}><Icon name="forward" size={16} />Só o resultado</button>
+            <button type="button" className="sm-b-g" onClick={handlePlayMatch}><Icon name="play" size={16} />Jogar ao vivo</button>
+          </>
+        )}
+      />
     );
   } else {
     const champ = table[0];
@@ -579,18 +562,17 @@ export function Simulator2026App({ onExit }) {
                 <h3 id="sm-round-h">{shownGroup.postponed ? 'Jogo atrasado · R21' : `Rodada ${shownGroup.round}`}</h3>
                 <span className="ng-small">{playedInShown} de {shownGroup.idxs.length} jogado{shownGroup.idxs.length === 1 ? '' : 's'}</span>
               </div>
-              {shownGroup.idxs.map(i => {
+              <RoundGames games={shownGroup.idxs.map(i => {
                 const m = REMAINING_MATCHES[i];
                 const r = logByIdx(i);
-                const isNow = i === save.matchIdx;
-                return (
-                  <div key={i} className={`sm-gm${isNow ? ' sm-now' : ''}`}>
-                    <span className="sm-gh"><span className="ng-ell">{nameOf(m.homeId)}</span><TeamCrest team={teamById[m.homeId]} size={20} /></span>
-                    {r ? <span className="sm-sc">{r.homeGoals} – {r.awayGoals}</span> : isNow ? <span className="sm-sc sm-nx">agora</span> : <span className="sm-sc sm-pd">–</span>}
-                    <span className="sm-ga"><TeamCrest team={teamById[m.awayId]} size={20} /><span className="ng-ell">{nameOf(m.awayId)}</span></span>
-                  </div>
-                );
-              })}
+                return {
+                  key: i,
+                  home: { name: nameOf(m.homeId), crest: <TeamCrest team={teamById[m.homeId]} size={20} /> },
+                  away: { name: nameOf(m.awayId), crest: <TeamCrest team={teamById[m.awayId]} size={20} /> },
+                  score: r ? { h: r.homeGoals, a: r.awayGoals } : null,
+                  status: r ? 'played' : i === save.matchIdx ? 'now' : 'pending',
+                };
+              })} />
               {shownGroup !== curGroup && <div className="sm-more"><button type="button" className="ch-link" onClick={() => setViewGroup(null)}>Voltar para a rodada atual</button></div>}
             </section>
 
