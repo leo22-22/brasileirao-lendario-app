@@ -27,7 +27,7 @@ import { CLUB_LOGOS } from '../data/club-logos.js';
 import { SERIE_A_2026_TEAM_IDS } from '../data/career-clubs.js';
 import { SERIE_A_2026_FIXTURES } from '../data/serie-a-2026-fixtures.js';
 import { REAL_RESULTS_2026_THROUGH_R34 } from '../data/brasileirao-2026-real-results.js';
-import { teamStrength, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents, MatchSummaryModal } from '../App.jsx';
+import { teamStrength, aiSquadPlayers, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents, MatchSummaryModal } from '../App.jsx';
 import { matchOutcomeProbabilities } from '../lib/probability.js';
 import { zoneOf, formOf, remainingByClub, stakesFor, disputes, realBaselinePositions } from '../lib/insights.js';
 import { Icon, Modal, ConfirmInline } from '../ui/index.jsx';
@@ -66,7 +66,7 @@ const REMAINING_MATCHES = [
 function buildTeams() {
   return SERIE_A_2026_TEAM_IDS.map(id => {
     const t = TEAMS.find(tm => tm.id === id);
-    const playersWithMeta = t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' }));
+    const playersWithMeta = aiSquadPlayers(t);
     return {
       id: t.id, label: t.label, club: t.club, clubLogo: CLUB_LOGOS[t.club] || null, color: t.colors?.p,
       ovr: teamStrength(Object.fromEntries(playersWithMeta.map((p, i) => [i, p]))),

@@ -836,6 +836,35 @@ export function autoFillSquadFromTeam(team, { fullBench = false } = {}) {
   return best; // null se nenhuma formação fechar — não deveria acontecer com os elencos reais do jogo
 }
 
+// Elenco de um time de IA pronto pro motor: club/year/nat em cada jogador e,
+// principalmente, TITULARES PRIMEIRO. O motor inteiro (getStarters,
+// getEligibleRoster, simAiMatch, notas) escala `players.slice(0, 11)`. Os
+// times históricos já vêm com o XI real nos 11 primeiros, mas os 40 clubes
+// de 2026 vêm do elenco completo ordenado por posição (3 goleiros, 5
+// zagueiros...), então entravam em campo só goleiros e defensores. Pra eles
+// o XI sai da mesma escolha do atalho "Já sei qual time eu quero"
+// (autoFillSquadFromTeam: a formação que rende o maior OVR titular, cada
+// vaga com quem joga ali), e o resto vai pro banco (isBench, fora da força
+// do time em teamStrength).
+export function aiSquadPlayers(team) {
+  const withMeta = (p) => ({ ...p, club: team.club, year: team.year, nat: p.nat || 'BRA' });
+  if (team.year === 2026) {
+    const built = autoFillSquadFromTeam(team, { fullBench: true });
+    if (built) {
+      // Titular escalado fora da posição primária (ex.: volante de zagueiro)
+      // passa a ter a posição da vaga como primária — notas, chips e sorteio
+      // de gol/lesão leem pos[0], e o que vale é a função em campo.
+      const slotPos = Object.fromEntries(built.pitchSlots.map(sl => [sl.key, sl.realPos]));
+      return Object.values(built.pitch).map(({ slotKey, teamLabel, teamId, ...p }) => {
+        const role = p.isBench ? null : slotPos[slotKey];
+        const pos = role && p.pos[0] !== role ? [role, ...p.pos.filter(x => x !== role)] : p.pos;
+        return withMeta({ ...p, pos });
+      });
+    }
+  }
+  return team.players.map(withMeta);
+}
+
 // Fisher-Yates. `rand` é injetável porque o multiplayer precisa embaralhar de
 // forma DETERMINÍSTICA (mesma seed em todos os peers → mesmo resultado); com
 // Math.random cada cliente geraria uma ordem diferente e o campeonato inteiro
@@ -1083,7 +1112,7 @@ function drawAiTeams(count, difficulty, idxOffset = 0, rand = Math.random) {
   return pool.slice(0, count).map((t, i) => {
     const idx = idxOffset + i;
     const playersWithMeta = applyDifficultyToPlayers(
-      t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' })),
+      aiSquadPlayers(t),
       difficulty
     );
     return {
@@ -3201,7 +3230,7 @@ export default function App() {
     // na que a pessoa tem configurada pra carreira normal — é o que faz da
     // Supercopa um desafio à parte, igual pra todo mundo que jogar hoje.
     const oppPlayers = applyDifficultyToPlayers(
-      opp.players.map(p => ({ ...p, club: opp.club, year: opp.year, nat: p.nat || 'BRA' })),
+      aiSquadPlayers(opp),
       'lendario'
     );
     const oppTeamObj = {
@@ -3261,7 +3290,7 @@ export default function App() {
 
     const opps = SERIE_A_2026_TEAM_IDS.filter(id => id !== serieAtualTeamId).map(id => {
       const t = TEAMS.find(tm => tm.id === id);
-      const playersWithMeta = t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' }));
+      const playersWithMeta = aiSquadPlayers(t);
       return {
         id: t.id, label: t.label, club: t.club, clubLogo: CLUB_LOGOS[t.club] || null,
         ovr: teamStrength(Object.fromEntries(playersWithMeta.map((p, i) => [i, p]))),
@@ -3889,7 +3918,7 @@ export default function App() {
     const opps = pool.slice(0, neededAI).map((t, idx) => {
       // Adiciona club/year/nat — usados no hino do clube, no áudio de gol e na visualização de elenco
       const playersWithMeta = applyDifficultyToPlayers(
-        t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' })),
+        aiSquadPlayers(t),
         difficulty
       );
       return {
@@ -5549,7 +5578,7 @@ export default function App() {
     while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
     const opps = pool.slice(0, neededAI).map((t, idx) => {
       const playersWithMeta = applyDifficultyToPlayers(
-        t.players.map(p => ({ ...p, club: t.club, year: t.year, nat: p.nat || 'BRA' })),
+        aiSquadPlayers(t),
         difficulty
       );
       return {
@@ -6118,7 +6147,7 @@ export default function App() {
             club: teamData.club, ovr: human.ovr || 70, players: userPlayers, isHuman: true,
           };
         }
-        const pp = teamData.players.map(pl => ({ ...pl, club: teamData.club, year: teamData.year, nat: pl.nat || 'BRA' }));
+        const pp = aiSquadPlayers(teamData);
         return {
           id: clubId, label: teamData.label, badge: '', color: 'var(--muted)', logo: null,
           clubLogo: CLUB_LOGOS[teamData.club] || null, club: teamData.club,
@@ -6159,7 +6188,7 @@ export default function App() {
     const prng = makePrng(roomSnap.seed);
     const shuffled = [...TEAMS].sort(() => prng() - 0.5).slice(0, needed);
     const aiTeams = shuffled.map((t, i) => {
-      const pp = t.players.map(pl => ({ ...pl, club: t.club, year: t.year, nat: pl.nat || 'BRA' }));
+      const pp = aiSquadPlayers(t);
       return { id: `ai_${i}`, label: t.label, badge: '', color: 'var(--muted)', logo: null, clubLogo: CLUB_LOGOS[t.club] || null, club: t.club, ovr: teamStrength(Object.fromEntries(pp.map((p, j) => [j, p]))), players: pp, isHuman: false };
     });
     const allTeams = [...humanTeams, ...aiTeams];
@@ -10406,6 +10435,12 @@ const WHATS_NEW = [
     date: 'Novembro de 2026',
     title: 'Simulador 2026: jogo ao vivo e fim de jogo novos',
     desc: 'No Simulador do Brasileirão 2026, cada jogo agora tem prévia com forma recente e chances, placar ao vivo com pausa e três velocidades, e um painel lateral mostrando como a tabela fica se terminar assim, o que está em jogo e os próximos jogos. O fim de jogo ganhou tela nova, a mesma do Brasileirão clássico: craque da partida, autores dos gols, impacto na tabela e notas de todos os jogadores.',
+  },
+  {
+    id: '2026-11-escalacoes-2026',
+    date: 'Novembro de 2026',
+    title: 'Clubes de 2026 com escalação de verdade',
+    desc: 'Os 40 clubes da temporada 2026 entravam em campo com os primeiros 11 do elenco, que eram quase só goleiros e zagueiros. Agora cada um joga com o melhor XI na formação que mais encaixa com o elenco: goleiro, defesa, meio e ataque, cada jogador na posição em que atua, e o resto no banco. Vale no Simulador 2026, no Brasileirão Atual e sempre que um clube de 2026 for sorteado como adversário. A força do time passa a ser a dos titulares, não a média do elenco inteiro.',
   },
   {
     id: '2026-11-tabela-unica',
