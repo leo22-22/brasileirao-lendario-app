@@ -1,0 +1,91 @@
+/* Jogo ao vivo (components/football/LiveMatchView.jsx) — valores de liga-partida-mockup.html */
+.fb-lv { background: var(--green); color: #fff; border-radius: 26px; padding: 22px 28px 24px; position: relative; overflow: hidden; }
+.fb-lv-ring { position: absolute; right: -100px; top: -120px; width: 320px; height: 320px; border: 1px solid rgba(194,154,69,.3); border-radius: 50%; pointer-events: none; }
+.fb-lv > :not(.fb-lv-ring):not(.sr-only) { position: relative; }
+.fb-lv-k { display: flex; justify-content: space-between; align-items: center; gap: 10px; color: #B6CBBF; flex-wrap: wrap; }
+.fb-lv-mono { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; color: #B6CBBF; }
+.fb-lv-st { display: inline-flex; gap: 8px; align-items: center; }
+.fb-lv-classic { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: #F2D79A; border: 1px solid rgba(242,215,154,.45); border-radius: 999px; padding: 2px 10px; }
+.fb-lv-live { display: inline-flex; align-items: center; gap: 6px; color: #FFB4B4; font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; }
+.fb-lv-live i { width: 8px; height: 8px; border-radius: 50%; background: #FF6B6B; box-shadow: 0 0 0 4px rgba(255,107,107,.25); animation: fb-lv-pulse 1.4s ease-in-out infinite; }
+.fb-lv-live.fb-lv-paused { color: #F2D79A; }
+.fb-lv-live.fb-lv-paused i { background: #F2D79A; box-shadow: none; animation: none; }
+@keyframes fb-lv-pulse { 50% { box-shadow: 0 0 0 7px rgba(255,107,107,0); } }
+.fb-lv-page { width: 100%; max-width: 760px; margin: 0 auto; padding: 24px 16px; display: flex; flex-direction: column; gap: 16px; }
+.fb-lv-motm { display: flex; align-items: center; gap: 12px; padding: 14px 18px; border-radius: 18px; background: linear-gradient(135deg, #8A6A24, #C29A45); color: #fff; }
+.fb-lv-motm .fb-lv-mono { color: #F6EEDB; }
+.fb-lv-motm b { font-family: var(--font-serif); font-weight: 500; font-size: 20px; flex: 1; min-width: 0; }
+.fb-lv-motm-n { font-family: var(--font-serif); font-size: 30px; line-height: 1; }
+.fb-lv-card { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; }
+.fb-lv-ch { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 18px 22px 12px; }
+.fb-lv-ch h3 { font-family: var(--font-serif); font-weight: 500; font-size: 20px; margin: 0; }
+.fb-lv-ch span { font-size: 12.5px; color: var(--muted); }
+.fb-lv-empty { padding: 18px 22px 22px; color: var(--muted); font-size: 13.5px; border-top: 1px solid var(--line); }
+
+@media (prefers-reduced-motion: reduce) { .fb-lv-live i { animation: none; } }
+.fb-lv-score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 12px; margin: 18px 0 14px; text-align: center; }
+.fb-lv-side { display: flex; flex-direction: column; align-items: center; min-width: 0; border: none; background: none; color: inherit; font-family: var(--font-body); padding: 0; }
+.fb-lv-side-btn { cursor: pointer; border-radius: 14px; }
+.fb-lv-side-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+.fb-lv-crest { border: 3px solid #fff; }
+.fb-lv-crest.fb-lv-crest-mine { box-shadow: 0 0 0 2px var(--gold); }
+.fb-lv-nm { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-family: var(--font-serif); font-weight: 500; font-size: 22px; line-height: 1.15; margin-top: 10px; max-width: 100%; }
+.fb-lv-side small { display: block; color: #B6CBBF; font-size: 12px; margin-top: 4px; }
+.fb-lv-mid { display: flex; flex-direction: column; align-items: center; }
+.fb-lv-nums { font-family: var(--font-serif); font-size: 74px; line-height: 1; letter-spacing: -.02em; white-space: nowrap; }
+.fb-lv-nums span { color: #6F8C7E; margin: 0 10px; }
+.fb-lv-min { display: block; font-family: var(--font-mono); font-size: 14px; color: var(--gold); margin-top: 6px; }
+.fb-lv-vs { font-family: var(--font-serif); font-size: 40px; color: #6F8C7E; }
+.fb-lv-tl-bar { position: relative; height: 30px; margin-top: 6px; }
+.fb-lv-tl-t { position: absolute; left: 0; right: 0; top: 13px; height: 4px; border-radius: 9px; background: rgba(255,255,255,.12); }
+.fb-lv-tl-f { position: absolute; left: 0; top: 13px; height: 4px; border-radius: 9px; background: var(--gold); }
+.fb-lv-tl-ht { position: absolute; left: 50%; top: 6px; width: 1px; height: 18px; background: rgba(255,255,255,.3); }
+.fb-lv-ev { position: absolute; top: 2px; transform: translateX(-50%); width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 700; }
+.fb-lv-ev-g { background: #fff; color: var(--green); }
+.fb-lv-ev-go { background: #C24747; color: #fff; }
+.fb-lv-ev-y, .fb-lv-ev-r { width: 12px; height: 16px; border-radius: 3px; top: 6px; }
+.fb-lv-ev-y { background: #F2C200; }
+.fb-lv-ev-r { background: #E04848; }
+.fb-lv-tl-l { display: flex; justify-content: space-between; font-family: var(--font-mono); font-size: 10px; color: #8FAA9C; margin-top: 2px; }
+.fb-lv-ctrl { display: flex; gap: 10px; align-items: center; margin-top: 18px; flex-wrap: wrap; }
+.fb-lv-seg { display: flex; background: rgba(255,255,255,.08); border-radius: 12px; padding: 3px; gap: 2px; flex-shrink: 0; }
+.fb-lv-seg button { height: 34px; padding: 0 12px; display: flex; align-items: center; border-radius: 9px; font-size: 12.5px; color: #DCE7E0; font-family: var(--font-mono); border: none; background: none; cursor: pointer; }
+.fb-lv-seg button.fb-lv-seg-on { background: #fff; color: var(--ink); }
+.fb-lv-btn { height: 42px; border-radius: 999px; padding: 0 18px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; font-weight: 600; font-size: 13.5px; cursor: pointer; font-family: var(--font-body); border: none; white-space: nowrap; flex-shrink: 0; }
+.fb-lv-btn-o { border: 1px solid rgba(255,255,255,.25); color: #fff; background: none; }
+.fb-lv-btn-g { background: var(--gold); color: #fff; margin-left: auto; }
+.fb-lv-btn-grow { flex: 1 1 auto; height: 48px; font-size: 15px; }
+.fb-lv-btn-full { width: 100%; margin-top: 10px; }
+.fb-lv-seg button:focus-visible, .fb-lv-btn:focus-visible, .fb-lv-link:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.fb-lv-cd { margin-left: auto; font-family: var(--font-mono); font-size: 12.5px; color: #DCE7E0; }
+.fb-lv-cd b { color: var(--gold); }
+.fb-lv-feed { padding: 4px 0 8px; }
+.fb-lv-fi { display: grid; grid-template-columns: minmax(0, 1fr) 64px minmax(0, 1fr); align-items: center; padding: 10px 22px; border-top: 1px solid var(--line); font-size: 13.5px; }
+.fb-lv-fi-m { text-align: center; font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+.fb-lv-fi-m b { display: block; font-size: 13px; color: var(--ink); }
+.fb-lv-fi-s { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.fb-lv-fi-r { flex-direction: row-reverse; text-align: right; }
+.fb-lv-fi-t { min-width: 0; }
+.fb-lv-fi-t b { font-weight: 600; display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fb-lv-fi-t small { display: block; color: var(--muted); font-size: 12px; }
+.fb-lv-ic { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; flex-shrink: 0; font-size: 12px; font-weight: 700; }
+.fb-lv-ic-g { background: var(--success-soft); color: var(--success); }
+.fb-lv-ic-og { background: var(--danger-soft); color: var(--danger); }
+.fb-lv-ic-y { background: #FBEFD8; }
+.fb-lv-ic-y::after { content: ""; width: 10px; height: 14px; border-radius: 2px; background: #E2B100; }
+.fb-lv-ic-r { background: var(--danger-soft); }
+.fb-lv-ic-r::after { content: ""; width: 10px; height: 14px; border-radius: 2px; background: var(--danger); }
+.fb-lv-ic-n { background: var(--surface-2); color: var(--ink-2); }
+.fb-lv-ic-d { background: var(--danger-soft); color: var(--danger); }
+.fb-lv-ht { display: block; background: var(--bg); font-family: var(--font-mono); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align: center; padding: 8px; }
+
+@media (max-width: 768px) {
+  .fb-lv { padding: 18px 16px; border-radius: 22px; }
+  .fb-lv-nums { font-size: 52px; }
+  .fb-lv-nums span { margin: 0 6px; }
+  .fb-lv-nm { font-size: 16px; }
+  .fb-lv-ctrl-scroll { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .fb-lv-ctrl-scroll::-webkit-scrollbar { display: none; }
+  .fb-lv-fi { padding: 10px 14px; grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr); }
+  .fb-lv-ic { width: 24px; height: 24px; }
+}

@@ -7,6 +7,7 @@ import { buildPitchSlots } from '../engine/formations.js';
 import { teamForSim } from '../engine/simHelpers.js';
 import { displayName } from '../../lib/displayName.js';
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
+import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton, withRunningScore } from '../../components/football/LiveMatchView.jsx';
 
 const SIM_MINUTES_PER_TICK = 2;
 // Velocidade da simulação ao vivo (pedido explícito do usuário 2026-11-11,
@@ -27,54 +28,9 @@ function saveSpeed(v) {
   try { localStorage.setItem(SPEED_KEY, v); } catch { /* ignora */ }
 }
 
-// Seletor de velocidade — mesmo visual do calendário avançando
-// (CareerAdvanceModal.jsx), reaproveitado aqui pras 3 telas de partida ao
-// vivo que usam `useLiveMatchPlayer` (CareerMatchDayScreen,
-// CareerTwoLegScreen, CareerCopaLegScreen).
-export function MatchSpeedPicker({ speedKey, onChange, style }) {
-  return (
-    <div style={{ display: 'flex', borderRadius: 999, border: '1px solid var(--line-strong)', overflow: 'hidden', ...style }}>
-      {Object.keys(SPEEDS).map(k => (
-        <button
-          key={k}
-          onClick={() => onChange(k)}
-          style={{
-            fontSize: 10.5, fontWeight: 700, padding: '4px 10px', border: 'none', cursor: 'pointer',
-            background: speedKey === k ? 'rgba(194,154,69,0.2)' : 'var(--surface)',
-            color: speedKey === k ? 'var(--gold-ink)' : 'var(--ink)',
-          }}
-        >{k}</button>
-      ))}
-    </div>
-  );
-}
 
-export function eventIcon(ev) {
-  if (ev.type === 'goal') return ev.isOwnGoal ? '⚽ contra' : ev.isPenalty ? '⚽ pênalti' : '⚽';
-  if (ev.type === 'yellow') return '🟨';
-  if (ev.type === 'red') return '🟥';
-  if (ev.type === 'injury') return '🩼';
-  if (ev.type === 'substitution') return '🔄';
-  return '•';
-}
 
-export function eventText(ev) {
-  if (ev.type === 'goal') return `${ev.scorer}${ev.assist ? ` (assist. ${ev.assist})` : ''} — ${ev.teamLabel}`;
-  if (ev.type === 'yellow') return `${ev.player} — ${ev.teamLabel}`;
-  if (ev.type === 'red') return `${ev.player}${ev.secondYellow ? ' (2º amarelo)' : ''} — ${ev.teamLabel}`;
-  if (ev.type === 'injury') return `${ev.player} sentiu uma lesão (${ev.teamLabel}) — entra ${ev.replacementName || 'um reserva'}`;
-  if (ev.type === 'substitution') return `Sai ${ev.playerOut}, entra ${ev.playerIn} — ${ev.teamLabel}`;
-  return '';
-}
 
-export function TeamBadge({ team }) {
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, width: 96 }}>
-      <ClubCrest team={team} size={42} />
-      <div style={{ fontSize: 11.5, fontWeight: 600, textAlign: 'center', lineHeight: 1.2 }}>{displayName(team.club)}</div>
-    </div>
-  );
-}
 
 export function RatingsList({ ratings, homeTeam, awayTeam }) {
   const ratingColor = r => (r >= 8 ? '#1F7A4D' : r >= 6.5 ? '#8A6A24' : r >= 5 ? '#8F5D14' : '#B23B3B');
@@ -192,7 +148,6 @@ export const cardStyle = { padding: '14px 12px', borderRadius: 14, background: '
 export const labelStyle = { fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center', marginBottom: 4 };
 export const primaryBtnStyle = { width: '100%', padding: '13px 0', borderRadius: 999, border: 'none', background: 'var(--green)', color: '#fff', fontSize: 14, fontWeight: 700, cursor: 'pointer' };
 export const secondaryBtnStyle = { width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'transparent', color: 'var(--ink)', fontSize: 12.5, fontWeight: 600, cursor: 'pointer', marginBottom: 8 };
-const pauseBtnStyle = { width: '100%', padding: '11px 0', borderRadius: 10, border: '1px solid rgba(183,121,31,0.5)', background: 'rgba(183,121,31,0.1)', color: 'var(--warning-ink)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', marginBottom: 8 };
 
 // Painel de troca mostrado quando o usuário pausa a partida ao vivo
 // (pedido explícito do usuário 2026-11-13: "coloque comigo se eu quiser
@@ -218,7 +173,7 @@ function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, onApplySub, o
 
   return (
     <div style={{ ...cardStyle, marginBottom: 10 }}>
-      <div style={{ ...labelStyle, textAlign: 'left', marginBottom: 8 }}>⏸ Partida pausada — toque em quem vai sair</div>
+      <div style={{ ...labelStyle, textAlign: 'left', marginBottom: 8 }}>Partida pausada: toque em quem vai sair</div>
       <div style={{ display: 'grid', gap: 4, marginBottom: 10, maxHeight: 260, overflowY: 'auto' }}>
         {orderedSlots.map(slot => {
           const p = myPitchBySlot[slot.key];
@@ -279,7 +234,7 @@ function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, onApplySub, o
         </>
       )}
 
-      <button onClick={onResume} style={{ ...primaryBtnStyle, marginTop: 12 }}>▶ Retomar partida</button>
+      <button onClick={onResume} style={{ ...primaryBtnStyle, marginTop: 12 }}>Retomar partida</button>
     </div>
   );
 }
@@ -341,53 +296,36 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
     onApplyLineupChange?.({ type: 'reposition', sourceKey, targetKey });
   };
 
-  if (phase === 'intro') {
-    return (
-      <div style={wrapStyle}>
-        <div style={cardStyle}>
-          <div style={labelStyle}>{label}</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, padding: '20px 0 24px' }}>
-            <TeamBadge team={homeTeam} />
-            <div style={{ fontSize: 13, color: 'var(--muted)', fontWeight: 700 }}>x</div>
-            <TeamBadge team={awayTeam} />
-          </div>
-        </div>
-        <button onClick={startPlaying} style={primaryBtnStyle}>▶ Jogar partida</button>
-      </div>
-    );
-  }
-
+  const status = phase === 'intro' ? 'pre' : phase === 'done' ? 'done' : isPaused ? 'paused' : 'live';
+  const side = (t) => ({
+    id: t.id, name: displayName(t.club), mine: !!save && t.id === save.myClubId,
+    sub: !!save && t.id === save.myClubId ? 'Seu time' : null,
+    crest: <ClubCrest team={t} size={64} frame scale={0.68} frameClass={`fb-crest-frame fb-lv-crest${save && t.id === save.myClubId ? ' fb-lv-crest-mine' : ''}`} />,
+  });
+  const events = withRunningScore(shownEvents, homeTeam.id);
+  const SPEED_OPTS = Object.keys(SPEEDS).map(k => ({ id: k, label: k }));
   return (
-    <div style={wrapStyle}>
-      <div style={{ ...cardStyle, marginBottom: 16 }}>
-        <div style={labelStyle}>{label}</div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, margin: '8px 0 4px' }}>
-          <TeamBadge team={homeTeam} />
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 30, fontWeight: 700 }}>{homeGoals} - {awayGoals}</div>
-          <TeamBadge team={awayTeam} />
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-            {phase === 'playing' ? (isPaused ? 'Pausado' : `${minute}'`) : 'Fim de jogo'}
-          </div>
-          {phase === 'playing' && !isPaused && <MatchSpeedPicker speedKey={speedKey} onChange={changeSpeed} />}
-        </div>
-      </div>
-
-      <div style={{ minHeight: 140, marginBottom: 16, display: 'grid', gap: 6, padding: 10, borderRadius: 12, background: 'var(--surface)', border: '1px solid var(--line)' }}>
-        {shownEvents.length === 0 && phase === 'playing' && (
-          <div style={{ textAlign: 'center', fontSize: 12, color: 'var(--muted)', padding: '20px 0' }}>Bola rolando...</div>
+    <div className="fb-lv-page">
+      <LiveScoreboard
+        eyebrow={label}
+        status={status}
+        home={side(homeTeam)}
+        away={side(awayTeam)}
+        score={{ home: homeGoals, away: awayGoals }}
+        minute={minute}
+        events={events}
+        controls={(
+          <>
+            {status === 'pre' && <LiveButton icon="play" grow onClick={startPlaying}>Jogar partida</LiveButton>}
+            {status === 'live' && <LiveSeg label="Velocidade" options={SPEED_OPTS} value={speedKey} onChange={changeSpeed} />}
+            {status === 'live' && <LiveButton tone="ghost" icon="forward" onClick={skipToEnd}>Pular para o resultado</LiveButton>}
+            {status === 'live' && mySide && liveStarters && <LiveButton icon="clock" onClick={pause}>Pausar e trocar</LiveButton>}
+            {status === 'done' && <LiveButton icon="arrowRight" grow onClick={onFinish}>{continueLabel.replace(/\s*→\s*$/, '')}</LiveButton>}
+          </>
         )}
-        {[...shownEvents].reverse().map((ev, i) => (
-          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center', fontSize: 12.5, padding: '5px 8px', borderRadius: 8, background: 'var(--surface)' }}>
-            <span style={{ width: 28, color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 11 }}>{ev.minute}'</span>
-            <span>{eventIcon(ev)}</span>
-            <span style={{ flex: 1 }}>{eventText(ev)}</span>
-          </div>
-        ))}
-      </div>
+      />
 
-      {phase === 'playing' && isPaused && liveStarters && (
+      {status === 'paused' && liveStarters && (
         <SubPanel
           slots={mySlots}
           myPitchBySlot={liveStarters}
@@ -399,23 +337,14 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
         />
       )}
 
-      {phase === 'playing' && !isPaused && (
-        <>
-          <button onClick={skipToEnd} style={secondaryBtnStyle}>⏭ Pular pro resultado</button>
-          {mySide && liveStarters && <button onClick={pause} style={pauseBtnStyle}>⏸ Pausar e trocar</button>}
-        </>
-      )}
+      {status !== 'pre' && <LiveFeed events={events} homeId={homeTeam.id} homeName={displayName(homeTeam.club)} awayName={displayName(awayTeam.club)} minute={minute} status={status} />}
 
-      {phase === 'done' && (
+      {status === 'done' && (
         <>
           {motm && (
-            <div style={{ textAlign: 'center', background: 'rgba(194,154,69,0.1)', border: '1px solid var(--gold)', borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
-              🌟 Craque da partida: <b style={{ color: 'var(--gold-ink)' }}>{motm.name}</b>{' '}
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
-            </div>
+            <div className="fb-lv-motm"><span className="fb-lv-mono">Craque da partida</span><b>{motm.name}</b><span className="fb-lv-motm-n">{motm.rating.toFixed(1).replace('.', ',')}</span></div>
           )}
           <RatingsList ratings={sim.ratings} homeTeam={homeTeam} awayTeam={awayTeam} />
-          <button onClick={onFinish} style={{ ...primaryBtnStyle, marginTop: 4 }}>{continueLabel}</button>
         </>
       )}
     </div>

@@ -29,6 +29,7 @@ import { LeagueHeader } from './game/league/LeagueHeader.jsx';
 import { AppHeader, HeaderMenu } from './ui/AppHeader.jsx';
 import { ClubCrest } from './components/football/ClubCrest.jsx';
 import { PitchSurface } from './components/football/Pitch.jsx';
+import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton } from './components/football/LiveMatchView.jsx';
 import { MatchTab } from './game/league/MatchTab.jsx';
 import { TableTab } from './game/league/TableTab.jsx';
 import { SquadTab } from './game/league/SquadTab.jsx';
@@ -11539,215 +11540,66 @@ function LiveSubPanel({ myTeamId, liveEvents, forcedSubReason, liveLineup, subSe
 }
 
 function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots, myUnavailableNames, onViewTeam, onLiveSlotPointerDown, liveDragOverKey }) {
+  // Copa do Brasil Lendária: mesma apresentação do jogo ao vivo da liga
+  // (components/football/LiveMatchView); o motor e os handlers são os de sempre.
   if (!um || !homeTeam || !awayTeam) return null;
-  const isAuto = simMode === 'auto';
-  // Expulso já saiu de campo — não tem como "substituir" quem nem está mais
-  // jogando (o time simplesmente segue com um a menos, igual na vida real).
-  const redCardedNames = new Set(
-    (liveEvents || []).filter(ev => ev.type === 'red' && ev.teamId === myTeamId).map(ev => ev.player)
-  );
-  const hColor = homeTeam.id === myTeamId ? mc : (homeTeam.colors?.p || homeTeam.color || '#3a85d9');
-  const aColor = awayTeam.id === myTeamId ? mc : (awayTeam.colors?.p || awayTeam.color || '#c94040');
-  const isClassico = isRivalryMatch(homeTeam.club, awayTeam.club);
+  const status = isSimulating ? (isPaused ? 'paused' : 'live') : roundDone ? 'done' : 'pre';
+  const side = (t) => {
+    const mine = t.id === myTeamId;
+    return {
+      id: t.id, raw: t, mine,
+      name: mine ? t.label : parseTeamLabel(t.label || '').baseName,
+      sub: mine ? 'Seu time' : parseTeamLabel(t.label || '').achievement,
+      crest: <ClubCrest logo={mine ? myTeamLogo : t.clubLogo} badge={mine ? myTeamBadge : null} name={t.label} color={mine ? mc : (t.colors?.p || t.color)} size={64} frame scale={0.68} frameClass={`fb-crest-frame fb-lv-crest${mine ? ' fb-lv-crest-mine' : ''}`} />,
+    };
+  };
+  const stadium = CLUB_STADIUMS[homeTeam.club];
+  const MODES = [{ id: 'manual', label: 'Manual' }, { id: 'auto', label: 'Auto' }];
+  const SPEEDS = [{ id: 1, label: '1x' }, { id: 1.5, label: '1,5x' }, { id: 2, label: '2x' }];
+  const minute = parseInt(clockDisplay, 10) || 0;
   return (
-    <div style={styles.liveMatchBox} className="card-mob">
-      {isClassico && (
-        <div style={{ textAlign: 'center', marginBottom: 8 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--warning-ink)', background: 'var(--warning-soft)', border: '1px solid rgba(183,121,31,0.35)', borderRadius: 999, padding: '3px 12px' }}>
-            Clássico
-          </span>
-        </div>
-      )}
-      {/* Estádio do mandante — só clima, sem afetar simulação nenhuma. O
-          time do próprio jogador não vem de TEAMS (é montado do zero), então
-          não tem `club`/estádio conhecido; times de IA têm. */}
-      {CLUB_STADIUMS[homeTeam.club] && (
-        <div style={{ textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 8 }}>
-          {CLUB_STADIUMS[homeTeam.club]}
-        </div>
-      )}
-      <div className="on-dark" style={{ background: 'var(--green)', borderRadius: 18, padding: '18px 14px 14px', marginBottom: 14, backgroundImage: 'radial-gradient(120% 90% at 50% 0%, rgba(255,255,255,0.07), transparent 60%)' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)', alignItems: 'start', gap: 10 }} className="live-teams-row">
-          {(() => {
-              const t = homeTeam;
-              const mine = t.id === myTeamId;
-              const logo = mine ? myTeamLogo : t.clubLogo;
-              return (
-                <div
-                  onClick={() => !mine && onViewTeam && onViewTeam(t)}
-                  title={!mine ? 'Ver elenco' : undefined}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 0, cursor: !mine ? 'pointer' : 'default' }}
-                  className="live-team-n"
-                >
-                  <span style={{ width: 56, height: 56, borderRadius: '50%', background: '#FBF9F4', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: mine ? '0 0 0 2px var(--gold)' : 'none' }} className="live-crest">
-                    {logo
-                      ? <img src={logo} style={{ width: 36, height: 36, objectFit: 'contain' }} alt="" onError={e => { e.currentTarget.style.display = 'none'; }} />
-                      : <span style={{ fontSize: 24 }}>{mine ? myTeamBadge : ''}</span>}
-                  </span>
-                  <span style={{ fontSize: 13.5, fontWeight: mine ? 700 : 500, textAlign: 'center', lineHeight: 1.25, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{t.label}</span>
-                  {mine && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold-ink)' }}>Seu time</span>}
-                </div>
-              );
-            })()}
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, paddingTop: 6 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 46, lineHeight: 1, minWidth: 30, textAlign: 'center' }} className="live-score-n">{liveScore.home}</span>
-              <span style={{ fontSize: 22, color: 'var(--muted)' }}>–</span>
-              <span style={{ fontFamily: 'var(--font-serif)', fontSize: 46, lineHeight: 1, minWidth: 30, textAlign: 'center' }} className="live-score-n">{liveScore.away}</span>
-            </div>
-            {(isSimulating || roundDone || isPaused) && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'var(--font-mono)', fontSize: 13, fontWeight: 600, color: isSimulating ? 'var(--success)' : 'var(--muted)' }}>
-                {isSimulating && <span style={{ ...styles.clockPulse, background: 'var(--success)' }} />}
-                {isSimulating || isPaused ? clockDisplay : 'Fim de jogo'}
-              </div>
-            )}
+    <div className="card-mob" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <LiveScoreboard
+        eyebrow={[stadium, um.homeId === myTeamId ? 'você em casa' : 'você fora'].filter(Boolean).join(' · ')}
+        badges={isRivalryMatch(homeTeam.club, awayTeam.club) ? <span className="fb-lv-classic">Clássico</span> : null}
+        status={status}
+        home={side(homeTeam)}
+        away={side(awayTeam)}
+        score={liveScore}
+        minute={minute}
+        events={liveEvents}
+        onViewTeam={onViewTeam}
+        controls={(
+          <>
+            <LiveSeg label="Modo de avanço" options={MODES} value={simMode} onChange={onSetSimMode} />
+            {status === 'pre' && simMode !== 'auto' && <LiveButton icon="play" grow onClick={onStartRound}>{roundLabel}</LiveButton>}
+            {status === 'pre' && simMode === 'auto' && autoCountdown !== null && <span className="fb-lv-cd" role="status">Começa em <b>{autoCountdown}s</b></span>}
+            {(status === 'live' || status === 'paused') && <LiveSeg label="Velocidade" options={SPEEDS} value={simSpeed} onChange={onSetSpeed} />}
+            {status === 'live' && <LiveButton icon="clock" onClick={onPause}>Pausar</LiveButton>}
+            {status === 'paused' && <LiveButton icon="play" onClick={onResume}>Continuar</LiveButton>}
+          </>
+        )}
+      >
+        {status === 'pre' && onSimulateAll && (
+          <div style={{ marginTop: 16 }}>
+            <LiveButton tone="ghost" icon="forward" full onClick={onSimulateAll} title="Avança todas as rodadas restantes, inclusive as suas, sem parar para jogar cada uma">
+              Simulação direta — ir até o fim
+            </LiveButton>
           </div>
-          {(() => {
-              const t = awayTeam;
-              const mine = t.id === myTeamId;
-              const logo = mine ? myTeamLogo : t.clubLogo;
-              return (
-                <div
-                  onClick={() => !mine && onViewTeam && onViewTeam(t)}
-                  title={!mine ? 'Ver elenco' : undefined}
-                  style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, minWidth: 0, cursor: !mine ? 'pointer' : 'default' }}
-                  className="live-team-n"
-                >
-                  <span style={{ width: 56, height: 56, borderRadius: '50%', background: '#FBF9F4', display: 'grid', placeItems: 'center', flexShrink: 0, boxShadow: mine ? '0 0 0 2px var(--gold)' : 'none' }} className="live-crest">
-                    {logo
-                      ? <img src={logo} style={{ width: 36, height: 36, objectFit: 'contain' }} alt="" onError={e => { e.currentTarget.style.display = 'none'; }} />
-                      : <span style={{ fontSize: 24 }}>{mine ? myTeamBadge : ''}</span>}
-                  </span>
-                  <span style={{ fontSize: 13.5, fontWeight: mine ? 700 : 500, textAlign: 'center', lineHeight: 1.25, maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{t.label}</span>
-                  {mine && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--gold-ink)' }}>Seu time</span>}
-                </div>
-              );
-            })()}
-        </div>
-      </div>
-
-      {(isSimulating || isPaused) && (
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
-          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--muted)', marginRight: 2 }}>Velocidade</span>
-          {[1, 1.5, 2].map(sp => (
-            <button key={sp} onClick={() => onSetSpeed(sp)} className="tap-target-sm" aria-pressed={simSpeed === sp} style={{
-              fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 600, minHeight: 34, minWidth: 44,
-              padding: '0 10px', borderRadius: 999, border: '1px solid', cursor: 'pointer',
-              borderColor: simSpeed === sp ? 'var(--green)' : 'var(--line-strong)',
-              background: simSpeed === sp ? 'var(--green)' : 'transparent',
-              color: simSpeed === sp ? '#fff' : 'var(--ink-2)',
-            }}>{sp}x</button>
-          ))}
-          {!isPaused ? (
-            <button onClick={onPause} className="tap-target-sm" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, minHeight: 34,
-              padding: '0 14px', borderRadius: 999, border: '1px solid rgba(183,121,31,0.4)',
-              background: 'var(--warning-soft)', color: 'var(--warning-ink)', cursor: 'pointer', marginLeft: 6,
-            }}><Icon name="clock" size={14} /> Pausar</button>
-          ) : (
-            <button onClick={onResume} className="tap-target-sm" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12.5, fontWeight: 600, minHeight: 34,
-              padding: '0 14px', borderRadius: 999, border: '1px solid rgba(31,122,77,0.4)',
-              background: 'var(--success-soft)', color: 'var(--success)', cursor: 'pointer', marginLeft: 6,
-            }}><Icon name="play" size={13} /> Retomar</button>
-          )}
-        </div>
-      )}
-      {liveEvents.length > 0 && (
-        <div style={styles.matchCenter} className="match-timeline">
-          {liveEvents.map((ev, i) => {
-            const isHomeSide = ev.teamId === homeTeam.id;
-            const sideColor = isHomeSide ? hColor : aColor;
-            const icon = ev.type === 'yellow' ? '🟨' : ev.type === 'red' ? (ev.secondYellow ? '🟨🟥' : '🟥') : ev.type === 'injury' ? '🩹' : ev.type === 'substitution' ? '🔄' : ev.type === 'penalty_miss' ? '❌' : (ev.isOwnGoal ? '⚽🔴' : '⚽');
-            const mainText = ev.type === 'goal' ? `${ev.scorer}${ev.isOwnGoal ? ' (contra)' : ev.isPenalty ? ' (pênalti)' : ''}`
-              : ev.type === 'substitution' ? `Entrando: ${ev.playerIn}`
-                : ev.type === 'penalty_miss' ? ev.player
-                  : ev.player;
-            const subText = ev.type === 'goal'
-              ? (ev.isOwnGoal ? `contra, ${ev.ownGoalTeamLabel}` : ev.isPenalty ? `pênalti convertido · ${ev.teamLabel}` : ev.assist ? `assist: ${ev.assist}` : ev.teamLabel)
-              : ev.type === 'yellow' ? `cartão amarelo · ${ev.teamLabel}`
-                : ev.type === 'red' ? (ev.secondYellow ? `segundo amarelo, expulso · ${ev.teamLabel}` : `expulso · ${ev.teamLabel}`)
-                  : ev.type === 'substitution' ? `Saindo: ${ev.playerOut} · ${ev.teamLabel}`
-                    : ev.type === 'penalty_miss' ? `pênalti perdido, defendido por ${ev.gkName || 'goleiro'} · ${ev.teamLabel}`
-                      : `lesionado, sai de campo · ${ev.teamLabel}`;
-            const content = (
-              <div style={{ ...styles.matchCenterCard, borderColor: 'var(--line)', background: 'var(--surface)', boxShadow: `inset ${isHomeSide ? '-3px' : '3px'} 0 0 ${sideColor}`, flexDirection: isHomeSide ? 'row' : 'row-reverse' }}>
-                <span style={{ fontSize: 15 }}>{icon}</span>
-                <div style={{ ...styles.matchCenterInfo, textAlign: isHomeSide ? 'left' : 'right' }}>
-                  <span style={styles.goalScorer}>{mainText}</span>
-                  <span style={styles.goalTeam}>{subText}</span>
-                  {ev.type === 'injury' && ev.medicalQuote && (
-                    <span style={{ display: 'block', fontSize: 10, color: 'var(--muted)', fontStyle: 'italic', marginTop: 2 }}>
-                      {MEDICAL_CHIEF_NAME}: "{ev.medicalQuote}"
-                    </span>
-                  )}
-                </div>
-              </div>
-            );
-            return (
-              <div key={i} style={styles.matchCenterRow}>
-                <div style={{ ...styles.matchCenterSide, justifyContent: 'flex-end' }}>{isHomeSide && content}</div>
-                <div style={{ ...styles.matchCenterMinuteCol, background: 'var(--bg)', borderRadius: 999, padding: '4px 0', position: 'relative', zIndex: 1 }}>
-                  <span style={styles.goalMinute}>{ev.minute}'</span>
-                  <span style={styles.goalScore}>{ev.homeScore}–{ev.awayScore}</span>
-                </div>
-                <div style={{ ...styles.matchCenterSide, justifyContent: 'flex-start' }}>{!isHomeSide && content}</div>
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {liveEvents.length === 0 && roundDone && <div style={styles.noGoalsMsg}>Sem gols — 0 × 0</div>}
-      {liveEvents.length === 0 && !roundDone && !isSimulating && <div style={{ ...styles.noGoalsMsg, paddingTop: 4 }}>Os lances aparecem aqui, minuto a minuto.</div>}
-
+        )}
+      </LiveScoreboard>
       {showSubPanel && liveLineup && (
-        <LiveSubPanel
-          myTeamId={myTeamId} liveEvents={liveEvents} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
-          subSelectStarter={subSelectStarter} onSelectSubStarter={onSelectSubStarter} onApplySub={onApplySub}
-          subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
-          onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
-        />
-      )}
-
-      {/* Toggle manual / automático */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 16, gap: 8 }}>
-        <div style={{ display: 'flex', gap: 4 }}>
-          {['manual', 'auto'].map(m => (
-            <button key={m} onClick={() => onSetSimMode(m)} className="tap-target-sm" style={{
-              fontFamily: 'var(--font-mono)', fontSize: 11,
-              padding: '4px 10px', borderRadius: 6, border: '1px solid', cursor: 'pointer',
-              borderColor: simMode === m ? mc : 'var(--line-strong)',
-              background: simMode === m ? `${mc}22` : 'transparent',
-              color: simMode === m ? mc : 'var(--muted)',
-              fontWeight: simMode === m ? 700 : 400,
-            }}>
-              {m === 'manual' ? 'Manual' : 'Auto'}
-            </button>
-          ))}
+        <div className="lg-card" style={{ padding: '4px 16px 14px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 22 }}>
+          <LiveSubPanel
+            myTeamId={myTeamId} liveEvents={liveEvents} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
+            subSelectStarter={subSelectStarter} onSelectSubStarter={onSelectSubStarter} onApplySub={onApplySub}
+            subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
+            onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
+          />
         </div>
-        {!isSimulating && !roundDone && !isAuto && (
-          <button style={{ ...styles.btnPrimary, margin: 0, flex: 1 }} onClick={onStartRound}>
-            ▶ {roundLabel}
-          </button>
-        )}
-        {!isSimulating && !roundDone && isAuto && autoCountdown !== null && (
-          <div style={{ flex: 1, textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 12, color: mc }}>
-            Iniciando em {autoCountdown}s…
-          </div>
-        )}
-      </div>
-      {!isSimulating && !roundDone && onSimulateAll && (
-        <button
-          onClick={onSimulateAll}
-          title="Avança todas as rodadas restantes (inclusive as suas) sem parar pra jogar cada uma"
-          style={{
-            width: '100%', marginTop: 8, background: 'none', border: '1px solid var(--gold)',
-            borderRadius: 8, padding: '7px 10px', color: 'var(--gold-ink)', fontFamily: 'var(--font-mono)',
-            fontSize: 12, fontWeight: 600, cursor: 'pointer',
-          }}
-        >
-          ⏭ Simulação direta — ir até o fim
-        </button>
+      )}
+      {status !== 'pre' && (
+        <LiveFeed events={liveEvents} homeId={homeTeam.id} homeName={side(homeTeam).name} awayName={side(awayTeam).name} minute={minute} status={status} />
       )}
     </div>
   );
@@ -13641,8 +13493,6 @@ const globalCss = `
     .bk-draw, .bk-land, .bk-flash, .bk-trophy { animation: none !important; }
   }
 
-  .match-timeline { position: relative; }
-  .match-timeline::before { content: ''; position: absolute; left: 50%; top: 4px; bottom: 4px; width: 1px; background: var(--line); }
   .marquee-track { animation: marquee 48s linear infinite; will-change: transform; }
   .marquee-track:hover { animation-play-state: paused; }
   .champion-marquee-track { animation: marquee 10s linear infinite; will-change: transform; }
@@ -13709,9 +13559,6 @@ const globalCss = `
        descobria sozinho. */
     .table-col-hide-mobile { display: none !important; }
     .card-mob { padding: 16px 12px !important; }
-    .live-score-n { font-size: 20px !important; min-width: 18px !important; }
-    .live-teams-row { gap: 6px !important; }
-    .live-team-n { font-size: 12px !important; }
     .squad-row-g { grid-template-columns: 36px 1fr auto 36px !important; gap: 8px !important; }
     .pitch-spot { font-size: 8px !important; }
     .pitch-spot-circle { width: 40px !important; height: 40px !important; }
@@ -13843,7 +13690,6 @@ const styles = {
   squadOvr: { fontFamily: 'var(--font-mono)', fontWeight: 700, color: 'var(--gold-ink)', textAlign: 'right' },
 
   // Jogo ao vivo
-  liveMatchBox: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 20, padding: '16px', marginBottom: 20 },
   statRow: { display: 'flex', alignItems: 'center', gap: 10, padding: '5px 0', borderBottom: '1px solid var(--line)', fontSize: 13 },
   statRank: { width: 20, textAlign: 'right', color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: 11 },
   statName: { flex: '1 1 0%', minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
@@ -13863,17 +13709,6 @@ const styles = {
   clock: { fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700 },
   clockPulse: { width: 8, height: 8, borderRadius: '50%', background: 'var(--success)', animation: 'pulse 1s ease-in-out infinite' },
   clockFull: { fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' },
-  matchCenter: { display: 'flex', flexDirection: 'column', gap: 6, marginTop: 4 },
-  matchCenterRow: { display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 52px minmax(0,1fr)', alignItems: 'center', gap: 6 },
-  matchCenterSide: { display: 'flex', minWidth: 0, overflow: 'hidden' },
-  matchCenterCard: { display: 'flex', alignItems: 'center', gap: 7, padding: '6px 9px', borderRadius: 8, border: '1px solid', maxWidth: '100%', minWidth: 0 },
-  matchCenterInfo: { display: 'flex', flexDirection: 'column', gap: 1, minWidth: 0 },
-  matchCenterMinuteCol: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 },
-  goalMinute: { fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--gold-ink)' },
-  goalScorer: { fontSize: 13, fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  goalTeam: { fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' },
-  goalScore: { fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--muted)', whiteSpace: 'nowrap' },
-  noGoalsMsg: { textAlign: 'center', color: 'var(--muted)', fontSize: 13, padding: '12px 0' },
 
   // Outros jogos da rodada
   otherMatchesBox: { background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 12, padding: '16px', marginBottom: 20 },
