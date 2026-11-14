@@ -19,6 +19,7 @@ import { StandingsTable } from './components/football/StandingsTable.jsx';
 import { PlayerList } from './components/football/PlayerList.jsx';
 import { LeaderboardGrid } from './components/football/LeaderboardCard.jsx';
 import { SeasonEndSummary } from './components/football/SeasonEndSummary.jsx';
+import { MatchSummary } from './components/football/MatchSummary.jsx';
 import { buildLeaderboards } from './lib/leaders.js';
 import { teamInk, readableOn, textOn } from './lib/color.js';
 import { FIRST_YEAR, LAST_YEAR } from './lib/eras.js';
@@ -6720,16 +6721,37 @@ export default function App() {
           />
         )}
         {showMatchSummary && activeUserMatch && (
-          <MatchSummaryModal
-            ratings={lastMatchRatings}
-            match={activeUserMatch}
-            score={roundResults?.find(r => r.homeId === activeUserMatch.homeId && r.awayId === activeUserMatch.awayId)}
-            homeTeam={leagueTeams.find(t => t.id === activeUserMatch.homeId)}
-            awayTeam={leagueTeams.find(t => t.id === activeUserMatch.awayId)}
-            myTeamId={myTeamId}
-            myTeamColor={myTeamColor}
-            onDismiss={() => setShowMatchSummary(false)}
-          />
+          (() => {
+            // Situação depois do jogo e impacto na tabela (só no Brasileirão,
+            // quando a tabela já tem esta rodada aplicada).
+            const isLeague = gameMode !== 'copa' && !isDailyChallenge && leagueTable?.length > 2;
+            const pos = isLeague ? positionsOf(leagueTable) : null;
+            const sub = (id) => {
+              if (!isLeague) return null;
+              const row = leagueTable.find(r => r.id === id);
+              return row ? `${pos.get(id)}º · ${row.pts} pts` : null;
+            };
+            const myPj = leagueTable?.find(r => r.id === myTeamId)?.pj ?? 0;
+            const before = isLeague && roundResults && myPj >= currentRound + 1 ? revertResults(leagueTable, roundResults) : null;
+            const labelOf = (id) => (id === myTeamId ? (leagueTeams.find(t => t.id === id)?.label || 'Meu Time') : parseTeamLabel(leagueTeams.find(t => t.id === id)?.label || '').baseName);
+            return (
+              <MatchSummaryModal
+                ratings={lastMatchRatings}
+                match={activeUserMatch}
+                score={roundResults?.find(r => r.homeId === activeUserMatch.homeId && r.awayId === activeUserMatch.awayId)}
+                homeTeam={leagueTeams.find(t => t.id === activeUserMatch.homeId)}
+                awayTeam={leagueTeams.find(t => t.id === activeUserMatch.awayId)}
+                myTeamId={myTeamId}
+                myTeamColor={myTeamColor}
+                events={liveEvents}
+                eyebrow={gameMode === 'copa' ? 'Fim de jogo · Copa do Brasil' : isDailyChallenge ? 'Fim de jogo · Supercopa' : `Fim de jogo · Rodada ${currentRound + 1}`}
+                homeSub={sub(activeUserMatch.homeId)}
+                awaySub={sub(activeUserMatch.awayId)}
+                impact={before ? classicImpact(before, leagueTable, myTeamId, labelOf) : null}
+                onDismiss={() => setShowMatchSummary(false)}
+              />
+            );
+          })()
         )}
         {penaltyPhase && (
           <PenaltyModal
@@ -9649,57 +9671,61 @@ function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
 // o jogo do usuário termina, em vez de ficar escondido atrás de um link lá
 // embaixo depois de toda a tabela/estatísticas da liga.
 // ============================================================
-export function MatchSummaryModal({ ratings, match, score, homeTeam, awayTeam, myTeamId, myTeamColor, onDismiss }) {
-  const mc = teamInk(myTeamColor || '#C29A45');
+// Fim de jogo — visual único (components/football/MatchSummary), usado pelo
+// Brasileirão clássico, Brasileirão Atual e Simulador 2026. As partes extras
+// (situação depois do jogo, impacto na tabela, próximo jogo) chegam por prop.
+export function MatchSummaryModal({
+  ratings, match, score, homeTeam, awayTeam, myTeamId, myTeamColor, onDismiss,
+  events = [], eyebrow = 'Fim de jogo', eyebrowRight, homeSub, awaySub, homeName, awayName, impact = null,
+  secondary = null, nextText, primaryLabel = 'Continuar', primaryIcon,
+}) {
   if (!ratings?.length || !match) return null;
-  const homeRatings = [...ratings].filter(r => r.teamId === match.homeId).sort((a, b) => b.rating - a.rating);
-  const awayRatings = [...ratings].filter(r => r.teamId === match.awayId).sort((a, b) => b.rating - a.rating);
-  const motm = [...ratings].sort((a, b) => b.rating - a.rating)[0];
-
-  const col = (list, side, teamLabel) => (
-    <div style={{ flex: 1, minWidth: 0 }}>
-      <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.5, textAlign: side === 'away' ? 'right' : 'left', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{teamLabel}</div>
-      {list.map((r, i) => (
-        <div key={`${r.name}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 12.5, padding: '4px 0', borderBottom: '1px solid var(--line)' }}>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: side === 'away' ? 'right' : 'left', flex: 1 }}>{r.name}</span>
-          <span style={{
-            fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0,
-            color: r.rating >= 7.5 ? 'var(--success)' : r.rating < 5.5 ? 'var(--danger)' : 'var(--ink)',
-          }}>{r.rating.toFixed(1)}</span>
-        </div>
-      ))}
-    </div>
-  );
-
+  const mc = teamInk(myTeamColor || '#C29A45');
+  const side = (t, id, sub, nameOverride) => {
+    const mine = id === myTeamId;
+    return {
+      id,
+      name: nameOverride || (mine ? (t?.label || 'Meu Time') : parseTeamLabel(t?.label || '?').baseName),
+      sub,
+      crest: <ClubCrest team={t} color={mine ? mc : undefined} size={60} frame frameClass="fb-crest-ring" scale={0.72} />,
+      miniCrest: <ClubCrest team={t} color={mine ? mc : undefined} size={18} />,
+    };
+  };
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div style={{ background: 'var(--surface)', border: `1px solid ${hexToRgba(mc, 0.35)}`, borderRadius: 16, padding: 22, width: '100%', maxWidth: 460, maxHeight: '86vh', overflowY: 'auto' }}>
-        <div style={{ textAlign: 'center', marginBottom: 14 }}>
-          <div style={{ fontSize: 11, letterSpacing: 1, textTransform: 'uppercase', color: 'var(--muted)', marginBottom: 6 }}>Fim de jogo</div>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, fontFamily: 'var(--font-serif)', fontWeight: 700, fontSize: 17 }}>
-            <span className="match-summary-header-team" style={{ flex: 1, minWidth: 0, textAlign: 'right', color: match.homeId === myTeamId ? mc : 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeam?.label || '?'}</span>
-            <span style={{ fontFamily: 'var(--font-mono)', background: 'var(--surface)', borderRadius: 8, padding: '4px 12px', flexShrink: 0 }}>{score?.homeGoals ?? 0} - {score?.awayGoals ?? 0}</span>
-            <span className="match-summary-header-team" style={{ flex: 1, minWidth: 0, textAlign: 'left', color: match.awayId === myTeamId ? mc : 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeam?.label || '?'}</span>
-          </div>
-        </div>
-
-        {motm && (
-          <div style={{ textAlign: 'center', background: hexToRgba(mc, 0.1), border: `1px solid ${hexToRgba(mc, 0.3)}`, borderRadius: 10, padding: '8px 12px', marginBottom: 14, fontSize: 13 }}>
-            Craque da partida: <b style={{ color: mc }}>{motm.name}</b> <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700 }}>{motm.rating.toFixed(1)}</span>
-          </div>
-        )}
-
-        <div style={{ display: 'flex', gap: 16 }} className="match-summary-cols">
-          {col(homeRatings, 'home', homeTeam?.label)}
-          {col(awayRatings, 'away', awayTeam?.label)}
-        </div>
-
-        <button onClick={onDismiss} style={{ ...styles.btnPrimary, marginTop: 18, width: '100%', background: mc, color: '#fff' }}>
-          Continuar →
-        </button>
-      </div>
-    </div>
+    <MatchSummary
+      eyebrow={eyebrow}
+      eyebrowRight={eyebrowRight}
+      home={side(homeTeam, match.homeId, homeSub, homeName)}
+      away={side(awayTeam, match.awayId, awaySub, awayName)}
+      score={{ home: score?.homeGoals ?? 0, away: score?.awayGoals ?? 0 }}
+      events={events}
+      ratings={ratings}
+      impact={impact}
+      secondary={secondary}
+      nextText={nextText}
+      primary={{ label: primaryLabel, onClick: onDismiss, icon: primaryIcon }}
+    />
   );
+}
+
+// Impacto na tabela para o fim de jogo do modo clássico: o meu time (antes →
+// depois da rodada) e os times que trocaram de posição com ele.
+function classicImpact(before, after, myTeamId, labelOf) {
+  if (!before?.length || !after?.length) return null;
+  const pb = positionsOf(before), pa = positionsOf(after);
+  const myB = pb.get(myTeamId), myA = pa.get(myTeamId);
+  if (!myB || !myA) return null;
+  const rows = [{ id: myTeamId, b: myB, a: myA }];
+  after.forEach(r => {
+    if (r.id === myTeamId) return;
+    const b = pb.get(r.id), a = pa.get(r.id);
+    if ((b < myB && a > myA) || (b > myB && a < myA)) rows.push({ id: r.id, b, a });
+  });
+  return rows.slice(0, 5).map(r => ({
+    key: r.id, name: labelOf(r.id),
+    text: r.b === r.a ? `segue ${r.a}º` : `${r.b}º → ${r.a}º`,
+    tone: r.a < r.b ? 'up' : r.a > r.b ? 'down' : null,
+  }));
 }
 
 // ============================================================
@@ -10375,6 +10401,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-simulador-ao-vivo',
+    date: 'Novembro de 2026',
+    title: 'Simulador 2026: jogo ao vivo e fim de jogo novos',
+    desc: 'No Simulador do Brasileirão 2026, cada jogo agora tem prévia com forma recente e chances, placar ao vivo com pausa e três velocidades, e um painel lateral mostrando como a tabela fica se terminar assim, o que está em jogo e os próximos jogos. O fim de jogo ganhou tela nova, a mesma do Brasileirão clássico: craque da partida, autores dos gols, impacto na tabela e notas de todos os jogadores.',
+  },
   {
     id: '2026-11-tabela-unica',
     date: 'Novembro de 2026',
@@ -12764,8 +12796,6 @@ const globalCss = `
     .h2-mob { font-size: 18px !important; }
     .intro-card-mob { padding: 28px 16px 24px !important; }
     .formation-grid { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-    .match-summary-cols { flex-direction: column !important; }
-    .match-summary-header-team { font-size: 13px !important; }
     .tab-bar-scroll button { font-size: 11px !important; padding: 8px 4px 10px !important; gap: 3px !important; }
   }
   /* Faixa "N times lendários no elenco" rolando na home: em telas bem

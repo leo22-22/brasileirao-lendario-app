@@ -1,0 +1,60 @@
+/* MatchSummary (components/football/MatchSummary.jsx) — valores de simulador-2026-fim-de-jogo-mockup.html */
+.ui-modal.ms-modal { padding: 0; overflow: hidden; border-radius: 26px; }
+.ms-modal .ui-modal-close { z-index: 3; color: #fff; border-color: rgba(255,255,255,.3); background: transparent; }
+.ms-head { background: var(--green); color: #fff; padding: 22px 28px; position: relative; overflow: hidden; }
+.ms-head > * { position: relative; }
+.ms-head > .ms-ring { position: absolute; right: -90px; top: -110px; width: 300px; height: 300px; border: 1px solid rgba(194,154,69,.3); border-radius: 50%; pointer-events: none; }
+.ms-k { display: flex; justify-content: space-between; gap: 10px; padding-right: 44px; color: #B6CBBF; flex-wrap: wrap; }
+.ms-mono { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: .08em; font-size: 11px; color: #B6CBBF; }
+.ms-score { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; margin-top: 16px; text-align: center; gap: 10px; }
+.ms-side { display: flex; flex-direction: column; align-items: center; min-width: 0; }
+.ms-side b { display: block; font-family: var(--font-serif); font-weight: 500; font-size: 22px; margin-top: 8px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ms-side small { display: block; color: #B6CBBF; font-size: 12px; }
+.ms-nums { font-family: var(--font-serif); font-size: 62px; line-height: 1; white-space: nowrap; }
+.ms-nums span { color: #6F8C7E; margin: 0 10px; }
+.ms-ft { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: .08em; color: var(--gold); margin-top: 6px; text-transform: uppercase; }
+.ms-goals { display: grid; grid-template-columns: minmax(0, 1fr) 140px minmax(0, 1fr); text-align: center; margin-top: 14px; font-size: 13px; color: #DCE7E0; gap: 8px; }
+.ms-body { display: grid; grid-template-columns: 260px minmax(0, 1fr); }
+.ms-lft { padding: 20px 22px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 16px; }
+.ms-motm { border-radius: 18px; background: linear-gradient(135deg, #8A6A24, #C29A45); color: #fff; padding: 16px 18px; }
+.ms-motm .ms-mono { color: #F6EEDB; font-size: 10px; }
+.ms-motm b { display: block; font-family: var(--font-serif); font-weight: 500; font-size: 24px; margin-top: 6px; line-height: 1.1; }
+.ms-motm-r { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; margin-top: 6px; font-size: 12.5px; color: #F6EEDB; }
+.ms-motm-n { font-family: var(--font-serif); font-size: 40px; line-height: 1; color: #fff; }
+.ms-imp h4, .ms-rt h4 { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; margin: 0 0 8px; }
+.ms-ir { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 13px; }
+.ms-ir b { font-weight: 600; min-width: 0; }
+.ms-ir span { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
+.ms-up { color: var(--success); } .ms-dn { color: var(--danger); }
+.ms-rt { padding: 20px 22px; min-width: 0; }
+.ms-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.ms-col { min-width: 0; }
+.ms-col-h { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 13px; margin-bottom: 6px; min-width: 0; }
+.ms-pl { display: grid; grid-template-columns: 34px minmax(0, 1fr) 60px 30px; align-items: center; gap: 8px; height: 30px; font-size: 13px; border-top: 1px solid var(--line); }
+.ms-pl.ms-best { background: #F6EEDB; }
+.ms-pos { font-family: var(--font-mono); font-size: 9.5px; font-weight: 500; height: 18px; border-radius: 5px; display: inline-grid; place-items: center; padding: 0 5px; color: #fff; width: max-content; }
+.ms-gk { background: #B08A3E; } .ms-df { background: #3F74AE; } .ms-md { background: #2F8A5E; } .ms-at { background: #C2513F; }
+.ms-nm, .ms-ell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ms-bar { height: 5px; border-radius: 99px; background: var(--surface-2); overflow: hidden; display: flex; }
+.ms-bar i { display: block; height: 100%; }
+.ms-v { font-family: var(--font-mono); font-size: 12px; text-align: right; font-weight: 600; }
+.ms-hi { color: var(--success); } .ms-lo { color: var(--danger); }
+.ms-empty { color: var(--muted); font-size: 13px; margin: 0; }
+.ms-foot { display: flex; gap: 10px; align-items: center; padding: 16px 22px; border-top: 1px solid var(--line); background: var(--bg); flex-wrap: wrap; }
+.ms-next { font-size: 12.5px; color: var(--muted); }
+.ms-btn { height: 48px; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; border-radius: 999px; font-weight: 600; font-size: 14.5px; border: 1px solid var(--line-strong); color: var(--ink); background: var(--surface); cursor: pointer; font-family: var(--font-body); }
+.ms-btn.ms-pri { background: var(--green); color: #fff; border-color: var(--green); margin-left: auto; }
+.ms-btn:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+@media (max-width: 768px) {
+  .ui-modal.ms-modal { max-width: none !important; width: 100%; height: 100%; max-height: 100vh; border-radius: 0; overflow-y: auto; }
+  .ms-head { padding: 18px 16px; }
+  .ms-nums { font-size: 44px; }
+  .ms-side b { font-size: 17px; }
+  .ms-goals { grid-template-columns: 1fr 1fr; }
+  .ms-goals > div:nth-child(2) { display: none; }
+  .ms-body { grid-template-columns: minmax(0, 1fr); }
+  .ms-lft { border-right: none; border-bottom: 1px solid var(--line); }
+  .ms-cols { grid-template-columns: minmax(0, 1fr); }
+  .ms-foot { position: sticky; bottom: 0; }
+  .ms-foot .ms-pri { flex: 1; }
+}

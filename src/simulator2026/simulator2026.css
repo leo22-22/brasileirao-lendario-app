@@ -65,10 +65,6 @@
 .sm-mobile-cta { display: none; }
 
 /* Partida ao vivo (estrutura tradicional, cores creme) */
-.sm-live { width: 100%; max-width: 620px; margin: 0 auto; padding: 24px 16px 40px; color: var(--ink); box-sizing: border-box; }
-.sm-live-k { display: block; text-align: center; margin-bottom: 12px; }
-.sm-live-team { display: flex; flex-direction: column; align-items: center; gap: 8px; min-width: 0; }
-.sm-live-team b { font-family: var(--font-serif); font-weight: 500; font-size: 20px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 @media (max-width: 1200px) {
   .sm-lay { grid-template-columns: minmax(0, 1fr); }
@@ -88,4 +84,26 @@
   .sm-mobile-cta .sm-b-g { width: 100%; }
   .sm-toast { bottom: 84px; border-radius: 18px; }
   .sm-champ h2 { font-size: 30px; }
+}
+
+/* Jogo ao vivo do Simulador (simulador-2026-ao-vivo-mockup.html) */
+.sl-wrap { max-width: 1280px; margin: 0 auto; padding: 24px 32px 44px; display: flex; flex-direction: column; gap: 18px; }
+.sl-h { display: flex; align-items: center; gap: 18px; }
+.sl-h h1 { font-family: var(--font-serif); font-weight: 400; font-size: 34px; letter-spacing: -.02em; line-height: 1; margin: 6px 0 0; }
+.sl-mono-crest { width: 58px; height: 58px; border-radius: 16px; background: var(--green); display: grid; place-items: center; color: var(--gold); font-family: var(--font-serif); font-size: 15px; flex-shrink: 0; }
+.sl-back { margin-left: auto; }
+.sl-lay { display: grid; grid-template-columns: minmax(0, 1fr) 380px; gap: 20px; align-items: start; }
+.sl-lc, .sl-side { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.sl-imp { display: flex; gap: 10px; align-items: center; padding: 11px 20px; border-top: 1px solid var(--line); font-size: 13.5px; }
+.sl-imp b { font-weight: 600; display: block; }
+.sl-imp small { display: block; color: var(--muted); font-size: 12px; line-height: 1.45; }
+.sl-imp > span:last-child { margin-left: auto; font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
+.sl-eq { color: var(--muted); }
+.sl-stk small { margin-top: 3px; }
+@media (max-width: 1100px) { .sl-lay { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 768px) {
+  .sl-wrap { padding: 18px 16px 40px; }
+  .sl-h { flex-wrap: wrap; gap: 12px; }
+  .sl-h h1 { font-size: 26px; }
+  .sl-back { margin-left: 0; width: 100%; }
 }

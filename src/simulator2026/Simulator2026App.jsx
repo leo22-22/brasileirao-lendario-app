@@ -30,9 +30,12 @@ import { REAL_RESULTS_2026_THROUGH_R34 } from '../data/brasileirao-2026-real-res
 import { teamStrength, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents, MatchSummaryModal } from '../App.jsx';
 import { matchOutcomeProbabilities } from '../lib/probability.js';
 import { zoneOf, formOf, remainingByClub, stakesFor, disputes, realBaselinePositions } from '../lib/insights.js';
-import { Icon, Modal } from '../ui/index.jsx';
+import { Icon, Modal, ConfirmInline } from '../ui/index.jsx';
+import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton } from '../components/football/LiveMatchView.jsx';
+import { CLUB_STADIUMS } from '../data/info-content.js';
+import '../game/league/matchTab.css';
+import '../game/league/league.css';
 import './simulator2026.css';
-import { traditionalMatchStyles as ts } from './traditionalMatchStyles.js';
 import { displayName } from '../lib/displayName.js';
 import { ClubCrest } from '../components/football/ClubCrest.jsx';
 import { StandingsTable } from '../components/football/StandingsTable.jsx';
@@ -145,32 +148,6 @@ function prepareMatch(seed, teamById, m) {
 
 const SPEED_MS = { 1: 250, 1.5: 125, 2: 55 };
 
-// Ícone/texto de um evento do feed — cópia literal do mapeamento usado pelo
-// LiveMatchBox (App.jsx) pra render idêntico ao do Brasileirão clássico/Atual.
-function eventIcon(ev) {
-  return ev.type === 'yellow' ? '🟨'
-    : ev.type === 'red' ? (ev.secondYellow ? '🟨🟥' : '🟥')
-    : ev.type === 'injury' ? '🩹'
-    : ev.type === 'substitution' ? '🔄'
-    : ev.type === 'penalty_miss' ? '❌'
-    : (ev.isOwnGoal ? '⚽🔴' : '⚽');
-}
-function eventMainText(ev) {
-  return ev.type === 'goal' ? `${ev.scorer}${ev.isOwnGoal ? ' (contra)' : ev.isPenalty ? ' (pênalti)' : ''}`
-    : ev.type === 'substitution' ? `Entrando: ${ev.playerIn}`
-    : ev.type === 'penalty_miss' ? ev.player
-    : ev.player;
-}
-function eventSubText(ev) {
-  return ev.type === 'goal'
-    ? (ev.isOwnGoal ? `contra, ${ev.ownGoalTeamLabel}` : ev.isPenalty ? `pênalti convertido · ${ev.teamLabel}` : ev.assist ? `assist: ${ev.assist}` : ev.teamLabel)
-    : ev.type === 'yellow' ? `cartão amarelo · ${ev.teamLabel}`
-    : ev.type === 'red' ? (ev.secondYellow ? `segundo amarelo, expulso · ${ev.teamLabel}` : `expulso · ${ev.teamLabel}`)
-    : ev.type === 'substitution' ? `Saindo: ${ev.playerOut} · ${ev.teamLabel}`
-    : ev.type === 'penalty_miss' ? `pênalti perdido, defendido por ${ev.gkName || 'goleiro'} · ${ev.teamLabel}`
-    : `lesionado, sai de campo · ${ev.teamLabel}`;
-}
-
 // Processa todo evento cujo minuto já passou, acumulando placar/feed em `st`
 // (mutável) — mesma lógica do `tick()` do LiveMatchBox (App.jsx): cartão/
 // lesão entram no feed sem mexer no placar; lesão com substituto automático
@@ -202,6 +179,7 @@ function useTraditionalLiveMatch(pending) {
   const [score, setScore] = useState({ home: 0, away: 0 });
   const [shownEvents, setShownEvents] = useState([]);
   const [speed, setSpeed] = useState(1);
+  const [paused, setPaused] = useState(false);
   const speedRef = useRef(1);
   const timerRef = useRef(null);
   const stateRef = useRef({ minute: 0, evIdx: 0, hs: 0, as: 0, shown: [] });
@@ -216,10 +194,11 @@ function useTraditionalLiveMatch(pending) {
     setScore({ home: 0, away: 0 });
     setShownEvents([]);
     setSpeed(1);
+    setPaused(false);
     return () => { if (timerRef.current) clearTimeout(timerRef.current); };
   }, [pending?.key]);
 
-  if (!pending) return { phase: 'intro', minute: 0, score, shownEvents, speed, setSpeed, start: () => {}, skipToEnd: () => {} };
+  if (!pending) return { phase: 'intro', minute: 0, score, shownEvents, speed, setSpeed, paused, start: () => {}, skipToEnd: () => {}, pause: () => {}, resume: () => {} };
 
   const homeId = pending.homeTeam.id;
   const events = pending.sim.events;
@@ -244,7 +223,19 @@ function useTraditionalLiveMatch(pending) {
     timerRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
   };
 
+  // Pausar só segura o relógio: o resultado e os eventos já saíram prontos de prepareMatch.
+  const pause = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = null;
+    setPaused(true);
+  };
+  const resume = () => {
+    setPaused(false);
+    timerRef.current = setTimeout(tick, SPEED_MS[speedRef.current] ?? 250);
+  };
+
   const skipToEnd = () => {
+    setPaused(false);
     if (timerRef.current) clearTimeout(timerRef.current);
     const st = stateRef.current;
     st.minute = 1000;
@@ -256,112 +247,186 @@ function useTraditionalLiveMatch(pending) {
     setPhase('done');
   };
 
-  return { phase, minute, score, shownEvents, speed, setSpeed, start, skipToEnd };
+  return { phase, minute, score, shownEvents, speed, setSpeed, paused, start, skipToEnd, pause, resume };
 }
 
 // Tela de partida ao vivo — mesmo motor/feed "tradicional" e o mesmo
 // MatchSummaryModal do Brasileirão clássico/Atual; o redesenho de
 // 2026-11-13 só troca cores e componentes para o padrão creme (estrutura,
 // velocidades 1x/1.5x/2x e "Pular pro resultado" iguais).
-function LiveMatchScreen({ pending, roundLabel, onFinish }) {
-  const { homeTeam, awayTeam } = pending;
-  const { phase, minute, score, shownEvents, speed, setSpeed, start, skipToEnd } = useTraditionalLiveMatch(pending);
-  const hColor = homeTeam.color || '#3a85d9';
-  const aColor = awayTeam.color || '#c94040';
+function LiveMatchScreen({ pending, matchNo, totalMatches, table, upcoming, teamById, nameOf, onFinish, onBack, onQuick, isLast, seasonLeftAfter }) {
+  const { homeTeam, awayTeam, result } = pending;
+  const { phase, minute, score, shownEvents, speed, setSpeed, paused, start, skipToEnd, pause, resume } = useTraditionalLiveMatch(pending);
+  const [confirmBack, setConfirmBack] = useState(false);
+  const posOf = (t, id) => t.findIndex(r => r.id === id) + 1;
+  const rowOf = (t, id) => t.find(r => r.id === id);
+  const status = phase === 'intro' ? 'pre' : phase === 'done' ? 'done' : paused ? 'paused' : 'live';
+  const title = result.postponed ? 'Jogo atrasado · Rodada 21' : `Rodada ${result.round}`;
+  const hp = posOf(table, homeTeam.id), ap = posOf(table, awayTeam.id);
+  const stadium = CLUB_STADIUMS[homeTeam.club];
+
+  // "Se terminar assim": placar parcial aplicado numa CÓPIA da tabela
+  // (mesma conta do simulador). Recalcula só quando o placar muda.
+  const partial = useMemo(() => applyRoundToTable(table, [{ homeId: homeTeam.id, awayId: awayTeam.id, homeGoals: score.home, awayGoals: score.away }]), [table, score.home, score.away, homeTeam.id, awayTeam.id]);
+  const moves = useMemo(() => table.map(r => ({ id: r.id, b: posOf(table, r.id), a: posOf(partial, r.id) })).filter(m => m.b !== m.a && m.id !== homeTeam.id && m.id !== awayTeam.id), [table, partial, homeTeam.id, awayTeam.id]);
+  const finalTable = useMemo(() => applyRoundToTable(table, [result]), [table, result]);
+  const decidedAfter = useMemo(() => disputes(finalTable, seasonLeftAfter, nameOf), [finalTable, seasonLeftAfter, nameOf]);
+
+  const crest = (t, size) => <TeamCrest team={t} size={size} ring />;
+  const side = (t) => {
+    const r = rowOf(table, t.id);
+    return { id: t.id, raw: t, name: displayName(t.club), crest: crest(t, 72), sub: `${posOf(table, t.id)}º · ${r?.pts ?? 0} pts` };
+  };
+  const odds = matchOutcomeProbabilities(homeTeam, awayTeam);
+  const SPEEDS = [{ id: 1, label: '1x' }, { id: 1.5, label: '1,5x' }, { id: 2, label: '2x' }];
+  const afterSub = (id) => {
+    const p2 = posOf(finalTable, id);
+    const r = rowOf(finalTable, id);
+    if (decidedAfter.title.decided && decidedAfter.title.leader === id) return `${p2}º · campeão`;
+    if (decidedAfter.z4.relegated.includes(id)) return `${p2}º · rebaixado`;
+    return `${p2}º · ${r?.pts ?? 0} pts`;
+  };
+  const impact = table.map(r => ({ id: r.id, b: posOf(table, r.id), a: posOf(finalTable, r.id) }))
+    .filter(m => m.b !== m.a || m.id === homeTeam.id || m.id === awayTeam.id)
+    .sort((x, y) => (y.b - y.a) - (x.b - x.a))
+    .slice(0, 6)
+    .map(m => ({
+      key: m.id, name: nameOf(m.id),
+      text: decidedAfter.z4.relegated.includes(m.id) && m.b === m.a ? 'rebaixado' : m.b === m.a ? `segue ${m.a}º` : `${m.b}º → ${m.a}º`,
+      tone: m.a < m.b ? 'up' : m.a > m.b || decidedAfter.z4.relegated.includes(m.id) ? 'down' : null,
+    }));
+
+  const header = (
+    <div className="sl-h">
+      <div className="sl-mono-crest" aria-hidden="true">2026</div>
+      <div style={{ minWidth: 0 }}>
+        <span className="ng-mono">Simulador do Brasileirão 2026 · jogo {matchNo} de {totalMatches}</span>
+        <h1>{title}</h1>
+        <div className="lg-tags">
+          <span className="lg-tag">{displayName(homeTeam.club)} {hp}º × {displayName(awayTeam.club)} {ap}º</span>
+          {status === 'live' && <span className="lg-tag lg-tag-gold">Ao vivo</span>}
+          {status === 'paused' && <span className="lg-tag lg-tag-gold">Pausado</span>}
+        </div>
+      </div>
+      <button type="button" className="lg-btn sl-back" onClick={() => (status === 'live' || status === 'paused' ? setConfirmBack(true) : onBack())}><Icon name="chevronLeft" size={14} />Voltar ao simulador</button>
+    </div>
+  );
 
   return (
-    <div className="sm-live">
-      <span className="ng-mono sm-live-k">{roundLabel}</span>
-      <div style={ts.liveMatchBox}>
-        <div style={ts.liveTeamsRow}>
-          <div className="sm-live-team sm-live-h">
-            <TeamCrest team={homeTeam} size={44} />
-            <b>{displayName(homeTeam.club)}</b>
-          </div>
-          <div style={ts.liveScoreBlock} aria-live="polite" aria-label={phase === 'intro' ? 'Partida não iniciada' : `${displayName(homeTeam.club)} ${score.home} a ${score.away} ${displayName(awayTeam.club)}`}>
-            <span style={ts.liveScoreNum}>{phase === 'intro' ? '–' : score.home}</span>
-            <span style={ts.liveScoreDash}>×</span>
-            <span style={ts.liveScoreNum}>{phase === 'intro' ? '–' : score.away}</span>
-          </div>
-          <div className="sm-live-team sm-live-a">
-            <TeamCrest team={awayTeam} size={44} />
-            <b>{displayName(awayTeam.club)}</b>
-          </div>
+    <div className="sl-wrap">
+      {header}
+      {confirmBack && (
+        <ConfirmInline
+          text="Voltar agora não muda o placar: o resultado deste jogo já está definido e volta igual quando você jogar de novo."
+          confirmLabel="Voltar ao simulador" tone="dark"
+          onConfirm={() => { setConfirmBack(false); onBack(); }} onCancel={() => setConfirmBack(false)}
+        />
+      )}
+      <div className="sl-lay">
+        <div className="sl-lc">
+          {status === 'pre' ? (
+            <MatchPreviewCard
+              size="md"
+              eyebrow={`Mando do ${displayName(homeTeam.club)}${stadium ? ` · ${stadium}` : ''}`}
+              home={{ crest: crest(homeTeam, 72), name: displayName(homeTeam.club), sub: `${hp}º · ${rowOf(table, homeTeam.id)?.pts ?? 0} pts`, form: formOf(homeTeam.id, REAL_RESULTS_2026_THROUGH_R34, upcoming.log) }}
+              away={{ crest: crest(awayTeam, 72), name: displayName(awayTeam.club), sub: `${ap}º · ${rowOf(table, awayTeam.id)?.pts ?? 0} pts`, form: formOf(awayTeam.id, REAL_RESULTS_2026_THROUGH_R34, upcoming.log) }}
+              probs={{ home: odds.homeWin, draw: odds.draw, away: odds.awayWin }}
+              actions={(
+                <>
+                  <button type="button" className="sm-b-o" onClick={onQuick}><Icon name="forward" size={16} />Só o resultado</button>
+                  <button type="button" className="sm-b-g" onClick={start}><Icon name="play" size={16} />Jogar ao vivo</button>
+                </>
+              )}
+            />
+          ) : (
+            <LiveScoreboard
+              eyebrow={`Mando do ${displayName(homeTeam.club)}${stadium ? ` · ${stadium}` : ''}`}
+              status={status}
+              home={side(homeTeam)}
+              away={side(awayTeam)}
+              score={score}
+              minute={minute}
+              events={shownEvents}
+              controls={status === 'done' ? null : (
+                <>
+                  <LiveSeg label="Velocidade" options={SPEEDS} value={speed} onChange={setSpeed} />
+                  <LiveButton tone="ghost" icon="forward" onClick={skipToEnd}>Pular para o resultado</LiveButton>
+                  {status === 'live' ? <LiveButton icon="clock" onClick={pause}>Pausar</LiveButton> : <LiveButton icon="play" onClick={resume}>Continuar</LiveButton>}
+                </>
+              )}
+            />
+          )}
+          {status !== 'pre' && <LiveFeed events={shownEvents} homeId={homeTeam.id} homeName={displayName(homeTeam.club)} awayName={displayName(awayTeam.club)} minute={minute} status={status} />}
         </div>
-
-        {phase !== 'intro' && (
-          <div style={ts.clockRow}>
-            <div style={{ ...ts.clock, color: phase === 'playing' ? 'var(--success)' : 'var(--ink)' }}>{minute}'</div>
-            {phase === 'playing' && <div style={ts.clockPulse} />}
-            {phase === 'playing' && (
-              <div className="ng-seg" role="group" aria-label="Velocidade" style={{ marginLeft: 6 }}>
-                {[1, 1.5, 2].map(sp => (
-                  <button key={sp} type="button" className={speed === sp ? 'ng-on' : ''} aria-pressed={speed === sp} onClick={() => setSpeed(sp)} style={{ height: 30, padding: '0 12px', fontFamily: 'var(--font-mono)', fontSize: 12 }}>{String(sp).replace('.', ',')}x</button>
-                ))}
-              </div>
-            )}
-            {phase === 'done' && <div style={ts.clockFull}>Tempo encerrado</div>}
-          </div>
-        )}
-
-        {shownEvents.length > 0 && (
-          <div style={ts.matchCenter}>
-            {shownEvents.map((ev, i) => {
-              const isHomeSide = ev.teamId === homeTeam.id;
-              const sideColor = isHomeSide ? hColor : aColor;
-              const content = (
-                <div style={{ ...ts.matchCenterCard, borderColor: hexToRgbaSafe(sideColor, 0.33), background: hexToRgbaSafe(sideColor, 0.08), flexDirection: isHomeSide ? 'row' : 'row-reverse' }}>
-                  <span style={{ fontSize: 15 }} aria-hidden="true">{eventIcon(ev)}</span>
-                  <div style={{ ...ts.matchCenterInfo, textAlign: isHomeSide ? 'left' : 'right' }}>
-                    <span style={ts.goalScorer}>{eventMainText(ev)}</span>
-                    <span style={ts.goalTeam}>{eventSubText(ev)}</span>
+        <div className="sl-side">
+          {status !== 'pre' && (
+            <section className="lg-card">
+              <div className="lg-ch"><h3>Se terminar assim</h3><span className="lg-small">impacto na tabela</span></div>
+              {[homeTeam, awayTeam].map(t => {
+                const b = posOf(table, t.id), a2 = posOf(partial, t.id);
+                return (
+                  <div key={t.id} className="sl-imp">
+                    <TeamCrest team={t} size={20} />
+                    <div style={{ minWidth: 0 }}><b>{displayName(t.club)}</b><small>{rowOf(table, t.id)?.pts ?? 0} → {rowOf(partial, t.id)?.pts ?? 0} pts</small></div>
+                    <span className={a2 < b ? 'tb-up' : a2 > b ? 'tb-dn' : 'sl-eq'}>{a2 === b ? `segue ${a2}º` : `${b}º → ${a2}º`}</span>
                   </div>
+                );
+              })}
+              {moves.slice(0, 4).map(m => (
+                <div key={m.id} className="sl-imp">
+                  <TeamCrest team={teamById[m.id]} size={20} />
+                  <div style={{ minWidth: 0 }}><b>{nameOf(m.id)}</b><small>{rowOf(table, m.id)?.pts ?? 0} pts</small></div>
+                  <span className={m.a < m.b ? 'tb-up' : 'tb-dn'}>{m.b}º → {m.a}º</span>
                 </div>
-              );
-              return (
-                <div key={i} style={ts.matchCenterRow}>
-                  <div style={{ ...ts.matchCenterSide, justifyContent: 'flex-end' }}>{isHomeSide && content}</div>
-                  <div style={ts.matchCenterMinuteCol}>
-                    <span style={ts.goalMinute}>{ev.minute}'</span>
-                    <span style={ts.goalScore}>{ev.homeScore}–{ev.awayScore}</span>
-                  </div>
-                  <div style={{ ...ts.matchCenterSide, justifyContent: 'flex-start' }}>{!isHomeSide && content}</div>
+              ))}
+            </section>
+          )}
+          <section className="lg-card">
+            <div className="lg-ch"><h3>O que está em jogo</h3></div>
+            {[homeTeam, awayTeam].map(t => (
+              <div key={t.id} className="sl-imp sl-stk"><div><b>{displayName(t.club)}</b><small>{stakesFor(table, result, t.id, nameOf)}</small></div></div>
+            ))}
+          </section>
+          {upcoming.next.length > 0 && (
+            <section className="lg-card">
+              <div className="lg-ch"><h3>Na sequência</h3><span className="lg-small">{upcoming.next[0].m.postponed ? 'R21' : `Rodada ${upcoming.next[0].m.round}`}</span></div>
+              {upcoming.next.map(({ m, no }) => (
+                <div key={no} className="sl-imp">
+                  <TeamCrest team={teamById[m.homeId]} size={20} />
+                  <div style={{ minWidth: 0 }}><b>{nameOf(m.homeId)} × {nameOf(m.awayId)}</b><small>jogo {no} de {totalMatches}</small></div>
                 </div>
-              );
-            })}
-          </div>
-        )}
-        {shownEvents.length === 0 && phase === 'done' && <div style={ts.noGoalsMsg}>Sem gols: 0 × 0</div>}
+              ))}
+            </section>
+          )}
+        </div>
       </div>
 
-      {phase === 'intro' && (
-        <button type="button" className="ui-btn ui-btn-dark ui-btn-lg ui-btn-block" onClick={start}><Icon name="play" size={16} />Jogar partida</button>
-      )}
-      {phase === 'playing' && (
-        <button type="button" className="ui-btn ui-btn-ghost ui-btn-md ui-btn-block" onClick={skipToEnd}><Icon name="forward" size={16} />Pular pro resultado</button>
-      )}
-
-      {phase === 'done' && (
+      {status === 'done' && (
         <MatchSummaryModal
           ratings={pending.sim.ratings}
           match={{ homeId: homeTeam.id, awayId: awayTeam.id }}
           score={{ homeGoals: score.home, awayGoals: score.away }}
           homeTeam={homeTeam}
           awayTeam={awayTeam}
+          homeName={displayName(homeTeam.club)}
+          awayName={displayName(awayTeam.club)}
           myTeamId={null}
           myTeamColor="#C29A45"
-          onDismiss={onFinish}
+          events={shownEvents}
+          eyebrow={`Fim de jogo · ${result.postponed ? 'jogo atrasado da rodada 21' : `rodada ${result.round}`}`}
+          eyebrowRight={`jogo ${matchNo} de ${totalMatches}`}
+          homeSub={afterSub(homeTeam.id)}
+          awaySub={afterSub(awayTeam.id)}
+          impact={impact}
+          secondary={{ label: 'Ver tabela', onClick: () => onFinish('table') }}
+          nextText={upcoming.next[0] ? `Próximo: ${nameOf(upcoming.next[0].m.homeId)} × ${nameOf(upcoming.next[0].m.awayId)} · ${upcoming.next[0].m.postponed ? 'R21' : `Rodada ${upcoming.next[0].m.round}`}` : null}
+          primaryLabel={isLast ? 'Ver campeão' : 'Próximo jogo'}
+          primaryIcon={isLast ? 'trophy' : 'chevronRight'}
+          onDismiss={() => onFinish(isLast ? 'end' : 'next')}
         />
       )}
     </div>
   );
-}
-
-function hexToRgbaSafe(hex, a) {
-  const m = /^#?([0-9a-f]{6})$/i.exec(hex || '');
-  if (!m) return `rgba(194,154,69,${a})`;
-  const n = parseInt(m[1], 16);
-  return `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},${a})`;
 }
 
 // Agrupamento da faixa de progresso: o jogo atrasado da R21 e as rodadas 35–38.
@@ -380,7 +445,15 @@ const groupLabel = (g) => (g.postponed ? 'R21 · atr.' : `Rodada ${g.round}`);
 
 export function Simulator2026App({ onExit }) {
   const [teams] = useState(buildTeams);
-  const [save, setSave] = useState(() => loadSave() || buildInitialState(teams));
+  const [save, setSave] = useState(() => {
+    const saved = loadSave();
+    if (saved) return saved;
+    // Grava a seed já na criação: sem isso, recarregar antes do 1º resultado
+    // sorteava outra seed e o mesmo jogo saía com outro placar.
+    const fresh = buildInitialState(teams);
+    persistSave(fresh);
+    return fresh;
+  });
   const [pendingMatch, setPendingMatch] = useState(null); // { key, ...prepareMatch() } | null
   const [confirmReset, setConfirmReset] = useState(false);
   const [toast, setToast] = useState(null);
@@ -426,12 +499,22 @@ export function Simulator2026App({ onExit }) {
     setToast(resultText(result));
   };
 
-  const handleFinishMatch = () => {
+  // mode: 'next' (já abre o próximo jogo), 'table' (volta e rola até a
+  // classificação), 'end' (último jogo: volta para o campeão).
+  const handleFinishMatch = (mode) => {
     if (!pendingMatch) return;
     const r = pendingMatch.result;
-    setSave(prev => applyResult(prev, r));
-    setPendingMatch(null);
+    const nextSave = applyResult(save, r);
+    setSave(nextSave);
     setToast(resultText(r));
+    const nm = REMAINING_MATCHES[nextSave.matchIdx];
+    if (mode === 'next' && nm) {
+      setPendingMatch({ key: nextSave.matchIdx, ...prepareMatch(nextSave.seed, teamById, nm) });
+      window.scrollTo?.(0, 0);
+      return;
+    }
+    setPendingMatch(null);
+    if (mode === 'table') requestAnimationFrame(() => document.getElementById('sm-tbl-h')?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   };
 
   // Reseta para a rodada 34 com uma seed NOVA (aleatória).
@@ -446,8 +529,24 @@ export function Simulator2026App({ onExit }) {
   };
 
   if (pendingMatch) {
-    const roundLabel = pendingMatch.result.postponed ? 'Jogo atrasado · Rodada 21' : `Brasileirão 2026 · Rodada ${pendingMatch.result.round}`;
-    return <LiveMatchScreen pending={pendingMatch} roundLabel={roundLabel} onFinish={handleFinishMatch} />;
+    const idx = pendingMatch.key;
+    const next = [idx + 1, idx + 2].filter(i => i < totalMatches).map(i => ({ m: REMAINING_MATCHES[i], no: i + 1 }));
+    return (
+      <LiveMatchScreen
+        pending={pendingMatch}
+        matchNo={idx + 1}
+        totalMatches={totalMatches}
+        table={save.table}
+        upcoming={{ next, log: save.log }}
+        seasonLeftAfter={remainingByClub(REMAINING_MATCHES, idx + 1)}
+        teamById={teamById}
+        nameOf={nameOf}
+        isLast={idx + 1 >= totalMatches}
+        onFinish={handleFinishMatch}
+        onBack={() => setPendingMatch(null)}
+        onQuick={() => { const r = pendingMatch.result; setSave(prev => applyResult(prev, r)); setPendingMatch(null); setToast(resultText(r)); }}
+      />
+    );
   }
 
   const table = save.table;
