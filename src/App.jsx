@@ -177,6 +177,9 @@ export function matchPrng(roomSeed, roundKey, homeId, awayId) {
 // logo abaixo), então o jogador da rodada anterior volta sozinho pro OVR
 // normal assim que deixa de ser a mais recente da lista — não tem passo
 // manual de "desfazer".
+// `rating` (opcional, por jogador): nota Sofascore real da rodada — o card da
+// home e o WeeklyTeamModal só mostram a nota quando ela está preenchida
+// (nunca inventar: sem a nota oficial, fica sem o número).
 const WEEKLY_TEAMS = [
   {
     round: 27,
@@ -7840,6 +7843,11 @@ function WeeklyTeamModal({ onClose }) {
                   </div>
                   <div style={{ fontSize: 11, color: 'var(--muted)' }}>{wp.posLabel}{wp.team ? ` · ${wp.team.club}` : ''}</div>
                 </div>
+                {wp.rating != null && (
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--success)', background: 'var(--success-soft)', borderRadius: 6, padding: '2px 6px', flexShrink: 0 }}>
+                    {Number(wp.rating).toFixed(1).replace('.', ',')}
+                  </div>
+                )}
                 {isCurrent && (
                   <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 800, color: gold, flexShrink: 0 }}>
                     +{isCraque ? 5 : 3}
@@ -7849,6 +7857,10 @@ function WeeklyTeamModal({ onClose }) {
             );
           })}
         </div>
+
+        <p style={{ margin: '14px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>
+          Notas da rodada real do Brasileirão {enriched.find(p => p.team?.year)?.team.year ?? ''} · fonte: Sofascore
+        </p>
       </div>
     </div>
   );
@@ -9990,7 +10002,7 @@ function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
 export function MatchSummaryModal({
   ratings, match, score, homeTeam, awayTeam, myTeamId, myTeamColor, onDismiss,
   events = [], eyebrow = 'Fim de jogo', eyebrowRight, homeSub, awaySub, homeName, awayName, impact = null,
-  secondary = null, nextText, primaryLabel = 'Continuar', primaryIcon,
+  secondary = null, nextText, primaryLabel = 'Continuar', primaryIcon, onClose,
 }) {
   if (!ratings?.length || !match) return null;
   const mc = teamInk(myTeamColor || '#C29A45');
@@ -10017,6 +10029,7 @@ export function MatchSummaryModal({
       secondary={secondary}
       nextText={nextText}
       primary={{ label: primaryLabel, onClick: onDismiss, icon: primaryIcon }}
+      onClose={onClose}
     />
   );
 }
@@ -10714,6 +10727,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-selecao-home-e-fim-de-jogo',
+    date: 'Novembro de 2026',
+    title: 'Seleção da rodada repaginada e fim de jogo que dá pra fechar',
+    desc: 'O card da Seleção da rodada na home ganhou visual novo: destaque para o craque da rodada, os 11 em campo, o bônus de OVR que eles levam pro draft e a fonte das notas (rodada real do Brasileirão, notas Sofascore), com atalhos para os cards dourados e a Supercopa do dia. No Simulador 2026, o X do resumo de fim de jogo agora só fecha o resumo: dá pra rever o lance a lance, a linha do tempo e as substituições, reabrir o resumo e seguir para o próximo jogo quando quiser.',
+  },
   {
     id: '2026-11-substituicoes',
     date: 'Novembro de 2026',

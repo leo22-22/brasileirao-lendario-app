@@ -41,6 +41,7 @@ function ModeIcon({ id, color = '#0D3A29', size = 22 }) {
 }
 
 const TEAMS_PER_ERA = 8;
+const fmtRating = (n) => Number(n).toFixed(1).replace('.', ',');
 
 // Mesma lógica de posicionamento do campinho do WeeklyTeamModal (App.jsx) —
 // reaproveitada aqui via props (weekRoleInfo/weekLineTopPct), igual o
@@ -73,6 +74,13 @@ export function HomeLanding({
   const [era, setEra] = useState('all');
 
   const lines = useWeeklyPitch(weeklyTeam, weekRoleInfo);
+  // Tudo do card da Seleção sai dos dados da rodada: ano pelos clubes
+  // (elencos 2026), bônus pelo que applyWeeklyTeamBoost gravou nos jogadores
+  // e nota Sofascore só quando a rodada tiver o campo `rating` preenchido.
+  const allWeekly = useMemo(() => Object.values(lines).flat(), [lines]);
+  const craqueInfo = allWeekly.find(p => p.craque) || null;
+  const weeklyYear = allWeekly.find(p => p.team?.year)?.team.year ?? '';
+  const weeklyBonus = allWeekly.find(p => !p.craque && p.player?.weeklyBoost)?.player.weeklyBoost ?? null;
 
   const serieABMode = {
     id: 'serieab', color: mc, title: 'Brasileirão Lendário', sub: '40 times · Série A e B',
@@ -115,49 +123,80 @@ export function HomeLanding({
         </div>
 
         <div className="hl-hero-art">
-          <button className="hl-pitchcard" onClick={onOpenWeeklyTeam}>
+          <div className="hl-pitchcard">
+            <span className="hl-pc-ring" aria-hidden="true" />
             <div className="hl-pc-head">
-              <div className="hl-t">Seleção da {weeklyTeam.label}<small>os 11 melhores da rodada</small></div>
+              <div>
+                <div className="hl-pc-k">Brasileirão {weeklyYear} real · notas Sofascore</div>
+                <div className="hl-t">Seleção da {weeklyTeam.label}</div>
+              </div>
+              {weeklyBonus != null && <span className="hl-pc-pill">+{weeklyBonus} OVR no draft</span>}
             </div>
-            <PitchSurface className="hl-field">
-              {Object.entries(lines).map(([line, linePlayers]) => linePlayers.map((p, i) => {
-                const leftPct = ((i + 1) / (linePlayers.length + 1)) * 100;
-                const topPct = weekLineTopPct[line] ?? 50;
-                const isCraque = !!p.craque;
-                return (
-                  <div key={p.teamId + p.name} className={`hl-p${isCraque ? ' hl-gold' : ''}`} style={{ left: `${leftPct}%`, top: `${topPct}%` }}>
-                    <div className="hl-dot">
-                      {p.team && CLUB_LOGOS[p.team.club]
-                        ? <img src={CLUB_LOGOS[p.team.club]} alt="" />
-                        : p.abbr}
+
+            {craqueInfo && (
+              <button type="button" className="hl-pc-craque" onClick={onOpenWeeklyTeam}>
+                <span className="hl-pc-cq-ring" aria-hidden="true" />
+                <span className="hl-pc-cq-crest">
+                  {craqueInfo.team && CLUB_LOGOS[craqueInfo.team.club] ? <img src={CLUB_LOGOS[craqueInfo.team.club]} alt="" /> : craqueInfo.abbr}
+                </span>
+                <span className="hl-pc-cq-txt">
+                  <span className="hl-pc-k hl-pc-k-gold">Craque da rodada · Sofascore</span>
+                  <b>{craqueInfo.name}</b>
+                  <small>{[craqueInfo.team ? displayName(craqueInfo.team.club) : null, craqueInfo.posLabel].filter(Boolean).join(' · ')}</small>
+                </span>
+                <span className="hl-pc-cq-r">
+                  {craqueInfo.rating != null && <b>{fmtRating(craqueInfo.rating)}</b>}
+                  {craqueInfo.player?.weeklyBoost && <span>+{craqueInfo.player.weeklyBoost} OVR</span>}
+                </span>
+              </button>
+            )}
+
+            <button type="button" className="hl-pc-pitchbtn" onClick={onOpenWeeklyTeam} aria-label={`Ver a Seleção da ${weeklyTeam.label}`}>
+              <PitchSurface className="hl-field">
+                {Object.entries(lines).map(([line, linePlayers]) => linePlayers.map((p, i) => {
+                  // Linha com 4+ (defesa): pontas abertas e um pouco acima,
+                  // centrais um pouco abaixo — as pílulas não se encostam.
+                  const n = linePlayers.length;
+                  const wide = n >= 4;
+                  const outer = i === 0 || i === n - 1;
+                  const leftPct = wide ? 17 + (i * 66) / (n - 1) : ((i + 1) / (n + 1)) * 100;
+                  const topPct = (weekLineTopPct[line] ?? 50) + (wide ? (outer ? -5 : 5) : 0);
+                  const isCraque = !!p.craque;
+                  return (
+                    <div key={p.teamId + p.name} className={`hl-pill${isCraque ? ' hl-gold' : ''}`} style={{ left: `${leftPct}%`, top: `${topPct}%` }}>
+                      <span className="hl-pill-dot">
+                        {p.team && CLUB_LOGOS[p.team.club] ? <img src={CLUB_LOGOS[p.team.club]} alt="" /> : p.abbr}
+                      </span>
+                      <span className="hl-pill-n">{p.name}</span>
+                      {p.rating != null && <span className="hl-pill-r">{fmtRating(p.rating)}</span>}
                     </div>
-                    <span className="hl-n">{p.name}</span>
-                  </div>
-                );
-              }))}
-            </PitchSurface>
-          </button>
-          <div className="hl-hero-floats">
-            {weeklyCraque && (
-              <button className="hl-float hl-a" onClick={onOpenWeeklyTeam}>
-                <div className="hl-k">Seleção da {weeklyTeam.label}</div>
-                <div className="hl-v">{weeklyCraque.name} é o craque</div>
+                  );
+                }))}
+              </PitchSurface>
+            </button>
+
+            <p className="hl-pc-src">Notas da rodada real do Brasileirão {weeklyYear} · fonte: Sofascore</p>
+
+            <div className="hl-pc-foot">
+              <button type="button" className="hl-pc-fb" onClick={onOpenWeeklyTeam}>
+                <span className="hl-pc-fi" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M8 3 4 6l2 4 2-1v12h8V9l2 1 2-4-4-3c-.5 1.5-2 2.5-4 2.5S8.5 4.5 8 3z" /></svg></span>
+                <span className="hl-pc-ft"><small>Vale no draft</small><b>Cards dourados</b></span>
+                <ArrowIcon />
               </button>
-            )}
-            {dailyChallenge && (
-              <button
-                className="hl-float hl-b"
-                onClick={() => !dailyChallengeAlreadyPlayed && onOpenDailyChallenge()}
-                style={dailyChallengeAlreadyPlayed ? { cursor: 'default', opacity: 0.75 } : undefined}
-              >
-                <div className="hl-k">Supercopa do dia</div>
-                <div className="hl-v">
-                  {dailyChallengeAlreadyPlayed
-                    ? 'Feita hoje'
-                    : `vs. ${parseTeamLabel(dailyChallenge.opponent.label).baseName}`}
-                </div>
-              </button>
-            )}
+              {dailyChallenge && (
+                <button
+                  type="button"
+                  className="hl-pc-fb"
+                  onClick={() => !dailyChallengeAlreadyPlayed && onOpenDailyChallenge()}
+                  aria-disabled={dailyChallengeAlreadyPlayed || undefined}
+                  style={dailyChallengeAlreadyPlayed ? { cursor: 'default', opacity: 0.75 } : undefined}
+                >
+                  <span className="hl-pc-fi" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0V4z" /><path d="M12 13v4M8.5 20h7" /></svg></span>
+                  <span className="hl-pc-ft"><small>Supercopa do dia</small><b>{dailyChallengeAlreadyPlayed ? 'Feita hoje' : `vs. ${parseTeamLabel(dailyChallenge.opponent.label).baseName}`}</b></span>
+                  <ArrowIcon />
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>

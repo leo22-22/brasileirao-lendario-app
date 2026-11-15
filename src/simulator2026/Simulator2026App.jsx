@@ -253,6 +253,9 @@ function useTraditionalLiveMatch(pending) {
 function LiveMatchScreen({ pending, matchNo, totalMatches, table, upcoming, teamById, nameOf, onFinish, onBack, onQuick, isLast, seasonLeftAfter }) {
   const { homeTeam, awayTeam, result } = pending;
   const { phase, minute, score, shownEvents, speed, setSpeed, paused, start, skipToEnd, pause, resume } = useTraditionalLiveMatch(pending);
+  // Resumo do fim de jogo aberto por padrão; o X só fecha (não avança).
+  const [summaryOpen, setSummaryOpen] = useState(true);
+  useEffect(() => { if (phase === 'done') setSummaryOpen(true); }, [phase, pending?.key]);
   const [confirmBack, setConfirmBack] = useState(false);
   const posOf = (t, id) => t.findIndex(r => r.id === id) + 1;
   const rowOf = (t, id) => t.find(r => r.id === id);
@@ -343,7 +346,14 @@ function LiveMatchScreen({ pending, matchNo, totalMatches, table, upcoming, team
               score={score}
               minute={minute}
               events={shownEvents}
-              controls={status === 'done' ? null : (
+              controls={status === 'done' ? (
+                // Fechou o resumo pelo X: dá pra rever o jogo (lance a lance,
+                // linha do tempo, trocas) e seguir quando quiser.
+                <>
+                  <LiveButton tone="ghost" icon="list" onClick={() => setSummaryOpen(true)}>Ver resumo</LiveButton>
+                  <LiveButton icon={isLast ? 'trophy' : 'chevronRight'} onClick={() => onFinish(isLast ? 'end' : 'next')}>{isLast ? 'Ver campeão' : 'Próximo jogo'}</LiveButton>
+                </>
+              ) : (
                 <>
                   <LiveSeg label="Velocidade" options={SPEEDS} value={speed} onChange={setSpeed} />
                   <LiveButton tone="ghost" icon="forward" onClick={skipToEnd}>Pular para o resultado</LiveButton>
@@ -404,7 +414,7 @@ function LiveMatchScreen({ pending, matchNo, totalMatches, table, upcoming, team
         </div>
       </div>
 
-      {status === 'done' && (
+      {status === 'done' && summaryOpen && (
         <MatchSummaryModal
           ratings={pending.sim.ratings}
           match={{ homeId: homeTeam.id, awayId: awayTeam.id }}
@@ -426,6 +436,7 @@ function LiveMatchScreen({ pending, matchNo, totalMatches, table, upcoming, team
           primaryLabel={isLast ? 'Ver campeão' : 'Próximo jogo'}
           primaryIcon={isLast ? 'trophy' : 'chevronRight'}
           onDismiss={() => onFinish(isLast ? 'end' : 'next')}
+          onClose={() => setSummaryOpen(false)}
         />
       )}
     </div>

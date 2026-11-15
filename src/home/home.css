@@ -43,9 +43,41 @@
 .hl-stats div span { font-size: 13px; color: var(--hl-muted); }
 
 .hl-hero-art { position: relative; }
-.hl-pitchcard { position: relative; background: var(--hl-green); border-radius: 26px; padding: 22px; color: #fff; box-shadow: 0 32px 64px -26px rgba(13,58,41,.45); cursor: pointer; border: none; text-align: left; width: 100%; font-family: Inter, sans-serif; }
-.hl-pc-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.hl-pc-head .hl-t { font-family: 'Fraunces', Georgia, serif; font-size: 18px; }
+.hl-pitchcard { position: relative; overflow: hidden; background: var(--hl-green); border-radius: 26px; padding: 22px; color: #fff; box-shadow: 0 32px 64px -26px rgba(13,58,41,.45); text-align: left; width: 100%; font-family: Inter, sans-serif; }
+.hl-pitchcard > :not(.hl-pc-ring) { position: relative; }
+.hl-pc-ring { position: absolute; right: -90px; top: -110px; width: 300px; height: 300px; border: 1px solid rgba(194,154,69,.28); border-radius: 50%; pointer-events: none; }
+.hl-pc-k { font-family: 'JetBrains Mono', monospace; font-size: 10.5px; letter-spacing: .08em; text-transform: uppercase; color: #A9C2B5; }
+.hl-pc-k-gold { color: #F6EEDB; }
+.hl-pc-pill { flex-shrink: 0; background: rgba(194,154,69,.18); color: #F2D79A; border-radius: 999px; padding: 5px 11px; font-size: 12px; font-weight: 500; }
+.hl-pc-craque { position: relative; overflow: hidden; display: flex; align-items: center; gap: 14px; width: 100%; margin-bottom: 14px; padding: 16px 18px; border: none; border-radius: 18px; background: linear-gradient(135deg, #8A6A24, #C29A45); color: #fff; text-align: left; cursor: pointer; font-family: Inter, sans-serif; }
+.hl-pc-cq-ring { position: absolute; right: -40px; top: -50px; width: 150px; height: 150px; border: 1px solid rgba(255,255,255,.25); border-radius: 50%; pointer-events: none; }
+.hl-pc-cq-crest { width: 48px; height: 48px; border-radius: 50%; background: #fff; border: 3px solid #fff; display: grid; place-items: center; flex-shrink: 0; overflow: hidden; color: var(--hl-green); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+.hl-pc-cq-crest img { width: 34px; height: 34px; object-fit: contain; }
+.hl-pc-cq-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hl-pc-cq-txt b { font-family: 'Fraunces', Georgia, serif; font-weight: 500; font-size: 24px; line-height: 1.15; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hl-pc-cq-txt small { font-size: 12.5px; color: #F6EEDB; }
+.hl-pc-cq-r { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex-shrink: 0; }
+.hl-pc-cq-r b { font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 38px; line-height: 1; }
+.hl-pc-cq-r span { background: #fff; color: #7A5B1C; border-radius: 999px; padding: 2px 9px; font-size: 11.5px; font-weight: 600; }
+.hl-pc-pitchbtn { display: block; width: 100%; padding: 0; border: none; background: none; cursor: pointer; border-radius: 18px; }
+.hl-pc-pitchbtn:focus-visible, .hl-pc-craque:focus-visible, .hl-pc-fb:focus-visible { outline: 2px solid var(--hl-gold); outline-offset: 3px; }
+.hl-pill { position: absolute; transform: translate(-50%,-50%); display: flex; align-items: center; gap: 7px; background: #FBF9F4; color: var(--hl-ink); border-radius: 999px; padding: 4px 6px 4px 4px; box-shadow: 0 6px 14px rgba(0,0,0,.25); white-space: nowrap; font-size: 12.5px; font-weight: 500; }
+.hl-pill.hl-gold { background: var(--hl-gold); color: #fff; }
+.hl-pill-dot { width: 24px; height: 24px; border-radius: 50%; background: #fff; display: grid; place-items: center; overflow: hidden; flex-shrink: 0; font-family: 'JetBrains Mono', monospace; font-size: 8.5px; color: var(--hl-green); }
+.hl-pill-dot img { width: 18px; height: 18px; object-fit: contain; }
+.hl-pill-n { max-width: 120px; overflow: hidden; text-overflow: ellipsis; padding-right: 4px; }
+.hl-pill-r { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600; color: #1F7A4D; background: #E3F0E8; border-radius: 6px; padding: 2px 6px; }
+.hl-pill.hl-gold .hl-pill-r { background: #fff; color: #7A5B1C; }
+.hl-pc-src { margin: 12px 0 0; font-size: 11.5px; color: #8FAA9C; }
+.hl-pc-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
+.hl-pc-fb { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: none; border-radius: 14px; background: rgba(255,255,255,.06); color: #fff; text-align: left; cursor: pointer; font-family: Inter, sans-serif; min-width: 0; }
+.hl-pc-fb:hover { background: rgba(255,255,255,.1); }
+.hl-pc-fi { width: 36px; height: 36px; border-radius: 10px; border: 1px solid rgba(194,154,69,.6); color: var(--hl-gold); display: grid; place-items: center; flex-shrink: 0; }
+.hl-pc-ft { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.hl-pc-ft small { font-size: 11.5px; color: #A9C2B5; }
+.hl-pc-ft b { font-weight: 600; font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hl-pc-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 16px; }
+.hl-pc-head .hl-t { font-family: 'Fraunces', Georgia, serif; font-size: 24px; font-weight: 400; margin-top: 6px; }
 .hl-pc-head .hl-t small { display: block; font-family: Inter, sans-serif; font-size: 11.5px; color: #A9C2B5; margin-top: 2px; font-weight: 400; }
 .hl-field { height: 400px; }
 .hl-p { position: absolute; transform: translate(-50%,-50%); display: flex; flex-direction: column; align-items: center; gap: 4px; width: 60px; }
@@ -164,7 +196,16 @@
   .hl-teams { grid-template-columns: 1fr 1fr; gap: 12px; }
   .hl-float { position: static !important; width: 100% !important; margin-top: 10px; }
   .hl-hero-floats { display: flex; flex-direction: column; gap: 10px; margin-top: 14px; }
-  .hl-pitchcard { padding-bottom: 20px; }
+  .hl-pitchcard { padding: 18px 16px 20px; }
+  .hl-pc-foot { grid-template-columns: 1fr; }
+  .hl-pill { font-size: 11px; gap: 5px; padding: 3px 5px 3px 3px; }
+  .hl-pill-dot { width: 20px; height: 20px; }
+  .hl-pill-dot img { width: 15px; height: 15px; }
+  .hl-pill-n { max-width: 78px; }
+  .hl-pill-r { font-size: 10px; padding: 1px 4px; }
+  .hl-pc-cq-txt b { font-size: 20px; }
+  .hl-pc-cq-r b { font-size: 30px; }
+  .hl-pc-head .hl-t { font-size: 20px; }
   .hl-band-cta { padding: 36px 24px; text-align: left; }
   .hl-band-cta h2 { font-size: 28px; }
   .hl-footer { flex-direction: column; align-items: flex-start; }
