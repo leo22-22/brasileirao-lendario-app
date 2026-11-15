@@ -21,7 +21,7 @@ import { generateClubYouthBatch } from './youth.js';
 import { applySeasonAging } from './aging.js';
 import { decideAiListings, decideAiOffers, AI_BUDGET_STRETCH } from './aiTransfers.js';
 import { buildSeasonCalendar, isTransferWindowOpen } from './calendar.js';
-import { teamForSim, resolveTwoLegTieAuto, prepareTwoLegTieForUser, legPackage } from './simHelpers.js';
+import { teamForSim, resolveTwoLegTieAuto, prepareTwoLegTieForUser, legPackage, withMyLiveSubs } from './simHelpers.js';
 import { drawCopaBracket, playCopaRoundIda, playCopaRoundVolta, finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2, copaCurrentDay, COPA_ROUND_LABELS } from './copaEngine.js';
 import { accumulateMatchStats, playerSeasonStats } from './seasonStats.js';
 import { buildSeasonReport } from './seasonReport.js';
@@ -455,14 +455,15 @@ function applyUserDiscipline(save, events) {
 // usuário termina de assistir/pular o próprio jogo — só agora a rodada
 // INTEIRA (o jogo do usuário, já decidido, + os outros 9 de cada divisão,
 // simulados aqui igual sempre foi) é de fato aplicada na tabela.
-export function resolveUserMatch(save) {
-  const pending = save.pendingUserMatch;
-  if (!pending) return save;
+export function resolveUserMatch(save0) {
+  const pending = save0.pendingUserMatch;
+  if (!pending) return save0;
+  const { save, sim } = withMyLiveSubs(save0, pending.homeId, pending.awayId, pending.sim);
   const userMatch = {
-    homeId: pending.homeId, awayId: pending.awayId, homeGoals: pending.sim.homeGoals, awayGoals: pending.sim.awayGoals,
-    events: pending.sim.events, ratings: pending.sim.ratings, homeGkName: pending.sim.homeGkName, awayGkName: pending.sim.awayGkName,
+    homeId: pending.homeId, awayId: pending.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals,
+    events: sim.events, ratings: sim.ratings, homeGkName: sim.homeGkName, awayGkName: sim.awayGkName,
   };
-  const played = applyUserDiscipline(playRound(save, pending.roundIdx, userMatch), pending.sim.events);
+  const played = applyUserDiscipline(playRound(save, pending.roundIdx, userMatch), sim.events);
   const myMatch = findMyMatchResult(played, pending.roundIdx);
   return {
     ...played,

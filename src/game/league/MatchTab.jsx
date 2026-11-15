@@ -6,7 +6,7 @@
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
 import { MiniStandings } from '../../components/football/StandingsTable.jsx';
 import { MatchPreviewCard, RoundGames } from '../../components/football/MatchPreviewCard.jsx';
-import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton } from '../../components/football/LiveMatchView.jsx';
+import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton, LiveSubsCard } from '../../components/football/LiveMatchView.jsx';
 import './matchTab.css';
 
 const MODES = [{ id: 'manual', label: 'Manual' }, { id: 'auto', label: 'Auto' }];
@@ -21,7 +21,7 @@ const SPEEDS = [{ id: 1, label: '1x' }, { id: 1.5, label: '1,5x' }, { id: 2, lab
 export function MatchTab({
   roundNumber, venueText, isClassic, home, away, status, score, minute, events = [], probs,
   simMode, onSetSimMode, simSpeed, onSetSpeed, onPause, onResume, onStart, startLabel, autoCountdown, onSimulateAll, onViewTeam,
-  subPanel, children, otherGames = [], otherNote, liveTable, onOpenTable,
+  subPanel, subsLeft, children, otherGames = [], otherNote, liveTable, onOpenTable,
 }) {
   const live = status === 'live' || status === 'paused';
   const crest = (t, size) => <ClubCrest logo={t.logo} badge={t.badge} name={t.label} color={t.color} size={size} frame scale={0.68} frameClass={`fb-crest-frame fb-lv-crest${t.mine ? ' fb-lv-crest-mine' : ''}`} />;
@@ -68,7 +68,7 @@ export function MatchTab({
               <>
                 <LiveSeg label="Modo de avanço" options={MODES} value={simMode} onChange={onSetSimMode} />
                 {live && <LiveSeg label="Velocidade" options={SPEEDS} value={simSpeed} onChange={onSetSpeed} />}
-                {status === 'live' && <LiveButton icon="clock" onClick={onPause}>Pausar</LiveButton>}
+                {status === 'live' && <LiveButton icon="clock" onClick={onPause} title="Pausar para fazer substituições">{subsLeft != null ? `Pausar · ${subsLeft} trocas` : 'Pausar'}</LiveButton>}
                 {status === 'paused' && <LiveButton icon="play" onClick={onResume}>Continuar</LiveButton>}
               </>
             )}
@@ -85,6 +85,13 @@ export function MatchTab({
       </div>
 
       <div className="lg-side-col">
+        {status !== 'pre' && (
+          <LiveSubsCard
+            events={events}
+            home={{ id: home.id, name: home.label, crest: <ClubCrest logo={home.logo} badge={home.badge} name={home.label} color={home.color} size={18} /> }}
+            away={{ id: away.id, name: away.label, crest: <ClubCrest logo={away.logo} badge={away.badge} name={away.label} color={away.color} size={18} /> }}
+          />
+        )}
         {otherGames.length > 0 && (
           <section className="lg-card">
             <div className="lg-ch"><h3>Outros jogos</h3><span className="lg-small">{otherNote}</span></div>

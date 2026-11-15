@@ -35,6 +35,9 @@
 .ms-pos { font-family: var(--font-mono); font-size: 9.5px; font-weight: 500; height: 18px; border-radius: 5px; display: inline-grid; place-items: center; padding: 0 5px; color: #fff; width: max-content; }
 .ms-gk { background: #B08A3E; } .ms-df { background: #3F74AE; } .ms-md { background: #2F8A5E; } .ms-at { background: #C2513F; }
 .ms-nm, .ms-ell { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.ms-nmf { display: flex; align-items: baseline; gap: 6px; }
+.ms-subt { flex-shrink: 0; white-space: nowrap; font-size: 10.5px; color: var(--muted); font-family: var(--font-mono); }
+.ms-subt-in { color: var(--success); }
 .ms-bar { height: 5px; border-radius: 99px; background: var(--surface-2); overflow: hidden; display: flex; }
 .ms-bar i { display: block; height: 100%; }
 .ms-v { font-family: var(--font-mono); font-size: 12px; text-align: right; font-weight: 600; }

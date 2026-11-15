@@ -31,7 +31,7 @@ import { teamStrength, aiSquadPlayers, simAiMatch, applyRoundToTable, matchPrng,
 import { matchOutcomeProbabilities } from '../lib/probability.js';
 import { zoneOf, formOf, remainingByClub, stakesFor, disputes, realBaselinePositions } from '../lib/insights.js';
 import { Icon, Modal, ConfirmInline } from '../ui/index.jsx';
-import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton } from '../components/football/LiveMatchView.jsx';
+import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton, LiveSubsCard } from '../components/football/LiveMatchView.jsx';
 import { CLUB_STADIUMS } from '../data/info-content.js';
 import '../game/league/matchTab.css';
 import '../game/league/league.css';
@@ -149,19 +149,15 @@ function prepareMatch(seed, teamById, m) {
 const SPEED_MS = { 1: 250, 1.5: 125, 2: 55 };
 
 // Processa todo evento cujo minuto já passou, acumulando placar/feed em `st`
-// (mutável) — mesma lógica do `tick()` do LiveMatchBox (App.jsx): cartão/
-// lesão entram no feed sem mexer no placar; lesão com substituto automático
-// também gera uma entrada cosmética de substituição (sem afetar o resultado,
-// que já saiu pronto do `sim`); gol soma no lado certo.
+// (mutável) — mesma lógica do `tick()` do LiveMatchBox (App.jsx): cartão,
+// lesão e substituição (já geradas pelo motor) entram no feed sem mexer no
+// placar; gol soma no lado certo.
 function advanceEvents(st, events, homeId) {
   while (st.evIdx < events.length && events[st.evIdx].minute <= st.minute) {
     const ev = events[st.evIdx];
     st.evIdx++;
     if (ev.type !== 'goal') {
       st.shown.push({ ...ev, homeScore: st.hs, awayScore: st.as });
-      if (ev.type === 'injury' && ev.replacementName) {
-        st.shown.push({ type: 'substitution', minute: ev.minute, teamId: ev.teamId, teamLabel: ev.teamLabel, playerOut: ev.player, playerIn: ev.replacementName, homeScore: st.hs, awayScore: st.as });
-      }
       continue;
     }
     if (ev.teamId === homeId) st.hs++; else st.as++;
@@ -387,6 +383,13 @@ function LiveMatchScreen({ pending, matchNo, totalMatches, table, upcoming, team
               <div key={t.id} className="sl-imp sl-stk"><div><b>{displayName(t.club)}</b><small>{stakesFor(table, result, t.id, nameOf)}</small></div></div>
             ))}
           </section>
+          {status !== 'pre' && (
+            <LiveSubsCard
+              events={shownEvents}
+              home={{ id: homeTeam.id, name: displayName(homeTeam.club), crest: <TeamCrest team={homeTeam} size={20} /> }}
+              away={{ id: awayTeam.id, name: displayName(awayTeam.club), crest: <TeamCrest team={awayTeam} size={20} /> }}
+            />
+          )}
           {upcoming.next.length > 0 && (
             <section className="lg-card">
               <div className="lg-ch"><h3>Na sequência</h3><span className="lg-small">{upcoming.next[0].m.postponed ? 'R21' : `Rodada ${upcoming.next[0].m.round}`}</span></div>

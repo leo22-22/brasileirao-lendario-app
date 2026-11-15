@@ -6,7 +6,7 @@
 // Carreira, e repeti-la em cada motor seria a mesma causa de bug duas
 // vezes se um dia precisar mudar).
 import { TEAMS } from '../../data/teams.js';
-import { simAiMatch, teamStrength, buildLiveMatchEvents, makePrng, hashSeed } from '../../App.jsx';
+import { simAiMatch, teamStrength, buildLiveMatchEvents, makePrng, hashSeed, remapEventForSubs, withManualSubRatings } from '../../App.jsx';
 import { playerSeasonStats } from './seasonStats.js';
 import { POS_ORDER } from '../../lib/format.js';
 import { buildPitchSlots, autoFillFromPool } from './formations.js';
@@ -176,6 +176,8 @@ export function teamForSim(save, clubId) {
     label: base.label,
     club: base.club,
     color: base.colors?.p,
+    // Clube do usuário nunca faz troca automática (só as manuais, ao vivo).
+    userControlled: isMine,
     ovr: Math.round(stretchedOvr * (1 + clubMoraleBonus(save, clubId)) * 10) / 10,
     players,
   };
@@ -219,7 +221,12 @@ export function applyCareerLineupChange(save, change) {
     if (idx === -1 || !save.myStarters) return save;
     const myStarters = save.myStarters.map((n, i) => (i === idx ? change.inName : n));
     const myBench = (save.myBench || []).map(n => (n === change.inName ? change.outName : n));
-    return { ...save, myStarters, myBench };
+    // Troca feita durante a partida: guarda pra dar nota/jogo a quem entrou
+    // e corrigir o autor dos lances de quem saiu (withMyLiveSubs).
+    const liveSubsLog = change.matchKey && change.minute != null
+      ? [...(save.liveSubsLog || []), { key: change.matchKey, minute: change.minute, playerOut: change.outName, playerIn: change.inName, inPos: change.inPos }]
+      : save.liveSubsLog;
+    return { ...save, myStarters, myBench, ...(liveSubsLog ? { liveSubsLog } : {}) };
   }
   if (change.type === 'reposition') {
     const srcIdx = slots.findIndex(s => s.key === change.sourceKey);
@@ -268,4 +275,35 @@ export function prepareTwoLegTieForUser(save, homeId1, awayId1, myId, rand) {
     myId, oppId, leg1, leg2, myAggGoals, oppAggGoals, penaltyWinnerIsMe,
     wentToPenalties: myAggGoals === oppAggGoals,
   };
+}
+
+// Chave de uma partida do usuário pra casar as trocas ao vivo (liveSubsLog)
+// com o `sim` que vai ser aplicado no save.
+export function liveMatchKey(homeId, awayId, sim) {
+  return `${homeId}|${awayId}|${sim.homeGoals}-${sim.awayGoals}`;
+}
+
+// Aplica as trocas manuais feitas ao vivo pelo usuário no `sim` da partida
+// antes de ele virar estatística: lances de quem já tinha saído passam pra
+// quem entrou, quem entrou ganha nota (e conta o jogo), quem saiu fica com a
+// nota até a saída. Remove essas trocas do log. O placar não muda.
+export function withMyLiveSubs(save, homeId, awayId, sim) {
+  const all = save.liveSubsLog || [];
+  if (!all.length) return { save, sim };
+  const key = liveMatchKey(homeId, awayId, sim);
+  const log = all.filter(e => e.key === key);
+  const rest = all.filter(e => e.key !== key);
+  const nextSave = { ...save, liveSubsLog: rest };
+  if (!log.length) return { save: nextSave, sim };
+  const myId = save.myClubId;
+  const isHome = homeId === myId;
+  const events = (sim.events || []).map(ev => remapEventForSubs(ev, log, myId));
+  const teamLabel = (sim.ratings || []).find(r => r.teamId === myId)?.teamLabel || TEAMS.find(t => t.id === myId)?.label;
+  const ratings = withManualSubRatings(sim.ratings || [], log, {
+    teamId: myId, teamLabel,
+    goalsFor: isHome ? sim.homeGoals : sim.awayGoals, goalsAgainst: isHome ? sim.awayGoals : sim.homeGoals,
+    events, rand: makePrng(hashSeed(`livesubs|${key}`)),
+  });
+  const subEvents = log.map(e => ({ type: 'substitution', minute: e.minute, teamId: myId, playerOut: e.playerOut, playerIn: e.playerIn }));
+  return { save: nextSave, sim: { ...sim, events: [...events, ...subEvents].sort((a, b) => a.minute - b.minute), ratings } };
 }

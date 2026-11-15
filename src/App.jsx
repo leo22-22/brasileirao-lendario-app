@@ -32,7 +32,7 @@ import { AppHeader, HeaderMenu } from './ui/AppHeader.jsx';
 import { ClubCrest } from './components/football/ClubCrest.jsx';
 import { PitchSurface } from './components/football/Pitch.jsx';
 import { FlowStepper } from './components/football/FlowStepper.jsx';
-import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton } from './components/football/LiveMatchView.jsx';
+import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton, LiveSubsCard } from './components/football/LiveMatchView.jsx';
 import { ResultChip, RoundStrip, MonthGrid, COMP_COLORS } from './components/football/SeasonCalendar.jsx';
 import { CupBracket, bracketPathKeys } from './components/football/CupBracket.jsx';
 import { RoundGames } from './components/football/MatchPreviewCard.jsx';
@@ -1536,18 +1536,6 @@ function pickMatchCards(homeTeam, homeXI, awayTeam, awayXI, rand, randMin) {
   return { events, homeRedCount, awayRedCount };
 }
 
-// Gera lista de eventos de gol/cartão/lesão para uma partida com minutos únicos
-// Nome de um reserva pra cobrir a lesão de um titular — mesma posição
-// primeiro, senão o primeiro do banco disponível. Só usado pra dar nome ao
-// evento cosmético de substituição do time adversário (não mexe na força do
-// time nem no restante da simulação, que já é decidida em bloco na geração
-// dos eventos).
-function pickReplacementName(team, injuredPos) {
-  const bench = (team?.players || []).slice(11);
-  if (bench.length === 0) return null;
-  const samePos = bench.find(p => p.pos?.[0] === injuredPos);
-  return (samePos || bench[0]).name;
-}
 
 // Sorteia quem fez o gol (e a assistência) — usado tanto no jogo detalhado
 // do usuário quanto na simulação leve dos outros jogos da rodada, pra que
@@ -1567,83 +1555,351 @@ function pickGoalOutcome(scoringTeam, scoringXI, concedingTeam, concedingXI, ran
   };
 }
 
-// Constrói o feed de eventos "ao vivo" (com minuto pra animação) A PARTIR do
-// resultado que simAiMatch já decidiu com a seed compartilhada — antes, a
-// partida do usuário era gerada por um algoritmo próprio (generateMatchEvents,
-// removido), diferente do usado pras outras partidas da rodada. No
-// multiplayer isso fazia cada peer calcular um placar diferente pra mesma
-// partida (a "minha" pra mim é "de fundo" pro meu adversário), desalinhando a
-// tabela entre os dois pro resto da temporada. Usando sempre simAiMatch como
-// fonte da verdade, placar/cartões/lesões batem em qualquer cliente; só o
-// minuto de cada evento aqui é sorteado localmente (cosmético, não precisa
-// bater entre clientes).
-export function buildLiveMatchEvents(sim, homeTeam, homeXI, awayTeam, awayXI) {
-  const usedMin = new Set();
-  const randMin = (minM = 1, maxM = 90) => {
-    // Sorteia um minuto ainda livre. A busca é por tentativa, então precisa de
-    // saída: se a faixa lotar (mais eventos do que minutos disponíveis), o
-    // do/while original girava pra sempre e travava a aba. Depois de algumas
-    // tentativas, pega o primeiro minuto livre da faixa — e se nem isso
-    // existir, aceita repetir o minuto (dois lances no mesmo minuto é bem
-    // menos grave do que a partida não rodar).
-    for (let i = 0; i < 40; i++) {
-      const m = Math.floor(Math.random() * (maxM - minM + 1)) + minM;
-      if (!usedMin.has(m)) { usedMin.add(m); return m; }
-    }
-    for (let m = minM; m <= maxM; m++) {
-      if (!usedMin.has(m)) { usedMin.add(m); return m; }
-    }
-    return minM;
-  };
+// ============================================================
+// SUBSTITUIÇÕES + MINUTOS DA PARTIDA
+// ============================================================
+// O placar sai em bloco (Poisson pela força dos titulares) — não existe força
+// por minuto. Então as trocas são de apresentação + nota + jogo disputado:
+// nunca mudam o placar. Tudo aqui usa um PRNG PRÓPRIO, derivado do resultado
+// já sorteado (`matchDetailPrng`), pra não consumir nenhum número do `rand`
+// da partida: placar, autores, cartões e lesões continuam exatamente iguais
+// ao que eram antes das trocas existirem, e "Só o resultado"/"Jogar ao vivo"/
+// recarregar dão o mesmo jogo minuto a minuto.
+export const MAX_SUBS = 5;
+export const MAX_SUB_STOPS = 3; // paradas fora o intervalo (regra atual)
+export const HALFTIME_SUB_MINUTE = 46;
+const SUB_COUNT_DIST = [[5, 0.38], [4, 0.27], [3, 0.2], [2, 0.1], [1, 0.05]];
+const HALFTIME_SUB_CHANCE = 0.3;
+const ATTACK_POS = new Set(['ATA', 'PD', 'PE', 'MEI']);
+const HOLD_POS = new Set(['ZAG', 'VOL']);
+const SECTOR_OF = { GOL: 'gk', ZAG: 'df', LD: 'df', LE: 'df', VOL: 'md', MC: 'md', MD: 'md', ME: 'md', MEI: 'md', PD: 'at', PE: 'at', ATA: 'at' };
 
-  const discipline = (sim.discipline || []).map(ev => {
-    if (ev.type === 'injury') {
-      const team = ev.teamId === homeTeam.id ? homeTeam : awayTeam;
-      const xi = ev.teamId === homeTeam.id ? homeXI : awayXI;
-      const pos = xi.find(p => p.name === ev.player)?.pos?.[0];
-      return {
-        ...ev, minute: randMin(), teamLabel: team.label,
-        medicalQuote: medicalQuote(), replacementName: pickReplacementName(team, pos),
-      };
-    }
-    return { ...ev, minute: (ev.type === 'red' && !ev.secondYellow) ? randMin(20, 90) : randMin() };
-  });
-
-  const goals = (sim.goals || []).map(g => ({ ...g, type: 'goal', minute: randMin() }));
-
-  return [...discipline, ...goals].sort((a, b) => a.minute - b.minute);
+// Time controlado por uma pessoa nunca troca sozinho: o "meu time" dos modos
+// clássicos, humanos do multiplayer e o clube do usuário no Modo Carreira.
+export function isManualTeam(team) {
+  return !!team && (team.id === MY_TEAM_ID || !!team.isHuman || !!team.userControlled);
 }
 
-// Nota de jogo por jogador (estilo 6.5, 8.2) — só é calculada pro jogo do
-// usuário, que é o único com eventos detalhados por jogador (jogos simulados
-// em segundo plano só têm placar + disciplina, sem atribuição de gol/assist
-// suficiente pra render uma nota individual justa).
-const RATING_BASE = 6.0;
-const RATING_DEFENSIVE_POS = new Set(['GOL', 'ZAG', 'LD', 'LE', 'VOL']);
-function computeMatchRatings(homeTeam, homeXI, awayTeam, awayXI, events, homeGoals, awayGoals, rand) {
-  const ratings = new Map();
-  [...homeXI, ...awayXI].forEach(p => ratings.set(p.name, RATING_BASE));
-  events.forEach(ev => {
-    if (ev.type === 'goal') {
-      if (ev.isOwnGoal) ratings.set(ev.scorer, (ratings.get(ev.scorer) ?? RATING_BASE) - 1.3);
-      else ratings.set(ev.scorer, (ratings.get(ev.scorer) ?? RATING_BASE) + 1.8);
-      if (ev.assist) ratings.set(ev.assist, (ratings.get(ev.assist) ?? RATING_BASE) + 0.7);
-    } else if (ev.type === 'yellow') {
-      ratings.set(ev.player, (ratings.get(ev.player) ?? RATING_BASE) - 0.4);
-    } else if (ev.type === 'red') {
-      ratings.set(ev.player, (ratings.get(ev.player) ?? RATING_BASE) - (ev.secondYellow ? 1.2 : 1.5));
+// Dá pra fazer mais uma troca manual neste minuto? (5 no total; minuto novo
+// fora do intervalo abre uma parada, até 3.)
+export function canMakeManualSub(subs, minute) {
+  if (subs.length >= MAX_SUBS) return false;
+  const isHalftime = minute === 45 || minute === HALFTIME_SUB_MINUTE;
+  if (isHalftime || subs.some(s => s.minute === minute)) return true;
+  return subStopsUsed(subs) < MAX_SUB_STOPS;
+}
+
+// Parada de substituição: qualquer minuto com troca, menos o intervalo.
+export function subStopsUsed(subs) {
+  return new Set(subs.filter(s => s.minute !== HALFTIME_SUB_MINUTE && s.minute !== 45).map(s => s.minute)).size;
+}
+
+function matchDetailPrng(homeTeam, awayTeam, homeGoals, awayGoals, discipline, goals) {
+  const sig = `${homeTeam.id}|${awayTeam.id}|${homeGoals}-${awayGoals}|${goals.map(g => g.scorer).join(',')}|${discipline.map(d => `${d.type}:${d.player}`).join(',')}`;
+  return makePrng(hashSeed(`detail|${sig}`));
+}
+
+// Minutos de cartões, lesões e gols (antes sorteados com Math.random dentro de
+// buildLiveMatchEvents — o que fazia o mesmo jogo ter minutos diferentes a
+// cada vez). Também garante a ordem que faz sentido: o 2º amarelo vem depois
+// do 1º, e quem se machuca não tem lance depois de sair.
+function assignMatchMinutes(discipline, goals, homeTeam, rand) {
+  const usedMin = new Set();
+  const randMin = (minM = 1, maxM = 90) => {
+    for (let i = 0; i < 40; i++) {
+      const m = Math.floor(rand() * (maxM - minM + 1)) + minM;
+      if (!usedMin.has(m)) { usedMin.add(m); return m; }
+    }
+    for (let m = minM; m <= maxM; m++) if (!usedMin.has(m)) { usedMin.add(m); return m; }
+    return minM;
+  };
+  const disc = discipline.map(ev => ({ ...ev, minute: ev.type === 'red' && !ev.secondYellow ? randMin(20, 90) : randMin() }));
+  const gl = goals.map(g => ({ ...g, minute: randMin() }));
+  // 2º amarelo depois do 1º do mesmo jogador
+  disc.forEach(ev => {
+    if (ev.type !== 'red' || !ev.secondYellow) return;
+    const first = disc.find(y => y.type === 'yellow' && y.teamId === ev.teamId && y.player === ev.player);
+    if (first && first.minute > ev.minute) [first.minute, ev.minute] = [ev.minute, first.minute];
+  });
+  // Lesão depois do último lance do próprio jogador
+  disc.forEach(ev => {
+    if (ev.type !== 'injury') return;
+    const own = playerEventMinutes(disc, gl, homeTeam.id, ev.teamId, ev.player).filter(m => m !== ev.minute);
+    const last = own.length ? Math.max(...own) : 0;
+    if (last >= ev.minute) ev.minute = Math.min(90, last + 1 + Math.floor(rand() * Math.max(1, 89 - last)));
+  });
+  return { disc, gl };
+}
+
+// Minutos em que um jogador (de `teamId`) aparece em algum lance.
+function playerEventMinutes(disc, gl, homeId, teamId, name) {
+  const mins = [];
+  disc.forEach(ev => { if (ev.teamId === teamId && ev.player === name) mins.push(ev.minute); });
+  gl.forEach(g => {
+    if (g.isOwnGoal) { if (g.teamId !== teamId && g.scorer === name) mins.push(g.minute); return; }
+    if (g.teamId === teamId && (g.scorer === name || g.assist === name)) mins.push(g.minute);
+  });
+  return mins;
+}
+
+function bestBenchFor(bench, used, outPlayer, prefer, rand) {
+  const outPos = outPlayer.pos?.[0];
+  const outSector = SECTOR_OF[outPos];
+  let best = null, bestScore = -Infinity;
+  bench.forEach(p => {
+    if (used.has(p.name)) return;
+    const pos = p.pos?.[0];
+    const isGk = pos === 'GOL';
+    if (isGk !== (outPos === 'GOL')) return; // goleiro só entra por goleiro
+    let s = (p.ovr || 60);
+    if ((p.pos || []).includes(outPos)) s += 8;
+    else if (SECTOR_OF[pos] === outSector) s += 4;
+    if (prefer === 'attack' && ATTACK_POS.has(pos)) s += 6;
+    if (prefer === 'hold' && HOLD_POS.has(pos)) s += 6;
+    s += rand() * 4;
+    if (s > bestScore) { bestScore = s; best = p; }
+  });
+  return best;
+}
+
+// Gera as trocas de UM time automático. `xi` = titulares, banco = o resto de
+// team.players. Devolve [{ minute, teamId, playerOut, playerIn, inPos, reason }].
+function planAutoSubs(team, xi, ctx, rand) {
+  const bench = (team.players || []).slice(11).filter(p => !xi.some(x => x.name === p.name));
+  if (!bench.length) return [];
+  const { disc, gl, homeId } = ctx;
+  const subs = [];
+  const used = new Set();
+  const onField = new Map(xi.map(p => [p.name, p]));
+  const sentOff = new Set(disc.filter(e => e.type === 'red' && e.teamId === team.id).map(e => e.player));
+  const lastMin = (name) => {
+    const m = playerEventMinutes(disc, gl, homeId, team.id, name);
+    return m.length ? Math.max(...m) : 0;
+  };
+  const scoreAt = (m) => {
+    let f = 0, a = 0;
+    gl.forEach(g => { if (g.minute < m) { if (g.teamId === team.id) f++; else a++; } });
+    return f - a;
+  };
+  const doSub = (minute, outP, inP, reason) => {
+    onField.delete(outP.name);
+    used.add(inP.name);
+    subs.push({ type: 'substitution', minute, teamId: team.id, teamLabel: team.label, playerOut: outP.name, playerIn: inP.name, inPos: inP.pos?.[0], reason, auto: true });
+  };
+
+  // Lesão: troca forçada, conta no limite e numa parada.
+  const inj = disc.find(e => e.type === 'injury' && e.teamId === team.id && onField.has(e.player));
+  if (inj) {
+    const outP = onField.get(inj.player);
+    const inP = bestBenchFor(bench, used, outP, null, rand);
+    if (inP) doSub(inj.minute, outP, inP, 'injury');
+  }
+
+  // Quantas trocas no total
+  let roll = rand(), target = 3;
+  for (const [n, p] of SUB_COUNT_DIST) { if ((roll -= p) <= 0) { target = n; break; } }
+  let remaining = Math.min(MAX_SUBS, target) - subs.length;
+  if (remaining <= 0) return subs;
+
+  const slots = [];
+  if (rand() < HALFTIME_SUB_CHANCE && !(inj && inj.minute === HALFTIME_SUB_MINUTE)) { slots.push(HALFTIME_SUB_MINUTE); remaining--; }
+  const stopsLeft = MAX_SUB_STOPS - subStopsUsed(subs);
+  if (remaining > 0 && stopsLeft > 0) {
+    const k = Math.max(1, Math.min(stopsLeft, remaining, 1 + Math.floor(rand() * 3)));
+    const taken = new Set(subs.map(s => s.minute));
+    const mins = [];
+    for (let tries = 0; mins.length < k && tries < 60; tries++) {
+      const m = 55 + Math.floor(rand() * 31);
+      if (!mins.includes(m) && !taken.has(m)) mins.push(m);
+    }
+    mins.sort((a, b) => a - b);
+    const per = mins.map(() => 1);
+    let extra = remaining - mins.length;
+    while (extra > 0 && per.some(c => c < 3)) {
+      const i = Math.floor(rand() * per.length);
+      if (per[i] < 3) { per[i]++; extra--; }
+    }
+    mins.forEach((m, i) => { for (let j = 0; j < per[i]; j++) slots.push(m); });
+  }
+
+  slots.forEach(minute => {
+    if (subs.length >= MAX_SUBS) return;
+    const diff = scoreAt(minute);
+    const prefer = diff < 0 ? 'attack' : diff > 0 ? 'hold' : null;
+    const yellowBefore = new Set(disc.filter(e => e.type === 'yellow' && e.teamId === team.id && e.minute < minute).map(e => e.player));
+    const scoredBefore = new Set(gl.filter(g => g.minute < minute && g.teamId === team.id && !g.isOwnGoal).map(g => g.scorer));
+    const candidates = [...onField.values()].filter(p => p.pos?.[0] !== 'GOL' && !sentOff.has(p.name) && lastMin(p.name) < minute);
+    if (!candidates.length) return;
+    const weights = candidates.map(p => {
+      const pos = p.pos?.[0];
+      let w = 1 + Math.max(0, (90 - (p.ovr || 70)) / 12);
+      if (yellowBefore.has(p.name)) w += 3;
+      if (diff > 0 && ATTACK_POS.has(pos)) w += 2;
+      if (diff < 0 && HOLD_POS.has(pos)) w += 1.5;
+      if (scoredBefore.has(p.name)) w *= 0.4;
+      return w;
+    });
+    let r = rand() * weights.reduce((s, w) => s + w, 0);
+    let outP = candidates[candidates.length - 1];
+    for (let i = 0; i < candidates.length; i++) { if ((r -= weights[i]) <= 0) { outP = candidates[i]; break; } }
+    const inP = bestBenchFor(bench, used, outP, prefer, rand);
+    if (!inP) return;
+    const reason = yellowBefore.has(outP.name) ? 'yellow' : diff > 0 && ATTACK_POS.has(outP.pos?.[0]) ? 'tired' : 'tactical';
+    doSub(minute, outP, inP, reason);
+  });
+  return subs;
+}
+
+// Quem entrou pode marcar/dar assistência: cada gol depois da entrada tem
+// chance proporcional (mesmos pesos por posição) de passar pra um reserva em
+// campo. O placar não muda — só o autor.
+function reattributeGoalsToSubs(gl, team, xi, subs, rand) {
+  if (!subs.length) return;
+  const byName = new Map((team.players || []).map(p => [p.name, p]));
+  const w = (p, table) => (table[p.pos?.[0]] ?? 1) * (0.5 + (p.ovr || 70) / 100);
+  gl.forEach(g => {
+    if (g.teamId !== team.id || g.isOwnGoal) return;
+    const ins = subs.filter(s => s.minute < g.minute).map(s => byName.get(s.playerIn)).filter(Boolean);
+    if (!ins.length) return;
+    const outs = new Set(subs.filter(s => s.minute < g.minute).map(s => s.playerOut));
+    const field = [...xi.filter(p => !outs.has(p.name)), ...ins].filter(p => p.pos?.[0] !== 'GOL');
+    if (!g.isPenalty) {
+      const total = field.reduce((s, p) => s + w(p, SCORE_WEIGHT_BY_POS), 0);
+      const subW = ins.filter(p => p.pos?.[0] !== 'GOL').reduce((s, p) => s + w(p, SCORE_WEIGHT_BY_POS), 0);
+      if (total > 0 && rand() < subW / total) {
+        const pick = weightedPick(ins.filter(p => p.pos?.[0] !== 'GOL'), SCORE_WEIGHT_BY_POS, rand);
+        if (pick) {
+          const prev = g.scorer;
+          g.scorer = pick.name;
+          if (g.assist === pick.name) g.assist = prev;
+        }
+      }
+    }
+    if (g.assist) {
+      const pool = field.filter(p => p.name !== g.scorer);
+      const total = pool.reduce((s, p) => s + w(p, ASSIST_WEIGHT_BY_POS), 0);
+      const subPool = ins.filter(p => p.name !== g.scorer && p.pos?.[0] !== 'GOL');
+      const subW = subPool.reduce((s, p) => s + w(p, ASSIST_WEIGHT_BY_POS), 0);
+      if (total > 0 && subPool.length && rand() < subW / total) {
+        const pick = weightedPick(subPool, ASSIST_WEIGHT_BY_POS, rand);
+        if (pick) g.assist = pick.name;
+      }
     }
   });
-  const finalize = (team, xi, teamGoals, oppGoals) => xi.map(p => {
-    let r = ratings.get(p.name) ?? RATING_BASE;
-    if (teamGoals > oppGoals) r += 0.4;
-    else if (teamGoals < oppGoals) r -= 0.3;
-    if (oppGoals === 0 && RATING_DEFENSIVE_POS.has(p.pos?.[0])) r += 0.3;
-    r += (rand() - 0.5) * 0.6;
-    r = Math.max(4, Math.min(10, r));
-    return { name: p.name, teamId: team.id, teamLabel: team.label, pos: p.pos?.[0], rating: Math.round(r * 10) / 10 };
+}
+
+// Constrói o feed de eventos "ao vivo" (com minuto pra animação) A PARTIR do
+// resultado que simAiMatch já decidiu — minutos, trocas e tudo mais já vêm
+// prontos e determinísticos em `sim.timeline`; aqui só entram os textos de
+// apresentação (rótulo do time, frase do médico).
+export function buildLiveMatchEvents(sim, homeTeam, homeXI, awayTeam) {
+  const labelOf = (id) => (id === homeTeam.id ? homeTeam.label : awayTeam.label);
+  const qRand = makePrng(hashSeed(`quote|${homeTeam.id}|${awayTeam.id}|${sim.homeGoals}-${sim.awayGoals}`));
+  return (sim.timeline || []).map(ev => {
+    if (ev.type === 'injury') return { ...ev, teamLabel: labelOf(ev.teamId), medicalQuote: medicalQuote(qRand) };
+    if (ev.type === 'goal') return ev;
+    return { ...ev, teamLabel: ev.teamLabel || labelOf(ev.teamId) };
   });
-  return [...finalize(homeTeam, homeXI, homeGoals, awayGoals), ...finalize(awayTeam, awayXI, awayGoals, homeGoals)];
+}
+
+// Nota de jogo por jogador (estilo 6.5, 8.2). Quem saiu fica com os lances
+// até a saída e o bônus de resultado proporcional aos minutos; quem entrou
+// parte de 6,0 com o bônus proporcional ao tempo em campo.
+const RATING_BASE = 6.0;
+const RATING_DEFENSIVE_POS = new Set(['GOL', 'ZAG', 'LD', 'LE', 'VOL']);
+function ratingEventDeltas(events) {
+  const ratings = new Map();
+  const add = (name, d) => ratings.set(name, (ratings.get(name) ?? RATING_BASE) + d);
+  events.forEach(ev => {
+    if (ev.type === 'goal') {
+      if (ev.isOwnGoal) add(ev.scorer, -1.3);
+      else add(ev.scorer, 1.8);
+      if (ev.assist) add(ev.assist, 0.7);
+    } else if (ev.type === 'yellow') add(ev.player, -0.4);
+    else if (ev.type === 'red') add(ev.player, ev.secondYellow ? -1.2 : -1.5);
+  });
+  return ratings;
+}
+function resultBonus(pos, teamGoals, oppGoals) {
+  let b = 0;
+  if (teamGoals > oppGoals) b += 0.4;
+  else if (teamGoals < oppGoals) b -= 0.3;
+  if (oppGoals === 0 && RATING_DEFENSIVE_POS.has(pos)) b += 0.3;
+  return b;
+}
+function finishRating(r) {
+  return Math.round(Math.max(4, Math.min(10, r)) * 10) / 10;
+}
+function computeMatchRatings(homeTeam, homeXI, awayTeam, awayXI, events, homeGoals, awayGoals, rand, subs = [], subRand = rand) {
+  const ratings = ratingEventDeltas(events);
+  const outAt = new Map(subs.map(s => [`${s.teamId}|${s.playerOut}`, s.minute]));
+  const finalize = (team, xi, teamGoals, oppGoals) => xi.map(p => {
+    const out = outAt.get(`${team.id}|${p.name}`);
+    const mins = out != null ? out : 90;
+    let r = (ratings.get(p.name) ?? RATING_BASE) + resultBonus(p.pos?.[0], teamGoals, oppGoals) * (mins / 90);
+    r += (rand() - 0.5) * 0.6;
+    const row = { name: p.name, teamId: team.id, teamLabel: team.label, pos: p.pos?.[0], rating: finishRating(r) };
+    if (out != null) row.subOut = out;
+    return row;
+  });
+  const rows = [...finalize(homeTeam, homeXI, homeGoals, awayGoals), ...finalize(awayTeam, awayXI, awayGoals, homeGoals)];
+  subs.forEach(s => {
+    const isHome = s.teamId === homeTeam.id;
+    const team = isHome ? homeTeam : awayTeam;
+    const [tg, og] = isHome ? [homeGoals, awayGoals] : [awayGoals, homeGoals];
+    const mins = Math.max(1, 90 - s.minute);
+    let r = (ratings.get(s.playerIn) ?? RATING_BASE) + resultBonus(s.inPos, tg, og) * (mins / 90);
+    r += (subRand() - 0.5) * 0.6;
+    rows.push({ name: s.playerIn, teamId: team.id, teamLabel: team.label, pos: s.inPos, rating: finishRating(r), subIn: s.minute });
+  });
+  return rows;
+}
+
+// Notas do time de uma PESSOA depois das trocas manuais dela (o motor já deu
+// nota aos 11 que começaram): recalcula quem saiu e quem entrou a partir dos
+// lances que realmente aconteceram com cada um (`events`, já com o autor
+// corrigido pra quem estava em campo). Quem entrou passa a contar o jogo.
+// subs: [{ minute, playerOut, playerIn, inPos }]
+export function withManualSubRatings(ratings, subs, { teamId, teamLabel, goalsFor, goalsAgainst, events, rand = Math.random }) {
+  if (!subs?.length) return ratings;
+  const deltas = ratingEventDeltas((events || []).filter(ev => (ev.type === 'goal' ? (ev.isOwnGoal ? ev.teamId !== teamId : ev.teamId === teamId) : ev.teamId === teamId)));
+  const outAt = new Map(subs.map(s => [s.playerOut, s.minute]));
+  const next = ratings.map(r => {
+    if (r.teamId !== teamId || !outAt.has(r.name)) return r;
+    const m = outAt.get(r.name);
+    const base = deltas.get(r.name) ?? RATING_BASE;
+    return { ...r, rating: finishRating(base + resultBonus(r.pos, goalsFor, goalsAgainst) * (m / 90) + (rand() - 0.5) * 0.4), subOut: m };
+  });
+  subs.forEach(s => {
+    if (next.some(r => r.teamId === teamId && r.name === s.playerIn)) return;
+    const mins = Math.max(1, 90 - s.minute);
+    const base = deltas.get(s.playerIn) ?? RATING_BASE;
+    next.push({ name: s.playerIn, teamId, teamLabel, pos: s.inPos, rating: finishRating(base + resultBonus(s.inPos, goalsFor, goalsAgainst) * (mins / 90) + (rand() - 0.5) * 0.6), subIn: s.minute });
+  });
+  return next;
+}
+
+// Lances do time de uma pessoa depois das trocas manuais: o motor sorteou
+// autor/cartão entre os 11 que começaram, então um lance de quem já saiu
+// passa pra quem entrou no lugar dele (corrente de trocas seguida até o fim).
+export function remapEventForSubs(ev, subs, teamId) {
+  if (!subs?.length) return ev;
+  const current = (name) => {
+    let n = name;
+    for (const s of subs) if (s.playerOut === n && s.minute <= ev.minute) n = s.playerIn;
+    return n;
+  };
+  if (ev.type === 'goal') {
+    const next = { ...ev };
+    if (ev.isOwnGoal) { if (ev.teamId !== teamId) next.scorer = current(ev.scorer); }
+    else if (ev.teamId === teamId) { next.scorer = current(ev.scorer); if (ev.assist) next.assist = current(ev.assist); }
+    return next;
+  }
+  if ((ev.type === 'yellow' || ev.type === 'red' || ev.type === 'injury') && ev.teamId === teamId) {
+    const p = current(ev.player);
+    return p === ev.player ? ev : { ...ev, player: p };
+  }
+  return ev;
 }
 
 // Versão leve pra jogos que não estão sendo assistidos (resto da rodada) — sem
@@ -1703,19 +1959,33 @@ export function simAiMatch(homeTeam, awayTeam, rand = Math.random) {
     goals.push({ teamId: team.id, teamLabel: team.label, scorer: taker, isOwnGoal: false, isPenalty: true, assist: null });
   });
 
+  // Daqui pra baixo: minutos, trocas e autor de gol de quem entrou, tudo com
+  // o PRNG próprio da partida (não mexe no `rand` acima).
+  const detailRand = matchDetailPrng(homeTeam, awayTeam, homeGoals, awayGoals, discipline, goals);
+  const { disc, gl } = assignMatchMinutes(discipline, goals, homeTeam, detailRand);
+  const ctx = { disc, gl, homeId: homeTeam.id };
+  const homeSubs = isManualTeam(homeTeam) ? [] : planAutoSubs(homeTeam, homeXI, ctx, detailRand);
+  const awaySubs = isManualTeam(awayTeam) ? [] : planAutoSubs(awayTeam, awayXI, ctx, detailRand);
+  reattributeGoalsToSubs(gl, homeTeam, homeXI, homeSubs, detailRand);
+  reattributeGoalsToSubs(gl, awayTeam, awayXI, awaySubs, detailRand);
+  const subs = [...homeSubs, ...awaySubs];
+
   // Notas de partida pra TODOS os jogos da liga, não só o do usuário — reusa
   // os mesmos gols/cartões já sorteados aqui (a fórmula de nota só olha
   // type/scorer/assist/player/secondYellow, não precisa de minuto a minuto)
   // pra alimentar a média de nota da temporada de qualquer jogador da liga.
-  const ratingEvents = [...discipline, ...goals.map(g => ({ ...g, type: 'goal' }))];
-  const ratings = computeMatchRatings(homeTeam, homeXI, awayTeam, awayXI, ratingEvents, homeGoals, awayGoals, rand);
+  // Os 22 titulares consomem o `rand` na mesma ordem de antes; quem entrou
+  // usa o PRNG da partida.
+  const ratingEvents = [...disc, ...gl.map(g => ({ ...g, type: 'goal' }))];
+  const ratings = computeMatchRatings(homeTeam, homeXI, awayTeam, awayXI, ratingEvents, homeGoals, awayGoals, rand, subs, detailRand);
+
+  const timeline = [...disc, ...gl.map(g => ({ ...g, type: 'goal' })), ...subs].sort((a, b) => a.minute - b.minute || (a.type === 'substitution') - (b.type === 'substitution'));
 
   return {
-    homeGoals, awayGoals, discipline, goals, ratings,
+    homeGoals, awayGoals, discipline: disc, goals: gl, ratings, subs, timeline,
     homeGkName: pickGkName(homeXI), awayGkName: pickGkName(awayXI),
   };
 }
-
 
 // Funde os gols de simAiMatch (jogos simulados em segundo plano, sem
 // minuto a minuto) nos rankings de artilheiros/assistências — sem isso esses
@@ -2992,6 +3262,12 @@ export default function App() {
   // mesmo array, o próximo tick sobrescrevia liveEvents com a lista antiga e
   // a troca sumia do feed assim que o jogo era retomado.
   const shownEventsRef = useRef([]);
+  // Trocas manuais do MEU time na partida em andamento ({ minute, playerOut,
+  // playerIn, inPos }) — limite de 5 em até 3 paradas (fora o intervalo);
+  // usadas pra corrigir o autor dos lances de quem já saiu e dar nota/jogo
+  // a quem entrou (withManualSubRatings).
+  const manualSubsRef = useRef([]);
+  const [manualSubs, setManualSubs] = useState([]);
 
   // No multiplayer, cada jogador é identificado pelo seu peerId (MY_PID) — não
   // pelo id fixo '__myteam__' usado no solo. Sem isso, o cliente nunca encontra
@@ -3689,6 +3965,8 @@ export default function App() {
     if (!starter || !benchPlayer) return;
     // Quem já saiu do jogo nesta partida não pode voltar (igual na vida real).
     if (subbedOutNames.includes(benchPlayer.name)) return;
+    // Regra atual: 5 trocas em até 3 paradas (o intervalo não conta).
+    if (!canMakeManualSub(manualSubsRef.current, clockMinute)) return;
     const starterMeta = pitchSlots.find(s => s.key === starterKey);
     if (starterMeta && !benchPlayer.pos.includes(starterMeta.realPos) && !starterMeta.isBench) return;
     setLiveLineup(prev => {
@@ -3724,6 +4002,8 @@ export default function App() {
       return { ...t, players: nextPlayers, ovr: teamStrength(Object.fromEntries(nextPlayers.map((p, i) => [i, p]))) };
     }));
     setSubbedOutNames(prev => [...prev, starter.name]);
+    manualSubsRef.current = [...manualSubsRef.current, { minute: clockMinute, playerOut: starter.name, playerIn: benchPlayer.name, inPos: starterMeta?.isBench ? benchPlayer.pos?.[0] : (starterMeta?.realPos || benchPlayer.pos?.[0]) }];
+    setManualSubs(manualSubsRef.current);
     setSubSelectStarter(null);
     // Mostra a troca no feed da partida, igual gol/cartão/lesão — empurra no
     // MESMO array que o tick() usa (shownEventsRef), senão o próximo tick
@@ -3731,6 +4011,7 @@ export default function App() {
     shownEventsRef.current.push({
       type: 'substitution',
       minute: clockMinute,
+      reason: forcedSubReason && forcedSubReason === starter.name ? 'injury' : undefined,
       teamId: myTeamId,
       teamLabel: myTeamName || 'Meu Time',
       playerOut: starter.name,
@@ -4107,6 +4388,8 @@ export default function App() {
     setForcedSubReason(null);
     setPenaltyPhase(null);
     setSubbedOutNames([]);
+    manualSubsRef.current = [];
+    setManualSubs([]);
     // Init live lineup from current pitch — mas se algum titular do usuário
     // está suspenso/lesionado nesta rodada (mesma troca que o motor de
     // simulação já aplicou via getEligibleRoster/teamsForRound pro homeTeam/
@@ -4151,7 +4434,8 @@ export default function App() {
       let injuredMyPlayerEvent = null;
 
       while (evIdx < events.length && events[evIdx].minute <= minute) {
-        const ev = events[evIdx];
+        // Lance de quem eu já tirei passa pra quem entrou no lugar dele.
+        const ev = remapEventForSubs(events[evIdx], manualSubsRef.current, myTeamId);
         evIdx++;
         if (ev.type !== 'goal') {
           // Cartão/lesão: entra no feed mas não mexe no placar nem toca áudio de gol.
@@ -4165,15 +4449,9 @@ export default function App() {
               // escolher o substituto e retomar.
               injuredMyPlayerEvent = ev;
               break;
-            } else if (ev.replacementName) {
-              // Lesão do adversário: substituição automática só cosmética no
-              // feed (o resultado do jogo já foi decidido inteiro na geração
-              // dos eventos, então isso não muda a força do time adversário).
-              shownEventsRef.current.push({
-                type: 'substitution', minute: ev.minute, teamId: ev.teamId, teamLabel: ev.teamLabel,
-                playerOut: ev.player, playerIn: ev.replacementName, homeScore: hs, awayScore: as_,
-              });
             }
+            // Lesão do adversário: a troca dele já vem no próprio timeline
+            // (evento 'substitution' gerado pelo motor, motivo 'injury').
           }
           continue;
         }
@@ -4220,7 +4498,12 @@ export default function App() {
         const finalHs = sim.homeGoals;
         const finalAs = sim.awayGoals;
 
-        const ratings = sim.ratings;
+        const myIsHome = um.homeId === myTeamId;
+        const ratings = withManualSubRatings(sim.ratings, manualSubsRef.current, {
+          teamId: myTeamId, teamLabel: (myIsHome ? homeTeam : awayTeam).label,
+          goalsFor: myIsHome ? finalHs : finalAs, goalsAgainst: myIsHome ? finalAs : finalHs,
+          events: shownEventsRef.current,
+        });
         setLastMatchRatings(ratings);
         let ratingsAcc = applySeasonRatings(seasonRatings, ratings);
 
@@ -4240,7 +4523,7 @@ export default function App() {
         }]);
 
         // Simular todos os jogos da rodada
-        const occurrences = events.filter(ev => ev.type !== 'goal').map(ev => ({ type: ev.type, teamId: ev.teamId, player: ev.player, rounds: ev.rounds, secondYellow: ev.secondYellow }));
+        const occurrences = events.map(ev => remapEventForSubs(ev, manualSubsRef.current, myTeamId)).filter(ev => ev.type !== 'goal' && ev.type !== 'substitution').map(ev => ({ type: ev.type, teamId: ev.teamId, player: ev.player, rounds: ev.rounds, secondYellow: ev.secondYellow }));
         const otherMatchGoals = [];
         const cleanSheetEntries = [
           { teamId: homeTeam.id, teamLabel: homeTeam.label, gkName: pickGkName(homeXI), conceded: finalAs },
@@ -6700,6 +6983,7 @@ export default function App() {
             onSelectSubStarter={setSubSelectStarter}
             onApplySub={applyLiveSub}
             subbedOutNames={subbedOutNames}
+            manualSubs={manualSubs}
             onLiveSlotPointerDown={handleLiveSlotPointerDown}
             liveDragOverKey={liveDragOverKey}
             bracketAdvance={bracketAdvance}
@@ -10431,6 +10715,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-substituicoes',
+    date: 'Novembro de 2026',
+    title: 'Substituições durante o jogo',
+    desc: 'Os times da IA agora fazem substituições, como no futebol de verdade: até 5 trocas em no máximo 3 paradas, mais o intervalo, tirando quem está pendurado, cansado ou mal no jogo. Time perdendo coloca atacante; time ganhando segura com zagueiro e volante. Cada troca aparece no placar, na linha do tempo, no lance a lance e num card lateral, e quem entrou pode marcar. Seu time continua só com as suas trocas, agora com o mesmo limite de 5 em 3 paradas e o contador no placar. No fim do jogo, quem entrou ganha nota e conta o jogo nas estatísticas. Vale em todos os modos, inclusive no Modo Carreira e no Simulador 2026. As trocas não mudam o placar.',
+  },
+  {
     id: '2026-11-simulador-ao-vivo',
     date: 'Novembro de 2026',
     title: 'Simulador 2026: jogo ao vivo e fim de jogo novos',
@@ -10925,10 +11215,12 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
 
 // Painel de substituição / ajuste tático durante o jogo (pausado). Extraído
 // do LiveMatchBox para ser usado também pela aba Partida da liga.
-function LiveSubPanel({ myTeamId, liveEvents, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, pitchSlots, myUnavailableNames, onLiveSlotPointerDown, liveDragOverKey }) {
+function LiveSubPanel({ myTeamId, liveEvents, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, manualSubs = [], minute = 0, myTeamColor, pitchSlots, myUnavailableNames, onLiveSlotPointerDown, liveDragOverKey }) {
   const redCardedNames = new Set(
     (liveEvents || []).filter(ev => ev.type === 'red' && ev.teamId === myTeamId).map(ev => ev.player)
   );
+  const canSub = canMakeManualSub(manualSubs, minute);
+  const stops = subStopsUsed(manualSubs);
   return (
     <div style={{ marginTop: 10, background: 'var(--surface)', borderRadius: 10, padding: '10px 12px' }}>
       {forcedSubReason && (
@@ -10936,6 +11228,10 @@ function LiveSubPanel({ myTeamId, liveEvents, forcedSubReason, liveLineup, subSe
           {forcedSubReason} se machucou. Escolha um substituto (ou retome jogando com um a menos).
         </div>
       )}
+      <div style={{ fontSize: 12, color: 'var(--ink-2)', marginBottom: 8 }} role="status">
+        Trocas: <b>{manualSubs.length} de {MAX_SUBS}</b> · paradas: <b>{stops} de {MAX_SUB_STOPS}</b> <span style={{ color: 'var(--muted)' }}>(o intervalo não conta)</span>
+        {!canSub && <div style={{ color: 'var(--danger)', marginTop: 4 }}>{manualSubs.length >= MAX_SUBS ? 'Você já fez as 5 trocas.' : 'As 3 paradas já foram usadas — só dá pra trocar no intervalo.'}</div>}
+      </div>
       <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || 'var(--gold-ink)', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>
         Substituição
         {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o reserva</span>}
@@ -10972,8 +11268,8 @@ function LiveSubPanel({ myTeamId, liveEvents, forcedSubReason, liveLineup, subSe
                 .map(([k, p]) => {
                   const alreadyOut = (subbedOutNames || []).includes(p.name);
                   const positionOk = !starterMeta || starterMeta.isBench || (p.pos || []).includes(starterMeta.realPos);
-                  const blocked = alreadyOut || !positionOk;
-                  const reason = alreadyOut ? 'Já saiu do jogo nesta partida — não pode voltar' : !positionOk ? 'Não joga na posição desse titular' : undefined;
+                  const blocked = alreadyOut || !positionOk || !canSub;
+                  const reason = alreadyOut ? 'Já saiu do jogo nesta partida — não pode voltar' : !positionOk ? 'Não joga na posição desse titular' : !canSub ? 'Sem trocas disponíveis agora' : undefined;
                   return (
                     <button
                       key={k}
@@ -11019,7 +11315,7 @@ function LiveSubPanel({ myTeamId, liveEvents, forcedSubReason, liveLineup, subSe
   );
 }
 
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, myTeamColor, onSimulateAll, pitchSlots, myUnavailableNames, onViewTeam, onLiveSlotPointerDown, liveDragOverKey }) {
+function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, manualSubs = [], myTeamColor, onSimulateAll, pitchSlots, myUnavailableNames, onViewTeam, onLiveSlotPointerDown, liveDragOverKey }) {
   // Copa do Brasil Lendária: mesma apresentação do jogo ao vivo da liga
   // (components/football/LiveMatchView); o motor e os handlers são os de sempre.
   if (!um || !homeTeam || !awayTeam) return null;
@@ -11055,7 +11351,7 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
             {status === 'pre' && simMode !== 'auto' && <LiveButton icon="play" grow onClick={onStartRound}>{roundLabel}</LiveButton>}
             {status === 'pre' && simMode === 'auto' && autoCountdown !== null && <span className="fb-lv-cd" role="status">Começa em <b>{autoCountdown}s</b></span>}
             {(status === 'live' || status === 'paused') && <LiveSeg label="Velocidade" options={SPEEDS} value={simSpeed} onChange={onSetSpeed} />}
-            {status === 'live' && <LiveButton icon="clock" onClick={onPause}>Pausar</LiveButton>}
+            {status === 'live' && <LiveButton icon="clock" onClick={onPause} title="Pausar para fazer substituições">Pausar · {MAX_SUBS - manualSubs.length} trocas</LiveButton>}
             {status === 'paused' && <LiveButton icon="play" onClick={onResume}>Continuar</LiveButton>}
           </>
         )}
@@ -11073,13 +11369,20 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
           <LiveSubPanel
             myTeamId={myTeamId} liveEvents={liveEvents} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
             subSelectStarter={subSelectStarter} onSelectSubStarter={onSelectSubStarter} onApplySub={onApplySub}
-            subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
+            subbedOutNames={subbedOutNames} manualSubs={manualSubs} minute={minute} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
             onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
           />
         </div>
       )}
       {status !== 'pre' && (
         <LiveFeed events={liveEvents} homeId={homeTeam.id} homeName={side(homeTeam).name} awayName={side(awayTeam).name} minute={minute} status={status} />
+      )}
+      {status !== 'pre' && (
+        <LiveSubsCard
+          events={liveEvents}
+          home={{ id: homeTeam.id, name: side(homeTeam).name, crest: <ClubCrest logo={homeTeam.id === myTeamId ? myTeamLogo : homeTeam.clubLogo} badge={homeTeam.id === myTeamId ? myTeamBadge : null} name={homeTeam.label} color={homeTeam.id === myTeamId ? mc : (homeTeam.colors?.p || homeTeam.color)} size={20} /> }}
+          away={{ id: awayTeam.id, name: side(awayTeam).name, crest: <ClubCrest logo={awayTeam.id === myTeamId ? myTeamLogo : awayTeam.clubLogo} badge={awayTeam.id === myTeamId ? myTeamBadge : null} name={awayTeam.label} color={awayTeam.id === myTeamId ? mc : (awayTeam.colors?.p || awayTeam.color)} size={20} /> }}
+        />
       )}
     </div>
   );
@@ -11293,7 +11596,7 @@ function nextGameIn(fixtures, fromIdx, id, labelOf) {
   return null;
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey, modeLabel, captainName, lastRoundResults, allRoundResults }) {
+function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, manualSubs = [], bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey, modeLabel, captainName, lastRoundResults, allRoundResults }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -11571,7 +11874,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           showSubPanel={showSubPanel} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
           subSelectStarter={subSelectStarter}
           onSelectSubStarter={onSelectSubStarter}
-          onApplySub={onApplySub} subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
+          onApplySub={onApplySub} subbedOutNames={subbedOutNames} manualSubs={manualSubs} myTeamColor={myTeamColor} onSimulateAll={onSimulateAll} pitchSlots={pitchSlots}
           myUnavailableNames={myUnavailableNames} onViewTeam={onViewTeam}
           onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
         />
@@ -11920,12 +12223,13 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           autoCountdown={autoCountdown}
           onSimulateAll={onSimulateAll}
           onViewTeam={onViewTeam}
+          subsLeft={MAX_SUBS - manualSubs.length}
           subPanel={showSubPanel && liveLineup ? (
             <div className="lg-card" style={{ padding: '4px 16px 14px' }}>
               <LiveSubPanel
                 myTeamId={myTeamId} liveEvents={liveEvents} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
                 subSelectStarter={subSelectStarter} onSelectSubStarter={onSelectSubStarter} onApplySub={onApplySub}
-                subbedOutNames={subbedOutNames} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
+                subbedOutNames={subbedOutNames} manualSubs={manualSubs} minute={clockMinute} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
                 onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
               />
             </div>

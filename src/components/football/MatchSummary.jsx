@@ -28,7 +28,7 @@ export function MatchSummary({ eyebrow = 'Fim de jogo', eyebrowRight, home, away
   const motmTeam = best ? (best.teamId === home.id ? home : away) : null;
   const motmGoals = best ? goals.filter(g => !g.isOwnGoal && g.scorer === best.name && g.teamId === best.teamId).length : 0;
   const motmAssists = best ? goals.filter(g => g.assist === best.name && g.teamId === best.teamId).length : 0;
-  const motmBits = best ? [motmTeam?.name, best.pos, motmGoals ? `${motmGoals} gol${motmGoals > 1 ? 's' : ''}` : null, motmAssists ? `${motmAssists} assist.` : null].filter(Boolean).join(' · ') : '';
+  const motmBits = best ? [motmTeam?.name, best.pos, best.subIn != null ? `entrou ${best.subIn}'` : null, motmGoals ? `${motmGoals} gol${motmGoals > 1 ? 's' : ''}` : null, motmAssists ? `${motmAssists} assist.` : null].filter(Boolean).join(' · ') : '';
   const close = onClose || primary?.onClick;
 
   const col = (team, list) => {
@@ -41,9 +41,9 @@ export function MatchSummary({ eyebrow = 'Fim de jogo', eyebrowRight, home, away
           const isWorst = worst && r === worst;
           const pct = Math.max(0, Math.min(100, r.rating * 10));
           return (
-            <div key={`${r.name}-${i}`} className={`ms-pl${isBest ? ' ms-best' : ''}`} aria-label={`${r.name}${r.pos ? `, ${r.pos}` : ''}, nota ${fmt1(r.rating)}`}>
+            <div key={`${r.name}-${i}`} className={`ms-pl${isBest ? ' ms-best' : ''}`} aria-label={`${r.name}${r.pos ? `, ${r.pos}` : ''}${r.subIn != null ? `, entrou aos ${r.subIn} minutos` : r.subOut != null ? `, saiu aos ${r.subOut} minutos` : ''}, nota ${fmt1(r.rating)}`}>
               {r.pos ? <span className={`ms-pos ms-${posSector(r.pos)}`}>{r.pos}</span> : <span />}
-              <span className="ms-nm">{r.name}</span>
+              <span className="ms-nm ms-nmf"><span className="ms-ell">{r.name}</span>{r.subIn != null ? <small className="ms-subt ms-subt-in">entrou {r.subIn}'</small> : r.subOut != null ? <small className="ms-subt">saiu {r.subOut}'</small> : null}</span>
               <span className="ms-bar" aria-hidden="true"><i style={{ width: `${pct}%`, background: isBest ? 'var(--success)' : isWorst ? '#E3B3B3' : 'var(--line-strong)' }} /></span>
               <span className={`ms-v${isBest ? ' ms-hi' : isWorst ? ' ms-lo' : ''}`}>{fmt1(r.rating)}</span>
             </div>

@@ -4,10 +4,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { posColor, posOrderIndex, ovrColor } from '../../lib/format.js';
 import { buildPitchSlots } from '../engine/formations.js';
-import { teamForSim } from '../engine/simHelpers.js';
+import { teamForSim, liveMatchKey } from '../engine/simHelpers.js';
+import { canMakeManualSub, subStopsUsed, remapEventForSubs, withManualSubRatings, MAX_SUBS, MAX_SUB_STOPS } from '../../App.jsx';
 import { displayName } from '../../lib/displayName.js';
 import { ClubCrest } from '../../components/football/ClubCrest.jsx';
-import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton, withRunningScore } from '../../components/football/LiveMatchView.jsx';
+import { LiveScoreboard, LiveFeed, LiveSeg, LiveButton, LiveSubsCard, withRunningScore } from '../../components/football/LiveMatchView.jsx';
 
 const SIM_MINUTES_PER_TICK = 2;
 // Velocidade da simulação ao vivo (pedido explícito do usuário 2026-11-11,
@@ -41,7 +42,11 @@ export function RatingsList({ ratings, homeTeam, awayTeam }) {
         <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName(team.club)}</div>
         {list.map(p => (
           <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 6, fontSize: 11.5, marginBottom: 3 }}>
-            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {p.name}
+              {p.subIn != null && <small style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)', marginLeft: 6 }}>entrou {p.subIn}'</small>}
+              {p.subOut != null && <small style={{ color: 'var(--muted)', fontFamily: 'var(--font-mono)', marginLeft: 6 }}>saiu {p.subOut}'</small>}
+            </span>
             <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, color: ratingColor(p.rating), flexShrink: 0 }}>{p.rating.toFixed(1)}</span>
           </div>
         ))}
@@ -156,12 +161,13 @@ export const secondaryBtnStyle = { width: '100%', padding: '11px 0', borderRadiu
 // padrão de interação que CareerFormationScreen.jsx já usa: toca num
 // titular pra selecionar quem sai, depois toca no banco (substituição) ou
 // em outro titular compatível (reposicionamento tático) pra efetivar.
-function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, onApplySub, onReposition, onResume }) {
+function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, mySubs = [], minute = 0, onApplySub, onReposition, onResume }) {
+  const canSub = canMakeManualSub(mySubs, minute);
   const [selectedSlotKey, setSelectedSlotKey] = useState(null);
   const selectedSlot = slots.find(s => s.key === selectedSlotKey);
   const selectedPlayer = selectedSlotKey ? myPitchBySlot[selectedSlotKey] : null;
 
-  const eligibleBench = selectedSlot
+  const eligibleBench = selectedSlot && canSub
     ? myBench.filter(p => !subbedOutNames.includes(p.name) && p.pos.includes(selectedSlot.realPos))
     : [];
   const eligibleStarterSlots = selectedSlot
@@ -174,6 +180,10 @@ function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, onApplySub, o
   return (
     <div style={{ ...cardStyle, marginBottom: 10 }}>
       <div style={{ ...labelStyle, textAlign: 'left', marginBottom: 8 }}>Partida pausada: toque em quem vai sair</div>
+      <div style={{ fontSize: 12, color: 'var(--ink-2)', marginBottom: 8 }} role="status">
+        Trocas: <b>{mySubs.length} de {MAX_SUBS}</b> · paradas: <b>{subStopsUsed(mySubs)} de {MAX_SUB_STOPS}</b> <span style={{ color: 'var(--muted)' }}>(o intervalo não conta)</span>
+        {!canSub && <div style={{ color: 'var(--danger)', marginTop: 4 }}>{mySubs.length >= MAX_SUBS ? 'Você já fez as 5 trocas.' : 'As 3 paradas já foram usadas — só dá pra trocar no intervalo.'}</div>}
+      </div>
       <div style={{ display: 'grid', gap: 4, marginBottom: 10, maxHeight: 260, overflowY: 'auto' }}>
         {orderedSlots.map(slot => {
           const p = myPitchBySlot[slot.key];
@@ -200,7 +210,7 @@ function SubPanel({ slots, myPitchBySlot, myBench, subbedOutNames, onApplySub, o
       {selectedSlot && (
         <>
           <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 6 }}>Banco — toque pra substituir por {selectedPlayer.name}</div>
-          {eligibleBench.length === 0 && <p style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8 }}>Ninguém do banco joga em {selectedSlot.realPos}.</p>}
+          {eligibleBench.length === 0 && <p style={{ fontSize: 11.5, color: 'var(--muted)', marginBottom: 8 }}>{canSub ? `Ninguém do banco joga em ${selectedSlot.realPos}.` : 'Sem trocas disponíveis agora.'}</p>}
           <div style={{ display: 'grid', gap: 4, marginBottom: eligibleStarterSlots.length > 0 ? 10 : 0 }}>
             {eligibleBench.map(p => (
               <button
@@ -257,6 +267,7 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
   const [liveStarters, setLiveStarters] = useState(null);
   const [liveBench, setLiveBench] = useState([]);
   const [subbedOutNames, setSubbedOutNames] = useState([]);
+  const [mySubs, setMySubs] = useState([]);
 
   // Reconstrói a escalação ao vivo (titular+banco de verdade, com
   // posição/OVR) a partir de `teamForSim` — reaproveita o MESMO motor que
@@ -270,6 +281,7 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
     setLiveStarters(nextStarters);
     setLiveBench(myTeamFull.players.slice(mySlots.length));
     setSubbedOutNames([]);
+    setMySubs([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sim]);
 
@@ -280,11 +292,15 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
     const outPlayer = liveStarters[slotKey];
     const inPlayer = liveBench.find(p => p.name === benchPlayerName);
     if (!outPlayer || !inPlayer) return;
+    // Regra atual: 5 trocas em até 3 paradas (o intervalo não conta).
+    if (!canMakeManualSub(mySubs, minute)) return;
+    const inPos = mySlots.find(sl => sl.key === slotKey)?.realPos || inPlayer.pos?.[0];
+    setMySubs(prev => [...prev, { minute, playerOut: outPlayer.name, playerIn: inPlayer.name, inPos }]);
     setLiveStarters(prev => ({ ...prev, [slotKey]: inPlayer }));
     setLiveBench(prev => prev.map(p => (p.name === inPlayer.name ? outPlayer : p)));
     setSubbedOutNames(prev => [...prev, outPlayer.name]);
     pushExtraEvent({ type: 'substitution', minute, teamId: myTeamObj.id, teamLabel: myTeamObj.club, playerOut: outPlayer.name, playerIn: inPlayer.name });
-    onApplyLineupChange?.({ type: 'sub', slotKey, outName: outPlayer.name, inName: inPlayer.name });
+    onApplyLineupChange?.({ type: 'sub', slotKey, outName: outPlayer.name, inName: inPlayer.name, minute, inPos, matchKey: liveMatchKey(homeTeam.id, awayTeam.id, sim) });
   };
 
   const reposition = (sourceKey, targetKey) => {
@@ -302,7 +318,20 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
     sub: !!save && t.id === save.myClubId ? 'Seu time' : null,
     crest: <ClubCrest team={t} size={64} frame scale={0.68} frameClass={`fb-crest-frame fb-lv-crest${save && t.id === save.myClubId ? ' fb-lv-crest-mine' : ''}`} />,
   });
-  const events = withRunningScore(shownEvents, homeTeam.id);
+  // Lance de quem eu já tirei passa pra quem entrou no lugar dele (o motor
+  // sorteou os lances entre os 11 que começaram).
+  const myId = myTeamObj?.id;
+  const events = withRunningScore(myId ? shownEvents.map(ev => remapEventForSubs(ev, mySubs, myId)) : shownEvents, homeTeam.id);
+  const shownRatings = useMemo(() => {
+    if (!myId || !mySubs.length) return sim.ratings;
+    const isHome = homeTeam.id === myId;
+    return withManualSubRatings(sim.ratings, mySubs, {
+      teamId: myId, teamLabel: myTeamObj.label,
+      goalsFor: isHome ? sim.homeGoals : sim.awayGoals, goalsAgainst: isHome ? sim.awayGoals : sim.homeGoals,
+      events, rand: () => 0.5,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sim, mySubs, myId, phase]);
   const SPEED_OPTS = Object.keys(SPEEDS).map(k => ({ id: k, label: k }));
   return (
     <div className="fb-lv-page">
@@ -319,7 +348,7 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
             {status === 'pre' && <LiveButton icon="play" grow onClick={startPlaying}>Jogar partida</LiveButton>}
             {status === 'live' && <LiveSeg label="Velocidade" options={SPEED_OPTS} value={speedKey} onChange={changeSpeed} />}
             {status === 'live' && <LiveButton tone="ghost" icon="forward" onClick={skipToEnd}>Pular para o resultado</LiveButton>}
-            {status === 'live' && mySide && liveStarters && <LiveButton icon="clock" onClick={pause}>Pausar e trocar</LiveButton>}
+            {status === 'live' && mySide && liveStarters && <LiveButton icon="clock" onClick={pause}>Pausar e trocar · {MAX_SUBS - mySubs.length}</LiveButton>}
             {status === 'done' && <LiveButton icon="arrowRight" grow onClick={onFinish}>{continueLabel.replace(/\s*→\s*$/, '')}</LiveButton>}
           </>
         )}
@@ -331,6 +360,8 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
           myPitchBySlot={liveStarters}
           myBench={liveBench}
           subbedOutNames={subbedOutNames}
+          mySubs={mySubs}
+          minute={minute}
           onApplySub={applySub}
           onReposition={reposition}
           onResume={resume}
@@ -339,12 +370,23 @@ export function LiveMatchScreen({ sim, homeTeam, awayTeam, label, continueLabel 
 
       {status !== 'pre' && <LiveFeed events={events} homeId={homeTeam.id} homeName={displayName(homeTeam.club)} awayName={displayName(awayTeam.club)} minute={minute} status={status} />}
 
+      {status !== 'pre' && (
+        <LiveSubsCard
+          events={events}
+          home={{ id: homeTeam.id, name: displayName(homeTeam.club), crest: <ClubCrest team={homeTeam} size={18} /> }}
+          away={{ id: awayTeam.id, name: displayName(awayTeam.club), crest: <ClubCrest team={awayTeam} size={18} /> }}
+        />
+      )}
+
       {status === 'done' && (
         <>
-          {motm && (
-            <div className="fb-lv-motm"><span className="fb-lv-mono">Craque da partida</span><b>{motm.name}</b><span className="fb-lv-motm-n">{motm.rating.toFixed(1).replace('.', ',')}</span></div>
-          )}
-          <RatingsList ratings={sim.ratings} homeTeam={homeTeam} awayTeam={awayTeam} />
+          {(() => {
+            const best = [...shownRatings].sort((a, b) => b.rating - a.rating)[0] || motm;
+            return best && (
+              <div className="fb-lv-motm"><span className="fb-lv-mono">Craque da partida</span><b>{best.name}</b><span className="fb-lv-motm-n">{best.rating.toFixed(1).replace('.', ',')}</span></div>
+            );
+          })()}
+          <RatingsList ratings={shownRatings} homeTeam={homeTeam} awayTeam={awayTeam} />
         </>
       )}
     </div>

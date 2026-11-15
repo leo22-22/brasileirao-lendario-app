@@ -41,7 +41,7 @@
 import { teamStrength, makePrng, hashSeed, simAiMatch } from '../../App.jsx';
 import { CAREER_CLUB_IDS, careerClubDivision } from '../../data/career-clubs.js';
 import { creditBudget } from './rosterStore.js';
-import { teamForSim, legPackage } from './simHelpers.js';
+import { teamForSim, legPackage, withMyLiveSubs } from './simHelpers.js';
 import { accumulateMatchStats } from './seasonStats.js';
 
 export const COPA_ROUND_LABELS = ['Primeira Fase', '16 Avos de Final', 'Oitavas de Final', 'Quartas de Final', 'Semifinal', 'Final'];
@@ -437,9 +437,11 @@ export function playCopaRoundVolta(save, rand) {
 // volta). `legResult` é o objeto de `legPackage` (mesmo formato que
 // LegMatch/CareerCopaLegScreen já usam) — `aId` manda a ida, então
 // `legResult.sim.home/awayGoals` já está na ordem certa sem inverter nada.
-export function finalizeCopaUserTieLeg1(save, legResult) {
-  const tie = save.pendingUserCopaTie;
-  if (!tie) return save;
+export function finalizeCopaUserTieLeg1(save0, legResult0) {
+  const tie = save0.pendingUserCopaTie;
+  if (!tie) return save0;
+  const { save, sim: liveSim } = withMyLiveSubs(save0, tie.aId, tie.bId, legResult0.sim);
+  const legResult = { ...legResult0, sim: liveSim };
   const myTieIdx = save.copa.ties.findIndex(t => t.aId === tie.aId && t.bId === tie.bId);
   const leg1Results = [...(save.copa.leg1Results || [])];
   leg1Results[myTieIdx] = { homeGoals: legResult.sim.homeGoals, awayGoals: legResult.sim.awayGoals };
@@ -453,9 +455,12 @@ export function finalizeCopaUserTieLeg1(save, legResult) {
 // da fase), combina com os confrontos de IA já resolvidos na mesma fase
 // (`copa.pendingRoundTieResults`, preenchidos por playCopaRoundVolta) e
 // termina o trabalho de avançar a fase (ou fechar o campeonato).
-export function finalizeCopaUserTieLeg2(save, legResult) {
-  const tie = save.pendingUserCopaTie;
-  if (!tie) return save;
+export function finalizeCopaUserTieLeg2(save0, legResult0) {
+  const tie = save0.pendingUserCopaTie;
+  if (!tie) return save0;
+  const { save: savedSubs, sim: liveSim } = withMyLiveSubs(save0, tie.bId, tie.aId, legResult0.sim);
+  let save = savedSubs;
+  const legResult = { ...legResult0, sim: liveSim };
   const myTieIdx = save.copa.ties.findIndex(t => t.aId === tie.aId && t.bId === tie.bId);
   const leg1 = save.copa.leg1Results[myTieIdx];
   // `bId` manda a volta (ver leg2Match em playCopaRoundVolta) — home/away
@@ -508,7 +513,9 @@ export function resolveCopaFinalUserMatch(save) {
   const myTieIdx = save.copa.ties.findIndex(t => t.aId === tie.aId && t.bId === tie.bId);
   const results = [...(save.copa.pendingRoundTieResults || [])];
   results[myTieIdx] = myResult;
-  const seasonPlayerStats = accumulateMatchStats(save.seasonPlayerStats || {}, { homeId: tie.aId, awayId: tie.bId, ...tie.finalMatch.sim });
+  const { save: savedSubs, sim: finalSim } = withMyLiveSubs(save, tie.aId, tie.bId, tie.finalMatch.sim);
+  save = savedSubs;
+  const seasonPlayerStats = accumulateMatchStats(save.seasonPlayerStats || {}, { homeId: tie.aId, awayId: tie.bId, ...finalSim });
   save = { ...save, seasonPlayerStats };
 
   const advanced = advanceBracketRound(save, results);
