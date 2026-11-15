@@ -32,14 +32,17 @@ export const PitchSurface = forwardRef(function PitchSurface({ variant = 'full',
 
 /**
  * slot: { key, x, y, realPos, label }. player: { name, ovr, pos[] } | null.
- * badges: { cap, pen, warn: 'warning'|'danger'|null }. note: texto após a posição.
+ * badges: { cap, pen, warn: 'warning'|'danger'|null, yellow, swap }. note: texto após a posição.
+ * tone: 'out' (selecionado para sair) | 'queued' (troca na fila) | 'off' (fora do jogo).
+ * sub: texto da linha de baixo no lugar da posição. disabled: sem clique.
  */
-export function PlayerDot({ slot, player, selected, badges = {}, note, dangerName, onClick, label, title }) {
+export function PlayerDot({ slot, player, selected, badges = {}, note, dangerName, onClick, label, title, tone, sub, disabled }) {
   const sector = posSector(slot.realPos);
   return (
     <button
       type="button"
-      className={`fb-dot${selected ? ' fb-dot-sel' : ''}${player ? '' : ' fb-dot-empty'}`}
+      className={`fb-dot${selected ? ' fb-dot-sel' : ''}${player ? '' : ' fb-dot-empty'}${tone ? ` fb-dot-${tone}` : ''}`}
+      disabled={disabled}
       style={{ left: `${slot.x}%`, top: `${slot.y}%`, '--ring': SECTOR_RING[sector] }}
       onClick={onClick}
       aria-label={label}
@@ -51,9 +54,11 @@ export function PlayerDot({ slot, player, selected, badges = {}, note, dangerNam
         {badges.cap && <i className="fb-bdg fb-cap" aria-hidden="true">C</i>}
         {badges.pen && <i className="fb-bdg fb-pen" aria-hidden="true">P</i>}
         {badges.warn && <i className={`fb-bdg fb-warn${badges.warn === 'danger' ? ' fb-red' : ''}`} aria-hidden="true">!</i>}
+        {badges.yellow && <i className="fb-yc" aria-hidden="true" />}
+        {badges.swap && <i className="fb-bdg fb-swap" aria-hidden="true">⇄</i>}
       </span>
       {player && <span className="fb-dot-n" style={dangerName ? { background: 'rgba(178,59,59,.85)' } : undefined}>{player.name}</span>}
-      <span className="fb-dot-p">{slot.realPos}{note ? ` · ${note}` : ''}</span>
+      <span className="fb-dot-p">{sub ?? `${slot.realPos}${note ? ` · ${note}` : ''}`}</span>
     </button>
   );
 }

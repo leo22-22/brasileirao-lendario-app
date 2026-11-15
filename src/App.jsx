@@ -20,6 +20,7 @@ import { PlayerList } from './components/football/PlayerList.jsx';
 import { LeaderboardGrid } from './components/football/LeaderboardCard.jsx';
 import { SeasonEndSummary } from './components/football/SeasonEndSummary.jsx';
 import { MatchSummary } from './components/football/MatchSummary.jsx';
+import { SubstitutionModal } from './game/SubstitutionModal.jsx';
 import { buildLeaderboards } from './lib/leaders.js';
 import { teamInk, readableOn, textOn } from './lib/color.js';
 import { FIRST_YEAR, LAST_YEAR } from './lib/eras.js';
@@ -10755,6 +10756,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-painel-substituicoes',
+    date: 'Novembro de 2026',
+    title: 'Painel de substituições novo',
+    desc: 'Ao pausar o jogo, as trocas agora abrem num painel próprio: o campo com seus titulares (amarelos marcados), quem sai, o banco ordenado pelos compatíveis com a vaga e uma fila de trocas. Dá para montar várias trocas, desfazer qualquer uma e confirmar tudo de uma vez, gastando uma parada só. O painel mostra quantas trocas e paradas restam e como fica o OVR do time em campo. Na lesão, ele abre direto no substituto, com a opção de jogar com um a menos. O ajuste tático (arrastar jogadores entre as vagas) continua lá, na outra aba.',
+  },
+  {
     id: '2026-11-escalacao-lendario',
     date: 'Novembro de 2026',
     title: 'Mude a escalação entre os jogos nos modos lendários',
@@ -11267,107 +11274,31 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
 
 // Painel de substituição / ajuste tático durante o jogo (pausado). Extraído
 // do LiveMatchBox para ser usado também pela aba Partida da liga.
-function LiveSubPanel({ myTeamId, liveEvents, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, manualSubs = [], minute = 0, myTeamColor, pitchSlots, myUnavailableNames, onLiveSlotPointerDown, liveDragOverKey }) {
-  const redCardedNames = new Set(
-    (liveEvents || []).filter(ev => ev.type === 'red' && ev.teamId === myTeamId).map(ev => ev.player)
-  );
-  const canSub = canMakeManualSub(manualSubs, minute);
-  const stops = subStopsUsed(manualSubs);
+function LiveSubPanel({ myTeamId, liveEvents, forcedSubReason, liveLineup, onApplySub, subbedOutNames, manualSubs = [], minute = 0, myTeamColor, pitchSlots, myUnavailableNames, onLiveSlotPointerDown, liveDragOverKey, onResume, header }) {
+  // Visual em game/SubstitutionModal.jsx; aqui só liga o campo de arrastar
+  // do ajuste tático (Pitch deste arquivo) e repassa as regras/handlers.
   return (
-    <div style={{ marginTop: 10, background: 'var(--surface)', borderRadius: 10, padding: '10px 12px' }}>
-      {forcedSubReason && (
-        <div style={{ fontSize: 12, color: 'var(--danger)', marginBottom: 8, fontWeight: 700 }}>
-          {forcedSubReason} se machucou. Escolha um substituto (ou retome jogando com um a menos).
-        </div>
-      )}
-      <div style={{ fontSize: 12, color: 'var(--ink-2)', marginBottom: 8 }} role="status">
-        Trocas: <b>{manualSubs.length} de {MAX_SUBS}</b> · paradas: <b>{stops} de {MAX_SUB_STOPS}</b> <span style={{ color: 'var(--muted)' }}>(o intervalo não conta)</span>
-        {!canSub && <div style={{ color: 'var(--danger)', marginTop: 4 }}>{manualSubs.length >= MAX_SUBS ? 'Você já fez as 5 trocas.' : 'As 3 paradas já foram usadas — só dá pra trocar no intervalo.'}</div>}
-      </div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || 'var(--gold-ink)', marginBottom: 8, letterSpacing: 1, textTransform: 'uppercase' }}>
-        Substituição
-        {subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o reserva</span>}
-        {!subSelectStarter && <span style={{ opacity: 0.6, fontWeight: 400, marginLeft: 8 }}>Escolha o titular</span>}
-      </div>
-      <div style={{ display: 'flex', gap: 8 }}>
-        <div style={{ flex: 1 }}>
-          <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Titulares</div>
-          {Object.entries(liveLineup)
-            .filter(([k, p]) => !p.isBench && !redCardedNames.has(p.name) && !myUnavailableNames?.has(p.name))
-            .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
-            .map(([k, p]) => (
-              <button key={k} onClick={() => onSelectSubStarter(subSelectStarter === k ? null : k)}
-                style={{
-                  display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                  background: subSelectStarter === k ? 'rgba(31,122,77,0.14)' : 'var(--surface)',
-                  border: subSelectStarter === k ? '1px solid rgba(31,122,77,0.6)' : '1px solid var(--line)',
-                  borderRadius: 6, color: 'var(--ink)',
-                  fontFamily: 'var(--font-mono)', fontSize: 10, cursor: 'pointer', marginBottom: 3,
-                }}
-              >
-                {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
-              </button>
-            ))}
-        </div>
-        {subSelectStarter && (() => {
-          const starterMeta = pitchSlots?.find(s => s.key === subSelectStarter);
-          return (
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 10, color: 'var(--muted)', marginBottom: 4 }}>Reservas</div>
-              {Object.entries(liveLineup)
-                .filter(([k, p]) => p.isBench && !myUnavailableNames?.has(p.name))
-                .sort(([, a], [, b]) => posOrderIndex(a.pos?.[0]) - posOrderIndex(b.pos?.[0]))
-                .map(([k, p]) => {
-                  const alreadyOut = (subbedOutNames || []).includes(p.name);
-                  const positionOk = !starterMeta || starterMeta.isBench || (p.pos || []).includes(starterMeta.realPos);
-                  const blocked = alreadyOut || !positionOk || !canSub;
-                  const reason = alreadyOut ? 'Já saiu do jogo nesta partida — não pode voltar' : !positionOk ? 'Não joga na posição desse titular' : !canSub ? 'Sem trocas disponíveis agora' : undefined;
-                  return (
-                    <button
-                      key={k}
-                      onClick={() => !blocked && onApplySub(subSelectStarter, p)}
-                      disabled={blocked}
-                      title={reason}
-                      style={{
-                        display: 'block', width: '100%', textAlign: 'left', padding: '5px 8px',
-                        background: blocked ? 'rgba(178,59,59,0.1)' : 'var(--surface)',
-                        border: blocked ? '1px solid rgba(178,59,59,0.35)' : '1px solid var(--line)',
-                        borderRadius: 6, color: blocked ? 'var(--muted)' : 'var(--ink)',
-                        fontFamily: 'var(--font-mono)', fontSize: 10,
-                        cursor: blocked ? 'not-allowed' : 'pointer', marginBottom: 3, opacity: blocked ? 0.6 : 1,
-                      }}
-                    >
-                      {p.name} <span style={{ opacity: 0.45 }}>{(p.pos || []).join('/')}</span>
-                    </button>
-                  );
-                })}
-            </div>
-          );
-        })()}
-      </div>
-
-      {onLiveSlotPointerDown && (
-        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--line)' }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: myTeamColor || 'var(--gold-ink)', marginBottom: 6, letterSpacing: 1, textTransform: 'uppercase' }}>
-            Ajuste tático
-          </div>
-          <div style={{ fontSize: 10.5, color: 'var(--muted)', marginBottom: 6 }}>
-            Arraste um titular pra outra vaga do time pra mudar o esquema na hora — sem envolver o banco.
-          </div>
-          <Pitch
-            pitch={liveLineup}
-            pitchSlots={pitchSlots || []}
-            myTeamColor={myTeamColor}
-            onSlotPointerDown={onLiveSlotPointerDown}
-            dragOverKey={liveDragOverKey}
-          />
-        </div>
-      )}
-    </div>
+    <SubstitutionModal
+      header={header}
+      myTeamId={myTeamId}
+      liveEvents={liveEvents || []}
+      forcedSubReason={forcedSubReason}
+      lineup={liveLineup}
+      slots={pitchSlots || []}
+      subbedOutNames={subbedOutNames || []}
+      manualSubs={manualSubs}
+      minute={minute}
+      unavailableNames={myUnavailableNames}
+      onApplySub={onApplySub}
+      onResume={onResume}
+      tacticalPitch={onLiveSlotPointerDown ? (
+        <Pitch pitch={liveLineup} pitchSlots={pitchSlots || []} myTeamColor={myTeamColor} onSlotPointerDown={onLiveSlotPointerDown} dragOverKey={liveDragOverKey} />
+      ) : <p style={{ color: 'var(--muted)', fontSize: 13 }}>Ajuste tático indisponível neste jogo.</p>}
+    />
   );
 }
 
-function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, manualSubs = [], myTeamColor, onSimulateAll, pitchSlots, myUnavailableNames, onViewTeam, onLiveSlotPointerDown, liveDragOverKey }) {
+function LiveMatchBox({ phaseLabel, um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLogo, mc, liveScore, clockDisplay, isSimulating, roundDone, liveEvents, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, roundLabel, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, manualSubs = [], myTeamColor, onSimulateAll, pitchSlots, myUnavailableNames, onViewTeam, onLiveSlotPointerDown, liveDragOverKey }) {
   // Copa do Brasil Lendária: mesma apresentação do jogo ao vivo da liga
   // (components/football/LiveMatchView); o motor e os handlers são os de sempre.
   if (!um || !homeTeam || !awayTeam) return null;
@@ -11417,14 +11348,18 @@ function LiveMatchBox({ um, homeTeam, awayTeam, myTeamId, myTeamBadge, myTeamLog
         )}
       </LiveScoreboard>
       {showSubPanel && liveLineup && (
-        <div className="lg-card" style={{ padding: '4px 16px 14px', background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 22 }}>
-          <LiveSubPanel
-            myTeamId={myTeamId} liveEvents={liveEvents} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
-            subSelectStarter={subSelectStarter} onSelectSubStarter={onSelectSubStarter} onApplySub={onApplySub}
-            subbedOutNames={subbedOutNames} manualSubs={manualSubs} minute={minute} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
-            onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
-          />
-        </div>
+        <LiveSubPanel
+          myTeamId={myTeamId} liveEvents={liveEvents} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
+          onApplySub={onApplySub} onResume={onResume}
+          subbedOutNames={subbedOutNames} manualSubs={manualSubs} minute={minute} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
+          onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
+          header={{
+            eyebrow: phaseLabel,
+            home: { name: side(homeTeam).name, crest: <ClubCrest logo={homeTeam.id === myTeamId ? myTeamLogo : homeTeam.clubLogo} badge={homeTeam.id === myTeamId ? myTeamBadge : null} name={homeTeam.label} color={homeTeam.id === myTeamId ? mc : (homeTeam.colors?.p || homeTeam.color)} size={28} /> },
+            away: { name: side(awayTeam).name, crest: <ClubCrest logo={awayTeam.id === myTeamId ? myTeamLogo : awayTeam.clubLogo} badge={awayTeam.id === myTeamId ? myTeamBadge : null} name={awayTeam.label} color={awayTeam.id === myTeamId ? mc : (awayTeam.colors?.p || awayTeam.color)} size={28} /> },
+            score: liveScore,
+          }}
+        />
       )}
       {status !== 'pre' && (
         <LiveFeed events={liveEvents} homeId={homeTeam.id} homeName={side(homeTeam).name} awayName={side(awayTeam).name} minute={minute} status={status} />
@@ -11925,6 +11860,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           onSetSpeed={onSetSpeed} simMode={simMode} onSetSimMode={onSetSimMode}
           autoCountdown={autoCountdown} onStartRound={onStartRound}
           roundLabel={`Jogar — ${roundName} (${legLabel})`}
+          phaseLabel={`${roundName} · ${legLabel}`}
           isPaused={isPaused} onPause={onPause} onResume={onResume}
           showSubPanel={showSubPanel} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
           subSelectStarter={subSelectStarter}
@@ -12280,14 +12216,17 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
           onViewTeam={onViewTeam}
           subsLeft={MAX_SUBS - manualSubs.length}
           subPanel={showSubPanel && liveLineup ? (
-            <div className="lg-card" style={{ padding: '4px 16px 14px' }}>
-              <LiveSubPanel
-                myTeamId={myTeamId} liveEvents={liveEvents} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
-                subSelectStarter={subSelectStarter} onSelectSubStarter={onSelectSubStarter} onApplySub={onApplySub}
-                subbedOutNames={subbedOutNames} manualSubs={manualSubs} minute={clockMinute} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
-                onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
-              />
-            </div>
+            <LiveSubPanel
+              myTeamId={myTeamId} liveEvents={liveEvents} forcedSubReason={forcedSubReason} liveLineup={liveLineup}
+              onApplySub={onApplySub} onResume={onResume}
+              subbedOutNames={subbedOutNames} manualSubs={manualSubs} minute={clockMinute} myTeamColor={myTeamColor} pitchSlots={pitchSlots} myUnavailableNames={myUnavailableNames}
+              onLiveSlotPointerDown={onLiveSlotPointerDown} liveDragOverKey={liveDragOverKey}
+              header={(() => {
+                const h = matchSide(homeTeam), a = matchSide(awayTeam);
+                const cr = (t) => <ClubCrest logo={t.logo} badge={t.badge} name={t.label} color={t.color} size={28} />;
+                return { eyebrow: `Rodada ${currentRound + 1}`, home: { name: h.label, crest: cr(h) }, away: { name: a.label, crest: cr(a) }, score: liveScore };
+              })()}
+            />
           ) : null}
           otherGames={otherGames}
           otherNote={roundDone ? 'Final' : isSimulating ? 'placares no apito final' : `Rodada ${currentRound + 1}`}
