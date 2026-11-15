@@ -10,7 +10,18 @@
 .cp-bk { height: 540px; position: relative; }
 .cp-lines { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: visible; }
 .cp-lines path { fill: none; stroke: var(--line-strong); stroke-width: 1.2; }
+/* pendente (neutro tracejado) · meu caminho por jogar · percorrida */
+.cp-lines path.cp-ln-pend { stroke-dasharray: 3 3; }
 .cp-lines path.cp-ln-hl { stroke: var(--gold); stroke-width: 2; stroke-dasharray: 4 3; }
+.cp-lines path.cp-ln-won { stroke: var(--ink-2); stroke-width: 2; }
+.cp-lines path.cp-ln-mine { stroke: var(--gold); stroke-width: 3; }
+/* animando: traço amarelo 4px desenhado do vencedor até a vaga, depois assenta na cor final */
+.cp-lines path.cp-ln-anim { stroke: #E2B100; stroke-width: 4; stroke-linecap: round; animation: cpDraw var(--dur) ease-in-out var(--d) both, cpSettle var(--dur2) ease-out var(--d2) forwards; --fc: var(--ink-2); --fw: 2; }
+.cp-lines path.cp-ln-anim-mine { --fc: var(--gold); --fw: 3; }
+.cp-ln-dot { fill: #FFE27A; filter: drop-shadow(0 0 4px rgba(226,177,0,.9)); offset-rotate: 0deg; opacity: 0; animation: cpDot var(--dur) ease-in-out var(--d) both; }
+@keyframes cpDraw { from { stroke-dashoffset: var(--len); } to { stroke-dashoffset: 0; } }
+@keyframes cpSettle { to { stroke: var(--fc); stroke-width: var(--fw); } }
+@keyframes cpDot { 0% { offset-distance: 0%; opacity: 1; } 92% { opacity: 1; } 100% { offset-distance: 100%; opacity: 0; } }
 .cp-col { display: flex; flex-direction: column; justify-content: space-around; min-width: 0; position: relative; z-index: 1; }
 .cp-tie { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); overflow: hidden; display: flex; flex-direction: column; width: 100%; padding: 0; text-align: left; font-family: var(--font-body); color: var(--ink); cursor: pointer; }
 .cp-tie:hover { border-color: var(--line-strong); }
@@ -44,8 +55,26 @@
 .cp-mtabs button.cp-on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .cp-mlist { display: grid; gap: 8px; }
 .cp-mlist .cp-tm { height: 32px; font-size: 13px; }
-.cp-ln-lit { stroke: var(--gold) !important; opacity: .7; }
-.cp-tie.cp-just { box-shadow: 0 0 0 2px var(--gold); }
+.cp-tm { transition: background-color .6s ease, box-shadow .6s ease; }
+/* 1) vencedor acende: contorno amarelo 2px, fundo amarelo claro, halo que pulsa */
+.cp-tm.cp-win-anim { position: relative; z-index: 1; animation: cpWin var(--dur) ease-out var(--d) both, cpHalo calc(var(--dur) * 1.2) ease-out var(--d) var(--n, 1); }
+@keyframes cpWin { from { background: transparent; box-shadow: inset 0 0 0 0 #E2B100; } to { background: #FFF6CF; box-shadow: inset 0 0 0 2px #E2B100; } }
+@keyframes cpHalo { 0% { filter: drop-shadow(0 0 0 rgba(226,177,0,0)); } 50% { filter: drop-shadow(0 0 6px rgba(226,177,0,.75)); } 100% { filter: drop-shadow(0 0 0 rgba(226,177,0,0)); } }
+.cp-tie:has(.cp-win-anim) { overflow: visible; }
+/* 3) time aparece na vaga: pop + halo rápido */
+.cp-tm.cp-land-anim { animation: cpLand var(--dur) cubic-bezier(.2,.9,.3,1.2) var(--d) both; }
+@keyframes cpLand { 0% { opacity: 0; transform: scale(.92); background: #FFF6CF; } 60% { opacity: 1; transform: scale(1); background: #FFF6CF; } 100% { opacity: 1; transform: scale(1); } }
+.cp-tm-tbd { color: var(--muted); font-style: italic; }
+.cp-partial { cursor: default; border-style: dashed; }
+/* 4) campeão: halo dourado longo (2 pulsos) e troféu em destaque */
+.cp-champ .cp-final-h { background: var(--gold); color: #fff; }
+.cp-champ-anim { animation: cpChamp calc(var(--dur) / 2) ease-in-out var(--d) 2; }
+@keyframes cpChamp { 0%, 100% { box-shadow: 0 0 0 0 rgba(194,154,69,0); } 50% { box-shadow: 0 0 0 6px rgba(194,154,69,.45), 0 0 22px 4px rgba(226,177,0,.5); } }
+.cp-champ-anim .cp-final-h svg { animation: cpTrophy calc(var(--dur) / 2) ease-in-out var(--d) 2; }
+@keyframes cpTrophy { 50% { transform: scale(1.35) rotate(-8deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .cp-tm.cp-win-anim, .cp-tm.cp-land-anim, .cp-champ-anim, .cp-champ-anim .cp-final-h svg, .cp-lines path.cp-ln-anim, .cp-ln-dot { animation: none !important; }
+}
 
 @media (max-width: 1200px) {
   .cp-bk-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 6px; }

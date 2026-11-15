@@ -9405,6 +9405,8 @@ export function CupBracketModal({
   // Visual único do chaveamento (components/football/CupBracket, referência:
   // Copa da carreira). Os dados vêm do cupRounds/cupMatchOutcome de sempre.
   const mc = teamInk(myTeamColor || '#C29A45');
+  // "Parar" a simulação termina as animações do chaveamento na hora.
+  const [stopped, setStopped] = useState(false);
   const advancingIds = useMemo(() => new Set(advance?.winnerIds || []), [advance]);
   const intoRoundIdx = advance?.intoRoundIdx ?? -1;
   const championId = advance?.championId ?? null;
@@ -9492,6 +9494,10 @@ export function CupBracketModal({
         nextPathKey={nextPathKey}
         renderPopover={popover}
         initialMobilePhase={Math.max(1, intoRoundIdx >= 0 ? intoRoundIdx + 1 : (cupRounds?.length || 1))}
+        // 1x = 1600ms por etapa — o mesmo ritmo da simulação direta da Copa
+        // (FAST_SIM_CUP_ROUND_DELAY_MS); "Parar" encerra tudo no estado final.
+        animSpeed={FAST_SIM_CUP_ROUND_DELAY_MS / 1600}
+        instant={stopped}
         finalPlaceholder={<><Icon name="trophy" size={20} /><span>Final</span></>}
         legend={(
           <div className="cp-bkl">
@@ -9516,7 +9522,7 @@ export function CupBracketModal({
         {simActive ? (
           <>
             <p className="scal-hint" role="status">{simStatus || 'Simulando…'}</p>
-            {onCancelSim && <Button variant="ghost" block onClick={onCancelSim}>Parar</Button>}
+            {onCancelSim && <Button variant="ghost" block onClick={() => { setStopped(true); onCancelSim(); }}>Parar</Button>}
           </>
         ) : (
           <>
@@ -10649,6 +10655,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-copa-animacao-classificacao',
+    date: 'Novembro de 2026',
+    title: 'Chaveamento da Copa com animação de classificação',
+    desc: 'Quando um confronto da Copa do Brasil é decidido, o vencedor acende, uma linha percorre o chaveamento até a vaga da fase seguinte e o time aparece lá. Na final, o campeão ganha destaque com o troféu. Cada caminho fica marcado até o fim, em dourado quando é o do seu time. Os jogos de ida só atualizam o placar, e no fim de uma fase os confrontos animam juntos, terminando no seu. Vale na Copa do Brasil Lendária, no multiplayer e na Copa do Modo Carreira.',
+  },
   {
     id: '2026-11-selecao-modal-e-janelas',
     date: 'Novembro de 2026',
