@@ -3635,8 +3635,12 @@ export default function App() {
   const [showLineupEditor, setShowLineupEditor] = useState(false);
   // Compartilhado com a troca de formação (abaixo): reordena `leagueTeams`
   // (titulares primeiro) a partir de um `pitch` já pronto.
-  const syncLineupToLeagueTeams = (pitchToSync) => {
-    const reordered = partitionStartersFirst(Object.values(pitchToSync));
+  const syncLineupToLeagueTeams = (pitchToSync, capSlot = captainSlot) => {
+    // Mesmo +2 OVR do capitão que o início da temporada aplica (pitchWithCaptain).
+    const withCap = capSlot && pitchToSync[capSlot] && !pitchToSync[capSlot].isBench
+      ? { ...pitchToSync, [capSlot]: { ...pitchToSync[capSlot], ovr: pitchToSync[capSlot].ovr + 2, isCaptain: true } }
+      : pitchToSync;
+    const reordered = partitionStartersFirst(Object.values(withCap));
     setLeagueTeams(prev => prev.map(t => (t.id === myTeamId
       ? { ...t, players: reordered, ovr: teamStrength(Object.fromEntries(reordered.map((p, i) => [i, p]))) }
       : t)));
@@ -3654,16 +3658,36 @@ export default function App() {
   // fechar, avisa e mantém a formação anterior intacta.
   const [showFormationSwap, setShowFormationSwap] = useState(false);
   const applyFormationSwap = (starterSlots) => {
-    const team = TEAMS.find(t => t.id === serieAtualTeamId);
-    const built = team ? autoFillTeamIntoSlots(team, starterSlots, { fullBench: true }) : null;
+    let built;
+    if (isSerieAtual) {
+      const team = TEAMS.find(t => t.id === serieAtualTeamId);
+      built = team ? autoFillTeamIntoSlots(team, starterSlots, { fullBench: true }) : null;
+    } else {
+      // Modos lendários: o elenco é o que foi montado no draft (titulares +
+      // banco, de clubes diferentes) — re-encaixa esses mesmos jogadores nas
+      // vagas novas e devolve a cada um o clube/ano de origem dele.
+      const squad = Object.values(pitch).map(({ slotKey, isBench, isCaptain, ...p }) => p);
+      const tmp = autoFillTeamIntoSlots({ players: squad.map((p, i) => ({ ...p, _k: i })) }, starterSlots, { fullBench: true });
+      if (tmp) {
+        const restored = {};
+        Object.entries(tmp.pitch).forEach(([key, p]) => {
+          const orig = squad[p._k];
+          restored[key] = { ...orig, slotKey: key, isBench: p.isBench };
+        });
+        built = { ...tmp, pitch: restored };
+      }
+    }
     if (!built) {
       alert('Esse elenco não tem jogadores suficientes pra essa formação. Escolha outra.');
       return;
     }
+    // Capitão continua o mesmo jogador, se ele seguir titular.
+    const capName = captainSlot ? pitch[captainSlot]?.name : null;
+    const newCapSlot = capName ? Object.keys(built.pitch).find(k => built.pitch[k].name === capName && !built.pitch[k].isBench) || null : null;
     setPitchSlots(built.pitchSlots);
     setPitch(built.pitch);
-    setCaptainSlot(null);
-    syncLineupToLeagueTeams(built.pitch);
+    setCaptainSlot(newCapSlot);
+    syncLineupToLeagueTeams(built.pitch, newCapSlot);
     setShowFormationSwap(false);
   };
   const applyFormationSwapPreset = (key) => {
@@ -6701,7 +6725,7 @@ export default function App() {
           <div style={{ maxWidth: 480, margin: '0 auto' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: myTeamColor || 'var(--gold-ink)' }}>
-                Escalação — Brasileirão Atual
+                Escalação — {isSerieAtual ? 'Brasileirão Atual' : classicModeLabel}
               </div>
               {!showFormationSwap && (
                 <button
@@ -6724,7 +6748,7 @@ export default function App() {
               <SquadReadyScreen
                 title="Escalação"
                 subtitle="Troque titulares, posições e capitão para as próximas rodadas."
-                modeLabel="Brasileirão Atual"
+                modeLabel={isSerieAtual ? 'Brasileirão Atual' : classicModeLabel}
                 pitch={pitch} pitchSlots={pitchSlots}
                 formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
                 captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
@@ -6966,7 +6990,10 @@ export default function App() {
             // sumia numa sala desse modo (no solo isSerieAtual não mexe em
             // gameMode, por isso só aparecia lá).
             onOpenCalendar={!isDailyChallenge && (gameMode === 'brasileirao' || gameMode === 'serieab' || gameMode === 'atual2026') ? openCalendar : undefined}
-            onOpenLineupEditor={isSerieAtual && !isSimulating ? () => setShowLineupEditor(true) : undefined}
+            // Editor de escalação entre os jogos: Brasileirão Atual e todos os
+            // modos lendários solo. Fora do multiplayer (a troca não chega aos
+            // outros jogadores da sala) e da Supercopa (jogo único).
+            onOpenLineupEditor={(isSerieAtual || (!multiPhase && !isDailyChallenge)) && !isSimulating ? () => setShowLineupEditor(true) : undefined}
             myDivision={myDivision}
             otherDivision={otherDivision}
             promotionTie={promotionTie}
@@ -10728,6 +10755,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-escalacao-lendario',
+    date: 'Novembro de 2026',
+    title: 'Mude a escalação entre os jogos nos modos lendários',
+    desc: 'O botão Escalação, que só existia no Brasileirão Atual, agora aparece também no Brasileirão Lendário, na Série A/B, na Copa do Brasil e no Modo Livre. Entre um jogo e outro dá para trocar titular por reserva, mudar jogadores de posição, escolher outro capitão e até trocar a formação. O elenco montado no draft é reencaixado no esquema novo. O capitão continua jogando com +2 de OVR depois da troca.',
+  },
+  {
     id: '2026-11-selecao-home-e-fim-de-jogo',
     date: 'Novembro de 2026',
     title: 'Seleção da rodada repaginada e fim de jogo que dá pra fechar',
@@ -11845,6 +11878,9 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
               <DifficultyBadge difficulty={difficulty} />
             </div>
           </div>
+          {onOpenLineupEditor && userInCup && (
+            <button type="button" className="lg-btn" onClick={onOpenLineupEditor} title="Trocar titular por reserva, posições, formação e capitão para o próximo jogo"><Icon name="list" size={16} />Escalação</button>
+          )}
           {roundDone && userInCup && simMode === 'manual' && (
             <button style={{ ...styles.btnSmall, background: mc, color: '#fff' }} onClick={onNextRound}>
               {isFinal ? 'Ver campeão →' : (isLastCupRound && cupLeg === 2 ? 'Ver campeão →' : cupLeg === 1 ? 'Jogo de Volta →' : 'Próxima fase →')}
