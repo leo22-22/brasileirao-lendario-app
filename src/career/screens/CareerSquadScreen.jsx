@@ -15,7 +15,7 @@ import { transferWindowText } from '../engine/careerMeta.js';
 import { squadDepth, DEPTH_GROUPS, VETERAN_AGE } from '../../lib/depth.js';
 import { TEAMS } from '../../data/teams.js';
 import { displayName } from '../../lib/displayName.js';
-import { Icon } from '../../ui/index.jsx';
+import { Icon, MaybeLayer, useMediaQuery } from '../../ui/index.jsx';
 import { PlayerList, PosChip, Tags, ovrClass, groupBySector } from '../../components/football/PlayerList.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
@@ -143,6 +143,7 @@ function DetailPanel({ p, clubId, stats, tags, listed, loanListed, onToggleListe
 }
 
 export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOpenFormation, onOpenMarket }) {
+  const isDrawer = useMediaQuery('(max-width: 1200px)'); // detalhe vira drawer (careerSquad.css)
   const clubId = save.myClubId;
   const team = TEAMS.find(t => t.id === clubId);
   const fullRoster = save.clubs[clubId].roster;
@@ -381,10 +382,12 @@ export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOp
           <div className="sq-foot"><span>Mostrando {flat.length} de {n}</span><span>Toque num jogador para ver os detalhes</span></div>
         </div>
 
+        <MaybeLayer when={isDrawer && drawerOpen} onClose={() => setDrawerOpen(false)}>
         <aside className={`ch-card sq-dr${drawerOpen ? ' sq-dr-open' : ''}`} aria-label="Detalhes do jogador">
           {detailProps && <DetailPanel {...detailProps} onClose={() => setDrawerOpen(false)} />}
         </aside>
         {drawerOpen && <div className="sq-dr-bg" onClick={() => setDrawerOpen(false)} aria-hidden="true" />}
+        </MaybeLayer>
       </section>
     </div>
   );

@@ -10,7 +10,7 @@ import {
   validateCustomFormation, formationDefMidFwd, POS_CYCLE, CYCLE_TARGET_XY, WIDE_X_THRESHOLD, CUSTOM_BANDS, FORMATIONS,
 } from '../App.jsx';
 import { posSector } from '../lib/format.js';
-import { Icon } from '../ui/index.jsx';
+import { Icon, Layer } from '../ui/index.jsx';
 import './customFormation.css';
 import { PitchSurface } from '../components/football/Pitch.jsx';
 
@@ -123,6 +123,7 @@ export function CustomFormationModal({ onBack, onChoose }) {
   ];
 
   return (
+    <Layer onClose={onBack}>
     <div className="cf2-overlay" onClick={onBack} role="presentation">
       <div className="cf2-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="cf2-h">
         <button type="button" className="cf2-x" onClick={onBack} aria-label="Fechar"><Icon name="close" size={16} /></button>
@@ -196,5 +197,6 @@ export function CustomFormationModal({ onBack, onChoose }) {
         <div className="sr-only" aria-live="polite">{announce}</div>
       </div>
     </div>
+    </Layer>
   );
 }

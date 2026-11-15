@@ -4,7 +4,8 @@ import { Icon } from './icons.jsx';
 import { useFocusTrap } from './primitives.jsx';
 
 export { Icon } from './icons.jsx';
-export { IconButton, Segmented, FilterChips, Pill, EmptyState, ProgressCells, Stepper, ConfirmInline, Tooltip, Drawer, Popover, Toast, useFocusTrap } from './primitives.jsx';
+export { IconButton, Segmented, FilterChips, Pill, EmptyState, ProgressCells, Stepper, ConfirmInline, Tooltip, Drawer, Popover, Toast, useFocusTrap, Layer, MaybeLayer, useScrollLock, useMediaQuery } from './primitives.jsx';
+import { Layer } from './primitives.jsx';
 
 const cx = (...c) => c.filter(Boolean).join(' ');
 
@@ -44,24 +45,18 @@ export function Tabs({ tabs, value, onChange, className, style }) {
 }
 
 export function Modal({ onClose, maxWidth = 520, children, labelledBy, className, style }) {
-  // Foco preso no modal enquanto aberto; volta para quem abriu ao fechar.
-  const boxRef = useRef(null);
-  useFocusTrap(boxRef, true);
-  useEffect(() => {
-    if (!onClose) return undefined;
-    const onKey = e => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
+  // Portal + foco preso + Esc + trava de scroll: tudo na Layer (primitives).
   return (
+    <Layer onClose={onClose}>
     <div className="ui-overlay" onClick={onClose} role="presentation">
-      <div ref={boxRef} className={cx('ui-modal', className)} style={{ maxWidth, ...style }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
+      <div className={cx('ui-modal', className)} style={{ maxWidth, ...style }} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={labelledBy}>
         {onClose && (
           <button type="button" className="ui-modal-close" onClick={onClose} aria-label="Fechar"><Icon name="close" size={18} /></button>
         )}
         {children}
       </div>
     </div>
+    </Layer>
   );
 }
 

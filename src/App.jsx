@@ -21,6 +21,7 @@ import { LeaderboardGrid } from './components/football/LeaderboardCard.jsx';
 import { SeasonEndSummary } from './components/football/SeasonEndSummary.jsx';
 import { MatchSummary } from './components/football/MatchSummary.jsx';
 import { SubstitutionModal } from './game/SubstitutionModal.jsx';
+import { WeeklyTeamModal } from './game/WeeklyTeamModal.jsx';
 import { buildLeaderboards } from './lib/leaders.js';
 import { teamInk, readableOn, textOn } from './lib/color.js';
 import { FIRST_YEAR, LAST_YEAR } from './lib/eras.js';
@@ -41,7 +42,7 @@ import { MatchTab } from './game/league/MatchTab.jsx';
 import { TableTab } from './game/league/TableTab.jsx';
 import { SquadTab } from './game/league/SquadTab.jsx';
 import { StatsTab } from './game/league/StatsTab.jsx';
-import { Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter, EmptyState, Segmented } from './ui/index.jsx';
+import { Layer, Icon, BrandMark, Modal, Button, Tag, Tabs, SectionHeader, StatTile, TeamBadge, Alert, SiteFooter, EmptyState, Segmented } from './ui/index.jsx';
 import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/routes.js';
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
 import { HomeLanding } from './home/HomeLanding.jsx';
@@ -2441,7 +2442,8 @@ function AchievementsModal({ user, onClose }) {
   const unlocked = new Set(user.achievements || []);
   const totalCount = Object.keys(ACHIEVEMENT_CATALOG).length;
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <Layer onClose={onClose}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, padding: 24, position: 'relative' }}>
         <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}><Icon name="close" size={18} /></button>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, marginBottom: 2 }}>Conquistas</div>
@@ -2456,6 +2458,7 @@ function AchievementsModal({ user, onClose }) {
         ))}
       </div>
     </div>
+    </Layer>
   );
 }
 
@@ -6683,7 +6686,7 @@ export default function App() {
       </AppHeader>
       {isOffline && (
         <div style={{
-          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9500,
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 'var(--z-toast)',
           background: 'var(--gold-soft)', color: 'var(--gold-ink)', textAlign: 'center',
           fontSize: 12, fontFamily: 'var(--font-mono)', padding: '6px 12px',
           borderBottom: '1px solid rgba(194,154,69,0.5)',
@@ -6693,7 +6696,7 @@ export default function App() {
       )}
       {installPromptEvent && !installDismissed && (
         <div style={{
-          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 9500,
+          position: 'fixed', bottom: 0, left: 0, right: 0, zIndex: 'var(--z-toast)',
           background: 'var(--surface)', borderTop: '1px solid var(--gold)',
           display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
           flexWrap: 'wrap', justifyContent: 'center',
@@ -6722,8 +6725,9 @@ export default function App() {
         />
       )}
       {showLineupEditor && (
-        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2500, overflowY: 'auto', padding: 16 }}>
-          <div style={{ maxWidth: 480, margin: '0 auto' }}>
+        <Layer onClose={() => { setShowFormationSwap(false); setShowLineupEditor(false); }}>
+        <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ width: '100%', maxWidth: 480, maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', overscrollBehavior: 'contain', background: 'var(--bg)', borderRadius: 20, padding: 16 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
               <div style={{ fontWeight: 700, fontSize: 13, color: myTeamColor || 'var(--gold-ink)' }}>
                 Escalação — {isSerieAtual ? 'Brasileirão Atual' : classicModeLabel}
@@ -6766,6 +6770,7 @@ export default function App() {
             )}
           </div>
         </div>
+        </Layer>
       )}
       {infoPage && <InfoPage tab={infoPage} onNavigate={navigateToInfo} onClose={closeInfoPage} onNavigateTeams={navigateToTeamsIndex} />}
       {teamsPage === 'index' && <TeamsIndexPage onBack={closeTeamsPage} onOpenTeam={navigateToTeam} onNavigateInfo={navigateToInfo} onNavigateTeams={navigateToTeamsIndex} />}
@@ -7115,7 +7120,8 @@ export default function App() {
       </main>
       )}
       {showLeaveConfirm && (
-        <div onClick={() => setShowLeaveConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <Layer onClose={() => setShowLeaveConfirm(false)}>
+        <div onClick={() => setShowLeaveConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, padding: 24, textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Sair da sala?</div>
             <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 6 }}>
@@ -7129,9 +7135,11 @@ export default function App() {
             </button>
           </div>
         </div>
+        </Layer>
       )}
       {showOverwriteConfirm && (
-        <div onClick={() => setShowOverwriteConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10500, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <Layer onClose={() => setShowOverwriteConfirm(false)}>
+        <div onClick={() => setShowOverwriteConfirm(false)} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 360, background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, padding: 24, textAlign: 'center' }}>
             <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, marginBottom: 8 }}>Começar um jogo novo?</div>
             <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 6 }}>
@@ -7145,6 +7153,7 @@ export default function App() {
             </button>
           </div>
         </div>
+        </Layer>
       )}
       {showAccountModal && (
         <AccountModal
@@ -7248,7 +7257,8 @@ function ImageCropModal({ src, onConfirm, onCancel }) {
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9999, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18 }}>
+    <Layer onClose={onCancel}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 18 }}>
       <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700 }}>Recortar logo do time</div>
       <div style={{ fontSize: 12, color: 'var(--muted)' }}>Arraste para reposicionar · Use o slider para zoom</div>
       <canvas
@@ -7269,6 +7279,7 @@ function ImageCropModal({ src, onConfirm, onCancel }) {
         <button onClick={confirm} style={{ padding: '10px 22px', borderRadius: 9, border: 'none', background: 'var(--green)', color: '#fff', fontWeight: 700, cursor: 'pointer', fontSize: 14 }}>Confirmar recorte</button>
       </div>
     </div>
+    </Layer>
   );
 }
 
@@ -7302,7 +7313,8 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
   };
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+    <Layer onClose={onClose}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, padding: 28, position: 'relative' }}>
         <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}><Icon name="close" size={18} /></button>
 
@@ -7349,6 +7361,7 @@ function AccountModal({ mode: initialMode = 'choice', onGuestChoice, onAuthSucce
         )}
       </div>
     </div>
+    </Layer>
   );
 }
 
@@ -7420,7 +7433,8 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
   };
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
+    <Layer onClose={onClose}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, overflowY: 'auto' }}>
       <div style={{ width: '100%', maxWidth: 460, background: 'var(--surface)', border: '1px solid var(--line)', borderRadius: 16, padding: 28, position: 'relative', maxHeight: '90vh', overflowY: 'auto' }}>
         <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}><Icon name="close" size={18} /></button>
         <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{user.username}</div>
@@ -7451,6 +7465,7 @@ function AccountPanel({ user, onUpdateFields, onClose, onLogout, onDeleteAccount
         </div>
       </div>
     </div>
+    </Layer>
   );
 }
 
@@ -7494,7 +7509,8 @@ function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   const { baseName, achievement } = parseTeamLabel(opponent.label);
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+    <Layer onClose={onClose}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line-strong)', borderRadius: 20, padding: 20 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
           <div style={{ fontWeight: 700, fontSize: 15 }}>Supercopa do Brasil</div>
@@ -7521,6 +7537,7 @@ function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose }) {
         </button>
       </div>
     </div>
+    </Layer>
   );
 }
 
@@ -7630,7 +7647,21 @@ function Intro({ onNewGameCrumb, onStart, onSetGameMode, difficulty, onSetDiffic
         <AchievementsModal user={currentUser} onClose={() => setShowAchievements(false)} />
       )}
       {showWeeklyTeam && (
-        <WeeklyTeamModal onClose={() => setShowWeeklyTeam(false)} />
+        <WeeklyTeamModal
+          weeks={WEEKLY_TEAMS}
+          roleInfo={WEEK_ROLE_INFO}
+          lineTopPct={WEEK_LINE_TOP_PCT}
+          onClose={() => setShowWeeklyTeam(false)}
+          // "Montar time com esses cards": o mesmo começo de jogo do botão
+          // "Começar a jogar" da home (Brasileirão Lendário → dificuldade).
+          onBuildTeam={() => {
+            setShowWeeklyTeam(false);
+            setPendingMode({
+              id: 'serieab', color: mc, title: 'Brasileirão Lendário', sub: '40 times · Série A e B',
+              onConfirm: () => { onSetGameMode('serieab'); onClearLivre(); onStart(); },
+            });
+          }}
+        />
       )}
       {pendingMode && (
         <ModeDifficultyModal
@@ -7685,6 +7716,7 @@ function ModeDifficultyModal({ mode, difficulty, onSetDifficulty, onConfirm, onC
   const aiText = (adj) => (adj === 0 ? 'IA com OVR original' : `IA ${adj > 0 ? '+' : '−'}${Math.abs(adj)} de OVR`);
   const cur = DIFFICULTY_LEVELS[difficulty];
   return (
+    <Layer onClose={onClose}>
     <div className="ng-overlay" onClick={onClose} role="presentation">
       <div className="ng-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="ng-modal-title">
         <div className="ng-mh">
@@ -7725,6 +7757,7 @@ function ModeDifficultyModal({ mode, difficulty, onSetDifficulty, onConfirm, onC
         </div>
       </div>
     </div>
+    </Layer>
   );
 }
 
@@ -7748,151 +7781,6 @@ const WEEK_ROLE_INFO = {
   'Atacante': { line: 5, abbr: 'ATA' },
 };
 const WEEK_LINE_TOP_PCT = { 0: 90, 1: 74, 2: 58, 3: 42, 4: 24, 5: 8 };
-
-// Seleção da Semana — campo com a escalação ideal da rodada (notas
-// Sofascore), navegável entre a rodada vigente e as anteriores guardadas em
-// WEEKLY_TEAMS. Só leitura — o bônus de OVR em si já foi aplicado direto nos
-// jogadores de TEAMS no carregamento do módulo, e só pra rodada mais
-// recente (ver comentário acima de WEEKLY_TEAMS).
-function WeeklyTeamModal({ onClose }) {
-  const [weekIdx, setWeekIdx] = useState(WEEKLY_TEAMS.length - 1);
-  const w = WEEKLY_TEAMS[weekIdx];
-  const isCurrent = weekIdx === WEEKLY_TEAMS.length - 1;
-  const hasPrev = weekIdx > 0;
-  const hasNext = weekIdx < WEEKLY_TEAMS.length - 1;
-
-  const enriched = useMemo(() => w.players.map(wp => {
-    const team = TEAMS.find(t => t.id === wp.teamId);
-    const player = team?.players.find(p => p.name === wp.name);
-    const info = WEEK_ROLE_INFO[wp.posLabel] || { line: 3, abbr: (wp.posLabel || '').slice(0, 3).toUpperCase() };
-    return { ...wp, team, player, ...info };
-  }), [w]);
-
-  const lines = useMemo(() => {
-    const byLine = {};
-    enriched.forEach(p => { (byLine[p.line] ||= []).push(p); });
-    return byLine;
-  }, [enriched]);
-
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 2500, overflowY: 'auto', padding: 16 }} onClick={onClose}>
-      <div
-        style={{ maxWidth: 480, margin: '0 auto', background: 'var(--surface)', border: '1px solid var(--gold)', borderRadius: 16, padding: 20 }}
-        onClick={e => e.stopPropagation()}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 4 }}>
-          <div>
-            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 1.5, textTransform: 'uppercase', color: 'var(--gold-ink)' }}>
-              Seleção da Semana
-            </div>
-            <div style={{ fontFamily: 'var(--font-serif)', fontSize: 20, fontWeight: 700, color: 'var(--ink)' }}>
-              {w.label}
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 2 }}>
-              {w.sourceLabel} · {isCurrent ? 'quem está aqui joga com +3 OVR (craque +5) até sair da seleção' : 'rodada anterior — o bônus de OVR já não vale mais, só a mais recente vale'}
-            </div>
-          </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', fontSize: 22, cursor: 'pointer', lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
-        </div>
-
-        {WEEKLY_TEAMS.length > 1 && (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 16, margin: '14px 0 2px' }}>
-            <button
-              onClick={() => hasPrev && setWeekIdx(i => i - 1)}
-              disabled={!hasPrev}
-              className="tap-target-sm"
-              style={{ background: 'none', border: 'none', color: hasPrev ? 'var(--ink)' : 'var(--muted)', fontSize: 20, cursor: hasPrev ? 'pointer' : 'default', padding: 4 }}
-            >‹</button>
-            <div style={{ fontSize: 11.5, color: 'var(--ink-2)', minWidth: 100, textAlign: 'center' }}>
-              {isCurrent ? 'Rodada atual' : 'Rodada anterior'}
-            </div>
-            <button
-              onClick={() => hasNext && setWeekIdx(i => i + 1)}
-              disabled={!hasNext}
-              className="tap-target-sm"
-              style={{ background: 'none', border: 'none', color: hasNext ? 'var(--ink)' : 'var(--muted)', fontSize: 20, cursor: hasNext ? 'pointer' : 'default', padding: 4 }}
-            >›</button>
-          </div>
-        )}
-
-        <div style={styles.pitchWrap}>
-          <PitchSurface style={styles.pitchField}>
-            {Object.entries(lines).map(([line, linePlayers]) => linePlayers.map((p, i) => {
-              const leftPct = ((i + 1) / (linePlayers.length + 1)) * 100;
-              const topPct = WEEK_LINE_TOP_PCT[line] ?? 50;
-              const isCraque = !!p.craque;
-              const gold = isCraque ? '#ffd700' : '#d4a23c';
-              return (
-                <div key={p.teamId + p.name} style={{
-                  position: 'absolute', left: `${leftPct}%`, top: `${topPct}%`, transform: 'translate(-50%,-50%)',
-                  display: 'flex', flexDirection: 'column', alignItems: 'center', width: 64,
-                }}>
-                  <div style={{
-                    width: 38, height: 38, borderRadius: '50%', background: hexToRgba(gold, 0.18),
-                    border: `2px solid ${gold}`, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    boxShadow: isCraque ? `0 0 10px ${hexToRgba(gold, 0.6)}` : 'none', flexShrink: 0,
-                  }}>
-                    {p.team && CLUB_LOGOS[p.team.club] ? (
-                      <img src={CLUB_LOGOS[p.team.club]} alt="" style={{ width: 24, height: 24, objectFit: 'contain' }} />
-                    ) : (
-                      <span style={{ fontSize: 9.5, fontWeight: 800, color: gold }}>{p.abbr}</span>
-                    )}
-                  </div>
-                  <div style={{
-                    marginTop: 3, fontSize: 9.5, fontWeight: 700, color: 'var(--ink)', textAlign: 'center',
-                    textShadow: '0 1px 3px rgba(0,0,0,0.7)', lineHeight: 1.2, maxWidth: 64,
-                    overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  }}>
-                    {shortName(p.name)}
-                  </div>
-                </div>
-              );
-            }))}
-          </PitchSurface>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-          {enriched.map((wp, i) => {
-            const isCraque = !!wp.craque;
-            const gold = isCraque ? '#ffd700' : '#d4a23c';
-            return (
-              <div key={i} style={{
-                display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', borderRadius: 10,
-                background: hexToRgba(gold, isCraque ? 0.16 : 0.06),
-                border: `1px solid ${hexToRgba(gold, isCraque ? 0.5 : 0.25)}`,
-              }}>
-                {wp.team && CLUB_LOGOS[wp.team.club] && (
-                  <img src={CLUB_LOGOS[wp.team.club]} alt="" style={{ width: 30, height: 30, objectFit: 'contain', flexShrink: 0 }} />
-                )}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 13.5, color: 'var(--ink)' }}>
-                    {wp.name}
-                    {wp.player && <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: gold, marginLeft: 6 }}>{wp.player.ovr} OVR</span>}
-                  </div>
-                  <div style={{ fontSize: 11, color: 'var(--muted)' }}>{wp.posLabel}{wp.team ? ` · ${wp.team.club}` : ''}</div>
-                </div>
-                {wp.rating != null && (
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 700, color: 'var(--success)', background: 'var(--success-soft)', borderRadius: 6, padding: '2px 6px', flexShrink: 0 }}>
-                    {Number(wp.rating).toFixed(1).replace('.', ',')}
-                  </div>
-                )}
-                {isCurrent && (
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 800, color: gold, flexShrink: 0 }}>
-                    +{isCraque ? 5 : 3}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <p style={{ margin: '14px 0 0', fontSize: 11.5, color: 'var(--muted)' }}>
-          Notas da rodada real do Brasileirão {enriched.find(p => p.team?.year)?.team.year ?? ''} · fonte: Sofascore
-        </p>
-      </div>
-    </div>
-  );
-}
 
 // "Ver meu Clube" — histórico de carreira completo da conta (jogos, V/E/D,
 // gols marcados/sofridos, títulos, conquistas). Reaproveita os campos
@@ -8072,7 +7960,8 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
   );
 
   return (
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+    <Layer onClose={onClose}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
       {cropSrc && (
         <ImageCropModal
           src={cropSrc}
@@ -8562,6 +8451,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
         </div>
       </div>
     </div>
+    </Layer>
   );
 }
 
@@ -10261,8 +10151,9 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
   const isSuddenDeath = kicks[pairIdx]?.suddenDeath;
 
   return (
+    <Layer>
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
+      position: 'fixed', inset: 0, zIndex: 'var(--z-modal)',
       background: 'var(--surface)',
       display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
       padding: '20px 16px',
@@ -10362,6 +10253,7 @@ function PenaltyModal({ penaltyPhase, onDismiss, myTeamColor, auto = false }) {
         </div>
       )}
     </div>
+    </Layer>
   );
 }
 
@@ -10375,7 +10267,7 @@ function AchievementToast({ achievements, onClose }) {
     return () => clearTimeout(t);
   }, [achievements, onClose]);
   return (
-    <div style={{ position: 'fixed', top: 70, left: '50%', transform: 'translateX(-50%)', zIndex: 1000, display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ position: 'fixed', top: 70, left: '50%', transform: 'translateX(-50%)', zIndex: 'var(--z-toast)', display: 'flex', flexDirection: 'column', gap: 8 }}>
       {achievements.map(id => {
         const a = ACHIEVEMENT_CATALOG[id];
         if (!a) return null;
@@ -10595,12 +10487,13 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
   }, [rows, highlightRank]);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 10000, overflowY: 'auto', padding: '70px 16px 40px' }}>
+    <Layer onClose={onBack}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', overflowY: 'auto', padding: '70px 16px 40px' }}>
       <button
         onClick={onBack}
         title="Voltar pro app"
         style={{
-          position: 'fixed', top: 14, left: 14, zIndex: 10001,
+          position: 'fixed', top: 14, left: 14, zIndex: 'calc(var(--z-modal) + 1)',
           display: 'flex', alignItems: 'center', gap: 6,
           background: 'var(--surface)', border: `1px solid ${hexToRgba(mc, 0.4)}`,
           borderRadius: 999, padding: '8px 14px', color: mc,
@@ -10747,6 +10640,7 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
         )}
       </div>
     </div>
+    </Layer>
   );
 }
 
@@ -10755,6 +10649,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-selecao-modal-e-janelas',
+    date: 'Novembro de 2026',
+    title: 'Seleção da Rodada repaginada e janelas que não ficam mais atrás do topo',
+    desc: 'A tela da Seleção da Rodada foi refeita: o mesmo campo do card da home, a faixa do craque, a lista dos 11 por setor com o OVR antes e depois do bônus, navegação entre as rodadas e um atalho para montar o time com esses cards. No card da home, os nomes em campo nunca se encostam, em qualquer tamanho de tela. E todas as janelas do jogo (Seleção, Supercopa, conquistas, time pronto, formação livre, fim de jogo, substituições e as do Modo Carreira) agora abrem por cima do topo da página, sem cortar o começo, travam a rolagem do fundo e fecham com Esc.',
+  },
   {
     id: '2026-11-painel-substituicoes',
     date: 'Novembro de 2026',
@@ -11189,7 +11089,8 @@ function NewsNotifyPanel({ currentUser, myTeamColor }) {
 // Mural de novidades — acessado pelo ícone 💡 no header.
 function NewsModal({ onClose, currentUser, myTeamColor }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 1001, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
+    <Layer onClose={onClose}>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }} onClick={onClose}>
       <div style={{ background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--gold)', borderRadius: 20, padding: 20, width: '100%', maxWidth: 460, maxHeight: '80vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--gold-ink)', letterSpacing: 1, textTransform: 'uppercase' }}>Novidades</div>
@@ -11207,6 +11108,7 @@ function NewsModal({ onClose, currentUser, myTeamColor }) {
         </div>
       </div>
     </div>
+    </Layer>
   );
 }
 
@@ -11229,7 +11131,7 @@ function MultiplayerChatWidget({ messages, myPid, open, onToggle, onSendText, on
   };
 
   return (
-    <div style={{ position: 'fixed', bottom: 12, right: 12, zIndex: 999, width: open ? 260 : 'auto' }}>
+    <div style={{ position: 'fixed', bottom: 12, right: 12, zIndex: 'var(--z-sheet)', width: open ? 260 : 'auto' }}>
       {open && (
         <div style={{ background: 'var(--surface)', border: `1px solid ${mc}55`, borderRadius: 12, marginBottom: 8, display: 'flex', flexDirection: 'column', maxHeight: 320 }}>
           <div style={{ padding: '8px 10px', borderBottom: '1px solid var(--line)', fontSize: 11, fontWeight: 700, color: mc, letterSpacing: 1, textTransform: 'uppercase' }}>

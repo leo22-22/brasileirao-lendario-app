@@ -7,6 +7,13 @@
    superfície pra versões claras — assim um estilo escrito com var(--ink)
    continua legível em cima do verde sem precisar de outro conjunto de cores. */
 :root {
+  /* Escala única de z-index — use só estes. */
+  --z-header: 20;
+  --z-sticky: 30;
+  --z-sheet: 900;
+  --z-modal: 1000;
+  --z-toast: 1100;
+
   --bg: #F5F1E8;
   --surface: #FBF9F4;
   --surface-2: #EFE9DC;

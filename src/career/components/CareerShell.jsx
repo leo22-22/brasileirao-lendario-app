@@ -4,7 +4,7 @@
 import { useState, useEffect } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
-import { Icon, TeamBadge } from '../../ui/index.jsx';
+import { Icon, TeamBadge, Layer } from '../../ui/index.jsx';
 import { displayName } from '../../lib/displayName.js';
 import { isTransferWindowOpen } from '../engine/calendar.js';
 import { myDivision, myCopaStatus } from '../engine/careerMeta.js';
@@ -111,6 +111,7 @@ export function CareerShell({ save, active, onNavigate, onExit, children }) {
         </button>
       </nav>
       {moreOpen && (
+        <Layer onClose={() => setMoreOpen(false)}>
         <div className="cs-sheet-wrap" onClick={() => setMoreOpen(false)} role="presentation">
           <div className="cs-sheet" onClick={e => e.stopPropagation()} role="menu">
             {navItems.filter(i => !MOBILE_MAIN.includes(i.id)).map(it => (
@@ -126,6 +127,7 @@ export function CareerShell({ save, active, onNavigate, onExit, children }) {
             </button>
           </div>
         </div>
+        </Layer>
       )}
     </div>
   );

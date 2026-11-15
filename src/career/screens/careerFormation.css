@@ -88,7 +88,7 @@
 .cf-pos { font-family: var(--font-mono); font-size: 11px; color: var(--ink-2); }
 
 /* Toast e rodapé mobile */
-.cf-toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 999px; font-size: 13.5px; z-index: 1200; box-shadow: var(--shadow); max-width: calc(100vw - 32px); }
+.cf-toast { position: fixed; left: 50%; bottom: 28px; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 999px; font-size: 13.5px; z-index: var(--z-toast); box-shadow: var(--shadow); max-width: calc(100vw - 32px); }
 .cf-mobile-confirm { display: none; }
 
 @media (max-width: 1200px) {
@@ -116,13 +116,13 @@
   .cf-bench { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 4px 16px 16px; }
   .cf-pr { grid-template-columns: 34px minmax(0,1fr) 40px 80px; padding: 10px 16px; }
   .cf-pr .cf-pos + .ch-small { display: none; }
-  .cf-mobile-confirm { display: block; position: fixed; left: 0; right: 0; bottom: calc(68px + env(safe-area-inset-bottom)); padding: 10px 14px; background: linear-gradient(0deg, var(--bg) 70%, transparent); z-index: 880; }
+  .cf-mobile-confirm { display: block; position: fixed; left: 0; right: 0; bottom: calc(68px + env(safe-area-inset-bottom)); padding: 10px 14px; background: linear-gradient(0deg, var(--bg) 70%, transparent); z-index: var(--z-sheet); }
   .cf-main { padding-bottom: 96px; }
   .cf-hint > span { flex: 1 1 calc(100% - 30px) !important; }
   .cf-hint .ch-link { margin-left: 28px; white-space: normal; text-align: left; }
   .cf-toast { bottom: 150px; }
   /* Lista da vaga vira bottom sheet */
-  .cf-sheet-bg { display: block; position: fixed; inset: 0; background: var(--overlay); z-index: 1000; }
-  .cf-picker { position: fixed; left: 0; right: 0; bottom: 0; z-index: 1001; border-radius: 20px 20px 0 0; max-height: 78vh; display: flex; flex-direction: column; border: none; }
+  .cf-sheet-bg { display: block; position: fixed; inset: 0; background: var(--overlay); z-index: var(--z-modal); }
+  .cf-picker { position: fixed; left: 0; right: 0; bottom: 0; z-index: calc(var(--z-modal) + 1); border-radius: 20px 20px 0 0; max-height: 78vh; display: flex; flex-direction: column; border: none; }
   .cf-pick-list { max-height: none; flex: 1; padding-bottom: calc(16px + env(safe-area-inset-bottom)); }
 }

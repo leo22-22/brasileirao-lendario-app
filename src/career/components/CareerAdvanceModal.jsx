@@ -11,6 +11,7 @@
 // que já foi decidido. Some sozinha ao terminar (`onDone`); se o clique
 // mudar de tela no meio (ex.: caiu numa proposta), quem a renderiza
 // desmonta e a animação é cortada, sem problema.
+import { Layer } from '../../ui/index.jsx';
 import { useEffect, useMemo, useState } from 'react';
 import { TEAMS } from '../../data/teams.js';
 import { formatCalendarDay } from '../engine/calendar.js';
@@ -129,7 +130,8 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, o
   }, [eventsVisible]);
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'var(--surface)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
+    <Layer>
+    <div style={{ position: 'fixed', inset: 0, background: 'var(--surface)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 12, overflowY: 'auto' }}>
       <div style={{ width: '100%', maxWidth: 400 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 10, flexWrap: 'wrap' }}>
           <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, textAlign: 'center' }}>Calendário avançando</div>
@@ -245,5 +247,6 @@ export function CareerAdvanceModal({ save, fromDay, toDay, eventLines, onDone, o
       </div>
       <style>{'@keyframes brlAdvFadeIn { to { opacity: 0.9; } }'}</style>
     </div>
+    </Layer>
   );
 }

@@ -37,7 +37,7 @@
 .cp-pop-r { padding: 6px 0; border-top: 1px solid var(--line); }
 .cp-pop-r span { display: block; color: var(--muted); font-size: 11.5px; }
 .cp-pop-r b { font-weight: 600; }
-.cp-pop-m { position: fixed; left: 12px; right: 12px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: 900; }
+.cp-pop-m { position: fixed; left: 12px; right: 12px; bottom: calc(80px + env(safe-area-inset-bottom)); z-index: var(--z-sheet); }
 .cp-pop-m .cp-pop { position: static; width: auto; }
 .cp-mtabs { display: flex; gap: 6px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 6px; }
 .cp-mtabs button { flex-shrink: 0; height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-strong); background: var(--surface); font-family: var(--font-body); font-size: 13px; color: var(--ink-2); cursor: pointer; }

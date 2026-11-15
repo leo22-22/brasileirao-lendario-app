@@ -19,7 +19,7 @@ import { matchOutcomeProbabilities } from '../../lib/probability.js';
 import { TEAMS } from '../../data/teams.js';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { displayName } from '../../lib/displayName.js';
-import { Icon, TeamBadge, Modal } from '../../ui/index.jsx';
+import { Icon, TeamBadge, Modal, MaybeLayer, useMediaQuery } from '../../ui/index.jsx';
 import '../components/careerShell.css';
 import './careerFormation.css';
 import { PitchSurface, PlayerDot, SECTOR_RING } from '../../components/football/Pitch.jsx';
@@ -246,6 +246,7 @@ function RolePicker({ title, starters, current, onPick, onClose }) {
 }
 
 export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, onDeleteFormationPreset, onRenameFormationPreset }) {
+  const isSheet = useMediaQuery('(max-width: 768px)'); // picker vira bottom sheet (careerFormation.css)
   // Jogador da categoria de base não pode ser escalado até ser promovido.
   const roster = useMemo(() => save.clubs[save.myClubId].roster.filter(p => !p.inAcademy), [save.clubs, save.myClubId]);
   const [formationKey, setFormationKey] = useState(() => (FORMATIONS[save.myFormationKey] ? save.myFormationKey : DEFAULT_FORMATION));
@@ -635,7 +636,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
         {/* ── Painel ── */}
         <div className="cf-right">
           {pendingSlot && (
-            <>
+            <MaybeLayer when={isSheet} onClose={() => setPendingSlotKey(null)}>
               <div className="cf-sheet-bg" onClick={() => setPendingSlotKey(null)} aria-hidden="true" />
               <PlayerPoolPicker
                 slot={pendingSlot}
@@ -648,7 +649,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
                 onRemove={handleRemoveFromSlot}
                 onCancel={() => setPendingSlotKey(null)}
               />
-            </>
+            </MaybeLayer>
           )}
 
           <div className="ch-card">

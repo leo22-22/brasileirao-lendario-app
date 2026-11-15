@@ -91,7 +91,7 @@
   .st-stats > div:nth-child(n+3) { border-top: 1px solid rgba(255,255,255,.12); }
   .st-next { flex-wrap: wrap; }
   .st-form { margin-left: 50px; }
-  .st-cta { position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; margin: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(245,241,232,0), var(--bg) 30%); }
+  .st-cta { position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-sheet); margin: 0; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(245,241,232,0), var(--bg) 30%); }
   .st-saves { grid-template-columns: minmax(0, 1fr); }
   .st-new { padding: 22px; }
 }

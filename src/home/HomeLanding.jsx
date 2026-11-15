@@ -13,7 +13,7 @@ import { hexToRgba, parseTeamLabel } from '../lib/format.js';
 import { ERA_BUCKETS, YEAR_RANGE_LABEL, FIRST_YEAR } from '../lib/eras.js';
 import './home.css';
 import { displayName } from '../lib/displayName.js';
-import { PitchSurface } from '../components/football/Pitch.jsx';
+import { SelectionPitch, CraqueStrip } from '../components/football/SelectionPitch.jsx';
 
 function ArrowIcon({ color }) {
   return (
@@ -41,7 +41,6 @@ function ModeIcon({ id, color = '#0D3A29', size = 22 }) {
 }
 
 const TEAMS_PER_ERA = 8;
-const fmtRating = (n) => Number(n).toFixed(1).replace('.', ',');
 
 // Mesma lógica de posicionamento do campinho do WeeklyTeamModal (App.jsx) —
 // reaproveitada aqui via props (weekRoleInfo/weekLineTopPct), igual o
@@ -77,7 +76,7 @@ export function HomeLanding({
   // Tudo do card da Seleção sai dos dados da rodada: ano pelos clubes
   // (elencos 2026), bônus pelo que applyWeeklyTeamBoost gravou nos jogadores
   // e nota Sofascore só quando a rodada tiver o campo `rating` preenchido.
-  const allWeekly = useMemo(() => Object.values(lines).flat(), [lines]);
+  const allWeekly = useMemo(() => Object.values(lines).flat().map(p => ({ ...p, key: `${p.teamId}|${p.name}` })), [lines]);
   const craqueInfo = allWeekly.find(p => p.craque) || null;
   const weeklyYear = allWeekly.find(p => p.team?.year)?.team.year ?? '';
   const weeklyBonus = allWeekly.find(p => !p.craque && p.player?.weeklyBoost)?.player.weeklyBoost ?? null;
@@ -133,46 +132,10 @@ export function HomeLanding({
               {weeklyBonus != null && <span className="hl-pc-pill">+{weeklyBonus} OVR no draft</span>}
             </div>
 
-            {craqueInfo && (
-              <button type="button" className="hl-pc-craque" onClick={onOpenWeeklyTeam}>
-                <span className="hl-pc-cq-ring" aria-hidden="true" />
-                <span className="hl-pc-cq-crest">
-                  {craqueInfo.team && CLUB_LOGOS[craqueInfo.team.club] ? <img src={CLUB_LOGOS[craqueInfo.team.club]} alt="" /> : craqueInfo.abbr}
-                </span>
-                <span className="hl-pc-cq-txt">
-                  <span className="hl-pc-k hl-pc-k-gold">Craque da rodada · Sofascore</span>
-                  <b>{craqueInfo.name}</b>
-                  <small>{[craqueInfo.team ? displayName(craqueInfo.team.club) : null, craqueInfo.posLabel].filter(Boolean).join(' · ')}</small>
-                </span>
-                <span className="hl-pc-cq-r">
-                  {craqueInfo.rating != null && <b>{fmtRating(craqueInfo.rating)}</b>}
-                  {craqueInfo.player?.weeklyBoost && <span>+{craqueInfo.player.weeklyBoost} OVR</span>}
-                </span>
-              </button>
-            )}
+            <CraqueStrip craque={craqueInfo} as="button" onClick={onOpenWeeklyTeam} />
 
             <button type="button" className="hl-pc-pitchbtn" onClick={onOpenWeeklyTeam} aria-label={`Ver a Seleção da ${weeklyTeam.label}`}>
-              <PitchSurface className="hl-field">
-                {Object.entries(lines).map(([line, linePlayers]) => linePlayers.map((p, i) => {
-                  // Linha com 4+ (defesa): pontas abertas e um pouco acima,
-                  // centrais um pouco abaixo — as pílulas não se encostam.
-                  const n = linePlayers.length;
-                  const wide = n >= 4;
-                  const outer = i === 0 || i === n - 1;
-                  const leftPct = wide ? 17 + (i * 66) / (n - 1) : ((i + 1) / (n + 1)) * 100;
-                  const topPct = (weekLineTopPct[line] ?? 50) + (wide ? (outer ? -5 : 5) : 0);
-                  const isCraque = !!p.craque;
-                  return (
-                    <div key={p.teamId + p.name} className={`hl-pill${isCraque ? ' hl-gold' : ''}`} style={{ left: `${leftPct}%`, top: `${topPct}%` }}>
-                      <span className="hl-pill-dot">
-                        {p.team && CLUB_LOGOS[p.team.club] ? <img src={CLUB_LOGOS[p.team.club]} alt="" /> : p.abbr}
-                      </span>
-                      <span className="hl-pill-n">{p.name}</span>
-                      {p.rating != null && <span className="hl-pill-r">{fmtRating(p.rating)}</span>}
-                    </div>
-                  );
-                }))}
-              </PitchSurface>
+              <SelectionPitch players={allWeekly} lineTopPct={weekLineTopPct} className="hl-field" />
             </button>
 
             <p className="hl-pc-src">Notas da rodada real do Brasileirão {weeklyYear} · fonte: Sofascore</p>

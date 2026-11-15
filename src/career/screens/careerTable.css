@@ -33,7 +33,7 @@
   .tb-side { grid-template-columns: 1fr; }
   .tb-sticky-me {
     display: grid; grid-template-columns: 34px 22px minmax(0, 1fr) 40px 34px 34px; align-items: center; gap: 6px;
-    position: fixed; left: 0; right: 0; bottom: calc(68px + env(safe-area-inset-bottom)); z-index: 870;
+    position: fixed; left: 0; right: 0; bottom: calc(68px + env(safe-area-inset-bottom)); z-index: var(--z-sheet);
     padding: 10px 14px; background: #F6EEDB; border-top: 1px solid #E6D6AE; box-shadow: 0 -8px 20px -12px rgba(15,31,23,.3); font-size: 13px;
   }
 }

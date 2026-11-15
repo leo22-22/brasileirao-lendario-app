@@ -73,7 +73,7 @@
 .cl-ev small { display: block; color: var(--muted); font-size: 12px; }
 
 /* Bottom sheet (celular) */
-.cl-sheet-ov { position: fixed; inset: 0; background: rgba(15,31,23,.45); z-index: 950; display: flex; align-items: flex-end; }
+.cl-sheet-ov { position: fixed; inset: 0; background: rgba(15,31,23,.45); z-index: var(--z-modal); display: flex; align-items: flex-end; }
 .cl-sheet { width: 100%; max-height: 86vh; overflow-y: auto; background: var(--bg); border-radius: 22px 22px 0 0; padding: 10px 14px calc(18px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px; }
 .cl-sheet-bar { display: flex; align-items: center; justify-content: space-between; }
 .cl-sheet-bar span { width: 40px; height: 4px; border-radius: 4px; background: var(--line-strong); margin: 0 auto; }

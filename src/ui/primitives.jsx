@@ -1,6 +1,7 @@
 // Primitivas sem conhecimento de futebol (padrão creme). Estilos em
 // primitives.css. Reexportadas por ui/index.jsx.
-import { useEffect, useId, useRef, useState } from 'react';
+import { useEffect, useId, useRef, useState, useSyncExternalStore } from 'react';
+import { createPortal } from 'react-dom';
 import { Icon } from './icons.jsx';
 import './primitives.css';
 
@@ -145,20 +146,100 @@ export function useFocusTrap(ref, active = true) {
   }, [ref, active]);
 }
 
+// ── Camada de modal ───────────────────────────────────────
+// Todo modal/sheet é renderizado num portal em #modal-root (filho direto do
+// body): fora do stacking context do <main> (position relative + z-index 1),
+// o overlay cobre também o header. Escala de z-index em styles/tokens.css.
+function modalRoot() {
+  let el = document.getElementById('modal-root');
+  if (!el) { el = document.createElement('div'); el.id = 'modal-root'; document.body.appendChild(el); }
+  return el;
+}
+
+// Trava o scroll do body enquanto houver camada aberta (contador — camadas
+// empilhadas não destravam cedo), sem "pular" a página: compensa a largura
+// da barra de rolagem.
+let lockCount = 0;
+let lockSaved = null;
+export function useScrollLock(active = true) {
+  useEffect(() => {
+    if (!active) return undefined;
+    if (lockCount === 0) {
+      const sbw = window.innerWidth - document.documentElement.clientWidth;
+      const b = document.body.style;
+      const h = document.documentElement.style;
+      lockSaved = { overflow: b.overflow, paddingRight: b.paddingRight, htmlOverflow: h.overflow };
+      b.overflow = 'hidden';
+      h.overflow = 'hidden'; // quem rola a página é o <html>
+      if (sbw > 0) b.paddingRight = `${sbw}px`;
+    }
+    lockCount++;
+    return () => {
+      lockCount--;
+      if (lockCount === 0 && lockSaved) {
+        document.body.style.overflow = lockSaved.overflow;
+        document.body.style.paddingRight = lockSaved.paddingRight;
+        document.documentElement.style.overflow = lockSaved.htmlOverflow;
+        lockSaved = null;
+      }
+    };
+  }, [active]);
+}
+
+// Pilha de camadas abertas: Esc fecha só a de cima.
+const layerStack = [];
+
+/**
+ * Camada de modal/sheet: portal em #modal-root + trava de scroll + foco preso
+ * (volta para quem abriu) + Esc fecha (só a camada do topo).
+ * Os filhos trazem o próprio overlay (position: fixed; z-index: var(--z-modal)).
+ */
+export function Layer({ onClose, children, lock = true }) {
+  const ref = useRef(null);
+  const id = useRef(Symbol('layer'));
+  const closeRef = useRef(onClose);
+  closeRef.current = onClose;
+  useFocusTrap(ref, true);
+  useScrollLock(lock);
+  useEffect(() => {
+    const me = id.current;
+    layerStack.push(me);
+    const onKey = (e) => {
+      if (e.key !== 'Escape' || layerStack[layerStack.length - 1] !== me || !closeRef.current) return;
+      e.stopPropagation();
+      closeRef.current();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      const i = layerStack.lastIndexOf(me);
+      if (i !== -1) layerStack.splice(i, 1);
+    };
+  }, []);
+  return createPortal(<div ref={ref} className="ui-layer">{children}</div>, modalRoot());
+}
+
+// Para painéis que só viram sheet numa largura (ex.: drawer do Elenco da
+// carreira): em `when`, vira Layer; fora, fica no lugar de sempre.
+export function MaybeLayer({ when, onClose, children }) {
+  return when ? <Layer onClose={onClose}>{children}</Layer> : children;
+}
+
+export function useMediaQuery(query) {
+  return useSyncExternalStore(
+    (cb) => { const m = window.matchMedia(query); m.addEventListener('change', cb); return () => m.removeEventListener('change', cb); },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
+
 // Painel lateral (desktop) que vira bottom sheet no celular.
 export function Drawer({ open, onClose, title, children, side = 'right', className, labelledBy }) {
-  const ref = useRef(null);
-  useFocusTrap(ref, open);
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose?.(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
   if (!open) return null;
   return (
+    <Layer onClose={onClose}>
     <div className="ui-drawer-bg" onClick={onClose} role="presentation">
-      <aside ref={ref} className={cx('ui-drawer', `ui-drawer-${side}`, className)} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={labelledBy} aria-label={labelledBy ? undefined : title}>
+      <aside className={cx('ui-drawer', `ui-drawer-${side}`, className)} onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby={labelledBy} aria-label={labelledBy ? undefined : title}>
         <div className="ui-drawer-h">
           {title && <h3>{title}</h3>}
           <IconButton icon="close" label="Fechar" size={34} onClick={onClose} />
@@ -166,6 +247,7 @@ export function Drawer({ open, onClose, title, children, side = 'right', classNa
         <div className="ui-drawer-b">{children}</div>
       </aside>
     </div>
+    </Layer>
   );
 }
 

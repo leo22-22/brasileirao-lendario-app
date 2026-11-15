@@ -57,12 +57,12 @@
 
 /* ── Modal ─────────────────────────────────────────────── */
 .ui-overlay {
-  position: fixed; inset: 0; z-index: 9000; background: var(--overlay);
-  display: flex; align-items: center; justify-content: center; padding: 16px; overflow-y: auto;
+  position: fixed; inset: 0; z-index: var(--z-modal); background: var(--overlay);
+  display: flex; align-items: center; justify-content: center; padding: 16px; overflow: hidden;
   animation: uiFade .15s ease-out;
 }
 .ui-modal {
-  position: relative; width: 100%; max-width: 520px; max-height: calc(100vh - 32px); overflow-y: auto;
+  position: relative; width: 100%; max-width: 520px; max-height: calc(100dvh - 32px); overflow-y: auto; overscroll-behavior: contain;
   background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 20px;
   padding: 24px; box-shadow: 0 30px 60px -20px rgba(15,31,23,.35);
 }
@@ -74,7 +74,7 @@
 @keyframes uiFade { from { opacity: 0; } to { opacity: 1; } }
 @media (max-width: 560px) {
   .ui-overlay { align-items: flex-end; padding: 0; }
-  .ui-modal { border-radius: 20px 20px 0 0; max-height: 92vh; }
+  .ui-modal { border-radius: 20px 20px 0 0; max-height: 92dvh; }
 }
 
 /* ── SectionHeader ─────────────────────────────────────── */
@@ -127,7 +127,8 @@
 button.ui-alert { width: 100%; text-align: left; cursor: pointer; font-family: var(--font-body); }
 
 /* ── Header do site ────────────────────────────────────── */
-.ui-header { position: relative; z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line); }
+.ui-layer { display: contents; }
+.ui-header { position: relative; z-index: var(--z-header); background: var(--bg); border-bottom: 1px solid var(--line); }
 .ui-header-inner { max-width: 1240px; margin: 0 auto; padding: 12px 24px; display: flex; align-items: center; gap: 12px; min-height: 64px; }
 .ui-brand { display: flex; align-items: center; gap: 12px; background: none; border: none; padding: 0; cursor: pointer; color: var(--ink); text-align: left; min-width: 0; text-decoration: none; }
 .ui-brand-mark { width: 36px; height: 36px; border-radius: 10px; background: var(--green); display: grid; place-items: center; flex-shrink: 0; color: var(--gold); }

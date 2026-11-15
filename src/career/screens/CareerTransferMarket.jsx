@@ -21,7 +21,7 @@ import { findPlayerAnywhere, isShortlisted } from '../engine/marketQueue.js';
 import { dayParts } from '../engine/careerMeta.js';
 import { POS_ORDER, posSector } from '../../lib/format.js';
 import { displayName } from '../../lib/displayName.js';
-import { Icon, Modal } from '../../ui/index.jsx';
+import { Icon, Modal, MaybeLayer, useMediaQuery } from '../../ui/index.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
 import './careerMarket.css';
@@ -218,6 +218,7 @@ function ProposePanel({ save, row, onPropose, onRequestLoan, onQueue, onCancelQu
 
 // ── Tabela de jogadores de outros clubes ───────────────────────────────
 function PlayerTable({ save, rows, openKey, setOpenKey, onToggleShortlist, panelProps, total, page, setPage, emptyText }) {
+  const isSheet = useMediaQuery('(max-width: 768px)'); // proposta vira bottom sheet (careerMarket.css)
   const shown = rows.slice(0, page * PAGE);
   return (
     <>
@@ -250,6 +251,7 @@ function PlayerTable({ save, rows, openKey, setOpenKey, onToggleShortlist, panel
             </div>
             {open && (
               <div className="mk-prop-wrap">
+                <MaybeLayer when={isSheet} onClose={() => setOpenKey(null)}>
                 <div className="mk-sheet-bg" onClick={() => setOpenKey(null)} aria-hidden="true" />
                 <div className="mk-prop-sheet">
                   <div className="mk-sheet-head">
@@ -258,6 +260,7 @@ function PlayerTable({ save, rows, openKey, setOpenKey, onToggleShortlist, panel
                   </div>
                   <ProposePanel save={save} row={row} {...panelProps} onDone={() => setOpenKey(null)} />
                 </div>
+                </MaybeLayer>
               </div>
             )}
           </div>
@@ -628,6 +631,7 @@ function HistoryTab({ save }) {
 
 // ── Observados ─────────────────────────────────────────────────────────
 function ShortlistTab({ save, allRows, onToggleShortlist, panelProps }) {
+  const isSheet = useMediaQuery('(max-width: 768px)'); // proposta vira bottom sheet (careerMarket.css)
   const [openKey, setOpenKey] = useState(null);
   const list = save.shortlist || [];
   if (!list.length) {
@@ -675,11 +679,13 @@ function ShortlistTab({ save, allRows, onToggleShortlist, panelProps }) {
             </div>
             {open && row && (
               <div className="mk-prop-wrap">
+                <MaybeLayer when={isSheet} onClose={() => setOpenKey(null)}>
                 <div className="mk-sheet-bg" onClick={() => setOpenKey(null)} aria-hidden="true" />
                 <div className="mk-prop-sheet">
                   <div className="mk-sheet-head"><b>{p.name}</b><button type="button" className="ui-modal-close" style={{ position: 'static' }} onClick={() => setOpenKey(null)} aria-label="Fechar proposta"><Icon name="close" size={18} /></button></div>
                   <ProposePanel save={save} row={row} {...panelProps} onDone={() => setOpenKey(null)} />
                 </div>
+                </MaybeLayer>
               </div>
             )}
           </div>

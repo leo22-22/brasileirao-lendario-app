@@ -17,7 +17,7 @@ import { COPA_ROUND_LABELS, COPA_DAYS as COPA_DAYS_LIST } from '../engine/copaEn
 import { upcomingFixtures, myCopaStatus } from '../engine/careerMeta.js';
 import { teamForSim } from '../engine/simHelpers.js';
 import { displayName } from '../../lib/displayName.js';
-import { Icon } from '../../ui/index.jsx';
+import { Icon, Layer } from '../../ui/index.jsx';
 import { MONTH_NAMES, MONTH_LENGTHS, GRID_YEAR, dayOfYearToMonthDay, dayOfYearFor } from '../components/monthCalendar.jsx';
 import '../components/careerShell.css';
 import './careerSquad.css';
@@ -622,6 +622,7 @@ export function CareerCalendarScreen({ save, onNavigate, onPlayNext }) {
       </div>
 
       {isMobile && sheet && (
+        <Layer onClose={() => setSheet(false)}>
         <div className="cl-sheet-ov" role="presentation" onClick={() => setSheet(false)}>
           <div className="cl-sheet" role="dialog" aria-modal="true" aria-label={`Detalhes de ${formatCalendarDay(selDay)}`} onClick={e => e.stopPropagation()} onKeyDown={e => { if (e.key === 'Escape') setSheet(false); }}>
             <div className="cl-sheet-bar"><span aria-hidden="true" /><button type="button" className="ui-modal-close" style={{ position: 'static' }} onClick={() => setSheet(false)} aria-label="Fechar" autoFocus><Icon name="close" size={18} /></button></div>
@@ -629,6 +630,7 @@ export function CareerCalendarScreen({ save, onNavigate, onPlayNext }) {
             <RoundCard />
           </div>
         </div>
+        </Layer>
       )}
     </div>
   );

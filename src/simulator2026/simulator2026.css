@@ -60,7 +60,7 @@
 .sm-n { font-family: var(--font-mono); font-size: 12px; text-align: center; color: var(--ink-2); width: 34px; }
 
 /* Toast e CTA fixo */
-.sm-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: 950; display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 13.5px; box-shadow: 0 14px 30px -14px rgba(15,31,23,.6); max-width: calc(100vw - 32px); }
+.sm-toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); z-index: var(--z-toast); display: flex; align-items: center; gap: 10px; padding: 10px 12px 10px 16px; border-radius: 999px; background: var(--ink); color: #fff; font-size: 13.5px; box-shadow: 0 14px 30px -14px rgba(15,31,23,.6); max-width: calc(100vw - 32px); }
 .sm-toast button { border: none; background: none; color: #fff; opacity: .7; cursor: pointer; display: grid; place-items: center; }
 .sm-mobile-cta { display: none; }
 
@@ -80,7 +80,7 @@
   .sm-stakes { grid-template-columns: 1fr; }
   .sm-acts .sm-b-g { display: none; }
   .sm-acts .sm-b-o { flex: 1; }
-  .sm-mobile-cta { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: 900; padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(245,241,232,0), var(--bg) 30%); }
+  .sm-mobile-cta { display: block; position: fixed; left: 0; right: 0; bottom: 0; z-index: var(--z-sheet); padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); background: linear-gradient(180deg, rgba(245,241,232,0), var(--bg) 30%); }
   .sm-mobile-cta .sm-b-g { width: 100%; }
   .sm-toast { bottom: 84px; border-radius: 18px; }
   .sm-champ h2 { font-size: 30px; }

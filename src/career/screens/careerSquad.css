@@ -87,10 +87,10 @@
   .sq-split { grid-template-columns: minmax(0, 1fr); }
   .sq-ins { grid-template-columns: 1fr; }
   .sq-depth { grid-template-columns: repeat(9, minmax(0, 1fr)); }
-  .sq-dr { position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 92vw); z-index: 1001; border-radius: 22px 0 0 22px; overflow-y: auto; transform: translateX(105%); visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s; box-shadow: -20px 0 40px -20px rgba(15,31,23,.35); }
+  .sq-dr { position: fixed; top: 0; right: 0; bottom: 0; width: min(380px, 92vw); z-index: calc(var(--z-modal) + 1); border-radius: 22px 0 0 22px; overflow-y: auto; transform: translateX(105%); visibility: hidden; transition: transform .2s ease, visibility 0s linear .2s; box-shadow: -20px 0 40px -20px rgba(15,31,23,.35); }
   .sq-dr.sq-dr-open { transform: none; visibility: visible; transition: transform .2s ease; }
   .sq-dr-close { display: inline-grid; }
-  .sq-dr-open + .sq-dr-bg { display: block; position: fixed; inset: 0; background: var(--overlay); z-index: 1000; }
+  .sq-dr-open + .sq-dr-bg { display: block; position: fixed; inset: 0; background: var(--overlay); z-index: var(--z-modal); }
 }
 @media (max-width: 900px) {
   .sq-th, .sq-tr { grid-template-columns: 50px minmax(0,1fr) 40px 30px 30px 46px 28px; }

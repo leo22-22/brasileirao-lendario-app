@@ -10,7 +10,7 @@ import { CLUB_LOGOS } from '../data/club-logos.js';
 import { parseTeamLabel, posSector, posOrderIndex } from '../lib/format.js';
 import { displayName } from '../lib/displayName.js';
 import { teamStrength, autoFillSquadFromTeam, FORMATIONS } from '../App.jsx';
-import { Icon, TeamBadge } from '../ui/index.jsx';
+import { Icon, TeamBadge, Layer } from '../ui/index.jsx';
 import './readyMadeTeam.css';
 
 const PAGE = 30;
@@ -214,6 +214,7 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title, mul
   );
 
   return (
+    <Layer onClose={onClose}>
     <div className="rm-overlay" onClick={onClose} role="presentation">
       <div className="rm-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="rm-h">
         {onClose && <button type="button" className="rm-x" onClick={onClose} aria-label="Fechar"><Icon name="close" size={16} /></button>}
@@ -302,5 +303,6 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title, mul
         )}
       </div>
     </div>
+    </Layer>
   );
 }
