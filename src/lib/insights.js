@@ -16,8 +16,9 @@ const posOf = (table, id) => table.findIndex(r => r.id === id) + 1;
 
 // Forma dos últimos `count` jogos (reais + simulados), mais antigo → mais recente.
 export function formOf(clubId, realResults, log, count = 5) {
-  const all = [...realResults].sort((a, b) => a.round - b.round);
-  // jogo atrasado da rodada 21 entra na ordem em que foi jogado (no log)
+  // jogo atrasado entra na ordem em que foi jogado: `playedAt` (reais) ou
+  // a ordem do log (simulados)
+  const all = [...realResults].sort((a, b) => (a.playedAt ?? a.round) - (b.playedAt ?? b.round));
   const games = [...all, ...log].filter(m => m.homeId === clubId || m.awayId === clubId);
   return games.slice(-count).map(m => {
     const home = m.homeId === clubId;

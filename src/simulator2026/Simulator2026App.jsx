@@ -26,7 +26,7 @@ import { CLUB_LOGOS } from '../data/club-logos.js';
 // volta de App.jsx).
 import { SERIE_A_2026_TEAM_IDS } from '../data/career-clubs.js';
 import { SERIE_A_2026_FIXTURES } from '../data/serie-a-2026-fixtures.js';
-import { REAL_RESULTS_2026_THROUGH_R34 } from '../data/brasileirao-2026-real-results.js';
+import { REAL_RESULTS_2026 } from '../data/brasileirao-2026-real-results.js';
 import { teamStrength, aiSquadPlayers, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents, MatchSummaryModal } from '../App.jsx';
 import { matchOutcomeProbabilities } from '../lib/probability.js';
 import { zoneOf, formOf, remainingByClub, stakesFor, disputes, realBaselinePositions } from '../lib/insights.js';
@@ -55,13 +55,20 @@ const TOTAL_ROUNDS = 38;
 // Chapecoense" — pedido explícito do usuário), seguido das rodadas 35-38
 // inteiras, 10 jogos cada — 41 jogos no total. Fixa (não muda depois de
 // montada), então vive fora do componente.
+// Atualização 16/11/2026: jogos que já têm placar real em REAL_RESULTS_2026
+// (Chapecoense 0x2 Vasco, Mirassol 0x0 Atlético-MG) saem da fila — então a
+// fila se ajusta sozinha quando entrarem mais placares reais.
+const isPlayedForReal = (m) => REAL_RESULTS_2026.some(r => r.round === m.round && r.homeId === m.homeId && r.awayId === m.awayId);
 const REMAINING_MATCHES = [
   { round: 21, homeId: 'chapecoense2026', awayId: 'vasco2026', postponed: true },
   ...Array.from({ length: TOTAL_ROUNDS - FIRST_SIMULATED_ROUND_IDX }, (_, i) => {
     const roundIdx = FIRST_SIMULATED_ROUND_IDX + i;
     return SERIE_A_2026_FIXTURES[roundIdx].map(m => ({ round: roundIdx + 1, homeId: m.homeId, awayId: m.awayId }));
   }).flat(),
-];
+].filter(m => !isPlayedForReal(m));
+// Save feito com outra base de placares reais tem matchIdx/tabela de outra
+// fila — descarta e recomeça em vez de deixar tabela e fila desalinhadas.
+const SAVE_BASE = REAL_RESULTS_2026.length;
 
 function buildTeams() {
   return SERIE_A_2026_TEAM_IDS.map(id => {
@@ -96,8 +103,8 @@ function randomSeed() {
 // REMAINING_MATCHES, resolvido só quando o usuário jogar ele de verdade.
 function buildInitialState(teams, seed = randomSeed()) {
   const zeroedTable = teams.map(emptyTableRow);
-  const table = applyRoundToTable(zeroedTable, REAL_RESULTS_2026_THROUGH_R34);
-  return { seed, matchIdx: 0, table, log: [] };
+  const table = applyRoundToTable(zeroedTable, REAL_RESULTS_2026);
+  return { seed, base: SAVE_BASE, matchIdx: 0, table, log: [] };
 }
 
 function loadSave() {
@@ -107,6 +114,7 @@ function loadSave() {
     // Save de antes de virar "jogo por jogo" (tinha roundIdx/history, não
     // matchIdx/log) — descarta e recomeça em vez de quebrar.
     if (parsed && typeof parsed.matchIdx !== 'number') return null;
+    if (parsed && parsed.base !== SAVE_BASE) return null;
     return parsed;
   } catch {
     return null;
@@ -327,8 +335,8 @@ function LiveMatchScreen({ pending, matchNo, totalMatches, table, upcoming, team
             <MatchPreviewCard
               size="md"
               eyebrow={`Mando do ${displayName(homeTeam.club)}${stadium ? ` · ${stadium}` : ''}`}
-              home={{ crest: crest(homeTeam, 72), name: displayName(homeTeam.club), sub: `${hp}º · ${rowOf(table, homeTeam.id)?.pts ?? 0} pts`, form: formOf(homeTeam.id, REAL_RESULTS_2026_THROUGH_R34, upcoming.log) }}
-              away={{ crest: crest(awayTeam, 72), name: displayName(awayTeam.club), sub: `${ap}º · ${rowOf(table, awayTeam.id)?.pts ?? 0} pts`, form: formOf(awayTeam.id, REAL_RESULTS_2026_THROUGH_R34, upcoming.log) }}
+              home={{ crest: crest(homeTeam, 72), name: displayName(homeTeam.club), sub: `${hp}º · ${rowOf(table, homeTeam.id)?.pts ?? 0} pts`, form: formOf(homeTeam.id, REAL_RESULTS_2026, upcoming.log) }}
+              away={{ crest: crest(awayTeam, 72), name: displayName(awayTeam.club), sub: `${ap}º · ${rowOf(table, awayTeam.id)?.pts ?? 0} pts`, form: formOf(awayTeam.id, REAL_RESULTS_2026, upcoming.log) }}
               probs={{ home: odds.homeWin, draw: odds.draw, away: odds.awayWin }}
               actions={(
                 <>
@@ -591,7 +599,7 @@ export function Simulator2026App({ onExit }) {
         crest: <TeamCrest team={t} size={76} ring />,
         name: displayName(t.club),
         sub: `${p}º · ${table[p - 1].pts} pts${z && (z.key === 'g4' || z.key === 'z4') ? ` · ${z.label}` : ''}`,
-        form: formOf(t.id, REAL_RESULTS_2026_THROUGH_R34, save.log),
+        form: formOf(t.id, REAL_RESULTS_2026, save.log),
       };
     };
     hero = (
@@ -635,10 +643,10 @@ export function Simulator2026App({ onExit }) {
       <div className="sm-top">
         <div style={{ minWidth: 0 }}>
           <button type="button" className="ng-back" style={{ marginBottom: 14 }} onClick={onExit}><Icon name="chevronLeft" size={14} />Voltar ao menu</button>
-          <span className="ng-mono" style={{ display: 'block' }}>Tabela real até a rodada 34 · o resto é simulado jogo a jogo</span>
+          <span className="ng-mono" style={{ display: 'block' }}>Tabela real atualizada em 16/11 · o resto é simulado jogo a jogo</span>
           <h1>Simulador do <em>Brasileirão 2026</em></h1>
         </div>
-        <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" onClick={() => setConfirmReset(true)} disabled={save.matchIdx === 0}><Icon name="forward" size={16} />Recomeçar da rodada 34</button>
+        <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" onClick={() => setConfirmReset(true)} disabled={save.matchIdx === 0}><Icon name="forward" size={16} />Recomeçar da tabela real</button>
       </div>
 
       <div className="ng-card sm-strip">
@@ -739,7 +747,7 @@ export function Simulator2026App({ onExit }) {
 
       {confirmReset && (
         <Modal onClose={() => setConfirmReset(false)} maxWidth={420} labelledBy="sm-reset-h">
-          <h3 id="sm-reset-h" style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: 24, margin: '0 0 8px' }}>Recomeçar da rodada 34?</h3>
+          <h3 id="sm-reset-h" style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, fontSize: 24, margin: '0 0 8px' }}>Recomeçar da tabela real?</h3>
           <p style={{ color: 'var(--muted)', margin: '0 0 18px', lineHeight: 1.5 }}>Os {save.matchIdx} jogo{save.matchIdx === 1 ? '' : 's'} já simulado{save.matchIdx === 1 ? '' : 's'} são apagados e a simulação recomeça com novos resultados.</p>
           <div style={{ display: 'flex', gap: 10 }}>
             <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" style={{ flex: 1 }} onClick={() => setConfirmReset(false)} autoFocus>Cancelar</button>

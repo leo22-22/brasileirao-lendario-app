@@ -6,11 +6,13 @@
 // campeonato real está agora, antes do jogador assumir e simular o resto
 // (rodada 35 em diante) com o motor de sempre.
 //
-// A rodada 21 tem só 9 jogos aqui de propósito — Chapecoense x Vasco
-// (rodada 21) foi adiado e nunca saiu um placar real até a data da
-// planilha; esse jogo é resolvido pela simulação normal junto da primeira
-// leva de jogos que o modo joga (rodada 35), não fica de fora.
-export const REAL_RESULTS_2026_THROUGH_R34 = [
+// Atualização 16/11/2026 (informada pelo usuário): saíram mais 2 placares
+// reais — o adiado da rodada 21 (Chapecoense 0 x 2 Vasco) e o 1º jogo da
+// rodada 35 (Mirassol 0 x 0 Atlético-MG). Eles ficam no FIM da lista; o
+// simulador tira da fila de jogos a simular todo jogo que já está aqui.
+// `playedAt` = posição cronológica real (o R21 foi jogado depois da R34),
+// usada pela forma recente em vez de `round`.
+export const REAL_RESULTS_2026 = [
   { round: 1, homeId: 'atleticomg2026', homeGoals: 2, awayId: 'palmeiras2026', awayGoals: 2 },
   { round: 1, homeId: 'internacional2026', homeGoals: 0, awayId: 'athleticopr2026', awayGoals: 1 },
   { round: 1, homeId: 'coritiba2026', homeGoals: 0, awayId: 'bragantino2026', awayGoals: 1 },
@@ -350,4 +352,6 @@ export const REAL_RESULTS_2026_THROUGH_R34 = [
   { round: 34, homeId: 'palmeiras2026', homeGoals: 6, awayId: 'remo2026', awayGoals: 1 },
   { round: 34, homeId: 'cruzeiro2026', homeGoals: 3, awayId: 'bahia2026', awayGoals: 2 },
   { round: 34, homeId: 'vitoria2026', homeGoals: 0, awayId: 'fluminense2026', awayGoals: 3 },
+  { round: 21, homeId: 'chapecoense2026', homeGoals: 0, awayId: 'vasco2026', awayGoals: 2, postponed: true, playedAt: 34.5 },
+  { round: 35, homeId: 'mirassol2026', homeGoals: 0, awayId: 'atleticomg2026', awayGoals: 0 },
 ];
