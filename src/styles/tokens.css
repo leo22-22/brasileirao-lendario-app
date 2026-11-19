@@ -158,6 +158,16 @@ body { min-height: 100vh; }
   color: var(--ink-2);
 }
 
+[data-theme="dark"] .hl-era.hl-on {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+[data-theme="dark"] .hl-band-cta {
+  background: var(--green);
+}
+
 [data-theme="dark"] .hl-coming-soon {
   border-color: #A98228;
   background: #4A3A18;
@@ -166,6 +176,23 @@ body { min-height: 100vh; }
 
 [data-theme="dark"] .hl-coming-soon-label {
   color: #F0C95C;
+}
+
+[data-theme="dark"] .ui-seg-dark button.ui-seg-on,
+[data-theme="dark"] .fb-lv-seg button.fb-lv-seg-on {
+  background: var(--surface-2);
+  color: var(--ink);
+}
+
+[data-theme="dark"] .rm-search,
+[data-theme="dark"] .mk-moneyin,
+[data-theme="dark"] .sbm-ovr {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+[data-theme="dark"] .sbm-sq i.u {
+  background: var(--surface-2);
 }
 
 [data-theme="dark"] .ui-hbtn-money {

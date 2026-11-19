@@ -2404,25 +2404,24 @@ function AchievementProgressCard({ id, user, unlockedSet, light }) {
   const isUnlocked = unlockedSet.has(id);
   const progress = !isUnlocked ? getAchievementProgress(id, user) : null;
   const pct = progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : 0;
-  // `light`: só a home (tema claro) usa — o resto do app (AchievementsModal
-  // incluso, que sempre fica escuro) chama este componente sem a prop e
-  // mantém a aparência de sempre.
+  // `light`: a home usa uma versão mais compacta; as cores continuam vindo
+  // dos tokens para acompanhar o tema ativo.
   return (
     <div style={{
       display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10,
-      background: light ? (isUnlocked ? 'rgba(194,154,69,0.12)' : '#FBF9F4') : (isUnlocked ? 'rgba(194,154,69,0.1)' : 'var(--surface)'),
-      border: light ? `1px solid ${isUnlocked ? 'rgba(194,154,69,0.55)' : '#E3DCCB'}` : `1px solid ${isUnlocked ? 'rgba(194,154,69,0.5)' : 'var(--line)'}`,
+      background: isUnlocked ? 'rgba(194,154,69,0.12)' : 'var(--surface)',
+      border: `1px solid ${isUnlocked ? 'rgba(194,154,69,0.55)' : 'var(--line)'}`,
     }}>
       <span style={{ fontSize: 22, flexShrink: 0, filter: isUnlocked ? 'none' : 'grayscale(1)', opacity: isUnlocked ? 1 : 0.4 }}>{a.icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: light ? (isUnlocked ? '#0F1F17' : '#69736B') : (isUnlocked ? 'var(--ink)' : 'var(--ink-2)') }}>{a.label}</div>
-        <div style={{ fontSize: 11, opacity: light ? 0.65 : 0.5, lineHeight: 1.3, color: light ? '#69736B' : undefined }}>{a.desc}</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: isUnlocked ? 'var(--ink)' : 'var(--ink-2)' }}>{a.label}</div>
+        <div style={{ fontSize: 11, opacity: light ? 0.65 : 0.5, lineHeight: 1.3, color: 'var(--muted)' }}>{a.desc}</div>
         {progress && (
           <div style={{ marginTop: 6 }}>
-            <div style={{ height: 4, borderRadius: 999, background: light ? '#E3DCCB' : 'var(--surface-2)', overflow: 'hidden' }}>
+            <div style={{ height: 4, borderRadius: 999, background: 'var(--surface-2)', overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${pct}%`, background: light ? 'var(--gold)' : 'var(--gold)', borderRadius: 999, transition: 'width 0.3s' }} />
             </div>
-            <div style={{ fontSize: 9.5, opacity: light ? 0.6 : 0.45, marginTop: 3, fontFamily: 'var(--font-mono)', color: light ? '#69736B' : undefined }}>
+            <div style={{ fontSize: 9.5, opacity: light ? 0.6 : 0.45, marginTop: 3, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>
               {Math.min(progress.current, progress.target).toLocaleString('pt-BR')}/{progress.target.toLocaleString('pt-BR')}
             </div>
           </div>
