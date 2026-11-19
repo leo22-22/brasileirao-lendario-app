@@ -23,6 +23,12 @@
   <meta name="author" content="Brasileirão Lendário" />
   <meta name="robots" content="index, follow" />
   <meta name="theme-color" content="#F5F1E8" />
+  <script>
+    try {
+      var savedTheme = localStorage.getItem('brasileirao-theme');
+      if (savedTheme === 'dark') document.documentElement.dataset.theme = 'dark';
+    } catch (error) {}
+  </script>
   <link rel="canonical" href="https://brasileiraolendario.com.br/" />
 
   <!-- Ícones -->

@@ -59,6 +59,41 @@
   color-scheme: light;
 }
 
+[data-theme="dark"] {
+  --bg: #101815;
+  --surface: #18231e;
+  --surface-2: #223029;
+  --ink: #F2F5F1;
+  --ink-2: #C0CCC4;
+  --muted: #91A198;
+  --line: #304139;
+  --line-strong: #486054;
+  --green: #2C8A62;
+  --green-2: #51B887;
+  --gold: #D7B35C;
+  --gold-ink: #E8C979;
+  --gold-soft: #493C20;
+  --success: #7FD99A;
+  --info: #8EC3EE;
+  --warning: #F0B95C;
+  --warning-ink: #F0B95C;
+  --danger: #F08A80;
+  --purple: #C7A8F0;
+  --success-soft: rgba(127, 217, 154, 0.14);
+  --info-soft: rgba(142, 195, 238, 0.14);
+  --warning-soft: rgba(240, 185, 92, 0.14);
+  --danger-soft: rgba(240, 138, 128, 0.14);
+  --purple-soft: rgba(199, 168, 240, 0.14);
+  --gold-tint: rgba(215, 179, 92, 0.16);
+  --pitch: #124A35;
+  --pitch-2: #11452F;
+  --on-dark: #F2F5F1;
+  --shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.5);
+  --shadow-sm: 0 4px 14px -6px rgba(0, 0, 0, 0.4);
+  --overlay: rgba(0, 0, 0, 0.62);
+  color-scheme: dark;
+}
+
 /* Ilha escura: gramado, placares e cards verdes. */
 .on-dark {
   --surface: rgba(255, 255, 255, 0.06);
@@ -88,5 +123,54 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 body { min-height: 100vh; }
+
+[data-theme="dark"] .hl-home {
+  --hl-bg: #101815;
+  --hl-paper: #18231e;
+  --hl-ink: #F2F5F1;
+  --hl-green: #2C8A62;
+  --hl-green-2: #51B887;
+  --hl-gold: #D7B35C;
+  --hl-gold-soft: #493C20;
+  --hl-muted: #91A198;
+  --hl-line: #304139;
+}
+
+[data-theme="dark"] .hl-lead,
+[data-theme="dark"] .hl-note p,
+[data-theme="dark"] .hl-mode .hl-meta {
+  color: var(--ink-2);
+}
+
+[data-theme="dark"] .hl-btn.hl-ghost {
+  border-color: var(--line-strong);
+}
+
+[data-theme="dark"] .hl-tag,
+[data-theme="dark"] .hl-mode .hl-ic,
+[data-theme="dark"] .hl-mini .hl-ic {
+  color: var(--gold-ink);
+  background: var(--gold-soft);
+}
+
+[data-theme="dark"] .hl-era {
+  border-color: var(--line-strong);
+  color: var(--ink-2);
+}
+
+[data-theme="dark"] .hl-coming-soon {
+  border-color: #A98228;
+  background: #4A3A18;
+  color: #F4D98A;
+}
+
+[data-theme="dark"] .hl-coming-soon-label {
+  color: #F0C95C;
+}
+
+[data-theme="dark"] .ui-hbtn-money {
+  background: #2B2619;
+  border-color: #67562E;
+}
 
 ::selection { background: var(--gold-soft); color: var(--ink); }

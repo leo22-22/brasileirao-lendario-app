@@ -99,6 +99,11 @@ export function HomeLanding({
 
   return (
     <div className="hl-home" style={{ width: '100%', maxWidth: 1240, margin: '0 auto' }}>
+      <div className="hl-coming-soon" role="status">
+        <span className="hl-coming-soon-label">Em breve</span>
+        <span>Libertadores, Sul-Americana e campeonatos de toda a América</span>
+      </div>
+
       {/* ── Hero ── */}
       <div className="hl-hero">
         <div>

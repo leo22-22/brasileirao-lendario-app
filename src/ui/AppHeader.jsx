@@ -6,8 +6,23 @@ import { useEffect, useState } from 'react';
 import { Icon } from './icons.jsx';
 import { BrandMark } from './index.jsx';
 
+function useTheme() {
+  const [theme, setTheme] = useState(() => document.documentElement.dataset.theme || 'light');
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    localStorage.setItem('brasileirao-theme', theme);
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme === 'dark' ? '#101815' : '#F5F1E8');
+  }, [theme]);
+
+  return [theme, () => setTheme(current => current === 'dark' ? 'light' : 'dark')];
+}
+
 // crumb: { root, current } | null
 export function AppHeader({ onBrand, brandTitle = 'Voltar ao início', showSub = true, wide = false, crumb, children }) {
+  const [theme, toggleTheme] = useTheme();
+  const isDark = theme === 'dark';
+
   return (
     <header className="ui-header">
       <div className="ui-header-inner" style={wide ? { maxWidth: 'none', padding: '12px 28px' } : undefined}>
@@ -25,7 +40,19 @@ export function AppHeader({ onBrand, brandTitle = 'Voltar ao início', showSub =
             <b>{crumb.current}</b>
           </nav>
         )}
-        <div className="ui-header-actions">{children}</div>
+        <div className="ui-header-actions">
+          {children}
+          <button
+            type="button"
+            className="ui-hbtn ui-hbtn-icon ui-theme-toggle"
+            onClick={toggleTheme}
+            title={isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}
+            aria-label={isDark ? 'Ativar tema claro' : 'Ativar tema escuro'}
+            aria-pressed={isDark}
+          >
+            <Icon name={isDark ? 'sun' : 'moon'} size={17} />
+          </button>
+        </div>
       </div>
     </header>
   );
