@@ -275,6 +275,49 @@ body { min-height: 100vh; }
   color: var(--danger);
 }
 
+[data-theme="dark"] .cp-tbd.cp-path-k,
+[data-theme="dark"] .cp-final,
+[data-theme="dark"] .cp-final-h,
+[data-theme="dark"] .fb-lv-ic-y,
+[data-theme="dark"] .fb-lv-toast,
+[data-theme="dark"] .sq-tg-yel,
+[data-theme="dark"] .ng-desc,
+[data-theme="dark"] .ng-bs-t {
+  background: var(--gold-soft);
+  color: var(--gold-ink);
+}
+
+[data-theme="dark"] .fb-lv-toast {
+  border: 1px solid var(--line);
+}
+
+[data-theme="dark"] .fb-lv-ic-y {
+  color: var(--warning-ink);
+}
+
+[data-theme="dark"] .ng-desc {
+  border: 1px solid var(--line);
+}
+
+[data-theme="dark"] .fb-lv-ic-s {
+  background: var(--info-soft);
+  color: var(--info);
+}
+
+[data-theme="dark"] .sbm-fit.ok {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+[data-theme="dark"] .ng-o-hi,
+[data-theme="dark"] .sr-o-hi,
+[data-theme="dark"] .rm-o,
+[data-theme="dark"] .sq-o-hi,
+[data-theme="dark"] .sbm-ovr2 {
+  background: var(--success-soft);
+  color: var(--success);
+}
+
 [data-theme="dark"] .sq-dp.sq-thin,
 [data-theme="dark"] .mk-pg button.mk-need {
   color: var(--warning-ink);
