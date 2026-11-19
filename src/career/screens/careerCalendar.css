@@ -59,6 +59,12 @@
 .cl-nextfrom { width: 100%; text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 14px; padding: 12px 14px; cursor: pointer; font-family: var(--font-body); color: var(--ink); display: flex; flex-direction: column; gap: 4px; }
 .cl-nf-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cl-fx-score { font-family: var(--font-mono); font-size: 12px; white-space: nowrap; }
+.tb-fx { display: grid; grid-template-columns: minmax(0, 1fr) 28px minmax(0, 1fr); align-items: center; gap: 8px; padding: 9px 20px; border-top: 1px solid var(--line); font-size: 12.5px; }
+.tb-fx-h, .tb-fx-a { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.tb-fx-h { justify-content: flex-end; text-align: right; }
+.tb-fx-a { justify-content: flex-start; }
+.tb-fx .cf-ell { min-width: 0; }
+.tb-fx-mine { background: var(--gold-tint); }
 .cl-more { padding: 10px 20px 14px; border-top: 1px solid var(--line); }
 
 /* Datas importantes */
