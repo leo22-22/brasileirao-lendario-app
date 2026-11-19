@@ -184,11 +184,56 @@ body { min-height: 100vh; }
   color: var(--ink);
 }
 
+[data-theme="dark"] .ng-chip.ng-on,
+[data-theme="dark"] .ng-skip-b,
+[data-theme="dark"] .sr-chip.sr-on,
+[data-theme="dark"] .rm-chip.rm-on,
+[data-theme="dark"] .ch-chip.ch-on,
+[data-theme="dark"] .cp-mtabs button.cp-on,
+[data-theme="dark"] .cl-chip.cl-on,
+[data-theme="dark"] .ui-chip.ui-chip-on,
+[data-theme="dark"] .sbm-step i,
+[data-theme="dark"] .sbm-chips button.on,
+[data-theme="dark"] .mk-pg button.mk-on,
+[data-theme="dark"] .mk-act-on,
+[data-theme="dark"] .mk-quick button.mk-on,
+[data-theme="dark"] .fs-sp.fs-on i {
+  background: var(--green);
+  border-color: var(--green);
+  color: #fff;
+}
+
+[data-theme="dark"] .ng-pr.ng-sel,
+[data-theme="dark"] .sr-pr.sr-cp,
+[data-theme="dark"] .sr-pr.sr-pr-t,
+[data-theme="dark"] .sq-tr.sq-sel,
+[data-theme="dark"] .sq-card.sq-sel,
+[data-theme="dark"] .tb-tr.tb-me,
+[data-theme="dark"] .tb-tr.tb-open,
+[data-theme="dark"] .tb-mini-me,
+[data-theme="dark"] .fb-ld-rw.fb-ld-mine,
+[data-theme="dark"] .fb-rg-now,
+[data-theme="dark"] .ms-pl.ms-best,
+[data-theme="dark"] .cl-sel,
+[data-theme="dark"] .cp-me,
+[data-theme="dark"] .cp-p-cur,
+[data-theme="dark"] .mk-tr-wrap.mk-open,
+[data-theme="dark"] .mk-out,
+[data-theme="dark"] .sr-capc-empty,
+[data-theme="dark"] .sr-sticky {
+  background: var(--gold-soft);
+  color: var(--ink);
+}
+
 [data-theme="dark"] .rm-search,
 [data-theme="dark"] .mk-moneyin,
 [data-theme="dark"] .sbm-ovr {
   background: var(--surface);
   color: var(--ink);
+}
+
+[data-theme="dark"] .sr-sticky {
+  background: rgba(24, 35, 30, 0.96);
 }
 
 [data-theme="dark"] .sbm-sq i.u {
