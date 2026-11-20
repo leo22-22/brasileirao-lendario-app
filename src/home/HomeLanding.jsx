@@ -66,7 +66,7 @@ export function HomeLanding({
   dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge,
   careerLocked, careerLaunchDismissed, onDismissCareerLaunch,
   weeklyTeam, weeklyCraque, weekRoleInfo, weekLineTopPct,
-  gameStats, achievementsTotal, featuredAchievementIds, AchievementProgressCard,
+  gameStats, achievementsTotal, featuredAchievementIds, FeaturedAchievementCard,
   onOpenClub, onOpenAchievements, onOpenWeeklyTeam, onPickMode,
 }) {
   const mc = myTeamColor || '#C29A45';
@@ -287,9 +287,9 @@ export function HomeLanding({
                 Ver todas ({achievementsTotal}) →
               </button>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div className="ach-featured">
               {featuredAchievementIds.map(id => (
-                <AchievementProgressCard key={id} id={id} user={currentUser} unlockedSet={new Set(currentUser.achievements || [])} light />
+                <FeaturedAchievementCard key={id} id={id} user={currentUser} />
               ))}
             </div>
           </div>

@@ -47,6 +47,9 @@ import { canonicalPathFor, canonicalTeamsPath, parseTeamsPathname } from './lib/
 import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages.jsx';
 import { HomeLanding } from './home/HomeLanding.jsx';
 import { displayName } from './lib/displayName.js';
+import AchievementsGallery from './components/achievements/AchievementsGallery.jsx';
+import { AchievementMedal, AchievementNearCard, MedalBadge } from './components/achievements/AchievementParts.jsx';
+import { iconForAchievement } from './components/achievements/achievementModel.js';
 
 // Wrapper de eventos do Analytics (gtag já é carregado no index.html) — só
 // eventos de conversão que interessam pra marketing, não todo clique.
@@ -2412,70 +2415,31 @@ function getAchievementProgress(id, user) {
   return null;
 }
 
-// Card de uma conquista (ícone + label + desc + barra de progresso ou selo de
-// desbloqueada) — compartilhado entre a galeria completa (AchievementsModal) e
-// o showcase de objetivos em destaque na Intro, pra não duplicar o mesmo JSX
-// em dois lugares.
-function AchievementProgressCard({ id, user, unlockedSet, light }) {
+// Card de uma conquista em destaque na home: bloqueada com contador vira
+// AchievementNearCard (barra), o resto vira AchievementMedal — o mesmo visual
+// da galeria completa. getAchievementProgress continua sendo a única fonte.
+function FeaturedAchievementCard({ id, user }) {
   const a = ACHIEVEMENT_CATALOG[id];
   if (!a) return null;
-  const isUnlocked = unlockedSet.has(id);
-  const progress = !isUnlocked ? getAchievementProgress(id, user) : null;
-  const pct = progress ? Math.min(100, Math.round((progress.current / progress.target) * 100)) : 0;
-  // `light`: a home usa uma versão mais compacta; as cores continuam vindo
-  // dos tokens para acompanhar o tema ativo.
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10,
-      background: isUnlocked ? 'rgba(194,154,69,0.12)' : 'var(--surface)',
-      border: `1px solid ${isUnlocked ? 'rgba(194,154,69,0.55)' : 'var(--line)'}`,
-    }}>
-      <span style={{ fontSize: 22, flexShrink: 0, filter: isUnlocked ? 'none' : 'grayscale(1)', opacity: isUnlocked ? 1 : 0.4 }}>{a.icon}</span>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: isUnlocked ? 'var(--ink)' : 'var(--ink-2)' }}>{a.label}</div>
-        <div style={{ fontSize: 11, opacity: light ? 0.65 : 0.5, lineHeight: 1.3, color: 'var(--muted)' }}>{a.desc}</div>
-        {progress && (
-          <div style={{ marginTop: 6 }}>
-            <div style={{ height: 4, borderRadius: 999, background: 'var(--surface-2)', overflow: 'hidden' }}>
-              <div style={{ height: '100%', width: `${pct}%`, background: light ? 'var(--gold)' : 'var(--gold)', borderRadius: 999, transition: 'width 0.3s' }} />
-            </div>
-            <div style={{ fontSize: 9.5, opacity: light ? 0.6 : 0.45, marginTop: 3, fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>
-              {Math.min(progress.current, progress.target).toLocaleString('pt-BR')}/{progress.target.toLocaleString('pt-BR')}
-            </div>
-          </div>
-        )}
-      </div>
-      {isUnlocked
-        ? <span style={{ flexShrink: 0 }}><Icon name="check" size={16} /></span>
-        : <span style={{ flexShrink: 0, color: 'var(--muted)' }}><Icon name="lock" size={15} /></span>
-      }
-    </div>
-  );
+  const unlocked = (user.achievements || []).includes(id);
+  const progress = !unlocked ? getAchievementProgress(id, user) : null;
+  const categoryLabel = ACHIEVEMENT_CATEGORIES.find(c => c.ids.includes(id))?.label;
+  return progress
+    ? <AchievementNearCard id={id} achievement={a} categoryLabel={categoryLabel} progress={progress} />
+    : <AchievementMedal id={id} achievement={a} unlocked={unlocked} />;
 }
 
-// Galeria completa: todas as conquistas do catálogo, desbloqueadas ou não,
-// com barra de progresso quando existe um contador de carreira pra elas.
+// Galeria completa (painel largo, tema creme) — src/components/achievements.
 function AchievementsModal({ user, onClose }) {
-  const unlocked = new Set(user.achievements || []);
-  const totalCount = Object.keys(ACHIEVEMENT_CATALOG).length;
   return (
-    <Layer onClose={onClose}>
-    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-      <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 520, maxHeight: '85vh', overflowY: 'auto', background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line)', borderRadius: 20, padding: 24, position: 'relative' }}>
-        <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ position: 'absolute', top: 14, right: 14, background: 'none', border: 'none', color: 'var(--muted)', fontSize: 18, cursor: 'pointer', padding: 6, lineHeight: 1 }}><Icon name="close" size={18} /></button>
-        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 18, fontWeight: 700, marginBottom: 2 }}>Conquistas</div>
-        <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 18, fontFamily: 'var(--font-mono)' }}>{unlocked.size}/{totalCount} desbloqueadas</div>
-        {ACHIEVEMENT_CATEGORIES.map(group => (
-          <div key={group.label} style={{ marginBottom: 18 }}>
-            <div style={{ fontSize: 10, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 8 }}>{group.label}</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {group.ids.map(id => <AchievementProgressCard key={id} id={id} user={user} unlockedSet={unlocked} />)}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-    </Layer>
+    <AchievementsGallery
+      user={user}
+      catalog={ACHIEVEMENT_CATALOG}
+      categories={ACHIEVEMENT_CATEGORIES}
+      fieldByPrefix={ACH_FIELD_BY_PREFIX}
+      getProgress={getAchievementProgress}
+      onClose={onClose}
+    />
   );
 }
 
@@ -7650,7 +7614,7 @@ function Intro({ onNewGameCrumb, onStart, onSetGameMode, difficulty, onSetDiffic
         gameStats={GAME_STATS}
         achievementsTotal={Object.keys(ACHIEVEMENT_CATALOG).length}
         featuredAchievementIds={FEATURED_ACHIEVEMENT_IDS}
-        AchievementProgressCard={AchievementProgressCard}
+        FeaturedAchievementCard={FeaturedAchievementCard}
         onOpenClub={() => setShowClub(true)}
         onOpenAchievements={() => setShowAchievements(true)}
         onOpenWeeklyTeam={() => setShowWeeklyTeam(true)}
@@ -8210,9 +8174,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
                   if (!a) return null;
                   return (
                     <div key={id} title={`${a.label} — ${a.desc}`} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, textAlign: 'center' }}>
-                      <div style={{ width: 42, height: 42, borderRadius: 12, background: hexToRgba(mc, 0.15), border: `1px solid ${hexToRgba(mc, 0.4)}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>
-                        {a.icon}
-                      </div>
+                      <MedalBadge tone="gold" icon={iconForAchievement(id)} size={42} />
                       <div style={{ fontSize: 9.5, color: 'var(--ink-2)', lineHeight: 1.25, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{a.label}</div>
                     </div>
                   );
@@ -10300,7 +10262,7 @@ function AchievementToast({ achievements, onClose }) {
             padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer',
             boxShadow: 'var(--shadow)', minWidth: 240,
           }}>
-            <span style={{ fontSize: 24 }}>{a.icon}</span>
+            <MedalBadge tone="gold" icon={iconForAchievement(id)} size={34} />
             <div>
               <div style={{ fontSize: 10, opacity: 0.6, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--gold-ink)' }}>Conquista desbloqueada</div>
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--ink)' }}>{a.label}</div>
@@ -10672,6 +10634,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-galeria-conquistas',
+    date: 'Novembro de 2026',
+    title: 'Galeria de conquistas repaginada',
+    desc: 'A tela de conquistas virou uma galeria: um anel com quantas você já tem, seus números de carreira, as conquistas que estão quase lá e as categorias ao lado. Os níveis de uma mesma meta (gols, títulos, temporadas, vitórias…) agora aparecem numa trilha só, com os marcos alcançados, o próximo e quanto falta. Dá pra filtrar por desbloqueadas, em progresso ou bloqueadas e buscar por nome. Nenhuma conquista mudou: tudo o que você já tinha continua lá.',
+  },
   {
     id: '2026-11-copa-animacao-classificacao',
     date: 'Novembro de 2026',
