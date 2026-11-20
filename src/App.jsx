@@ -291,6 +291,24 @@ const WEEKLY_TEAMS = [
       { teamId: 'flamengo2026', name: 'Pedro', posLabel: 'Atacante' },
     ],
   },
+  {
+    round: 35,
+    label: '35ª Rodada',
+    sourceLabel: 'Notas Sofascore',
+    players: [
+      { teamId: 'bahia2026', name: 'Ronaldo', posLabel: 'Goleiro', rating: 9.3 },
+      { teamId: 'mirassol2026', name: 'Reinaldo', posLabel: 'Lateral-Esquerdo', rating: 7.7 },
+      { teamId: 'vitoria2026', name: 'Emanuel Britez', posLabel: 'Zagueiro', rating: 8.0 },
+      { teamId: 'fluminense2026', name: 'Thiago Silva', posLabel: 'Zagueiro', rating: 8.1 },
+      { teamId: 'remo2026', name: 'Marcelinho', posLabel: 'Lateral-Direito', rating: 7.9 },
+      { teamId: 'remo2026', name: 'Patrick', posLabel: 'Volante', rating: 8.6 },
+      { teamId: 'vasco2026', name: 'Thiago Mendes', posLabel: 'Volante', rating: 8.1 },
+      { teamId: 'flamengo2026', name: 'Jorginho', posLabel: 'Volante', rating: 8.0 },
+      { teamId: 'cruzeiro2026', name: 'Matheus Pereira', posLabel: 'Meia-Esquerda', rating: 8.2 },
+      { teamId: 'corinthians2026', name: 'Kaio Cesar', posLabel: 'Meia-Direita', craque: true, rating: 10.0 },
+      { teamId: 'santos2026', name: 'Gabriel Barbosa', posLabel: 'Atacante', rating: 7.7 },
+    ],
+  },
 ];
 const WEEKLY_TEAM_OF_THE_WEEK = WEEKLY_TEAMS[WEEKLY_TEAMS.length - 1];
 
