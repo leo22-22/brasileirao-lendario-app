@@ -89,7 +89,7 @@ export function HomeLanding({
     serieABMode,
     { id: 'copa', color: '#5dade2', title: 'Copa do Brasil Lendária', sub: '32 times · Mata-mata', onConfirm: () => { onSetGameMode('copa'); onClearLivre(); onStart(); } },
     { id: 'atual2026', color: '#e8a33d', title: 'Brasileirão Atual', sub: '20 times reais · 2026', onConfirm: () => onOpenSerieAtual() },
-    { id: 'sim2026', color: '#e05050', title: 'Simulador do Brasileirão 2026', sub: 'Rodada 35 em diante · todos os jogos', skipDifficulty: true, onConfirm: () => onOpenSimulator2026() },
+    { id: 'sim2026', color: '#e05050', title: 'Simulador do Brasileirão 2026', sub: 'Rodada 36 em diante · todos os jogos', skipDifficulty: true, onConfirm: () => onOpenSimulator2026() },
   ];
 
   const eraTeams = useMemo(() => {

@@ -12,6 +12,12 @@
 // simulador tira da fila de jogos a simular todo jogo que já está aqui.
 // `playedAt` = posição cronológica real (o R21 foi jogado depois da R34),
 // usada pela forma recente em vez de `round`.
+//
+// Atualização 23/11/2026: rodada 35 completa (14, 18 e 19/11) e os 6 jogos
+// da rodada 36 já disputados (21 e 22/11). Ainda faltam da 36: Internacional
+// x Vitória, Botafogo x São Paulo, Santos x Grêmio e Atlético-MG x Corinthians.
+// Fonte: valorfinal.com.br (rodada 35 e tabela de 23/11), conferida com a
+// CBF/Super Placar para a 36.
 export const REAL_RESULTS_2026 = [
   { round: 1, homeId: 'atleticomg2026', homeGoals: 2, awayId: 'palmeiras2026', awayGoals: 2 },
   { round: 1, homeId: 'internacional2026', homeGoals: 0, awayId: 'athleticopr2026', awayGoals: 1 },
@@ -354,4 +360,19 @@ export const REAL_RESULTS_2026 = [
   { round: 34, homeId: 'vitoria2026', homeGoals: 0, awayId: 'fluminense2026', awayGoals: 3 },
   { round: 21, homeId: 'chapecoense2026', homeGoals: 0, awayId: 'vasco2026', awayGoals: 2, postponed: true, playedAt: 34.5 },
   { round: 35, homeId: 'mirassol2026', homeGoals: 0, awayId: 'atleticomg2026', awayGoals: 0 },
+  { round: 35, homeId: 'coritiba2026', homeGoals: 0, awayId: 'santos2026', awayGoals: 1 },
+  { round: 35, homeId: 'remo2026', homeGoals: 2, awayId: 'chapecoense2026', awayGoals: 0 },
+  { round: 35, homeId: 'cruzeiro2026', homeGoals: 2, awayId: 'palmeiras2026', awayGoals: 1 },
+  { round: 35, homeId: 'flamengo2026', homeGoals: 2, awayId: 'athleticopr2026', awayGoals: 1 },
+  { round: 35, homeId: 'corinthians2026', homeGoals: 4, awayId: 'botafogo2026', awayGoals: 0 },
+  { round: 35, homeId: 'gremio2026', homeGoals: 0, awayId: 'bahia2026', awayGoals: 0 },
+  { round: 35, homeId: 'vasco2026', homeGoals: 2, awayId: 'internacional2026', awayGoals: 1 },
+  { round: 35, homeId: 'vitoria2026', homeGoals: 2, awayId: 'bragantino2026', awayGoals: 1 },
+  { round: 35, homeId: 'saopaulo2026', homeGoals: 0, awayId: 'fluminense2026', awayGoals: 1 },
+  { round: 36, homeId: 'palmeiras2026', homeGoals: 1, awayId: 'flamengo2026', awayGoals: 1 },
+  { round: 36, homeId: 'bahia2026', homeGoals: 0, awayId: 'coritiba2026', awayGoals: 1 },
+  { round: 36, homeId: 'chapecoense2026', homeGoals: 1, awayId: 'cruzeiro2026', awayGoals: 2 },
+  { round: 36, homeId: 'athleticopr2026', homeGoals: 4, awayId: 'remo2026', awayGoals: 2 },
+  { round: 36, homeId: 'fluminense2026', homeGoals: 1, awayId: 'mirassol2026', awayGoals: 0 },
+  { round: 36, homeId: 'bragantino2026', homeGoals: 1, awayId: 'vasco2026', awayGoals: 0 },
 ];

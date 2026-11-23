@@ -93,7 +93,12 @@ export function disputes(table, left, nameOf) {
   // Pontos que o líder precisa para ninguém mais alcançar (estritamente à
   // frente — empate em pontos iria para vitórias, então não conta como garantido).
   const need = Math.max(0, bestOther - leader.pts + 1);
-  const championDecided = leader.pts > bestOther;
+  // Desempate oficial: pontos, depois vitórias. Para empatar em pontos com o
+  // líder no máximo, o rival precisa vencer todos os jogos que faltam; se
+  // nem assim chega ao número de vitórias que o líder já tem, não alcança.
+  const canCatch = (r) => maxPts(r) > leader.pts
+    || (maxPts(r) === leader.pts && (r.v || 0) + (left[r.id] || 0) >= (leader.v || 0));
+  const championDecided = !others.some(canCatch);
   const title = {
     leader: leader.id, second: second.id, gap: leader.pts - second.pts, pointsLeft: leaderLeft,
     decided: championDecided, need,
