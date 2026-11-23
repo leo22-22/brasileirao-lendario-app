@@ -48,6 +48,7 @@ import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages
 import { HomeLanding } from './home/HomeLanding.jsx';
 import { displayName } from './lib/displayName.js';
 import AchievementsGallery from './components/achievements/AchievementsGallery.jsx';
+import { ShareResultButton as ShareCardButton } from './components/share/ShareResultButton.jsx';
 import { AchievementMedal, AchievementNearCard, MedalBadge } from './components/achievements/AchievementParts.jsx';
 import { iconForAchievement } from './components/achievements/achievementModel.js';
 
@@ -10635,6 +10636,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-card-compartilhar',
+    date: 'Novembro de 2026',
+    title: 'Card de resultado para compartilhar e Modo Livre em destaque',
+    desc: 'No fim do Brasileirão Lendário, da Copa do Brasil, da Supercopa do dia e do Simulador 2026 agora tem um card novo para mandar no WhatsApp ou postar: título, placar, seus números, artilheiro e prêmios, e a campanha jogo a jogo em quadradinhos. No celular abre o compartilhar direto; no computador, baixa a imagem. E o Modo Livre ganhou destaque na tela inicial.',
+  },
+  {
     id: '2026-11-galeria-conquistas',
     date: 'Novembro de 2026',
     title: 'Galeria de conquistas repaginada',
@@ -12219,166 +12226,15 @@ function getMostCommonClub(players = []) {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
 }
 
-// Gera a imagem (canvas) do card de resultado pra compartilhar. Quando o
-// usuário tem um emblema próprio (teamLogo, data URL do upload/crop), ele é
-// desenhado de verdade no canvas — é um data: URL local, então carrega na
-// hora e não esbarra em CORS. Sem logo, cai no emoji (teamBadge) como antes.
-// A altura do canvas cresce dinamicamente pra caber a campanha completa
-// (todas as partidas da temporada/copa) quando ela é informada.
-function drawResultCard({ title, subtitle, teamLabel, teamBadge, teamLogo, teamColor, stats, awards, campaign }) {
-  return new Promise((resolve) => {
-    const rowH = 26;
-    const height = 900 + (campaign?.length ? 60 + campaign.length * rowH : 0);
-    const canvas = document.createElement('canvas');
-    canvas.width = 900; canvas.height = height;
-    const ctx = canvas.getContext('2d');
-    const mc = teamColor || '#d4a23c';
-
-    const grad = ctx.createLinearGradient(0, 0, 900, height);
-    grad.addColorStop(0, '#0D3A29');
-    grad.addColorStop(1, '#14523A');
-    ctx.fillStyle = grad;
-    ctx.fillRect(0, 0, 900, height);
-
-    ctx.strokeStyle = hexToRgba(mc, 0.6);
-    ctx.lineWidth = 6;
-    ctx.strokeRect(24, 24, 852, height - 48);
-
-    ctx.textAlign = 'center';
-
-    ctx.fillStyle = 'rgba(255,255,255,0.5)';
-    ctx.font = '600 22px "JetBrains Mono", monospace';
-    ctx.fillText('BRASILEIRÃO LENDÁRIO', 450, 90);
-
-    if (!teamLogo) {
-      ctx.font = '140px sans-serif';
-      ctx.fillText(teamBadge || '⚽', 450, 260);
-    }
-
-    ctx.fillStyle = '#FBF9F4';
-    ctx.font = '700 40px Georgia, serif';
-    ctx.fillText(teamLabel || 'Meu Time', 450, 330);
-
-    ctx.fillStyle = mc;
-    ctx.font = '700 62px Georgia, serif';
-    ctx.fillText(title, 450, 420);
-
-    if (subtitle) {
-      ctx.fillStyle = 'rgba(255,255,255,0.7)';
-      ctx.font = '400 26px "JetBrains Mono", monospace';
-      ctx.fillText(subtitle, 450, 465);
-    }
-
-    if (stats?.length) {
-      const statY = 560;
-      const spacing = 780 / stats.length;
-      stats.forEach((s, i) => {
-        const x = 60 + spacing * i + spacing / 2;
-        ctx.fillStyle = mc;
-        ctx.font = '700 44px "JetBrains Mono", monospace';
-        ctx.fillText(String(s.value), x, statY);
-        ctx.fillStyle = 'rgba(255,255,255,0.55)';
-        ctx.font = '400 18px "JetBrains Mono", monospace';
-        ctx.fillText(s.label, x, statY + 30);
-      });
-    }
-
-    let y = 660;
-    if (awards?.length) {
-      ctx.fillStyle = 'rgba(212,162,60,0.9)';
-      ctx.font = '700 22px Georgia, serif';
-      ctx.fillText('🏅 Prêmios da Temporada', 450, y);
-      ctx.fillStyle = '#FBF9F4';
-      ctx.font = '400 20px "JetBrains Mono", monospace';
-      const shownAwards = awards.slice(0, 4);
-      shownAwards.forEach((a, i) => ctx.fillText(a, 450, y + 40 + i * 32));
-      y += 40 + shownAwards.length * 32 + 30;
-    }
-
-    if (campaign?.length) {
-      ctx.fillStyle = 'rgba(212,162,60,0.9)';
-      ctx.font = '700 22px Georgia, serif';
-      ctx.fillText('📋 Campanha Completa', 450, y);
-      y += 36;
-      ctx.font = '400 18px "JetBrains Mono", monospace';
-      campaign.forEach(line => {
-        ctx.fillStyle = line.result === 'v' ? '#7fd99a' : line.result === 'd' ? '#e0593f' : 'rgba(255,255,255,0.75)';
-        ctx.fillText(line.text, 450, y);
-        y += rowH;
-      });
-    }
-
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
-    ctx.font = '400 16px "JetBrains Mono", monospace';
-    ctx.fillText('monte · escale · seja campeão', 450, height - 40);
-
-    const finish = () => resolve(canvas);
-
-    if (teamLogo) {
-      const img = new Image();
-      // Escudos oficiais vêm de r2.thesportsdb.com, que não manda cabeçalho
-      // CORS nenhum — sem `crossOrigin`, o navegador carrega a imagem numa
-      // boa (ela aparece na tela normalmente), mas desenhá-la no canvas
-      // "contamina" ele: `canvas.toBlob()` passa a devolver `null` sempre,
-      // sem lançar erro nenhum. Era por isso que "Compartilhar resultado"
-      // simplesmente não fazia nada — o botão de quem tinha escolhido um
-      // escudo oficial (o caso mais comum) sempre caía nesse `null`.
-      // `crossOrigin='anonymous'` pede a imagem em modo CORS: como o
-      // servidor não responde com o cabeçalho, ela falha (cai no onerror
-      // abaixo, que já tinha um fallback pronto pro emblema em texto) em
-      // vez de carregar "suja" — pior fica sem o escudo na imagem
-      // compartilhada, melhor que o botão inteiro não funcionar.
-      img.crossOrigin = 'anonymous';
-      img.onload = () => {
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(450, 220, 88, 0, Math.PI * 2);
-        ctx.closePath();
-        ctx.clip();
-        ctx.drawImage(img, 362, 132, 176, 176);
-        ctx.restore();
-        finish();
-      };
-      img.onerror = () => {
-        ctx.font = '140px sans-serif';
-        ctx.fillText(teamBadge || '⚽', 450, 260);
-        finish();
-      };
-      img.src = teamLogo;
-    } else {
-      finish();
-    }
-  });
-}
-
-// Botão de compartilhar o card de resultado — usa Web Share API com arquivo
-// quando disponível (mobile), senão cai pra download direto do PNG.
+// Botão de compartilhar o card de resultado (src/components/share) com o
+// evento de analytics do jogo.
 function ShareResultButton({ cardData }) {
-  const [busy, setBusy] = useState(false);
-  const share = async () => {
-    setBusy(true);
-    trackEvent('share', { method: 'result_card' });
-    try {
-      const canvas = await drawResultCard(cardData);
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-      if (!blob) return;
-      const file = new File([blob], 'brasileirao-lendario-resultado.png', { type: 'image/png' });
-      if (navigator.canShare && navigator.canShare({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'Brasileirão Lendário', text: cardData.title });
-      } else {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url; a.download = 'brasileirao-lendario-resultado.png';
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        setTimeout(() => URL.revokeObjectURL(url), 2000);
-      }
-    } catch { /* usuário cancelou o compartilhamento — sem problema */ }
-    finally { setBusy(false); }
-  };
   return (
-    <button onClick={share} disabled={busy} style={{ ...styles.btnGhost, marginTop: 10, width: '100%' }}>
-      {busy ? 'Gerando...' : 'Compartilhar resultado'}
-    </button>
+    <ShareCardButton
+      cardData={cardData}
+      onShared={(outcome) => trackEvent('share', { method: 'result_card', outcome })}
+      style={{ width: '100%', marginTop: 10 }}
+    />
   );
 }
 
@@ -12643,7 +12499,26 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
           ...(result === 'win' && currentUser ? [{ title: 'Ranking', text: '+50 pontos no ranking global.' }] : []),
           { title: 'Uma por dia', text: 'Só dá para jogar a Supercopa do Brasil uma vez por dia; amanhã sai outro time lendário.' },
         ]}
-        actions={<Button variant="gold" iconRight="arrowRight" onClick={onExit}>Voltar ao início</Button>}
+        actions={(
+          <>
+            <ShareCardButton
+              onShared={(outcome) => trackEvent('share', { method: 'result_card', mode: 'supercopa', outcome })}
+              cardData={{
+                mode: 'Supercopa do dia',
+                title: result === 'win' ? 'Vitória!' : result === 'draw' ? 'Empate' : 'Derrota',
+                subtitle: `${myLabel} ${myGoals} × ${oppGoals} ${oppTeam?.label || ''}`.trim(),
+                teamLabel: myLabel, teamLogo: myTeamLogo, teamColor: myTeamColor,
+                stats: [{ label: 'Gols pró', value: myGoals }, { label: 'Gols contra', value: oppGoals }],
+                highlights: [
+                  ...(oppTeam?.label ? [{ label: 'Adversário lendário de hoje', text: oppTeam.label }] : []),
+                  ...(result === 'win' && currentUser ? [{ label: 'Ranking', text: '+50 pontos no ranking global' }] : []),
+                  { label: 'Amanhã', text: 'Outro time lendário. Uma Supercopa por dia.' },
+                ],
+              }}
+            />
+            <Button variant="gold" iconRight="arrowRight" onClick={onExit}>Voltar ao início</Button>
+          </>
+        )}
       />
     </div>
   );
@@ -12762,12 +12637,21 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
 
         <div style={{ marginTop: 16 }}>
           <ShareResultButton cardData={{
-            title: userWon ? 'CAMPEÃO!' : wasRunnerUp ? 'VICE-CAMPEÃO' : 'Eliminado',
-            subtitle: userWon ? 'Copa do Brasil' : `Copa do Brasil · Campeão: ${winner?.label ?? '-'}`,
-            teamLabel: leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time',
-            teamBadge: myTeamBadge, teamLogo: myTeamLogo, teamColor: myTeamColor,
-            awards: seasonAwards?.map(a => `${a.name} — ${a.reason}`),
-            campaign: campaignLines,
+            mode: 'Copa do Brasil Lendária',
+            title: userWon ? 'Campeão!' : wasRunnerUp ? 'Vice-campeão' : 'Eliminado',
+            subtitle: userWon ? 'Conquistou a Copa do Brasil' : wasRunnerUp ? 'Chegou à final da Copa do Brasil' : `Caiu ${eliminationRoundName ? `nas ${eliminationRoundName}`.replace('nas Final', 'na Final').replace('nas Semifinal', 'na Semifinal') : 'na Copa do Brasil'}`,
+            teamLabel: myLabel, teamLogo: myTeamLogo, teamColor: myTeamColor,
+            stats: [
+              { label: 'Jogos', value: campaignLines.length },
+              { label: 'Vitórias', value: campaignLines.filter(l => l.result === 'v').length },
+              { label: 'Gols pró', value: (matchHistory || []).filter(m => m.gameMode === gameMode).reduce((n, m) => n + (m.homeLabel === myLabel ? m.hg : m.ag), 0) },
+            ],
+            highlights: [
+              ...(!userWon && winner ? [{ label: 'Campeão', text: winner.label }] : []),
+              ...(resultBoards.goals[0] ? [{ label: 'Artilheiro da Copa', text: `${resultBoards.goals[0].name} (${resultBoards.goals[0].team}) · ${resultBoards.goals[0].v} gols` }] : []),
+              ...(seasonAwards || []).slice(0, 2).map(a => ({ label: a.reason, text: a.name })),
+            ],
+            campaign: campaignLines.map(l => l.result),
           }} />
         </div>
         <ResultActions mc={mc} onNewSeason={onNewSeason} onOpenTransferMarket={onOpenTransferMarket} onRestart={onRestart} isLeader={isLeader} onRematch={onRematch} />
@@ -12890,18 +12774,21 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
 
       <div style={{ marginTop: 16 }}>
         <ShareResultButton cardData={{
-          title: isChampion ? 'CAMPEÃO!' : `${pos}º lugar`,
-          subtitle: gameMode === 'serieab' ? `Brasileirão · Série ${myDivision}` : 'Brasileirão · Série A',
-          teamLabel: leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time',
-          teamBadge: myTeamBadge, teamLogo: myTeamLogo, teamColor: myTeamColor,
-          campaign: campaignLines,
+          mode: gameMode === 'serieab' ? `Série ${myDivision}` : 'Brasileirão Lendário',
+          title: isChampion ? 'Campeão!' : `${pos}º lugar`,
+          subtitle: divisionMove === 'promoted' ? `Subiu para a Série A` : divisionMove === 'relegated' ? 'Caiu para a Série B' : isChampion ? `Campeão com ${myRow.pts ?? 0} pontos` : `Campeão: ${champion?.label ?? '-'}`,
+          teamLabel: myLabel, teamLogo: myTeamLogo, teamColor: myTeamColor,
           stats: [
-            { label: 'PTS', value: myRow.pts ?? 0 },
-            { label: 'V', value: myRow.v ?? 0 },
-            { label: 'E', value: myRow.e ?? 0 },
-            { label: 'D', value: myRow.d ?? 0 },
+            { label: 'Pontos', value: myRow.pts ?? 0 },
+            { label: 'Vitórias', value: myRow.v ?? 0 },
+            { label: 'Empates', value: myRow.e ?? 0 },
+            { label: 'Saldo', value: `${(myRow.gp ?? 0) - (myRow.gc ?? 0) > 0 ? '+' : ''}${(myRow.gp ?? 0) - (myRow.gc ?? 0)}` },
           ],
-          awards: seasonAwards?.map(a => `${a.name} — ${a.reason}`),
+          highlights: [
+            ...(resultBoards.goals[0] ? [{ label: 'Artilheiro', text: `${resultBoards.goals[0].name} (${resultBoards.goals[0].team}) · ${resultBoards.goals[0].v} gols` }] : []),
+            ...(seasonAwards || []).slice(0, 2).map(a => ({ label: a.reason, text: a.name })),
+          ],
+          campaign: campaignLines.map(l => l.result),
         }} />
       </div>
       <ResultActions mc={mc} onNewSeason={onNewSeason} onOpenTransferMarket={onOpenTransferMarket} onRestart={onRestart} isLeader={isLeader} onRematch={onRematch} />

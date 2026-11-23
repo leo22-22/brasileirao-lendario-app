@@ -18,6 +18,10 @@
 // x Vitória, Botafogo x São Paulo, Santos x Grêmio e Atlético-MG x Corinthians.
 // Fonte: valorfinal.com.br (rodada 35 e tabela de 23/11), conferida com a
 // CBF/Super Placar para a 36.
+// Data do último placar real incluído — aparece no topo do Simulador.
+// Atualize junto com a lista abaixo.
+export const REAL_RESULTS_UPDATED_AT = '22/11';
+
 export const REAL_RESULTS_2026 = [
   { round: 1, homeId: 'atleticomg2026', homeGoals: 2, awayId: 'palmeiras2026', awayGoals: 2 },
   { round: 1, homeId: 'internacional2026', homeGoals: 0, awayId: 'athleticopr2026', awayGoals: 1 },

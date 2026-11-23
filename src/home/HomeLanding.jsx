@@ -233,16 +233,22 @@ export function HomeLanding({
               <div className="hl-meta"><span>{m.sub}</span><ArrowIcon /></div>
             </button>
           ))}
+
+          {/* Modo Livre em destaque: card largo no bloco principal de modos. */}
+          <button className="hl-mode hl-wide hl-card-hover" onClick={onOpenLivrePicker}>
+            <div className="hl-wide-l">
+              <div className="hl-ic"><ModeIcon id="livre" /></div>
+              <div>
+                <span className="hl-tag hl-mono">Do seu jeito</span>
+                <h3>Modo Livre</h3>
+                <p>Escolha os 16 times que você quiser, de qualquer época, e monte o seu próprio campeonato.</p>
+              </div>
+            </div>
+            <div className="hl-meta"><span>{livreTeamIds ? `${livreTeamIds.length} times escolhidos` : '16 times · qualquer época'}</span><ArrowIcon /></div>
+          </button>
         </div>
 
         <div className="hl-minimodes">
-          <button className="hl-mini hl-card-hover" onClick={onOpenLivrePicker}>
-            <div className="hl-l">
-              <div className="hl-ic"><ModeIcon id="livre" size={18} /></div>
-              <div><h4>Modo Livre</h4><small>{livreTeamIds ? `${livreTeamIds.length} times escolhidos` : 'Escolha 16 times do seu jeito'}</small></div>
-            </div>
-            <ArrowIcon />
-          </button>
           <button className="hl-mini hl-card-hover" onClick={onMultiPlayer}>
             <div className="hl-l">
               <div className="hl-ic"><ModeIcon id="amigos" size={18} /></div>

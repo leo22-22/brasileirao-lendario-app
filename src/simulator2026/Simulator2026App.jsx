@@ -26,7 +26,8 @@ import { CLUB_LOGOS } from '../data/club-logos.js';
 // volta de App.jsx).
 import { SERIE_A_2026_TEAM_IDS } from '../data/career-clubs.js';
 import { SERIE_A_2026_FIXTURES } from '../data/serie-a-2026-fixtures.js';
-import { REAL_RESULTS_2026 } from '../data/brasileirao-2026-real-results.js';
+import { REAL_RESULTS_2026, REAL_RESULTS_UPDATED_AT } from '../data/brasileirao-2026-real-results.js';
+import { ShareResultButton } from '../components/share/ShareResultButton.jsx';
 import { teamStrength, aiSquadPlayers, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents, MatchSummaryModal } from '../App.jsx';
 import { matchOutcomeProbabilities } from '../lib/probability.js';
 import { zoneOf, formOf, remainingByClub, stakesFor, disputes, realBaselinePositions } from '../lib/insights.js';
@@ -633,7 +634,29 @@ export function Simulator2026App({ onExit }) {
           { title: 'Libertadores (G4)', text: table.slice(0, 4).map(r => nameOf(r.id)).join(', ') },
           { title: 'Rebaixados', text: rel.map(r => nameOf(r.id)).join(', ') },
         ]}
-        actions={<button type="button" className="sm-b-g" onClick={handleSimulateAgain}><Icon name="forward" size={16} />Simular tudo novamente</button>}
+        actions={(
+          <>
+            <ShareResultButton
+              className="sm-b-o"
+              cardData={{
+                mode: 'Simulador 2026',
+                title: `Campeão: ${nameOf(champ.id)}`,
+                subtitle: `Meu Brasileirão 2026, simulado jogo a jogo a partir da tabela real de ${REAL_RESULTS_UPDATED_AT}`,
+                teamLabel: nameOf(champ.id), teamLogo: teamById[champ.id]?.clubLogo, teamColor: teamById[champ.id]?.color,
+                stats: [
+                  { label: 'Pontos', value: champ.pts },
+                  { label: 'Vitórias', value: champ.v },
+                  { label: 'Saldo', value: `${champ.gp - champ.gc > 0 ? '+' : ''}${champ.gp - champ.gc}` },
+                ],
+                highlights: [
+                  { label: 'Libertadores (G4)', text: table.slice(0, 4).map(r => nameOf(r.id)).join(', ') },
+                  { label: 'Rebaixados', text: rel.map(r => nameOf(r.id)).join(', ') },
+                ],
+              }}
+            />
+            <button type="button" className="sm-b-g" onClick={handleSimulateAgain}><Icon name="forward" size={16} />Simular tudo novamente</button>
+          </>
+        )}
       />
     );
   }
@@ -643,7 +666,7 @@ export function Simulator2026App({ onExit }) {
       <div className="sm-top">
         <div style={{ minWidth: 0 }}>
           <button type="button" className="ng-back" style={{ marginBottom: 14 }} onClick={onExit}><Icon name="chevronLeft" size={14} />Voltar ao menu</button>
-          <span className="ng-mono" style={{ display: 'block' }}>Tabela real atualizada em 16/11 · o resto é simulado jogo a jogo</span>
+          <span className="ng-mono" style={{ display: 'block' }}>Tabela real atualizada em {REAL_RESULTS_UPDATED_AT} · o resto é simulado jogo a jogo</span>
           <h1>Simulador do <em>Brasileirão 2026</em></h1>
         </div>
         <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" onClick={() => setConfirmReset(true)} disabled={save.matchIdx === 0}><Icon name="forward" size={16} />Recomeçar da tabela real</button>
