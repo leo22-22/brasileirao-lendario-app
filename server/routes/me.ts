@@ -370,35 +370,126 @@ router.post('/season-result', async (req, res) => {
   }
 });
 
-// Vitória no Desafio do Dia — pontos fixos de ranking (não passa pelas
-// conquistas/estatísticas de carreira do season-result, é só uma partida
-// avulsa). `dateKey` vem do cliente (mesmo usado pra sortear o confronto do
-// dia, na hora local de cada um) — o servidor só usa pra travar em uma
-// premiação por dia, comparando com a última data já premiada.
+// Supercopa do dia (Desafio do Dia). Registra TODO resultado (vitória,
+// empate ou derrota) — é o que alimenta a sequência de dias seguidos e o
+// ranking do dia. Pontos de ranking só na vitória: +50, ou +100 no chefão
+// de domingo. `dateKey` vem do cliente no formato "AAAA-M-D" (a mesma
+// semente do sorteio do adversário, hora local); aceitamos só hoje/ontem/
+// amanhã em relação ao servidor (fuso), pra não dar pra farmar dias.
+// Cliente antigo só mandava { dateKey } e só na vitória — vira 'win'.
 const DAILY_CHALLENGE_POINTS = 50;
+const DAILY_BOSS_POINTS = 100;
+const DATE_KEY_RE = /^(\d{4})-(\d{1,2})-(\d{1,2})$/;
+
+function parseDateKey(key: string): Date | null {
+  const m = key.match(DATE_KEY_RE);
+  if (!m) return null;
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])));
+  return Number.isNaN(d.getTime()) || d.getUTCDate() !== Number(m[3]) ? null : d;
+}
+const toDateKey = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth() + 1}-${d.getUTCDate()}`;
+export const isBossDateKey = (key: string) => parseDateKey(key)?.getUTCDay() === 0;
+
 router.post('/daily-challenge-result', async (req, res) => {
   try {
     const userId = req.userId!;
     const current = await getUserOr404(userId, res);
     if (!current) return;
 
-    const dateKey = typeof req.body?.dateKey === 'string' ? req.body.dateKey.slice(0, 10) : null;
-    if (!dateKey) {
-      return res.status(400).json({ error: 'dateKey inválido.' });
+    const dateKey = typeof req.body?.dateKey === 'string' ? req.body.dateKey.slice(0, 10) : '';
+    const day = parseDateKey(dateKey);
+    if (!day) return res.status(400).json({ error: 'dateKey inválido.' });
+    const now = Date.now();
+    if (Math.abs(day.getTime() - now) > 2 * 86400000) {
+      return res.status(400).json({ error: 'Supercopa de outro dia.' });
     }
-    if (current.last_daily_points_date === dateKey) {
+    const rawResult = req.body?.result;
+    const result = rawResult === 'draw' || rawResult === 'loss' ? rawResult : 'win';
+    const clampGoals = (v: unknown) => (Number.isFinite(v) ? Math.min(20, Math.max(0, Math.round(Number(v)))) : 0);
+    const goalsFor = clampGoals(req.body?.goalsFor);
+    const goalsAgainst = clampGoals(req.body?.goalsAgainst);
+    const isBoss = isBossDateKey(dateKey);
+
+    // Um registro por conta por dia (UNIQUE) — repetir a chamada não muda nada.
+    const [ins] = await pool.query<ResultSetHeader>(
+      'INSERT IGNORE INTO daily_challenge_results (user_id, date_key, result, goals_for, goals_against, is_boss) VALUES (?, ?, ?, ?, ?, ?)',
+      [userId, dateKey, result, goalsFor, goalsAgainst, isBoss ? 1 : 0],
+    );
+    if (ins.affectedRows === 0) {
       return res.json({ user: toPublicUser(current), alreadyClaimed: true });
     }
 
-    const rankingPoints = current.ranking_points + DAILY_CHALLENGE_POINTS;
-    await pool.query('UPDATE users SET ranking_points=?, last_daily_points_date=? WHERE id=?', [rankingPoints, dateKey, userId]);
-    await pool.query('INSERT INTO ranking_events (user_id, points) VALUES (?, ?)', [userId, DAILY_CHALLENGE_POINTS]);
+    const yesterday = toDateKey(new Date(day.getTime() - 86400000));
+    const streak = current.last_daily_played_date === yesterday ? (current.daily_streak || 0) + 1
+      : current.last_daily_played_date === dateKey ? (current.daily_streak || 1) : 1;
+    const bestStreak = Math.max(current.daily_best_streak || 0, streak);
+
+    let pointsEarned = 0;
+    if (result === 'win' && current.last_daily_points_date !== dateKey) {
+      pointsEarned = isBoss ? DAILY_BOSS_POINTS : DAILY_CHALLENGE_POINTS;
+    }
+    await pool.query(
+      `UPDATE users SET ranking_points = ranking_points + ?, daily_streak = ?, daily_best_streak = ?, last_daily_played_date = ?${pointsEarned ? ', last_daily_points_date = ?' : ''} WHERE id = ?`,
+      pointsEarned ? [pointsEarned, streak, bestStreak, dateKey, dateKey, userId] : [0, streak, bestStreak, dateKey, userId],
+    );
+    if (pointsEarned) await pool.query('INSERT INTO ranking_events (user_id, points) VALUES (?, ?)', [userId, pointsEarned]);
 
     const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE id = ?', [userId]);
-    return res.json({ user: toPublicUser(rows[0]), pointsEarned: DAILY_CHALLENGE_POINTS });
+    return res.json({ user: toPublicUser(rows[0]), pointsEarned, streak, isBoss });
   } catch (err) {
     console.error('[daily-challenge-result]', err);
     return res.status(500).json({ error: 'Erro interno ao registrar o Desafio do Dia.' });
+  }
+});
+
+// Copa do Brasil Lendária: registra a campanha que acabou e devolve o
+// recorde + as últimas campanhas. `campaignKey` (gerado no cliente a partir
+// da campanha) evita contar a mesma Copa duas vezes ao reabrir a tela.
+// stage: 0 = 16 avos, 1 = oitavas, 2 = quartas, 3 = semifinal, 4 = vice, 5 = campeão.
+async function copaHistory(userId: number) {
+  const [rows] = await pool.query<RowDataPacket[]>(
+    'SELECT stage, team_label, created_at FROM copa_campaigns WHERE user_id = ? ORDER BY created_at DESC, id DESC LIMIT 10',
+    [userId],
+  );
+  const [countRows] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) AS total FROM copa_campaigns WHERE user_id = ?', [userId]);
+  return { history: rows.map(r => ({ stage: Number(r.stage), teamLabel: r.team_label, at: r.created_at })), total: Number(countRows[0]?.total || 0) };
+}
+
+router.post('/copa-campaign', async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const current = await getUserOr404(userId, res);
+    if (!current) return;
+    const campaignKey = typeof req.body?.campaignKey === 'string' ? req.body.campaignKey.slice(0, 64) : '';
+    const stage = Number(req.body?.stage);
+    const teamLabel = typeof req.body?.teamLabel === 'string' ? req.body.teamLabel.trim().slice(0, 80) : '';
+    if (!campaignKey || !Number.isInteger(stage) || stage < 0 || stage > 5 || !teamLabel) {
+      return res.status(400).json({ error: 'Campanha inválida.' });
+    }
+    const previousBest = current.copa_best_stage;
+    const [ins] = await pool.query<ResultSetHeader>(
+      'INSERT IGNORE INTO copa_campaigns (user_id, campaign_key, stage, team_label) VALUES (?, ?, ?, ?)',
+      [userId, campaignKey, stage, teamLabel],
+    );
+    const counted = ins.affectedRows > 0;
+    const isNewRecord = counted && (previousBest == null || stage > previousBest);
+    if (isNewRecord) {
+      await pool.query('UPDATE users SET copa_best_stage = ?, copa_best_team = ?, copa_best_at = CURRENT_TIMESTAMP WHERE id = ?', [stage, teamLabel, userId]);
+    }
+    const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE id = ?', [userId]);
+    return res.json({ user: toPublicUser(rows[0]), counted, isNewRecord, previousBest, ...(await copaHistory(userId)) });
+  } catch (err) {
+    console.error('[copa-campaign]', err);
+    return res.status(500).json({ error: 'Erro interno ao registrar a campanha.' });
+  }
+});
+
+router.get('/copa-campaigns', async (req, res) => {
+  try {
+    return res.json(await copaHistory(req.userId!));
+  } catch (err) {
+    console.error('[copa-campaigns]', err);
+    return res.status(500).json({ error: 'Erro interno.' });
   }
 });
 

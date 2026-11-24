@@ -136,6 +136,46 @@ export async function ensureSchema() {
     const code = (err as { code?: string })?.code;
     if (code !== 'ER_DUP_KEYNAME') throw err;
   }
+
+  // Supercopa do dia: sequência de dias seguidos jogando (qualquer resultado)
+  // e um registro por conta por dia — é o que monta o ranking do dia.
+  await ensureColumn('daily_streak INT NOT NULL DEFAULT 0');
+  await ensureColumn('daily_best_streak INT NOT NULL DEFAULT 0');
+  await ensureColumn('last_daily_played_date VARCHAR(10)');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS daily_challenge_results (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      date_key VARCHAR(10) NOT NULL,
+      result VARCHAR(5) NOT NULL,
+      goals_for INT NOT NULL DEFAULT 0,
+      goals_against INT NOT NULL DEFAULT 0,
+      is_boss TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_daily_user_date (user_id, date_key),
+      KEY idx_daily_date (date_key),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Copa do Brasil Lendária: melhor campanha da conta + histórico.
+  // stage: 0 = caiu nos 16 avos … 4 = vice, 5 = campeão.
+  await ensureColumn('copa_best_stage INT');
+  await ensureColumn('copa_best_team VARCHAR(80)');
+  await ensureColumn('copa_best_at TIMESTAMP NULL');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS copa_campaigns (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      campaign_key VARCHAR(64) NOT NULL,
+      stage INT NOT NULL,
+      team_label VARCHAR(80) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_copa_user_campaign (user_id, campaign_key),
+      KEY idx_copa_user (user_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
 }
 
 export interface UserRow {
@@ -173,6 +213,12 @@ export interface UserRow {
   created_at: string;
   last_active_at: string;
   last_daily_points_date: string | null;
+  daily_streak: number;
+  daily_best_streak: number;
+  last_daily_played_date: string | null;
+  copa_best_stage: number | null;
+  copa_best_team: string | null;
+  copa_best_at: string | null;
   push_subscription: string | null;
   email_notifications_enabled: number;
 }
@@ -209,6 +255,12 @@ export interface PublicUser {
   best_team_ovr: number | null;
   best_player_ovr: number | null;
   created_at: string;
+  daily_streak: number;
+  daily_best_streak: number;
+  last_daily_played_date: string | null;
+  copa_best_stage: number | null;
+  copa_best_team: string | null;
+  copa_best_at: string | null;
   push_enabled: boolean;
   email_notifications_enabled: boolean;
 }
@@ -246,6 +298,12 @@ export function toPublicUser(row: UserRow): PublicUser {
     best_team_ovr: row.best_team_ovr,
     best_player_ovr: row.best_player_ovr,
     created_at: row.created_at,
+    daily_streak: row.daily_streak ?? 0,
+    daily_best_streak: row.daily_best_streak ?? 0,
+    last_daily_played_date: row.last_daily_played_date ?? null,
+    copa_best_stage: row.copa_best_stage ?? null,
+    copa_best_team: row.copa_best_team ?? null,
+    copa_best_at: row.copa_best_at ?? null,
     push_enabled: !!row.push_subscription,
     email_notifications_enabled: !!row.email_notifications_enabled,
   };

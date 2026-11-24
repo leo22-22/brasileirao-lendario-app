@@ -48,6 +48,7 @@ import { InfoPage, TeamsIndexPage, TeamDetailPage } from './content/ContentPages
 import { HomeLanding } from './home/HomeLanding.jsx';
 import { displayName } from './lib/displayName.js';
 import AchievementsGallery from './components/achievements/AchievementsGallery.jsx';
+import { recordLocalDailyPlay, readLocalDailyStreak, recordLocalCopaCampaign, rememberCopaOutcome, previousDateKey, COPA_STAGE_LABELS } from './lib/localRecords.js';
 import { ShareResultButton as ShareCardButton } from './components/share/ShareResultButton.jsx';
 import { AchievementMedal, AchievementNearCard, MedalBadge } from './components/achievements/AchievementParts.jsx';
 import { iconForAchievement } from './components/achievements/achievementModel.js';
@@ -1186,12 +1187,25 @@ function advanceMirrorDivision(division, seed) {
 // jogo no mesmo dia vê o mesmo confronto, e ele muda sozinho à meia-noite
 // (hora local de cada um; sem ranking pra comparar, não precisa ser o mesmo
 // instante pra todo mundo).
-function getDailyChallengeOpponent() {
-  const now = new Date();
+// Domingo é dia de chefão: o adversário sai dos 15 times mais fortes do
+// acervo, joga com +2 de OVR além do Lendário e a vitória vale +100 (o
+// servidor confere o dia da semana pelo dateKey).
+const DAILY_BOSS_POOL = 15;
+const DAILY_BOSS_OVR_BONUS = 2;
+const avgTopOvr = (t) => {
+  const ovrs = (t.players || []).map(p => p.ovr || 0).sort((a, b) => b - a).slice(0, 11);
+  return ovrs.length ? ovrs.reduce((a, b) => a + b, 0) / ovrs.length : 0;
+};
+function getDailyChallengeOpponent(now = new Date()) {
   const dateKey = `${now.getFullYear()}-${now.getMonth() + 1}-${now.getDate()}`;
   const prng = makePrng(hashSeed(`daily-${dateKey}`));
+  const isBoss = now.getDay() === 0;
+  if (isBoss) {
+    const strongest = [...TEAMS].sort((a, b) => avgTopOvr(b) - avgTopOvr(a)).slice(0, DAILY_BOSS_POOL);
+    return { dateKey, opponent: strongest[Math.floor(prng() * strongest.length)], isBoss: true };
+  }
   const shuffled = [...TEAMS].sort(() => prng() - 0.5);
-  return { dateKey, opponent: shuffled[0] };
+  return { dateKey, opponent: shuffled[0], isBoss: false };
 }
 
 // ── Calendário da temporada ──────────────────────────────────────────────
@@ -1322,9 +1336,12 @@ const INJURY_WEIGHT_BY_POS = {
   ATA: 1.2, PD: 1.15, PE: 1.15, VOL: 1, MC: 1, MEI: 1, MD: 1, ME: 1, LD: 1.05, LE: 1.05, ZAG: 0.85, GOL: 0.3,
 };
 
-function weightedPick(players, weightMap, rand) {
+// `boostOf` (opcional): multiplicador por jogador. Só o sorteio de autor de
+// gol usa (p.scoreBoost) e só o Simulador 2026 preenche, com o ritmo real de
+// gols de cada um — em todo outro modo o campo não existe e o peso é o de sempre.
+function weightedPick(players, weightMap, rand, boostOf) {
   if (!players || players.length === 0) return null;
-  const weights = players.map(p => (weightMap[p.pos[0]] ?? 1) * (0.5 + (p.ovr || 70) / 100));
+  const weights = players.map(p => (weightMap[p.pos[0]] ?? 1) * (0.5 + (p.ovr || 70) / 100) * (boostOf ? (boostOf(p) ?? 1) : 1));
   const total = weights.reduce((s, w) => s + w, 0);
   let roll = rand() * total;
   for (let i = 0; i < players.length; i++) {
@@ -1340,7 +1357,14 @@ function weightedPick(players, weightMap, rand) {
 function pickGoalScorer(players, rand = Math.random) {
   const field = players.filter(p => !p.pos.includes('GOL'));
   const pool = field.length > 0 ? field : players;
-  return weightedPick(pool, SCORE_WEIGHT_BY_POS, rand)?.name ?? 'Jogador';
+  return weightedPick(pool, SCORE_WEIGHT_BY_POS, rand, p => p.scoreBoost)?.name ?? 'Jogador';
+}
+
+// Peso-base de um jogador no sorteio de autor de gol (o mesmo de weightedPick
+// sem boost) — exportado pro Simulador 2026 calibrar `scoreBoost`.
+export function baseScoreWeight(p) {
+  if (p.pos.includes('GOL')) return 0;
+  return (SCORE_WEIGHT_BY_POS[p.pos[0]] ?? 1) * (0.5 + (p.ovr || 70) / 100);
 }
 
 const OWN_GOAL_CHANCE = 0.045;
@@ -2873,6 +2897,8 @@ export default function App() {
   // motor do Brasileirão com fixtures de 1 rodada só — vira "última rodada"
   // sozinho.
   const [isDailyChallenge, setIsDailyChallenge] = useState(_sv?.isDailyChallenge ?? false);
+  // Sequência/pontos da Supercopa que acabou de terminar (tela de resultado).
+  const [dailyOutcome, setDailyOutcome] = useState(null);
   const [showDailyChallenge, setShowDailyChallenge] = useState(false);
   const dailyChallenge = useMemo(() => getDailyChallengeOpponent(), []);
   // Só dá pra JOGAR (confirmar escalação e entrar em campo) uma vez por dia
@@ -3497,7 +3523,7 @@ export default function App() {
     const oppPlayers = applyDifficultyToPlayers(
       aiSquadPlayers(opp),
       'lendario'
-    );
+    ).map(p => (dailyChallenge.isBoss ? { ...p, ovr: Math.min(99, (p.ovr || 70) + DAILY_BOSS_OVR_BONUS) } : p));
     const oppTeamObj = {
       id: opp.id, label: opp.label, club: opp.club, clubLogo: CLUB_LOGOS[opp.club] || null,
       ovr: teamStrength(Object.fromEntries(oppPlayers.map((p, i) => [i, p]))),
@@ -4765,16 +4791,23 @@ export default function App() {
     // +50 pontos soltos de ranking se vencer (endpoint dedicado, sem passar
     // pelas conquistas/temporada abaixo).
     if (isDailyChallenge) {
+      const dailyTable = tableOverride || leagueTable;
+      const myDailyRow = dailyTable.find(t => t.id === myTeamId);
+      const oppDailyRow = dailyTable.find(t => t.id !== myTeamId);
+      const goalsFor = myDailyRow?.gp ?? 0;
+      const goalsAgainst = oppDailyRow?.gp ?? 0;
+      const result = goalsFor > goalsAgainst ? 'win' : goalsFor < goalsAgainst ? 'loss' : 'draw';
+      // Sequência no aparelho vale pra todo mundo (convidado inclusive); com
+      // conta, o servidor é a fonte (sequência, ranking do dia e pontos).
+      const local = recordLocalDailyPlay(dailyChallenge.dateKey);
+      setDailyOutcome({ streak: local.streak, best: local.best, pointsEarned: 0, isBoss: !!dailyChallenge.isBoss, synced: !currentUser });
       if (currentUser) {
-        const dailyTable = tableOverride || leagueTable;
-        const myDailyRow = dailyTable.find(t => t.id === myTeamId);
-        const oppDailyRow = dailyTable.find(t => t.id !== myTeamId);
-        const wonDaily = (myDailyRow?.gp ?? 0) > (oppDailyRow?.gp ?? 0);
-        if (wonDaily) {
-          api.submitDailyChallengeResult({ dateKey: dailyChallenge.dateKey })
-            .then(({ user }) => setCurrentUser(user))
-            .catch(() => { /* ranking é bônus — falha aqui não deve travar a tela de resultado */ });
-        }
+        api.submitDailyChallengeResult({ dateKey: dailyChallenge.dateKey, result, goalsFor, goalsAgainst })
+          .then(({ user, pointsEarned, streak }) => {
+            setCurrentUser(user);
+            setDailyOutcome(o => ({ ...o, streak: streak ?? user?.daily_streak ?? o.streak, best: user?.daily_best_streak ?? o.best, pointsEarned: pointsEarned || 0, synced: true }));
+          })
+          .catch(() => setDailyOutcome(o => ({ ...o, synced: true })));
       }
       return;
     }
@@ -5819,7 +5852,11 @@ export default function App() {
   // em 'intro'.
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
   const goToFormationPicker = () => {
-    if (savedPhase) { setShowOverwriteConfirm(true); return; }
+    // Só pede confirmação se há algo pra retomar. Jogo que já terminou
+    // (savedPhase 'results') não tem "Continuar" — o aviso saía com o nome da
+    // etapa em branco ("partida salva em ."). Nesse caso zera e segue direto.
+    if (savedPhase && describePhase(savedPhase)) { setShowOverwriteConfirm(true); return; }
+    if (savedPhase) { restart(); setSavedPhase(null); }
     setPhase('formation');
   };
   const confirmNewGameOverSave = () => {
@@ -6625,7 +6662,7 @@ export default function App() {
                 style={dailyChallengeAlreadyPlayed ? { cursor: 'default' } : { color: 'var(--gold-ink)', borderColor: 'rgba(194,154,69,0.55)' }}
                 title={dailyChallengeAlreadyPlayed
                   ? 'Você já jogou a Supercopa do Brasil de hoje — volta amanhã pra outro time lendário.'
-                  : `Monte um time pra enfrentar o ${parseTeamLabel(dailyChallenge.opponent.label).baseName} · vencer dá +50 pontos no ranking`}
+                  : `${dailyChallenge.isBoss ? 'Chefão de domingo: ' : ''}Monte um time pra enfrentar o ${parseTeamLabel(dailyChallenge.opponent.label).baseName} · vencer dá +${dailyChallenge.isBoss ? 100 : 50} pontos no ranking`}
               >
                 <Icon name={dailyChallengeAlreadyPlayed ? 'check' : 'trophy'} size={15} />
                 {dailyChallengeAlreadyPlayed ? 'Supercopa feita' : 'Supercopa do dia'}
@@ -6839,6 +6876,8 @@ export default function App() {
         {showDailyChallenge && (
           <DailyChallengeModal
             opponent={dailyChallenge.opponent}
+            isBoss={!!dailyChallenge.isBoss}
+            streak={currentUser ? (currentUser.daily_streak || 0) : readLocalDailyStreak(dailyChallenge.dateKey).streak}
             myTeamColor={myTeamColor}
             onPick={startDailyChallenge}
             onClose={() => setShowDailyChallenge(false)}
@@ -7010,7 +7049,7 @@ export default function App() {
           />
         )}
         {phase === 'results' && isDailyChallenge && (
-          <DailyChallengeResults leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} leagueTeams={leagueTeams} currentUser={currentUser} onExit={exitDailyChallenge} />
+          <DailyChallengeResults leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} leagueTeams={leagueTeams} currentUser={currentUser} onExit={exitDailyChallenge} dailyChallenge={dailyChallenge} dailyOutcome={dailyOutcome} onOpenAccount={() => openAccountModal('signup')} />
         )}
         {phase === 'results' && !isDailyChallenge && (
           /* "Nova temporada" e "Mercado" reconstroem a liga em torno de
@@ -7487,7 +7526,7 @@ function parseYouTubeId(input) {
 // Supercopa do Brasil (Desafio do Dia) — mostra o time lendário sorteado
 // pra hoje e manda pra tela de formação/sorteio pra montar um time do zero
 // pra enfrentá-lo, igual começar uma carreira nova.
-function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose }) {
+function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose, isBoss, streak }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   const { baseName, achievement } = parseTeamLabel(opponent.label);
   return (
@@ -7499,14 +7538,21 @@ function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose }) {
           <button onClick={onClose} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
         </div>
         <p style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 16 }}>
-          Monte um time do zero (mesmo sorteio de sempre) pra enfrentar o time lendário de hoje, numa partida única. Vencer dá +50 pontos no ranking global. O adversário muda todo dia, e só dá pra jogar uma vez — capricha na escalação!
+          {isBoss
+            ? 'Domingo é dia de chefão: um dos times mais fortes da história, ainda mais forte que o normal. Vencer dá +100 pontos no ranking global. Só dá pra jogar uma vez — capricha na escalação!'
+            : 'Monte um time do zero (mesmo sorteio de sempre) pra enfrentar o time lendário de hoje, numa partida única. Vencer dá +50 pontos no ranking global. O adversário muda todo dia, e só dá pra jogar uma vez — capricha na escalação!'}
         </p>
+        {streak > 0 && (
+          <p style={{ fontSize: 12.5, color: 'var(--gold-ink)', fontWeight: 600, margin: '-6px 0 14px' }}>
+            Você está em {streak} dia{streak === 1 ? '' : 's'} seguido{streak === 1 ? '' : 's'}. Jogue hoje para não perder a sequência.
+          </p>
+        )}
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 12, border: `1px solid ${hexToRgba(mc, 0.35)}`, background: hexToRgba(mc, 0.08), marginBottom: 16 }}>
           {CLUB_LOGOS[opponent.club] && (
             <img src={CLUB_LOGOS[opponent.club]} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'contain', background: 'var(--surface)', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
           )}
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 10.5, color: 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>Adversário de hoje</div>
+            <div style={{ fontSize: 10.5, color: isBoss ? 'var(--danger)' : 'var(--muted)', fontWeight: 700, textTransform: 'uppercase', letterSpacing: 0.4 }}>{isBoss ? 'Chefão de domingo' : 'Adversário de hoje'}</div>
             <div style={{ fontWeight: 700, fontSize: 14 }}>{baseName} <span style={{ opacity: 0.5, fontWeight: 400 }}>{opponent.year}</span></div>
             {achievement && <div style={{ fontSize: 11, color: mc, marginTop: 1 }}>{achievement}</div>}
           </div>
@@ -7604,6 +7650,13 @@ function Intro({ onNewGameCrumb, onStart, onSetGameMode, difficulty, onSetDiffic
         onOpenCareer={onOpenCareer}
         dailyChallenge={dailyChallenge}
         dailyChallengeAlreadyPlayed={dailyChallengeAlreadyPlayed}
+        dailyStreak={(() => {
+          if (!dailyChallenge) return 0;
+          const local = readLocalDailyStreak(dailyChallenge.dateKey);
+          if (!currentUser) return local.streak;
+          const alive = [dailyChallenge.dateKey, previousDateKey(dailyChallenge.dateKey)].includes(currentUser.last_daily_played_date);
+          return alive ? (currentUser.daily_streak || 0) : 0;
+        })()}
         onOpenDailyChallenge={onOpenDailyChallenge}
         careerLocked={CAREER_MODE_LOCKED}
         careerLaunchDismissed={careerLaunchDismissed}
@@ -10636,6 +10689,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-recordes-supercopa-artilharia',
+    date: 'Novembro de 2026',
+    title: 'Sequência e chefão na Supercopa, recorde na Copa e artilharia no Simulador',
+    desc: 'Supercopa do dia: agora conta quantos dias seguidos você jogou, tem ranking de hoje com quem enfrentou o mesmo time e, todo domingo, um chefão (um dos times mais fortes da história, mais forte ainda) que vale +100 pontos. Copa do Brasil Lendária: o fim da Copa mostra seu recorde pessoal (até onde você já chegou e com qual time) e as últimas campanhas. Simulador 2026: artilharia com os gols reais até 23/11 somados aos dos jogos simulados, e cada artilheiro marca no ritmo que tem na vida real. Também corrigimos o aviso de "partida salva" que aparecia sem motivo depois de um jogo já terminado.',
+  },
+  {
     id: '2026-11-card-compartilhar',
     date: 'Novembro de 2026',
     title: 'Card de resultado para compartilhar e Modo Livre em destaque',
@@ -12473,7 +12532,50 @@ function ResultActions({ mc, onNewSeason, onOpenTransferMarket, onRestart, isLea
 // temporada de verdade (sem tabela, sem prêmios, sem "Nova Temporada"): é
 // uma partida avulsa só pra divertir, então o placar e um "volte amanhã"
 // já contam a história inteira.
-function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, leagueTeams, currentUser, onExit }) {
+// Ranking da Supercopa do dia (público) — quem jogou o mesmo confronto hoje.
+function SupercopaDayRanking({ dateKey, myUsername, refreshKey }) {
+  const [state, setState] = useState({ loading: true, rows: [], total: 0, error: false });
+  useEffect(() => {
+    let alive = true;
+    setState(s => ({ ...s, loading: true }));
+    api.fetchSupercopaLeaderboard(dateKey)
+      .then(({ rows, total }) => { if (alive) setState({ loading: false, rows: rows || [], total: total || 0, error: false }); })
+      .catch(() => { if (alive) setState({ loading: false, rows: [], total: 0, error: true }); });
+    return () => { alive = false; };
+  }, [dateKey, refreshKey]);
+  if (state.error) return null;
+  const resultLabel = { win: 'V', draw: 'E', loss: 'D' };
+  const resultColor = { win: 'var(--success)', draw: 'var(--muted)', loss: 'var(--danger)' };
+  return (
+    <div style={{ marginTop: 18, border: '1px solid var(--line)', borderRadius: 16, background: 'var(--surface)', overflow: 'hidden' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '14px 16px 10px', gap: 10 }}>
+        <div style={{ fontFamily: 'var(--font-serif)', fontSize: 19 }}>Ranking de hoje</div>
+        <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{state.loading ? 'carregando…' : `${state.total} jogador${state.total === 1 ? '' : 'es'}`}</span>
+      </div>
+      {!state.loading && state.rows.length === 0 && (
+        <div style={{ padding: '0 16px 16px', fontSize: 13, color: 'var(--muted)' }}>Ninguém com conta jogou a Supercopa de hoje ainda.</div>
+      )}
+      <ol style={{ listStyle: 'none', margin: 0, padding: 0 }}>
+        {state.rows.slice(0, 10).map(r => {
+          const me = myUsername && r.username === myUsername;
+          return (
+            <li key={r.username} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 16px', borderTop: '1px solid var(--line)', background: me ? 'var(--gold-tint)' : undefined }}>
+              <span style={{ width: 22, textAlign: 'right', fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--muted)' }}>{r.position}</span>
+              <span style={{ flex: 1, minWidth: 0, fontWeight: me ? 700 : 500, fontSize: 14, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {r.username}{me ? ' (você)' : ''}
+                {r.streak > 1 && <span style={{ marginLeft: 6, fontSize: 11, color: 'var(--gold-ink)', fontFamily: 'var(--font-mono)' }}>{r.streak} dias</span>}
+              </span>
+              <span style={{ fontFamily: 'var(--font-mono)', fontSize: 13 }}>{r.goalsFor} × {r.goalsAgainst}</span>
+              <span style={{ width: 22, height: 22, borderRadius: 6, display: 'grid', placeItems: 'center', fontSize: 11, fontWeight: 700, color: '#fff', background: resultColor[r.result] }}>{resultLabel[r.result]}</span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, leagueTeams, currentUser, onExit, dailyChallenge, dailyOutcome, onOpenAccount }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   const myRow = leagueTable.find(t => t.id === myTeamId) || {};
   const oppRow = leagueTable.find(t => t.id !== myTeamId) || {};
@@ -12485,33 +12587,42 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
   // adversário — mesmo padrão do Results de temporada (championLogo).
   const crestLogo = result === 'win' ? myTeamLogo : oppTeam?.clubLogo;
   const myLabel = leagueTeams?.find(t => t.id === myTeamId)?.label || 'Meu Time';
+  const isBoss = !!(dailyOutcome?.isBoss ?? dailyChallenge?.isBoss);
+  const winPoints = isBoss ? 100 : 50;
+  // Sem dailyOutcome (ex.: recarregou a página na tela de resultado), lê o
+  // que já está salvo no aparelho/conta.
+  const localStreak = dailyChallenge ? readLocalDailyStreak(dailyChallenge.dateKey) : null;
+  const streak = dailyOutcome?.streak ?? currentUser?.daily_streak ?? localStreak?.streak ?? 0;
+  const best = Math.max(dailyOutcome?.best ?? 0, currentUser?.daily_best_streak ?? 0, localStreak?.best ?? 0);
   return (
     <div style={styles.card} className="card-mob">
       <SeasonEndSummary
-        eyebrow="Supercopa do Brasil · jogo único"
+        eyebrow={isBoss ? 'Supercopa do Brasil · chefão de domingo' : 'Supercopa do Brasil · jogo único'}
         title={result === 'win' ? 'Vitória!' : result === 'draw' ? 'Empate' : 'Derrota'}
         mine={result === 'win'}
         championLabel={result === 'win' ? 'Campeão da Supercopa de hoje' : 'Placar final'}
         crest={<ClubCrest logo={crestLogo} badge={result === 'win' ? myTeamBadge : null} name={result === 'win' ? myLabel : oppTeam?.label} color={result === 'win' ? mc : (oppTeam?.colors?.p || oppTeam?.color)} size={92} frame frameClass="fb-crest-ring" scale={0.72} />}
         championName={`${myLabel} ${myGoals} × ${oppGoals} ${parseTeamLabel(oppTeam?.label || '').baseName}`}
+        stats={streak > 0 ? [{ label: 'Dias seguidos', value: streak }, { label: 'Melhor sequência', value: best || streak }] : []}
         facts={[
-          { title: 'O que aconteceu', text: result === 'win' ? 'O time montado do zero derrubou o time lendário de hoje e levou a Supercopa!' : result === 'draw' ? 'Ficou tudo igual contra o time lendário de hoje. Amanhã tem outro adversário.' : 'O time lendário de hoje levou a melhor. Amanhã tem outro confronto.' },
-          ...(result === 'win' && currentUser ? [{ title: 'Ranking', text: '+50 pontos no ranking global.' }] : []),
-          { title: 'Uma por dia', text: 'Só dá para jogar a Supercopa do Brasil uma vez por dia; amanhã sai outro time lendário.' },
+          { title: 'O que aconteceu', text: result === 'win' ? (isBoss ? 'Você derrubou o chefão de domingo, um dos times mais fortes da história!' : 'O time montado do zero derrubou o time lendário de hoje e levou a Supercopa!') : result === 'draw' ? 'Ficou tudo igual contra o time lendário de hoje. Amanhã tem outro adversário.' : 'O time lendário de hoje levou a melhor. Amanhã tem outro confronto.' },
+          ...(result === 'win' && currentUser ? [{ title: 'Ranking', text: dailyOutcome?.synced === false ? 'Registrando os pontos…' : `+${dailyOutcome?.pointsEarned || winPoints} pontos no ranking global.` }] : []),
+          ...(!currentUser ? [{ title: 'Sequência', text: 'Sua sequência fica guardada neste aparelho. Crie uma conta para entrar no ranking do dia e ganhar pontos.' }] : []),
+          { title: 'Uma por dia', text: 'Só dá para jogar a Supercopa uma vez por dia. Domingo é dia de chefão: um dos times mais fortes da história, valendo +100.' },
         ]}
         actions={(
           <>
             <ShareCardButton
               onShared={(outcome) => trackEvent('share', { method: 'result_card', mode: 'supercopa', outcome })}
               cardData={{
-                mode: 'Supercopa do dia',
+                mode: isBoss ? 'Chefão de domingo' : 'Supercopa do dia',
                 title: result === 'win' ? 'Vitória!' : result === 'draw' ? 'Empate' : 'Derrota',
                 subtitle: `${myLabel} ${myGoals} × ${oppGoals} ${oppTeam?.label || ''}`.trim(),
                 teamLabel: myLabel, teamLogo: myTeamLogo, teamColor: myTeamColor,
-                stats: [{ label: 'Gols pró', value: myGoals }, { label: 'Gols contra', value: oppGoals }],
+                stats: [{ label: 'Gols pró', value: myGoals }, { label: 'Gols contra', value: oppGoals }, ...(streak > 1 ? [{ label: 'Dias seguidos', value: streak }] : [])],
                 highlights: [
-                  ...(oppTeam?.label ? [{ label: 'Adversário lendário de hoje', text: oppTeam.label }] : []),
-                  ...(result === 'win' && currentUser ? [{ label: 'Ranking', text: '+50 pontos no ranking global' }] : []),
+                  ...(oppTeam?.label ? [{ label: isBoss ? 'Chefão de domingo' : 'Adversário lendário de hoje', text: oppTeam.label }] : []),
+                  ...(result === 'win' && currentUser ? [{ label: 'Ranking', text: `+${winPoints} pontos no ranking global` }] : []),
                   { label: 'Amanhã', text: 'Outro time lendário. Uma Supercopa por dia.' },
                 ],
               }}
@@ -12520,7 +12631,82 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
           </>
         )}
       />
+      {dailyChallenge && <SupercopaDayRanking dateKey={dailyChallenge.dateKey} myUsername={currentUser?.username} refreshKey={dailyOutcome?.synced ? 1 : 0} />}
+      {!currentUser && onOpenAccount && (
+        <button type="button" onClick={onOpenAccount} className="ui-btn ui-btn-ghost ui-btn-md" style={{ width: '100%', marginTop: 12 }}>Criar conta para entrar no ranking</button>
+      )}
     </div>
+  );
+}
+
+// Recorde pessoal da Copa do Brasil Lendária: registra a campanha que acabou
+// (uma vez por campanha — `campaignKey` sai das próprias partidas) e mostra
+// a melhor campanha e as últimas. Com conta, vale o servidor; sem conta, o
+// aparelho (lib/localRecords).
+function copaStageOf({ userWon, eliminationRoundName }) {
+  if (userWon) return 5;
+  if (eliminationRoundName === 'Final') return 4;
+  const idx = CUP_ROUND_NAMES.indexOf(eliminationRoundName);
+  return idx >= 0 && idx <= 3 ? idx : null;
+}
+
+function CopaRecordPanel({ stage, teamLabel, campaignLines, currentUser, mc }) {
+  const [rec, setRec] = useState(null);
+  const campaignKey = useMemo(
+    () => `c${hashSeed(`${teamLabel}|${campaignLines.map(l => l.text).join('|')}`).toString(36)}`,
+    [teamLabel, campaignLines],
+  );
+  useEffect(() => {
+    if (stage == null || !campaignLines.length) return undefined;
+    let alive = true;
+    if (currentUser) {
+      api.submitCopaCampaign({ campaignKey, stage, teamLabel })
+        .then(r => {
+          if (!alive) return;
+          const best = r.user?.copa_best_stage != null ? { stage: r.user.copa_best_stage, teamLabel: r.user.copa_best_team, at: r.user.copa_best_at } : null;
+          const first = rememberCopaOutcome(campaignKey, { isNewRecord: r.isNewRecord, previousBest: r.previousBest });
+          setRec({ best, history: r.history || [], total: r.total || 0, ...first });
+        })
+        .catch(() => { if (alive) setRec(recordLocalCopaCampaign({ campaignKey, stage, teamLabel })); });
+    } else {
+      setRec(recordLocalCopaCampaign({ campaignKey, stage, teamLabel }));
+    }
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaignKey, stage, !!currentUser]);
+
+  if (stage == null || !rec) return null;
+  const fmtDate = (at) => { try { return new Date(at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' }); } catch { return ''; } };
+  const bestStage = rec.best?.stage;
+  const isTie = !rec.isNewRecord && bestStage === stage;
+  return (
+    <ResultSection label="Seu recorde na Copa" mc={mc}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 12px', borderRadius: 12, background: rec.isNewRecord ? 'var(--gold-tint)' : 'var(--surface-2)', marginBottom: 10 }}>
+        <Icon name="trophy" size={20} style={{ color: 'var(--gold-ink)' }} />
+        <div style={{ fontSize: 13.5, lineHeight: 1.4 }}>
+          {rec.isNewRecord
+            ? (rec.previousBest == null ? <><b>Primeira campanha registrada:</b> {COPA_STAGE_LABELS[stage]}.</> : <><b>Nova melhor campanha!</b> Antes, seu melhor era {COPA_STAGE_LABELS[rec.previousBest].toLowerCase()}.</>)
+            : isTie ? <><b>Igualou seu recorde:</b> {COPA_STAGE_LABELS[stage].toLowerCase()}.</>
+              : <>Seu recorde: <b>{COPA_STAGE_LABELS[bestStage]}</b>{rec.best?.teamLabel ? ` com ${rec.best.teamLabel}` : ''}{rec.best?.at ? ` (${fmtDate(rec.best.at)})` : ''}.</>}
+        </div>
+      </div>
+      {rec.history?.length > 1 && (
+        <>
+          <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)', textTransform: 'uppercase', letterSpacing: 0.6, margin: '4px 0 6px' }}>
+            Últimas campanhas{rec.total > rec.history.length ? ` · ${rec.total} no total` : ''}
+          </div>
+          {rec.history.slice(0, 6).map((h, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, padding: '5px 0', borderTop: i ? '1px solid var(--line)' : 'none' }}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{h.teamLabel}</span>
+              <span style={{ flexShrink: 0, fontWeight: h.stage === bestStage ? 700 : 500, color: h.stage === 5 ? 'var(--gold-ink)' : 'var(--ink-2)' }}>
+                {COPA_STAGE_LABELS[h.stage]} <span style={{ color: 'var(--muted)', fontWeight: 400, fontFamily: 'var(--font-mono)', fontSize: 11.5 }}>{fmtDate(h.at)}</span>
+              </span>
+            </div>
+          ))}
+        </>
+      )}
+      {!currentUser && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8 }}>Guardado neste aparelho. Com uma conta, o recorde vai com você.</div>}
+    </ResultSection>
   );
 }
 
@@ -12590,6 +12776,8 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         />
         <AnthemPlayer club={champClub} />
         {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
+
+        <CopaRecordPanel stage={copaStageOf({ userWon, eliminationRoundName })} teamLabel={myLabel} campaignLines={campaignLines} currentUser={currentUser} mc={mc} />
 
         {seasonAwards?.length > 0 && (
           <ResultSection label="Prêmios da Temporada" mc={mc}>

@@ -17,6 +17,9 @@
 .fb-se-fact { border-radius: 14px; background: rgba(255,255,255,.07); padding: 12px 14px; font-size: 13px; line-height: 1.45; color: #DCE7E0; }
 .fb-se-fact b { color: #fff; display: block; margin-bottom: 2px; }
 .fb-se-acts { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+/* Botão secundário em cima do verde (ex.: Compartilhar resultado). */
+.fb-se-acts .ui-btn-ghost { color: #fff; border-color: rgba(255,255,255,.3); background: transparent; }
+.fb-se-acts .ui-btn-ghost:hover { background: rgba(255,255,255,.08); }
 @media (max-width: 768px) {
   .fb-se { padding: 20px 18px; }
   .fb-se-title { font-size: 32px; }

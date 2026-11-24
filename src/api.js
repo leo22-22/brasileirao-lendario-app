@@ -68,10 +68,21 @@ export function submitSeasonResult(payload) {
   return request('/me/season-result', { method: 'POST', body: payload, auth: true });
 }
 
-// Vitória no Desafio do Dia — pontos fixos de ranking, uma vez por dia (o
-// servidor guarda a última data premiada e ignora chamadas repetidas).
-export function submitDailyChallengeResult({ dateKey }) {
-  return request('/me/daily-challenge-result', { method: 'POST', body: { dateKey }, auth: true });
+// Resultado da Supercopa do dia (vitória, empate ou derrota) — alimenta a
+// sequência de dias e o ranking do dia; vitória dá pontos (+50, ou +100 no
+// chefão de domingo). Uma vez por dia (o servidor ignora repetição).
+export function submitDailyChallengeResult({ dateKey, result, goalsFor, goalsAgainst }) {
+  return request('/me/daily-challenge-result', { method: 'POST', body: { dateKey, result, goalsFor, goalsAgainst }, auth: true });
+}
+
+// Ranking da Supercopa de um dia (público).
+export function fetchSupercopaLeaderboard(date) {
+  return request(`/leaderboard/supercopa?${new URLSearchParams({ date }).toString()}`);
+}
+
+// Copa do Brasil Lendária: registra a campanha e devolve recorde + histórico.
+export function submitCopaCampaign({ campaignKey, stage, teamLabel }) {
+  return request('/me/copa-campaign', { method: 'POST', body: { campaignKey, stage, teamLabel }, auth: true });
 }
 
 export function fetchLeaderboard({ limit = 30, offset = 0, uf = '', logo = '', period = 'geral' } = {}) {

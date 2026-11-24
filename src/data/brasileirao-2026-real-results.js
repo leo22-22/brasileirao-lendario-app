@@ -14,13 +14,14 @@
 // usada pela forma recente em vez de `round`.
 //
 // Atualização 23/11/2026: rodada 35 completa (14, 18 e 19/11) e os 6 jogos
-// da rodada 36 já disputados (21 e 22/11). Ainda faltam da 36: Internacional
-// x Vitória, Botafogo x São Paulo, Santos x Grêmio e Atlético-MG x Corinthians.
+// da rodada 36 já disputados (21 e 22/11). Em 24/11 entraram os 3 de 23/11
+// (Inter 2x5 Vitória, Santos 0x2 Grêmio, Botafogo 1x1 São Paulo); falta só
+// Atlético-MG x Corinthians (25/11).
 // Fonte: valorfinal.com.br (rodada 35 e tabela de 23/11), conferida com a
 // CBF/Super Placar para a 36.
 // Data do último placar real incluído — aparece no topo do Simulador.
 // Atualize junto com a lista abaixo.
-export const REAL_RESULTS_UPDATED_AT = '22/11';
+export const REAL_RESULTS_UPDATED_AT = '23/11';
 
 export const REAL_RESULTS_2026 = [
   { round: 1, homeId: 'atleticomg2026', homeGoals: 2, awayId: 'palmeiras2026', awayGoals: 2 },
@@ -379,4 +380,7 @@ export const REAL_RESULTS_2026 = [
   { round: 36, homeId: 'athleticopr2026', homeGoals: 4, awayId: 'remo2026', awayGoals: 2 },
   { round: 36, homeId: 'fluminense2026', homeGoals: 1, awayId: 'mirassol2026', awayGoals: 0 },
   { round: 36, homeId: 'bragantino2026', homeGoals: 1, awayId: 'vasco2026', awayGoals: 0 },
+  { round: 36, homeId: 'internacional2026', homeGoals: 2, awayId: 'vitoria2026', awayGoals: 5 },
+  { round: 36, homeId: 'santos2026', homeGoals: 0, awayId: 'gremio2026', awayGoals: 2 },
+  { round: 36, homeId: 'botafogo2026', homeGoals: 1, awayId: 'saopaulo2026', awayGoals: 1 },
 ];

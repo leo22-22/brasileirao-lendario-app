@@ -28,7 +28,8 @@ import { SERIE_A_2026_TEAM_IDS } from '../data/career-clubs.js';
 import { SERIE_A_2026_FIXTURES } from '../data/serie-a-2026-fixtures.js';
 import { REAL_RESULTS_2026, REAL_RESULTS_UPDATED_AT } from '../data/brasileirao-2026-real-results.js';
 import { ShareResultButton } from '../components/share/ShareResultButton.jsx';
-import { teamStrength, aiSquadPlayers, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents, MatchSummaryModal } from '../App.jsx';
+import { teamStrength, aiSquadPlayers, simAiMatch, applyRoundToTable, matchPrng, buildLiveMatchEvents, MatchSummaryModal, baseScoreWeight } from '../App.jsx';
+import { REAL_SCORERS_2026, REAL_SCORERS_UPDATED_AT } from '../data/brasileirao-2026-real-scorers.js';
 import { matchOutcomeProbabilities } from '../lib/probability.js';
 import { zoneOf, formOf, remainingByClub, stakesFor, disputes, realBaselinePositions } from '../lib/insights.js';
 import { Icon, Modal, ConfirmInline } from '../ui/index.jsx';
@@ -69,18 +70,64 @@ const REMAINING_MATCHES = [
 ].filter(m => !isPlayedForReal(m));
 // Save feito com outra base de placares reais tem matchIdx/tabela de outra
 // fila — descarta e recomeça em vez de deixar tabela e fila desalinhadas.
-const SAVE_BASE = REAL_RESULTS_2026.length;
+// `-art1`: saves de antes da artilharia não guardavam autor dos gols.
+const SAVE_BASE = `${REAL_RESULTS_2026.length}-art1`;
+
+// Gols reais de cada time (soma dos placares reais) — base do ritmo de gols.
+const REAL_GOALS_FOR = REAL_RESULTS_2026.reduce((acc, r) => {
+  acc[r.homeId] = (acc[r.homeId] || 0) + r.homeGoals;
+  acc[r.awayId] = (acc[r.awayId] || 0) + r.awayGoals;
+  return acc;
+}, {});
+
+// Calibra quem marca nos jogos simulados pela artilharia real: um artilheiro
+// do top 20 fica com a mesma fatia dos gols do time que tem na vida real
+// (ex.: 21 de 50 gols); o resto da fatia se divide entre os outros pelo peso
+// de sempre (posição + overall). Vira `scoreBoost`, que o motor multiplica
+// no sorteio do autor do gol — fora do Simulador ninguém preenche esse campo.
+function withRealScoringBoost(teamId, players) {
+  const listed = Object.fromEntries(REAL_SCORERS_2026.filter(s => s.teamId === teamId).map(s => [s.name, s.goals]));
+  const gf = REAL_GOALS_FOR[teamId] || 0;
+  if (!gf || !Object.keys(listed).length) return players;
+  const xi = players.slice(0, 11);
+  const prior = new Map(xi.map(p => [p.name, baseScoreWeight(p)]));
+  const listedShare = Math.min(0.9, xi.reduce((s, p) => s + (listed[p.name] || 0), 0) / gf);
+  const unlistedPrior = xi.reduce((s, p) => s + (listed[p.name] ? 0 : prior.get(p.name)), 0);
+  return players.map(p => {
+    const w = prior.get(p.name);
+    if (!w) return p;
+    const target = listed[p.name] ? listed[p.name] / gf : (unlistedPrior ? (1 - listedShare) * (w / unlistedPrior) : 0);
+    return { ...p, scoreBoost: Math.max(0.05, target / w) };
+  });
+}
 
 function buildTeams() {
   return SERIE_A_2026_TEAM_IDS.map(id => {
     const t = TEAMS.find(tm => tm.id === id);
-    const playersWithMeta = aiSquadPlayers(t);
+    const playersWithMeta = withRealScoringBoost(t.id, aiSquadPlayers(t));
     return {
       id: t.id, label: t.label, club: t.club, clubLogo: CLUB_LOGOS[t.club] || null, color: t.colors?.p,
       ovr: teamStrength(Object.fromEntries(playersWithMeta.map((p, i) => [i, p]))),
       players: playersWithMeta,
     };
   });
+}
+
+// Artilharia = gols reais (top 20 da fonte) + gols simulados aqui. Só os
+// jogadores do top 20 real entram no ranking: de quem está fora dele a fonte
+// não dá o total real, e somar só os gols simulados daria um número falso.
+const playerLabel = (name) => name.replace(/\s*\([A-Z]{2,3}\)$/, '');
+function buildArtilharia(log) {
+  const rows = REAL_SCORERS_2026.map(s => ({ ...s, key: `${s.teamId}::${s.name}`, sim: 0 }));
+  const byKey = Object.fromEntries(rows.map(r => [r.key, r]));
+  log.forEach(r => (r.goals || []).forEach(g => {
+    if (g.own) return;
+    const row = byKey[`${g.teamId}::${g.scorer}`];
+    if (row) row.sim += 1;
+  }));
+  return rows
+    .map(r => ({ ...r, total: r.goals + r.sim }))
+    .sort((a, b) => b.total - a.total || b.goals - a.goals);
 }
 
 function emptyTableRow(t) {
@@ -151,7 +198,11 @@ function prepareMatch(seed, teamById, m) {
   return {
     homeTeam, awayTeam,
     sim: { homeGoals: sim.homeGoals, awayGoals: sim.awayGoals, ratings: sim.ratings, events, homeGkName: sim.homeGkName, awayGkName: sim.awayGkName },
-    result: { round: m.round, homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals, postponed: !!m.postponed },
+    result: {
+      round: m.round, homeId: m.homeId, awayId: m.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals, postponed: !!m.postponed,
+      // Autores dos gols (pra artilharia). Gol contra fica marcado e não conta.
+      goals: (sim.goals || []).map(g => ({ teamId: g.teamId, scorer: g.scorer, own: !!g.isOwnGoal })),
+    },
   };
 }
 
@@ -581,6 +632,8 @@ export function Simulator2026App({ onExit }) {
   const logByIdx = (idx) => (idx < save.matchIdx ? save.log[idx] : null);
   const playedInShown = shownGroup.idxs.filter(i => i < save.matchIdx).length;
   const lastResults = [...save.log].reverse().slice(0, 3);
+  const artilharia = buildArtilharia(save.log);
+  const topScorer = artilharia[0];
   const hl = nextMatch ? new Set([nextMatch.homeId, nextMatch.awayId]) : new Set();
 
   const openGroup = (g) => {
@@ -633,6 +686,7 @@ export function Simulator2026App({ onExit }) {
         facts={[
           { title: 'Libertadores (G4)', text: table.slice(0, 4).map(r => nameOf(r.id)).join(', ') },
           { title: 'Rebaixados', text: rel.map(r => nameOf(r.id)).join(', ') },
+          ...(topScorer ? [{ title: 'Artilheiro', text: `${playerLabel(topScorer.name)} (${nameOf(topScorer.teamId)}) · ${topScorer.total} gols` }] : []),
         ]}
         actions={(
           <>
@@ -651,6 +705,7 @@ export function Simulator2026App({ onExit }) {
                 highlights: [
                   { label: 'Libertadores (G4)', text: table.slice(0, 4).map(r => nameOf(r.id)).join(', ') },
                   { label: 'Rebaixados', text: rel.map(r => nameOf(r.id)).join(', ') },
+                  ...(topScorer ? [{ label: 'Artilheiro', text: `${playerLabel(topScorer.name)} (${nameOf(topScorer.teamId)}) · ${topScorer.total} gols` }] : []),
                 ],
               }}
             />
@@ -742,6 +797,7 @@ export function Simulator2026App({ onExit }) {
           </div>
         </div>
 
+        <div className="sm-rc">
         <section className="ng-card sm-tbl" aria-labelledby="sm-tbl-h">
           <div className="sm-tbl-hd"><h3 id="sm-tbl-h">Classificação</h3><span className="ng-small">setas: posição em relação à tabela real</span></div>
           <StandingsTable
@@ -757,6 +813,23 @@ export function Simulator2026App({ onExit }) {
             legendNote={nextMatch ? 'Em destaque: os dois times do próximo jogo' : null}
           />
         </section>
+
+        <section className="ng-card sm-tbl sm-art" aria-labelledby="sm-art-h">
+          <div className="sm-tbl-hd"><h3 id="sm-art-h">Artilharia</h3><span className="ng-small">gols reais até {REAL_SCORERS_UPDATED_AT} + simulados aqui</span></div>
+          <ol className="sm-art-list">
+            {artilharia.slice(0, 10).map((r, i) => (
+              <li key={r.key}>
+                <span className="sm-art-pos">{i + 1}</span>
+                <TeamCrest team={teamById[r.teamId]} size={18} />
+                <span className="sm-art-nm"><b>{playerLabel(r.name)}</b><small>{nameOf(r.teamId)}</small></span>
+                <span className="sm-art-sim" title="Gols nos jogos simulados">{r.sim ? `+${r.sim}` : ''}</span>
+                <b className="sm-art-tot" aria-label={`${r.total} gols, ${r.goals} reais e ${r.sim} simulados`}>{r.total}</b>
+              </li>
+            ))}
+          </ol>
+          <p className="ng-small" style={{ margin: 0 }}>Top 20 real (Placar). Nos jogos simulados, cada artilheiro marca no ritmo que tem na vida real.</p>
+        </section>
+        </div>
       </div>
 
       {nextMatch && (

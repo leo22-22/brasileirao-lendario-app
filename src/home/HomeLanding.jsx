@@ -63,7 +63,7 @@ export function HomeLanding({
   onStart, onSetGameMode, myTeamColor, myTeamLogo, myTeamBadge, currentUser,
   onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, onOpenSimulator2026,
   livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer,
-  dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge,
+  dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge, dailyStreak = 0,
   careerLocked, careerLaunchDismissed, onDismissCareerLaunch,
   weeklyTeam, weeklyCraque, weekRoleInfo, weekLineTopPct,
   gameStats, achievementsTotal, featuredAchievementIds, FeaturedAchievementCard,
@@ -160,7 +160,7 @@ export function HomeLanding({
                   style={dailyChallengeAlreadyPlayed ? { cursor: 'default', opacity: 0.75 } : undefined}
                 >
                   <span className="hl-pc-fi" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4h10v4a5 5 0 0 1-10 0V4z" /><path d="M12 13v4M8.5 20h7" /></svg></span>
-                  <span className="hl-pc-ft"><small>Supercopa do dia</small><b>{dailyChallengeAlreadyPlayed ? 'Feita hoje' : `vs. ${parseTeamLabel(dailyChallenge.opponent.label).baseName}`}</b></span>
+                  <span className="hl-pc-ft"><small>{dailyChallenge.isBoss ? 'Chefão de domingo' : 'Supercopa do dia'}</small><b>{dailyChallengeAlreadyPlayed ? 'Feita hoje' : `vs. ${parseTeamLabel(dailyChallenge.opponent.label).baseName}`}</b></span>
                   <ArrowIcon />
                 </button>
               )}
@@ -188,7 +188,7 @@ export function HomeLanding({
         <div className="hl-sh">
           <div>
             <span className="hl-eyebrow hl-mono"><i /> Escolha o modo</span>
-            <h2 className="hl-h2">Sete jeitos de<br />fazer <em>história</em>.</h2>
+            <h2 className="hl-h2">Oito jeitos de<br />fazer <em>história</em>.</h2>
           </div>
           <p>Do draft clássico com lendas de {FIRST_YEAR} à temporada atual do Brasileirão — sozinho ou com até 32 amigos.</p>
         </div>
@@ -263,7 +263,7 @@ export function HomeLanding({
           >
             <div className="hl-l">
               <div className="hl-ic"><ModeIcon id="supercopa" size={18} /></div>
-              <div><h4>Supercopa</h4><small>{dailyChallengeAlreadyPlayed ? 'Jogada hoje' : 'Campeões frente a frente'}</small></div>
+              <div><h4>Supercopa</h4><small>{dailyChallengeAlreadyPlayed ? 'Jogada hoje' : dailyChallenge?.isBoss ? 'Chefão de domingo · +100' : 'Campeões frente a frente'}{dailyStreak > 1 ? ` · ${dailyStreak} dias seguidos` : ''}</small></div>
             </div>
             <ArrowIcon />
           </button>

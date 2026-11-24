@@ -186,4 +186,36 @@ router.get('/me', requireAuth, async (req, res) => {
   }
 });
 
+// Ranking da Supercopa de um dia: quem jogou a Supercopa daquela data, por
+// resultado (vitória > empate > derrota), depois saldo, gols pró e quem
+// terminou primeiro. Público, igual ao ranking geral.
+router.get('/supercopa', async (req, res) => {
+  try {
+    const date = typeof req.query.date === 'string' ? req.query.date.slice(0, 10) : '';
+    if (!/^\d{4}-\d{1,2}-\d{1,2}$/.test(date)) return res.status(400).json({ error: 'Data inválida.' });
+    const [rows] = await pool.query<RowDataPacket[]>(
+      `SELECT u.username, IF(u.team_logo LIKE 'data:%', NULL, u.team_logo) AS team_logo, u.team_name, u.daily_streak,
+              d.result, d.goals_for, d.goals_against, d.is_boss
+       FROM daily_challenge_results d
+       JOIN users u ON u.id = d.user_id
+       WHERE d.date_key = ?
+       ORDER BY FIELD(d.result, 'win', 'draw', 'loss'), (d.goals_for - d.goals_against) DESC, d.goals_for DESC, d.created_at ASC
+       LIMIT 50`,
+      [date],
+    );
+    const [countRows] = await pool.query<RowDataPacket[]>('SELECT COUNT(*) AS total FROM daily_challenge_results WHERE date_key = ?', [date]);
+    return res.json({
+      date,
+      total: Number(countRows[0]?.total || 0),
+      rows: rows.map((r, i) => ({
+        position: i + 1, username: r.username, teamLogo: r.team_logo, teamName: r.team_name, streak: Number(r.daily_streak || 0),
+        result: r.result, goalsFor: Number(r.goals_for), goalsAgainst: Number(r.goals_against), isBoss: !!r.is_boss,
+      })),
+    });
+  } catch (err) {
+    console.error('[leaderboard/supercopa]', err);
+    return res.status(500).json({ error: 'Erro interno.' });
+  }
+});
+
 export default router;
