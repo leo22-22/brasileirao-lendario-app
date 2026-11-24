@@ -5851,18 +5851,33 @@ export default function App() {
   // setPhase são batelhadas pelo React, então a tela nunca chega a piscar
   // em 'intro'.
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
-  const goToFormationPicker = () => {
+  // Times do Modo Livre do jogo que está começando. restart() zera
+  // livreTeamIds (de propósito — ver comentário lá), então quem inicia pelo
+  // Modo Livre reaplica a escolha depois de zerar o save antigo.
+  const startingLivreRef = useRef(null);
+  const goToFormationPicker = (livreIds = null) => {
+    startingLivreRef.current = Array.isArray(livreIds) ? livreIds : null;
     // Só pede confirmação se há algo pra retomar. Jogo que já terminou
     // (savedPhase 'results') não tem "Continuar" — o aviso saía com o nome da
     // etapa em branco ("partida salva em ."). Nesse caso zera e segue direto.
     if (savedPhase && describePhase(savedPhase)) { setShowOverwriteConfirm(true); return; }
     if (savedPhase) { restart(); setSavedPhase(null); }
+    if (startingLivreRef.current) setLivreTeamIds(startingLivreRef.current);
     setPhase('formation');
   };
   const confirmNewGameOverSave = () => {
     setShowOverwriteConfirm(false);
     restart();
+    if (startingLivreRef.current) setLivreTeamIds(startingLivreRef.current);
     setPhase('formation');
+  };
+  // Modo Livre: confirmar os 16 times já começa o campeonato (antes só
+  // fechava o modal e voltava pra home sem iniciar nada).
+  const startLivre = (ids, format) => {
+    setLivreTeamIds(ids);
+    setGameMode(format);
+    setShowLivrePicker(false);
+    goToFormationPicker(ids);
   };
 
   // Nova temporada com o mesmo elenco
@@ -6740,7 +6755,7 @@ export default function App() {
           initialSelected={livreTeamIds || []}
           initialFormat={gameMode}
           onClose={() => setShowLivrePicker(false)}
-          onConfirm={(ids, format) => { setLivreTeamIds(ids); setGameMode(format); setShowLivrePicker(false); }}
+          onConfirm={startLivre}
         />
       )}
       {showLineupEditor && (
