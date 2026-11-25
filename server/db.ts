@@ -176,6 +176,26 @@ export async function ensureSchema() {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     )
   `);
+
+  // Brasileirão Atual — Desafio do dia (missão a partir da tabela real):
+  // uma missão por conta por dia; +500 no ranking se cumprir.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS atual_mission_results (
+      id INT PRIMARY KEY AUTO_INCREMENT,
+      user_id INT NOT NULL,
+      date_key VARCHAR(10) NOT NULL,
+      team_id VARCHAR(40) NOT NULL,
+      mission_type VARCHAR(16) NOT NULL,
+      start_round INT NOT NULL,
+      target_position INT NOT NULL,
+      final_position INT NOT NULL,
+      success TINYINT(1) NOT NULL DEFAULT 0,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE KEY uq_atual_mission_user_date (user_id, date_key),
+      KEY idx_atual_mission_date (date_key),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
 }
 
 export interface UserRow {

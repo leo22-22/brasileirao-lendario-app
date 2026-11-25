@@ -126,7 +126,7 @@
 .hl-feat-list span { display: flex; gap: 10px; align-items: center; }
 .hl-feat-list span:before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--hl-gold); flex-shrink: 0; }
 
-.hl-minimodes { display: grid; grid-template-columns: repeat(2,1fr); gap: 16px; margin-top: 16px; }
+.hl-minimodes { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; margin-top: 16px; }
 .hl-mini { display: flex; align-items: center; justify-content: space-between; background: var(--hl-paper); border: 1px solid var(--hl-line); border-radius: 18px; padding: 18px 20px; cursor: pointer; text-align: left; font-family: Inter, sans-serif; color: var(--hl-ink); gap: 10px; }
 .hl-mini .hl-l { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .hl-mini .hl-ic { width: 40px; height: 40px; border-radius: 11px; background: #EFE9DC; display: grid; place-items: center; flex-shrink: 0; }
@@ -180,6 +180,7 @@
   .hl-modes { grid-template-columns: 1fr 1fr; }
   .hl-mode.hl-feat { grid-column: span 2; grid-row: span 1; }
   .hl-minimodes { grid-template-columns: 1fr 1fr; }
+  .hl-minimodes > .hl-mini:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .hl-mode.hl-wide { flex-direction: column; align-items: stretch; gap: 18px; }
   .hl-mode.hl-wide .hl-meta { padding-top: 16px; border-top: 1px solid var(--hl-line); }
   .hl-teams { grid-template-columns: repeat(3,1fr); }

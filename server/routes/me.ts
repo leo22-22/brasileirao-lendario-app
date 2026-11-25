@@ -442,6 +442,55 @@ router.post('/daily-challenge-result', async (req, res) => {
   }
 });
 
+// Brasileirão Atual — Desafio do dia: a missão (time, rodada inicial e
+// objetivo) sai da data no cliente, igual pra todo mundo. Uma por conta por
+// dia (UNIQUE); como a missão pode levar alguns dias pra terminar (até 19
+// rodadas, com save), aceita dateKey de até 7 dias atrás.
+const ATUAL_MISSION_POINTS = 500;
+const ATUAL_MISSION_TYPES = new Set(['z4', 'g4', 'titulo', 'g6']);
+router.post('/atual-mission-result', async (req, res) => {
+  try {
+    const userId = req.userId!;
+    const current = await getUserOr404(userId, res);
+    if (!current) return;
+    const dateKey = typeof req.body?.dateKey === 'string' ? req.body.dateKey.slice(0, 10) : '';
+    const day = parseDateKey(dateKey);
+    if (!day) return res.status(400).json({ error: 'dateKey inválido.' });
+    const diff = Date.now() - day.getTime();
+    if (diff < -2 * 86400000 || diff > 8 * 86400000) {
+      return res.status(400).json({ error: 'Missão de outro dia.' });
+    }
+    const teamId = typeof req.body?.teamId === 'string' ? req.body.teamId.slice(0, 40) : '';
+    const missionType = String(req.body?.missionType || '');
+    const startRound = Number(req.body?.startRound);
+    const targetPosition = Number(req.body?.targetPosition);
+    const finalPosition = Number(req.body?.finalPosition);
+    const validInt = (v: number, lo: number, hi: number) => Number.isInteger(v) && v >= lo && v <= hi;
+    if (!teamId || !ATUAL_MISSION_TYPES.has(missionType) || !validInt(startRound, 1, 38)
+      || !validInt(targetPosition, 1, 20) || !validInt(finalPosition, 1, 20)) {
+      return res.status(400).json({ error: 'Missão inválida.' });
+    }
+    const success = finalPosition <= targetPosition;
+    const [ins] = await pool.query<ResultSetHeader>(
+      'INSERT IGNORE INTO atual_mission_results (user_id, date_key, team_id, mission_type, start_round, target_position, final_position, success) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [userId, dateKey, teamId, missionType, startRound, targetPosition, finalPosition, success ? 1 : 0],
+    );
+    if (ins.affectedRows === 0) {
+      return res.json({ user: toPublicUser(current), alreadyClaimed: true, success, pointsEarned: 0 });
+    }
+    const pointsEarned = success ? ATUAL_MISSION_POINTS : 0;
+    if (pointsEarned) {
+      await pool.query('UPDATE users SET ranking_points = ranking_points + ? WHERE id = ?', [pointsEarned, userId]);
+      await pool.query('INSERT INTO ranking_events (user_id, points) VALUES (?, ?)', [userId, pointsEarned]);
+    }
+    const [rows] = await pool.query<(UserRow & RowDataPacket)[]>('SELECT * FROM users WHERE id = ?', [userId]);
+    return res.json({ user: toPublicUser(rows[0]), success, pointsEarned });
+  } catch (err) {
+    console.error('[atual-mission-result]', err);
+    return res.status(500).json({ error: 'Erro interno ao registrar a missão.' });
+  }
+});
+
 // Copa do Brasil Lendária: registra a campanha que acabou e devolve o
 // recorde + as últimas campanhas. `campaignKey` (gerado no cliente a partir
 // da campanha) evita contar a mesma Copa duas vezes ao reabrir a tela.

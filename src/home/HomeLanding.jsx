@@ -31,6 +31,7 @@ const MODE_ICON_PATHS = {
   livre: <><circle cx="12" cy="12" r="8" /><circle cx="12" cy="12" r="3" /></>,
   amigos: <><circle cx="9" cy="9" r="3.5" /><circle cx="17" cy="10" r="2.5" /><path d="M3 19c.8-3.2 3.2-5 6-5s5.2 1.8 6 5M15 14.5c2.5 0 4.6 1.5 5.5 4.5" /></>,
   supercopa: <path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.5 6.7 19.4l1.2-6L3.4 9.3l6-.7z" />,
+  missao: <><path d="M5 21V4" /><path d="M5 4h11l-2 4 2 4H5" /></>,
 };
 function ModeIcon({ id, color = '#0D3A29', size = 22 }) {
   return (
@@ -64,6 +65,7 @@ export function HomeLanding({
   onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, onOpenSimulator2026,
   livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer,
   dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge, dailyStreak = 0,
+  atualMission, atualMissionAlreadyPlayed, onOpenAtualMission, atualMissionLabel,
   careerLocked, careerLaunchDismissed, onDismissCareerLaunch,
   weeklyTeam, weeklyCraque, weekRoleInfo, weekLineTopPct,
   gameStats, achievementsTotal, featuredAchievementIds, FeaturedAchievementCard,
@@ -267,6 +269,15 @@ export function HomeLanding({
             </div>
             <ArrowIcon />
           </button>
+          {atualMission && (
+            <button className="hl-mini hl-card-hover" onClick={onOpenAtualMission}>
+              <div className="hl-l">
+                <div className="hl-ic"><ModeIcon id="missao" size={18} /></div>
+                <div><h4>Desafio do dia</h4><small>{atualMissionAlreadyPlayed ? 'Feito hoje · nova missão amanhã' : `${atualMissionLabel} · +500`}</small></div>
+              </div>
+              <ArrowIcon />
+            </button>
+          )}
         </div>
       </section>
 

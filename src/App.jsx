@@ -49,6 +49,7 @@ import { HomeLanding } from './home/HomeLanding.jsx';
 import { displayName } from './lib/displayName.js';
 import AchievementsGallery from './components/achievements/AchievementsGallery.jsx';
 import { recordLocalDailyPlay, readLocalDailyStreak, recordLocalCopaCampaign, rememberCopaOutcome, previousDateKey, COPA_STAGE_LABELS } from './lib/localRecords.js';
+import { getAtualMission, realResultsBefore, realTableBefore, missionSucceeded, readAtualMissionDone, markAtualMissionDone, ATUAL_MISSION_POINTS } from './lib/atualMission.js';
 import { ShareResultButton as ShareCardButton } from './components/share/ShareResultButton.jsx';
 import { AchievementMedal, AchievementNearCard, MedalBadge } from './components/achievements/AchievementParts.jsx';
 import { iconForAchievement } from './components/achievements/achievementModel.js';
@@ -2910,6 +2911,16 @@ export default function App() {
   });
   const dailyChallengeAlreadyPlayed = dailyChallengeDoneDate === dailyChallenge.dateKey;
 
+  // Brasileirão Atual — Desafio do dia (lib/atualMission): missão do dia a
+  // partir da tabela real. `activeMission` = a missão que ESTA temporada está
+  // jogando (vai no save, pra retomar dias depois); null = Atual normal.
+  const atualMission = useMemo(() => getAtualMission(), []);
+  const [activeMission, setActiveMission] = useState(_sv?.activeMission ?? null);
+  const [missionOutcome, setMissionOutcome] = useState(null);
+  const [showAtualMission, setShowAtualMission] = useState(false);
+  const [atualMissionDoneDate, setAtualMissionDoneDate] = useState(() => readAtualMissionDone());
+  const atualMissionAlreadyPlayed = atualMissionDoneDate === atualMission.dateKey;
+
   // Multiplayer (PeerJS)
   const [multiPhase, setMultiPhase] = useState(null); // null|'lobby'|'room'
   const [multiGameMode, setMultiGameMode] = useState('serieab');
@@ -3473,7 +3484,20 @@ export default function App() {
     setIsSerieAtual(true);
     setSerieAtualTeamId(team.id);
     setShowSerieAtualPicker(false);
+    setActiveMission(null);
+    setMissionOutcome(null);
     setPhase('formation');
+  };
+
+  // Desafio do dia do Atual: mesmo fluxo do startSerieAtual com o time da
+  // missão. A tentativa do dia é "gasta" ao entrar em campo
+  // (confirmSerieAtual), não ao abrir — igual à Supercopa.
+  const startAtualMission = () => {
+    const team = TEAMS.find(t => t.id === atualMission.teamId);
+    if (!team) return;
+    startSerieAtual(team);
+    setActiveMission(atualMission);
+    setShowAtualMission(false);
   };
 
   // Supercopa do Brasil: escolheu enfrentar o time lendário de hoje — vai
@@ -3594,7 +3618,27 @@ export default function App() {
       homeId: m.homeId === serieAtualTeamId ? MY_TEAM_ID : m.homeId,
       awayId: m.awayId === serieAtualTeamId ? MY_TEAM_ID : m.awayId,
     })));
-    const table = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
+    const zeroTable = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
+    // Desafio do dia: as rodadas antes da inicial já vêm com os placares
+    // REAIS (tabela de verdade daquele momento) e a temporada começa dali.
+    const mission = activeMission && activeMission.teamId === serieAtualTeamId ? activeMission : null;
+    const toMine = (id) => (id === serieAtualTeamId ? MY_TEAM_ID : id);
+    const table = mission
+      ? applyRoundToTable(zeroTable, realResultsBefore(mission.startRound).map(r => ({ ...r, homeId: toMine(r.homeId), awayId: toMine(r.awayId) })))
+      : zeroTable;
+    const startIdx = mission ? mission.startRound - 1 : 0;
+    // Forma recente (últimos jogos) também vem dos placares reais, na ordem
+    // em que foram jogados — senão todo time começava "sem jogos ainda".
+    const missionForm = mission
+      ? updateFormFromResults({}, realResultsBefore(mission.startRound)
+        .map((r, k) => ({ ...r, homeId: toMine(r.homeId), awayId: toMine(r.awayId), _o: (r.playedAt ?? r.round) * 1000 + k }))
+        .sort((a, b) => a._o - b._o))
+      : {};
+    if (mission) {
+      markAtualMissionDone(mission.dateKey);
+      setAtualMissionDoneDate(mission.dateKey);
+      trackEvent('atual_mission_start', { mission_type: mission.type, team: mission.teamId, start_round: mission.startRound });
+    }
 
     setLeagueTeams(allTeams);
     setClockMinute(0);
@@ -3617,7 +3661,7 @@ export default function App() {
     setInjuries({});
     setLastRoundDiscipline(null);
     setLastMatchRatings(null);
-    setTeamForm({});
+    setTeamForm(missionForm);
     setSeasonAwards([]);
     setEliminationRoundName(null);
     setBracketAdvance(null);
@@ -3627,7 +3671,8 @@ export default function App() {
     setGameMode('brasileirao');
     setFixtures(fixtures);
     setLeagueTable(table);
-    setCurrentRound(0);
+    setCurrentRound(startIdx);
+    setMissionOutcome(null);
     setCupRounds([]);
     setCupRoundIdx(0);
     setCupLeg(1);
@@ -4290,6 +4335,7 @@ export default function App() {
     setDailyOpponent(null);
     setIsSerieAtual(false);
     setSerieAtualTeamId(null);
+    setActiveMission(null);
     setShowLineupEditor(false);
     setShowFormationSwap(false);
 
@@ -4784,6 +4830,29 @@ export default function App() {
         });
         return next;
       });
+    }
+
+    // Desafio do dia do Atual: é meia temporada (a partir da tabela real),
+    // então não conta como temporada no ranking/conquistas — só a missão:
+    // cumpriu = +500 (servidor), registrado uma vez por dia.
+    if (activeMission && isSerieAtual) {
+      const finalTable = tableOverride || leagueTable;
+      const finalPosition = finalTable.findIndex(t => t.id === myTeamId) + 1;
+      const success = missionSucceeded(activeMission, finalPosition);
+      setMissionOutcome({ finalPosition, success, pointsEarned: 0, synced: !currentUser });
+      trackEvent('atual_mission_end', { mission_type: activeMission.type, success });
+      if (currentUser) {
+        api.submitAtualMissionResult({
+          dateKey: activeMission.dateKey, teamId: activeMission.teamId, missionType: activeMission.type,
+          startRound: activeMission.startRound, targetPosition: activeMission.targetPosition, finalPosition,
+        })
+          .then(({ user, pointsEarned, alreadyClaimed }) => {
+            if (user) setCurrentUser(user);
+            setMissionOutcome(o => ({ ...o, pointsEarned: pointsEarned || 0, alreadyClaimed: !!alreadyClaimed, synced: true }));
+          })
+          .catch(() => setMissionOutcome(o => ({ ...o, synced: true, failed: true })));
+      }
+      return;
     }
 
     // Desafio do Dia é uma partida avulsa pra divertir, não uma temporada de
@@ -5539,7 +5608,7 @@ export default function App() {
         // fixtures/leagueTeams restauravam certo, mas a tela perdia o botão
         // "Escalação" e qualquer coisa que dependa de isSerieAtual, dando a
         // impressão de ter caído de volta no Brasileirão normal.
-        isSerieAtual, serieAtualTeamId,
+        isSerieAtual, serieAtualTeamId, activeMission,
         // Sem persistir isso, um reload no meio de um "Mercado de
         // transferências" (phase='squad', isTransferSeason=true só em
         // memória) voltava com a flag em false — o confirm do Squad então
@@ -5550,7 +5619,7 @@ export default function App() {
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isSerieAtual, serieAtualTeamId, isTransferSeason, seasonYear, formationKey, customFormation, captainSlot]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isSerieAtual, serieAtualTeamId, activeMission, isTransferSeason, seasonYear, formationKey, customFormation, captainSlot]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -5661,6 +5730,7 @@ export default function App() {
     setDailyOpponent(null);
     setIsSerieAtual(false);
     setSerieAtualTeamId(null);
+    setActiveMission(null);
     setShowLineupEditor(false);
     setShowFormationSwap(false);
     // Sem isso, abandonar um "Mercado de transferências" (isTransferSeason
@@ -5793,7 +5863,7 @@ export default function App() {
     if (isDailyChallenge) return 'a Supercopa do Brasil';
     if (p === 'playing') {
       if (gameMode === 'copa') return CUP_ROUND_NAMES[cupRoundIdx] || 'Copa do Brasil';
-      if (isSerieAtual) return `Brasileirão Atual · Rodada ${currentRound + 1} de ${fixtures.length}`;
+      if (isSerieAtual) return `${activeMission ? `Desafio do dia (${activeMission.verb.toLowerCase()})` : 'Brasileirão Atual'} · Rodada ${currentRound + 1} de ${fixtures.length}`;
       if (gameMode === 'serieab') {
         if (promotionTie?.leg) return `Mata-mata de Acesso · Série ${myDivision}`;
         return `Rodada ${currentRound + 1} de 38 · Série ${myDivision}`;
@@ -6455,6 +6525,7 @@ export default function App() {
     setDailyOpponent(null);
     setIsSerieAtual(false);
     setSerieAtualTeamId(null);
+    setActiveMission(null);
     setShowLineupEditor(false);
     setShowFormationSwap(false);
     setRoundHistory({});
@@ -6603,7 +6674,7 @@ export default function App() {
   // Fluxo de novo jogo (redesenho 2026-11-13): esquema e draft têm o próprio
   // contêiner largo (ng-wrap/ng-dwrap), então o <main> não limita a largura.
   const wideMainMaxWidth = (simulator2026Open || phase === 'formation' || phase === 'draft') ? 1440 : multiPhase ? null : (phase === 'intro' || phase === 'playing') ? 1240 : ['squad', 'transfer'].includes(phase) ? 1100 : null;
-  const classicModeLabel = multiPhase ? 'Multiplayer' : isDailyChallenge ? 'Supercopa do dia' : (isSerieAtual || gameMode === 'atual2026') ? 'Brasileirão Atual' : (livreTeamIds?.length ? 'Modo Livre' : gameMode === 'copa' ? 'Copa do Brasil Lendária' : 'Brasileirão Lendário');
+  const classicModeLabel = multiPhase ? 'Multiplayer' : isDailyChallenge ? 'Supercopa do dia' : (isSerieAtual && activeMission) ? `Desafio do dia · ${activeMission.verb}` : (isSerieAtual || gameMode === 'atual2026') ? 'Brasileirão Atual' : (livreTeamIds?.length ? 'Modo Livre' : gameMode === 'copa' ? 'Copa do Brasil Lendária' : 'Brasileirão Lendário');
   const classicStep = { formation: 'Esquema tático', draft: 'Draft', squad: 'Capitão' }[phase] || null;
   // Liga em andamento: "{modo} › Rodada N" (a Copa tem o próprio fluxo)
   const leagueCrumb = phase === 'playing' && gameMode !== 'copa'
@@ -6880,6 +6951,9 @@ export default function App() {
             dailyChallenge={dailyChallenge}
             dailyChallengeAlreadyPlayed={dailyChallengeAlreadyPlayed}
             onOpenDailyChallenge={() => setShowDailyChallenge(true)}
+            atualMission={atualMission}
+            atualMissionAlreadyPlayed={atualMissionAlreadyPlayed}
+            onOpenAtualMission={() => setShowAtualMission(true)}
             onOpenSerieAtual={() => setShowSerieAtualPicker(true)}
             onOpenSimulator2026={() => setSimulator2026Open(true)}
             livreTeamIds={livreTeamIds}
@@ -7079,7 +7153,22 @@ export default function App() {
              — autosave pula enquanto `multiPhase || roomSnap` —, então o
              save no disco, se existir, é de uma carreira solo real sem
              nada a ver com essa sala). */
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} isLeader={isLeader} onRematch={roomSnap ? multiLeaderRematch : undefined} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap ? undefined : newSeason} onOpenTransferMarket={roomSnap ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} cupRounds={cupRounds} />
+          <>
+          {activeMission && isSerieAtual && (
+            <AtualMissionResultPanel mission={activeMission} outcome={missionOutcome} leagueTable={leagueTable} myTeamId={myTeamId} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} />
+          )}
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} isLeader={isLeader} onRematch={roomSnap ? multiLeaderRematch : undefined} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap || activeMission ? undefined : newSeason} onOpenTransferMarket={roomSnap || activeMission ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} cupRounds={cupRounds} statsFromRound={activeMission && isSerieAtual ? activeMission.startRound : null} />
+          </>
+        )}
+        {showAtualMission && (
+          <AtualMissionModal
+            mission={atualMission}
+            alreadyPlayed={atualMissionAlreadyPlayed}
+            myTeamColor={myTeamColor}
+            currentUser={currentUser}
+            onStart={startAtualMission}
+            onClose={() => setShowAtualMission(false)}
+          />
         )}
         {viewingTeam && (
           <TeamViewModal team={viewingTeam} onClose={() => setViewingTeam(null)} myTeamColor={myTeamColor} suspensions={suspensions} injuries={injuries} />
@@ -7584,6 +7673,104 @@ function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose, isBoss, s
   );
 }
 
+// Brasileirão Atual — Desafio do dia: mostra a missão (time, rodada, tabela
+// REAL daquele momento ao redor do time e o objetivo) antes de começar.
+const atualTeamName = (id) => (TEAMS.find(t => t.id === id)?.label || id).replace(/\s+2026$/, '');
+function MissionTableSnippet({ table, highlightId, targetPosition }) {
+  const myIdx = table.findIndex(r => r.id === highlightId);
+  // Janela de 6 linhas que mostra o time e a linha do objetivo.
+  const lo = Math.max(0, Math.min(myIdx, targetPosition - 1) - 1);
+  const hi = Math.min(table.length, Math.max(myIdx, targetPosition - 1) + 2);
+  const rows = table.slice(lo, Math.max(hi, lo + 5)).map((r, k) => ({ ...r, pos: lo + k + 1 }));
+  return (
+    <div style={{ border: '1px solid var(--line)', borderRadius: 12, overflow: 'hidden', fontSize: 12.5 }}>
+      {rows.map(r => {
+        const mine = r.id === highlightId;
+        const boundary = r.pos === targetPosition;
+        return (
+          <div key={r.id} style={{ display: 'grid', gridTemplateColumns: '26px 1fr 34px 34px', gap: 6, alignItems: 'center', padding: '6px 10px', background: mine ? 'var(--gold-tint)' : 'var(--surface)', fontWeight: mine ? 700 : 500, borderBottom: boundary ? '2px dashed var(--gold-ink)' : '1px solid var(--line)' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', color: r.pos >= 17 ? 'var(--danger)' : 'var(--muted)' }}>{r.pos}º</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{atualTeamName(r.id)}</span>
+            <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>{r.pj}j</span>
+            <span style={{ textAlign: 'right', fontFamily: 'var(--font-mono)' }}>{r.pts}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function AtualMissionModal({ mission, alreadyPlayed, myTeamColor, onStart, onClose, currentUser }) {
+  const mc = teamInk(myTeamColor || '#C29A45');
+  const team = TEAMS.find(t => t.id === mission.teamId);
+  const name = atualTeamName(mission.teamId);
+  const table = useMemo(() => realTableBefore(mission.startRound), [mission.startRound]);
+  const gapText = mission.gap > 0 ? `${mission.gap} ponto${mission.gap === 1 ? '' : 's'} atrás` : mission.gap === 0 ? 'empatado em pontos' : `${-mission.gap} à frente, mas atrás no desempate`;
+  const refLabel = mission.type === 'titulo' ? 'do líder' : mission.type === 'g4' ? 'do 4º colocado' : 'do 16º colocado';
+  return (
+    <Layer onClose={onClose}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div role="dialog" aria-label="Desafio do dia do Brasileirão Atual" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 480, maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line-strong)', borderRadius: 20, padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Brasileirão Atual · Desafio do dia</div>
+          <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '6px 0 12px' }}>
+          {team && CLUB_LOGOS[team.club] && (
+            <img src={CLUB_LOGOS[team.club]} alt="" style={{ width: 44, height: 44, objectFit: 'contain', flexShrink: 0 }} onError={e => { e.currentTarget.style.display = 'none'; }} />
+          )}
+          <div>
+            <div style={{ fontWeight: 700, fontSize: 19, lineHeight: 1.2 }}>{mission.verb}: {name}</div>
+            <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 2 }}>Assuma na rodada {mission.startRound} · {mission.remaining} rodadas pela frente</div>
+          </div>
+        </div>
+        <p style={{ fontSize: 13, lineHeight: 1.5, color: 'var(--ink-2)', marginBottom: 12 }}>
+          A tabela é a real do Brasileirão 2026 antes da rodada {mission.startRound}: {name} está em <b>{mission.startPos}º</b>, {gapText} {refLabel}. Seu objetivo é <b>{mission.goal}</b>.
+        </p>
+        <MissionTableSnippet table={table} highlightId={mission.teamId} targetPosition={mission.targetPosition} />
+        <div style={{ fontSize: 12.5, color: 'var(--gold-ink)', fontWeight: 600, margin: '12px 0 14px' }}>
+          Cumpriu: +{ATUAL_MISSION_POINTS} pontos no ranking{currentUser ? '' : ' (com conta)'}. Uma tentativa por dia.
+        </div>
+        {alreadyPlayed ? (
+          <div style={{ padding: '12px 14px', borderRadius: 12, background: 'var(--surface-2)', fontSize: 13, textAlign: 'center', color: 'var(--ink-2)' }}>
+            Você já usou a tentativa de hoje. Amanhã sai uma missão nova.
+          </div>
+        ) : (
+          <button onClick={onStart} style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }}>
+            Aceitar a missão →
+          </button>
+        )}
+      </div>
+    </div>
+    </Layer>
+  );
+}
+
+function AtualMissionResultPanel({ mission, outcome, leagueTable, myTeamId, currentUser, onOpenAccount }) {
+  const finalPosition = outcome?.finalPosition ?? (leagueTable.findIndex(t => t.id === myTeamId) + 1);
+  const success = outcome?.success ?? missionSucceeded(mission, finalPosition);
+  const name = atualTeamName(mission.teamId);
+  let pointsLine = null;
+  if (success) {
+    if (!currentUser) pointsLine = <>Com uma conta, essa missão valeria +{ATUAL_MISSION_POINTS} pontos no ranking. <button onClick={onOpenAccount} style={{ background: 'none', border: 'none', padding: 0, color: 'inherit', textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>Criar conta</button></>;
+    else if (!outcome?.synced) pointsLine = 'Registrando os pontos…';
+    else if (outcome?.failed) pointsLine = 'Não deu para registrar os pontos agora.';
+    else if (outcome?.alreadyClaimed) pointsLine = 'A missão de hoje já tinha sido registrada.';
+    else pointsLine = `+${outcome?.pointsEarned || ATUAL_MISSION_POINTS} pontos no ranking global.`;
+  }
+  return (
+    <div style={{ borderRadius: 16, padding: '16px 18px', marginBottom: 16, border: `1px solid ${success ? 'var(--gold-ink)' : 'var(--line-strong)'}`, background: success ? 'var(--gold-tint)' : 'var(--surface)' }}>
+      <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Desafio do dia · {mission.verb}</div>
+      <div style={{ fontWeight: 700, fontSize: 20, margin: '4px 0 6px' }}>{success ? 'Missão cumprida!' : 'Missão não cumprida'}</div>
+      <div style={{ fontSize: 13.5, lineHeight: 1.5, color: 'var(--ink-2)' }}>
+        {name} assumiu em {mission.startPos}º na rodada {mission.startRound} e terminou em <b>{finalPosition}º</b>. O objetivo era {mission.goal}.
+      </div>
+      {pointsLine && <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--gold-ink)', marginTop: 8 }}>{pointsLine}</div>}
+      {!success && <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 8 }}>Amanhã sai uma missão nova.</div>}
+    </div>
+  );
+}
+
 // Objetivos em destaque na home — curadoria de 4 (não a galeria de 25 inteira,
 // pra não poluir a primeira tela). Mistura metas binárias (sem barra, ex.:
 // título invicto) com metas quantitativas (com barra, via getAchievementProgress).
@@ -7620,7 +7807,7 @@ function GameStatsBar({ style }) {
   );
 }
 
-function Intro({ onNewGameCrumb, onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, onOpenSimulator2026, livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer, dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge }) {
+function Intro({ onNewGameCrumb, onStart, onSetGameMode, difficulty, onSetDifficulty, myTeamColor, myTeamLogo, myTeamBadge, currentUser, onUpdateFields, onMultiPlayer, onNavigateInfo, onNavigateTeams, onOpenSerieAtual, onOpenSimulator2026, livreTeamIds, onClearLivre, onOpenLivrePicker, onOpenCareer, dailyChallenge, dailyChallengeAlreadyPlayed, onOpenDailyChallenge, atualMission, atualMissionAlreadyPlayed, onOpenAtualMission }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   const [showClub, setShowClub] = useState(false);
   const [showAchievements, setShowAchievements] = useState(false);
@@ -7673,6 +7860,10 @@ function Intro({ onNewGameCrumb, onStart, onSetGameMode, difficulty, onSetDiffic
           return alive ? (currentUser.daily_streak || 0) : 0;
         })()}
         onOpenDailyChallenge={onOpenDailyChallenge}
+        atualMission={atualMission}
+        atualMissionAlreadyPlayed={atualMissionAlreadyPlayed}
+        atualMissionLabel={atualMission ? `${atualMission.verb}: ${atualTeamName(atualMission.teamId)}` : ''}
+        onOpenAtualMission={onOpenAtualMission}
         careerLocked={CAREER_MODE_LOCKED}
         careerLaunchDismissed={careerLaunchDismissed}
         onDismissCareerLaunch={dismissCareerLaunch}
@@ -10704,6 +10895,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-desafio-do-dia-atual',
+    date: 'Novembro de 2026',
+    title: 'Desafio do dia no Brasileirão Atual',
+    desc: 'Todo dia uma missão nova, igual para todo mundo: assuma um clube real numa rodada do Brasileirão 2026, com a tabela e a forma de verdade daquele momento, e cumpra o objetivo até o fim (tirar do Z4, levar ao G4 ou ser campeão). Missão cumprida vale +500 pontos no ranking. Uma tentativa por dia. O Modo Livre também voltou a começar o campeonato logo depois de escolher os 16 times.',
+  },
+  {
     id: '2026-11-recordes-supercopa-artilharia',
     date: 'Novembro de 2026',
     title: 'Sequência e chefão na Supercopa, recorde na Copa e artilharia no Simulador',
@@ -12725,7 +12922,9 @@ function CopaRecordPanel({ stage, teamLabel, campaignLines, currentUser, mc }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision, cupRounds }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision, cupRounds, statsFromRound = null }) {
+  // Desafio do dia do Atual: as estatísticas só contam do início da missão.
+  const topScorerLabel = statsFromRound ? `Artilheiro desde a rodada ${statsFromRound}` : 'Artilheiro';
   const mc = teamInk(myTeamColor || '#C29A45');
   const [showCampaign, setShowCampaign] = useState(false);
   const [showOtherDivision, setShowOtherDivision] = useState(false);
@@ -12897,7 +13096,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
           ] : [
             { title: 'Acesso direto', text: leagueTable.slice(0, 2).map(r => (r.id === myTeamId ? r.label : parseTeamLabel(r.label).baseName)).join(', ') },
           ]),
-          ...(resultBoards.goals[0] ? [{ title: 'Artilheiro', text: `${resultBoards.goals[0].name} (${resultBoards.goals[0].team}) · ${resultBoards.goals[0].v} gols` }] : []),
+          ...(resultBoards.goals[0] ? [{ title: topScorerLabel, text: `${resultBoards.goals[0].name} (${resultBoards.goals[0].team}) · ${resultBoards.goals[0].v} gols` }] : []),
         ]}
       />
       <AnthemPlayer club={champClub} />
@@ -12988,7 +13187,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
             { label: 'Saldo', value: `${(myRow.gp ?? 0) - (myRow.gc ?? 0) > 0 ? '+' : ''}${(myRow.gp ?? 0) - (myRow.gc ?? 0)}` },
           ],
           highlights: [
-            ...(resultBoards.goals[0] ? [{ label: 'Artilheiro', text: `${resultBoards.goals[0].name} (${resultBoards.goals[0].team}) · ${resultBoards.goals[0].v} gols` }] : []),
+            ...(resultBoards.goals[0] ? [{ label: topScorerLabel, text: `${resultBoards.goals[0].name} (${resultBoards.goals[0].team}) · ${resultBoards.goals[0].v} gols` }] : []),
             ...(seasonAwards || []).slice(0, 2).map(a => ({ label: a.reason, text: a.name })),
           ],
           campaign: campaignLines.map(l => l.result),

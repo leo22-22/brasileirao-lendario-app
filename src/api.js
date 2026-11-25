@@ -85,6 +85,10 @@ export function submitCopaCampaign({ campaignKey, stage, teamLabel }) {
   return request('/me/copa-campaign', { method: 'POST', body: { campaignKey, stage, teamLabel }, auth: true });
 }
 
+export function submitAtualMissionResult({ dateKey, teamId, missionType, startRound, targetPosition, finalPosition }) {
+  return request('/me/atual-mission-result', { method: 'POST', body: { dateKey, teamId, missionType, startRound, targetPosition, finalPosition }, auth: true });
+}
+
 export function fetchLeaderboard({ limit = 30, offset = 0, uf = '', logo = '', period = 'geral' } = {}) {
   const params = new URLSearchParams({ limit, offset });
   if (uf) params.set('uf', uf);
