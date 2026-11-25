@@ -2969,6 +2969,12 @@ export default function App() {
   // novo dali pra frente. Incrementado em newSeason() (ver mais abaixo);
   // volta pro ano real em startSeason() (carreira nova do zero).
   const [seasonYear, setSeasonYear] = useState(_sv?.seasonYear ?? new Date().getFullYear());
+  // Lendário — janela do meio do ano (troca até 2 jogadores entre as rodadas
+  // 19 e 23, uma vez por temporada) e dinastia (temporadas já encerradas com
+  // o mesmo elenco; sem envelhecimento, decisão do usuário).
+  const [isMidWindow, setIsMidWindow] = useState(_sv?.isMidWindow ?? false);
+  const [midWindowUsedYear, setMidWindowUsedYear] = useState(_sv?.midWindowUsedYear ?? null);
+  const [dynastyLog, setDynastyLog] = useState(_sv?.dynastyLog ?? []);
   const seasonDates = useMemo(
     () => (fixtures.length > 0 ? buildSeasonCalendar(fixtures.length, seasonYear) : []),
     [fixtures.length, seasonYear]
@@ -3761,13 +3767,41 @@ export default function App() {
 
   const openTransferMarket = () => setPhase('transfer');
 
+  // Janela do meio do ano (Lendário/Modo Livre, pontos corridos, solo):
+  // mesmo mercado de "até 2 jogadores" do fim de temporada, mas volta pro
+  // campeonato em andamento em vez de começar outro. Uma vez por temporada.
+  const MID_WINDOW_FROM = 19; // rodadas já jogadas (fim do 1º turno)
+  const MID_WINDOW_UNTIL = 24; // fecha antes da rodada 25
+  const midWindowAvailable = phase === 'playing' && !multiPhase && !roomSnap && !isDailyChallenge && !isSerieAtual
+    && (gameMode === 'brasileirao' || gameMode === 'serieab') && fixtures.length >= 38
+    && currentRound >= MID_WINDOW_FROM && currentRound < MID_WINDOW_UNTIL
+    && midWindowUsedYear !== seasonYear && !promotionTie?.leg;
+  const openMidWindow = () => {
+    setIsMidWindow(true);
+    setMidWindowUsedYear(seasonYear);
+    setPhase('transfer');
+    trackEvent('mid_window_open', { game_mode: gameMode });
+  };
+  const skipMidWindow = () => setMidWindowUsedYear(seasonYear);
+  const finishMidWindow = () => {
+    syncLineupToLeagueTeams(pitch, captainSlot);
+    setIsMidWindow(false);
+    setSelectedPlayer(null);
+    setRepositioningSlot(null);
+    setPhase('playing');
+  };
+
   // Libera as vagas escolhidas (até 2) e reabre o draft só pra elas — mantém
   // formação, elenco restante e (se não foi liberado) o capitão intactos.
   const confirmTransferReleases = (slotKeysToRelease) => {
-    setIsTransferSeason(true);
-    if (slotKeysToRelease.length === 0) {
-      newSeason();
-      return;
+    if (isMidWindow) {
+      if (slotKeysToRelease.length === 0) { finishMidWindow(); return; }
+    } else {
+      setIsTransferSeason(true);
+      if (slotKeysToRelease.length === 0) {
+        newSeason();
+        return;
+      }
     }
     setPitch(prev => {
       const next = { ...prev };
@@ -4265,6 +4299,10 @@ export default function App() {
   };
 
   const startSeason = () => {
+    // Carreira nova (draft do zero): dinastia e janela começam do zero.
+    setDynastyLog([]);
+    setIsMidWindow(false);
+    setMidWindowUsedYear(null);
     // Carreira nova do zero: o calendário volta a começar no ano real de
     // hoje, mesmo que a carreira anterior (via "Nova Temporada") já tivesse
     // avançado vários anos.
@@ -5615,11 +5653,11 @@ export default function App() {
         // chamava startSeason() em vez de newSeason(), o que reseta
         // myDivision pra 'A' e descarta silenciosamente uma queda pra Série B.
         isTransferSeason,
-        seasonYear,
+        seasonYear, isMidWindow, midWindowUsedYear, dynastyLog,
       };
       localStorage.setItem('brl_save', JSON.stringify(save));
     } catch (e) { }
-  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isSerieAtual, serieAtualTeamId, activeMission, isTransferSeason, seasonYear, formationKey, customFormation, captainSlot]);
+  }, [phase, fixtures, currentRound, roundHistory, leagueTable, cupRounds, matchHistory, pitch, roundResults, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards, myDivision, otherDivision, divisionMove, promotionTie, isDailyChallenge, dailyOpponent, isSerieAtual, serieAtualTeamId, activeMission, isTransferSeason, seasonYear, isMidWindow, midWindowUsedYear, dynastyLog, formationKey, customFormation, captainSlot]);
 
   // Dispara a ação quando simMode muda ou rodada termina/começa
   useEffect(() => {
@@ -5748,6 +5786,9 @@ export default function App() {
     // escolhidos ficavam restringindo o sorteio de TODA carreira seguinte,
     // mesmo depois de escolher Brasileirão/Copa "normal" de novo.
     setLivreTeamIds(null);
+    setIsMidWindow(false);
+    setMidWindowUsedYear(null);
+    setDynastyLog([]);
     setLog([]);
     setRolledTeam(null);
     setIsRolling(false);
@@ -5952,7 +5993,21 @@ export default function App() {
 
   // Nova temporada com o mesmo elenco
   const newSeason = useCallback(() => {
+    // Dinastia: guarda como foi a temporada que acabou antes de zerar tudo.
+    {
+      const isCopa = gameMode === 'copa';
+      const pos = isCopa ? null : (leagueTable.findIndex(t => t.id === myTeamId) + 1 || null);
+      const entry = {
+        year: seasonYear, mode: gameMode,
+        division: gameMode === 'serieab' ? myDivision : null,
+        pos, pts: isCopa ? null : (leagueTable.find(t => t.id === myTeamId)?.pts ?? null),
+        champion: isCopa ? cupWinnerId === myTeamId : pos === 1,
+        stage: isCopa ? (cupWinnerId === myTeamId ? 'Campeão' : eliminationRoundName === 'Final' ? 'Vice' : (eliminationRoundName || null)) : null,
+      };
+      setDynastyLog(prev => [...prev, entry].slice(-30));
+    }
     setIsTransferSeason(false);
+    setIsMidWindow(false);
     setSeasonYear(y => y + 1);
     const pitchWithCaptain = captainSlot && pitch[captainSlot]
       ? { ...pitch, [captainSlot]: { ...pitch[captainSlot], ovr: pitch[captainSlot].ovr + 2, isCaptain: true } }
@@ -6044,7 +6099,7 @@ export default function App() {
       setLeagueTable([]);
     }
     setPhase('playing');
-  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo, difficulty, divisionMove]);
+  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo, difficulty, divisionMove, leagueTable, seasonYear, myTeamId, myDivision, cupWinnerId, eliminationRoundName]);
 
   // Simula todas as fases restantes da Copa até o campeão (usuário eliminado)
   // ── MULTIPLAYER (PeerJS) ──────────────────────────────────────────────────
@@ -6683,6 +6738,7 @@ export default function App() {
   const dailyOppName = dailyOpponent?.label || dailyChallenge?.opponent?.label || 'o adversário';
   const squadConfirmLabel = multiPhase === 'in-draft' ? 'Pronto'
     : isDailyChallenge ? `Enfrentar ${dailyOppName} na Supercopa`
+      : isMidWindow ? 'Voltar ao campeonato'
       : isTransferSeason ? 'Começar a nova temporada'
         : gameMode === 'copa' ? 'Disputar a Copa do Brasil'
           : 'Disputar o Brasileirão';
@@ -6982,6 +7038,7 @@ export default function App() {
         {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onChooseCustom={chooseCustomFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge && !isSerieAtual ? setGameMode : undefined} onPlayReadyMade={!isSerieAtual && roomSnap?.gameMode !== 'atual2026' ? useReadyMadeSquad : undefined} isDailyChallenge={isDailyChallenge} myTeamColor={myTeamColor} modeLabel={classicModeLabel} difficulty={multiPhase ? null : difficulty} steps={newGameSteps} />}
         {phase === 'transfer' && (
           <TransferMarket
+            midSeason={isMidWindow}
             pitch={pitch}
             pitchSlots={pitchSlots}
             myTeamColor={myTeamColor}
@@ -6990,7 +7047,7 @@ export default function App() {
         )}
         {phase === 'draft' && (
           <Draft
-            onBack={(!multiPhase && !isTransferSeason) ? () => { setPhase('formation'); setPitch({}); setUsedTeamIds([]); setLog([]); setRolledTeam(null); setSkipsLeft(MAX_SKIPS); } : undefined}
+            onBack={(!multiPhase && !isTransferSeason && !isMidWindow) ? () => { setPhase('formation'); setPitch({}); setUsedTeamIds([]); setLog([]); setRolledTeam(null); setSkipsLeft(MAX_SKIPS); } : undefined}
             rolledTeam={rolledTeam}
             isRolling={isRolling}
             rollingPreview={rollingPreview}
@@ -7029,8 +7086,8 @@ export default function App() {
             pitch={pitch} pitchSlots={pitchSlots}
             formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
             captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
-            onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : isDailyChallenge ? confirmDailyChallenge : isSerieAtual ? confirmSerieAtual : (isTransferSeason ? newSeason : startSeason)}
-            onRedo={!isTransferSeason && !isDailyChallenge && !isSerieAtual ? () => { setPhase('formation'); setCaptainSlot(null); } : undefined}
+            onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : isDailyChallenge ? confirmDailyChallenge : isSerieAtual ? confirmSerieAtual : isMidWindow ? finishMidWindow : (isTransferSeason ? newSeason : startSeason)}
+            onRedo={!isTransferSeason && !isMidWindow && !isDailyChallenge && !isSerieAtual ? () => { setPhase('formation'); setCaptainSlot(null); } : undefined}
             myTeamColor={myTeamColor}
             selectedPlayer={selectedPlayer}
             repositioningSlot={repositioningSlot}
@@ -7048,6 +7105,14 @@ export default function App() {
           <MultiWaitingScreen
             roomData={roomSnap} myId={MY_PID} isLeader={isLeader}
             myTeamColor={myTeamColor} onSimulate={multiLeaderSimulate}
+          />
+        )}
+        {midWindowAvailable && !fastSimActive && !isSimulating && (
+          <MidWindowBanner
+            roundsLeft={MID_WINDOW_UNTIL - currentRound}
+            myTeamColor={myTeamColor}
+            onOpen={openMidWindow}
+            onSkip={skipMidWindow}
           />
         )}
         {phase === 'playing' && (
@@ -7157,7 +7222,7 @@ export default function App() {
           {activeMission && isSerieAtual && (
             <AtualMissionResultPanel mission={activeMission} outcome={missionOutcome} leagueTable={leagueTable} myTeamId={myTeamId} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} />
           )}
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} isLeader={isLeader} onRematch={roomSnap ? multiLeaderRematch : undefined} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap || activeMission ? undefined : newSeason} onOpenTransferMarket={roomSnap || activeMission ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} cupRounds={cupRounds} statsFromRound={activeMission && isSerieAtual ? activeMission.startRound : null} />
+          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} isLeader={isLeader} onRematch={roomSnap ? multiLeaderRematch : undefined} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap || activeMission ? undefined : newSeason} onOpenTransferMarket={roomSnap || activeMission ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} cupRounds={cupRounds} statsFromRound={activeMission && isSerieAtual ? activeMission.startRound : null} dynasty={roomSnap || isSerieAtual ? null : dynastyLog} seasonYear={seasonYear} />
           </>
         )}
         {showAtualMission && (
@@ -10091,7 +10156,27 @@ function Draft({ onBack, rolledTeam, isRolling, rollingPreview, pitch, pitchSlot
 // Mercado de transferências entre temporadas: libera até 2 jogadores do
 // elenco pra sortear substitutos (reaproveita o dado do draft original,
 // só que preenchendo apenas as vagas liberadas — sem orçamento).
-function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
+// Aviso da janela do meio do ano (Lendário/Modo Livre) em cima da tela de
+// jogo, entre as rodadas 19 e 24. "Agora não" fecha a janela da temporada.
+function MidWindowBanner({ roundsLeft, myTeamColor, onOpen, onSkip }) {
+  const mc = teamInk(myTeamColor || '#C29A45');
+  return (
+    <div role="region" aria-label="Janela do meio do ano" style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap', padding: '14px 16px', marginBottom: 14, borderRadius: 16, border: '1px solid var(--gold-ink)', background: 'var(--gold-tint)' }}>
+      <div style={{ flex: '1 1 260px', minWidth: 0 }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Janela do meio do ano</div>
+        <div style={{ fontSize: 14, lineHeight: 1.45, marginTop: 2 }}>
+          Fim do 1º turno: troque até 2 jogadores do elenco. Fecha {roundsLeft <= 1 ? 'depois desta rodada' : `em ${roundsLeft} rodadas`}.
+        </div>
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+        <button onClick={onSkip} className="ui-btn ui-btn-ghost" style={{ padding: '9px 14px', borderRadius: 999, border: '1px solid var(--line-strong)', background: 'var(--surface)', color: 'var(--ink)', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>Agora não</button>
+        <button onClick={onOpen} style={{ padding: '9px 16px', borderRadius: 999, border: 'none', background: mc, color: '#fff', fontWeight: 700, fontSize: 13, cursor: 'pointer' }}>Abrir a janela</button>
+      </div>
+    </div>
+  );
+}
+
+function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm, midSeason = false }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   const [releasedKeys, setReleasedKeys] = useState([]);
   const starterSlots = pitchSlots.filter(s => !s.isBench).sort((a, b) => posOrderIndex(a.realPos) - posOrderIndex(b.realPos));
@@ -10131,10 +10216,11 @@ function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
 
   return (
     <div style={styles.card} className="card-mob">
-      <div style={styles.eyebrow}>Mercado de Transferências</div>
+      <div style={styles.eyebrow}>{midSeason ? 'Janela do meio do ano' : 'Mercado de Transferências'}</div>
       <h2 style={styles.h2}>Libere até 2 jogadores pra sortear substitutos</h2>
       <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 16, lineHeight: 1.5 }}>
         Toque em quem você quer dispensar (até 2, titular ou banco). Pra cada um, você volta a rolar o dado igual no draft original até achar alguém pra vaga. Sem orçamento — é troca direta.
+        {midSeason && ' Depois o campeonato continua de onde parou, com a tabela como está. A janela abre uma vez por temporada.'}
       </p>
 
       <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 6 }}>Titulares</div>
@@ -10147,7 +10233,7 @@ function TransferMarket({ pitch, pitchSlots, myTeamColor, onConfirm }) {
         onClick={() => onConfirm(releasedKeys)}
       >
         {releasedKeys.length === 0
-          ? 'Manter elenco e seguir →'
+          ? (midSeason ? 'Manter elenco e voltar ao campeonato →' : 'Manter elenco e seguir →')
           : `Liberar ${releasedKeys.length} e sortear substituto${releasedKeys.length > 1 ? 's' : ''} →`}
       </button>
     </div>
@@ -10897,8 +10983,8 @@ const WHATS_NEW = [
   {
     id: '2026-11-desafio-do-dia-atual',
     date: 'Novembro de 2026',
-    title: 'Desafio do dia no Brasileirão Atual',
-    desc: 'Todo dia uma missão nova, igual para todo mundo: assuma um clube real numa rodada do Brasileirão 2026, com a tabela e a forma de verdade daquele momento, e cumpra o objetivo até o fim (tirar do Z4, levar ao G4 ou ser campeão). Missão cumprida vale +500 pontos no ranking. Uma tentativa por dia. O Modo Livre também voltou a começar o campeonato logo depois de escolher os 16 times.',
+    title: 'Desafio do dia no Brasileirão Atual, janela do meio do ano e dinastia no Lendário',
+    desc: 'Todo dia uma missão nova, igual para todo mundo: assuma um clube real numa rodada do Brasileirão 2026, com a tabela e a forma de verdade daquele momento, e cumpra o objetivo até o fim (tirar do Z4, levar ao G4 ou ser campeão). Missão cumprida vale +500 pontos no ranking. Uma tentativa por dia. No Brasileirão Lendário, o fim do 1º turno abre a janela do meio do ano (troque até 2 jogadores e siga o campeonato), e a partir da 2ª temporada com o mesmo elenco a tela final mostra sua dinastia: temporadas, títulos e sequência. O Modo Livre também voltou a começar o campeonato logo depois de escolher os 16 times.',
   },
   {
     id: '2026-11-recordes-supercopa-artilharia',
@@ -12855,6 +12941,38 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
 // (uma vez por campanha — `campaignKey` sai das próprias partidas) e mostra
 // a melhor campanha e as últimas. Com conta, vale o servidor; sem conta, o
 // aparelho (lib/localRecords).
+// Dinastia (Lendário): temporadas seguidas com o mesmo elenco montado no
+// draft — sem envelhecer ninguém. Só aparece a partir da 2ª temporada.
+function dynastyLine(e) {
+  if (e.mode === 'copa') return e.champion ? 'Campeão da Copa' : e.stage ? `Copa: ${e.stage}` : 'Copa do Brasil';
+  const div = e.division ? `Série ${e.division} · ` : '';
+  return `${div}${e.pos ? `${e.pos}º lugar` : '-'}${e.pts != null ? ` · ${e.pts} pts` : ''}`;
+}
+function DynastyPanel({ dynasty, current, mc }) {
+  if (!dynasty?.length) return null;
+  const all = [...dynasty, current];
+  const titles = all.filter(e => e.champion).length;
+  let streak = 0;
+  for (let i = all.length - 1; i >= 0 && all[i].champion; i--) streak++;
+  const summary = [`${all.length}ª temporada com este elenco`, `${titles} título${titles === 1 ? '' : 's'}`];
+  if (streak >= 2) summary.push(`${streak} seguidos`);
+  return (
+    <ResultSection label="Sua dinastia" mc={mc}>
+      <div style={{ fontSize: 13.5, fontWeight: 600, marginBottom: 8 }}>{summary.join(' · ')}</div>
+      {all.slice(-8).map((e, i, arr) => {
+        const isNow = i === arr.length - 1;
+        return (
+          <div key={`${e.year}-${i}`} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, padding: '5px 0', borderTop: i ? '1px solid var(--line)' : 'none' }}>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>{e.year}{isNow ? ' · agora' : ''}</span>
+            <span style={{ fontWeight: e.champion ? 700 : 500, color: e.champion ? 'var(--gold-ink)' : 'var(--ink-2)' }}>{e.champion && e.mode !== 'copa' ? 'Campeão · ' : ''}{dynastyLine(e)}</span>
+          </div>
+        );
+      })}
+      {all.length > 8 && <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>Mostrando as últimas 8 de {all.length} temporadas.</div>}
+    </ResultSection>
+  );
+}
+
 function copaStageOf({ userWon, eliminationRoundName }) {
   if (userWon) return 5;
   if (eliminationRoundName === 'Final') return 4;
@@ -12922,7 +13040,16 @@ function CopaRecordPanel({ stage, teamLabel, campaignLines, currentUser, mc }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision, cupRounds, statsFromRound = null }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision, cupRounds, statsFromRound = null, dynasty = null, seasonYear = null }) {
+  const dynastyCurrent = (() => {
+    if (!dynasty?.length) return null;
+    if (gameMode === 'copa') {
+      const won = cupWinnerId === myTeamId;
+      return { year: seasonYear, mode: 'copa', champion: won, stage: won ? 'Campeão' : eliminationRoundName === 'Final' ? 'Vice' : (eliminationRoundName || null) };
+    }
+    const pos = leagueTable.findIndex(t => t.id === myTeamId) + 1 || null;
+    return { year: seasonYear, mode: gameMode, division: gameMode === 'serieab' ? myDivision : null, pos, pts: leagueTable.find(t => t.id === myTeamId)?.pts ?? null, champion: pos === 1 };
+  })();
   // Desafio do dia do Atual: as estatísticas só contam do início da missão.
   const topScorerLabel = statsFromRound ? `Artilheiro desde a rodada ${statsFromRound}` : 'Artilheiro';
   const mc = teamInk(myTeamColor || '#C29A45');
@@ -12993,6 +13120,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
 
         <CopaRecordPanel stage={copaStageOf({ userWon, eliminationRoundName })} teamLabel={myLabel} campaignLines={campaignLines} currentUser={currentUser} mc={mc} />
 
+        <DynastyPanel dynasty={dynasty} current={dynastyCurrent} mc={mc} />
         {seasonAwards?.length > 0 && (
           <ResultSection label="Prêmios da Temporada" mc={mc}>
             {seasonAwards.map(a => (
@@ -13133,6 +13261,8 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         </ResultSection>
       )}
 
+
+      <DynastyPanel dynasty={dynasty} current={dynastyCurrent} mc={mc} />
 
       {seasonAwards?.length > 0 && (
         <ResultSection label="Prêmios da Temporada" mc={mc}>
