@@ -49,6 +49,7 @@ import { HomeLanding } from './home/HomeLanding.jsx';
 import { displayName } from './lib/displayName.js';
 import AchievementsGallery from './components/achievements/AchievementsGallery.jsx';
 import { recordLocalDailyPlay, readLocalDailyStreak, recordLocalCopaCampaign, rememberCopaOutcome, previousDateKey, COPA_STAGE_LABELS } from './lib/localRecords.js';
+import { encodeChallenge, decodeChallenge, challengeUrl, readChallengeFromUrl, clearChallengeFromUrl } from './lib/linkChallenge.js';
 import { getAtualMission, realResultsBefore, realTableBefore, missionSucceeded, readAtualMissionDone, markAtualMissionDone, ATUAL_MISSION_POINTS } from './lib/atualMission.js';
 import { ShareResultButton as ShareCardButton } from './components/share/ShareResultButton.jsx';
 import { AchievementMedal, AchievementNearCard, MedalBadge } from './components/achievements/AchievementParts.jsx';
@@ -2722,11 +2723,22 @@ export default function App() {
   // parte: continua sendo Brasileirão/Copa por baixo, só muda de ONDE o
   // draft sorteia.
   const [livreTeamIds, setLivreTeamIds] = useState(_sv?.livreTeamIds ?? null);
+  // Criador de torneio do Modo Livre: { name, format: 'liga2'|'liga1'|'mata', size }.
+  // Os times escolhidos (livreTeamIds) formam o torneio de verdade.
+  const [livreTournament, setLivreTournament] = useState(_sv?.livreTournament ?? null);
   const [showLivrePicker, setShowLivrePicker] = useState(false);
   // Pool de onde o draft sorteia — os 200 de sempre, ou só os 16 do Modo
   // Livre quando configurado. Usado nos 3 pontos que rolam um novo time
   // (primeiro sorteio, pular, e o auto-sorteio depois de escalar um jogador).
   const draftPool = livreTeamIds ? LEGACY_TEAMS.filter(t => livreTeamIds.includes(t.id)) : LEGACY_TEAMS;
+  // Sorteio do draft: no Modo Livre, se os times escolhidos acabarem antes
+  // de fechar o elenco (são poucos, um jogador por time), completa com o
+  // acervo — senão o draft terminava com vaga vazia.
+  const draftCandidates = (excludeIds) => {
+    const fromPool = draftPool.filter(t => !excludeIds.includes(t.id));
+    if (fromPool.length || !livreTeamIds) return fromPool;
+    return LEGACY_TEAMS.filter(t => !excludeIds.includes(t.id));
+  };
   const [isRolling, setIsRolling] = useState(false);
   const [rollingPreview, setRollingPreview] = useState(null);
   const [selectedPlayer, setSelectedPlayer] = useState(null);
@@ -2920,6 +2932,23 @@ export default function App() {
   const [showAtualMission, setShowAtualMission] = useState(false);
   const [atualMissionDoneDate, setAtualMissionDoneDate] = useState(() => readAtualMissionDone());
   const atualMissionAlreadyPlayed = atualMissionDoneDate === atualMission.dateKey;
+
+  // Desafio por link (lib/linkChallenge): `linkCreate` = montando um time só
+  // pra gerar o link; `isLinkChallenge` = jogando contra o time que veio no
+  // link (`linkOpponent`). Nenhum dos dois é salvo (autosave pula), e sair
+  // recarrega a página pra voltar ao save de verdade — igual à Supercopa.
+  const [linkCreate, setLinkCreate] = useState(false);
+  // Duelo 1x1 (sala de amigos): só vive em memória, como toda sala.
+  const [isDuel, setIsDuel] = useState(false);
+  const [isLinkChallenge, setIsLinkChallenge] = useState(false);
+  const [linkOpponent, setLinkOpponent] = useState(null);
+  const [linkShareUrl, setLinkShareUrl] = useState(null);
+  const [incomingChallenge, setIncomingChallenge] = useState(() => {
+    const code = readChallengeFromUrl();
+    if (!code) return null;
+    const decoded = decodeChallenge(code, TEAMS, buildPitchSlots, FORMATIONS);
+    return decoded ? { ...decoded, code } : { invalid: true };
+  });
 
   // Multiplayer (PeerJS)
   const [multiPhase, setMultiPhase] = useState(null); // null|'lobby'|'room'
@@ -3349,7 +3378,7 @@ export default function App() {
   // qualquer outro caminho que deixe o draft sem time na mão.
   useEffect(() => {
     if (phase !== 'draft' || rolledTeam || isRolling) return;
-    const candidates = draftPool.filter(t => !usedTeamIds.includes(t.id));
+    const candidates = draftCandidates(usedTeamIds);
     if (candidates.length === 0) return; // aí é o fim real da pool — a tela vazia tem saída própria
     rollWithAnimation(shuffle2(candidates)[0], candidates);
   }, [phase, rolledTeam, isRolling, usedTeamIds, rollWithAnimation]);
@@ -3562,6 +3591,94 @@ export default function App() {
     setLeagueTeams([myTeamObj, oppTeamObj]);
     setLeagueTable([myTeamObj, oppTeamObj].map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 })));
     setFixtures([[{ homeId: MY_TEAM_ID, awayId: opp.id }]]);
+    setCurrentRound(0);
+    setGameMode('brasileirao');
+    setClockMinute(0);
+    setIsSimulating(false);
+    setLiveEvents([]);
+    setLiveScore({ home: 0, away: 0 });
+    setRoundResults(null);
+    setActiveUserMatch(null);
+    setMatchHistory([]);
+    setRoundHistory({});
+    setScorers({});
+    setAssisters({});
+    setCleanSheets({});
+    setSeasonRatings({});
+    setCardCounts({});
+    setRedCards({});
+    setSuspensions({});
+    setInjuries({});
+    setLastRoundDiscipline(null);
+    setLastMatchRatings(null);
+    setTeamForm({});
+    setSeasonAwards([]);
+    setPhase('playing');
+  };
+
+  // ── Desafio por link ──────────────────────────────────────────────────
+  const resetForQuickDraft = () => {
+    setFormationKey(null);
+    setPitchSlots([]);
+    setPitch({});
+    setUsedTeamIds([]);
+    setSkipsLeft(MAX_SKIPS);
+    setLog([]);
+    setSelectedPlayer(null);
+    setRepositioningSlot(null);
+    setCaptainSlot(null);
+    setRolledTeam(null);
+  };
+  // Montar um time só pra gerar o link (não joga nada agora).
+  const startLinkCreate = () => {
+    resetForQuickDraft();
+    setIsLinkChallenge(false);
+    setLinkOpponent(null);
+    setLinkCreate(true);
+    setMultiPhase(null);
+    setGameMode('brasileirao');
+    setPhase('formation');
+    trackEvent('link_challenge_create_start', {});
+  };
+  // Gera o link a partir de um elenco (o que acabou de montar, ou o do
+  // resultado, no "desafiar de volta").
+  const shareSquadAsChallenge = (srcPitch = pitch, srcSlots = pitchSlots, srcCaptain = captainSlot, srcFormation = formationKey) => {
+    const code = encodeChallenge({ name: myTeamName || 'Meu Time', color: myTeamColor, formationKey: srcFormation, pitchSlots: srcSlots, pitch: srcPitch, captainSlot: srcCaptain }, TEAMS);
+    if (!code) { alert('Não deu para gerar o link com esse elenco.'); return; }
+    setLinkShareUrl(challengeUrl(code));
+    trackEvent('link_challenge_created', {});
+  };
+  // Quem abriu o link aceitou: monta o próprio time e enfrenta o do amigo.
+  const acceptIncomingChallenge = () => {
+    const opp = incomingChallenge;
+    clearChallengeFromUrl();
+    setIncomingChallenge(null);
+    if (!opp || opp.invalid) return;
+    resetForQuickDraft();
+    setLinkCreate(false);
+    setLinkOpponent(opp);
+    setIsLinkChallenge(true);
+    setMultiPhase(null);
+    setGameMode('brasileirao');
+    setPhase('formation');
+    trackEvent('link_challenge_accepted', {});
+  };
+  const dismissIncomingChallenge = () => {
+    clearChallengeFromUrl();
+    setIncomingChallenge(null);
+  };
+  const confirmLinkChallenge = () => {
+    const opp = linkOpponent;
+    if (!opp) return;
+    const withCap = (pt, cap) => (cap && pt[cap] ? { ...pt, [cap]: { ...pt[cap], ovr: pt[cap].ovr + 2, isCaptain: true } } : pt);
+    const myPitch = withCap(pitch, captainSlot);
+    const oppPitch = withCap(opp.pitch, opp.captainSlot);
+    const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, club: clubFromLogo(myTeamLogo), ovr: teamStrength(myPitch), players: partitionStartersFirst(Object.values(myPitch)) };
+    const oppPlayers = partitionStartersFirst(Object.values(oppPitch));
+    const oppTeamObj = { id: 'link_opp', label: opp.name || 'Time do amigo', color: opp.color || '#555555', clubLogo: null, ovr: teamStrength(oppPitch), players: oppPlayers };
+    setLeagueTeams([myTeamObj, oppTeamObj]);
+    setLeagueTable([myTeamObj, oppTeamObj].map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 })));
+    setFixtures([[{ homeId: MY_TEAM_ID, awayId: 'link_opp' }]]);
     setCurrentRound(0);
     setGameMode('brasileirao');
     setClockMinute(0);
@@ -4268,7 +4385,7 @@ export default function App() {
       setPhase('squad');
       setRolledTeam(null);
     } else {
-      const candidates = draftPool.filter(t => !usedTeamIds.includes(t.id) && t.id !== rolledTeam.id);
+      const candidates = draftCandidates([...usedTeamIds, rolledTeam.id]);
       if (candidates.length === 0) { setPhase('squad'); }
       else rollWithAnimation(shuffle2(candidates)[0], candidates);
     }
@@ -4293,10 +4410,34 @@ export default function App() {
     setUsedTeamIds(prev => [...prev, rolledTeam.id]);
     setLog(prev => [...prev, { teamLabel: rolledTeam.label, skipped: true }]);
     setSelectedPlayer(null);
-    const candidates = draftPool.filter(t => ![...usedTeamIds, rolledTeam.id].includes(t.id));
+    const candidates = draftCandidates([...usedTeamIds, rolledTeam.id]);
     if (candidates.length === 0) setPhase('squad');
     else rollWithAnimation(shuffle2(candidates)[0], candidates);
   };
+
+  // Adversários da temporada: no Modo Livre com torneio, exatamente os times
+  // escolhidos; fora dele, sorteio do acervo inteiro (como sempre foi).
+  const buildSeasonOpponents = (neededAI) => {
+    let source;
+    if (livreTournament && livreTeamIds?.length) {
+      source = shuffle2(TEAMS.filter(t => livreTeamIds.includes(t.id)));
+    } else {
+      let pool = [];
+      while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
+      source = pool.slice(0, neededAI);
+    }
+    return source.map((t, idx) => {
+      const playersWithMeta = applyDifficultyToPlayers(aiSquadPlayers(t), difficulty);
+      return {
+        id: `${t.id}_${idx}`, label: t.label, club: t.club, clubLogo: CLUB_LOGOS[t.club] || null,
+        ovr: teamStrength(Object.fromEntries(playersWithMeta.map((p, i) => [i, p]))), players: playersWithMeta,
+      };
+    });
+  };
+  // Calendário da liga: turno único no torneio que pedir, ida e volta no resto.
+  const buildLeagueFixtures = (ids) => (livreTournament?.format === 'liga1'
+    ? generateRoundRobin(shuffle2(ids))
+    : generateDoubleRoundRobin(shuffle2(ids)));
 
   const startSeason = () => {
     // Carreira nova (draft do zero): dinastia e janela começam do zero.
@@ -4315,24 +4456,8 @@ export default function App() {
     const userPlayers = partitionStartersFirst(Object.values(pitchWithCaptain));
 
     const neededAI = (gameMode === 'brasileirao' || gameMode === 'serieab') ? 19 : 31;
-    // Gera pool com repetição se necessário
-    let pool = [];
-    while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
-    const opps = pool.slice(0, neededAI).map((t, idx) => {
-      // Adiciona club/year/nat — usados no hino do clube, no áudio de gol e na visualização de elenco
-      const playersWithMeta = applyDifficultyToPlayers(
-        aiSquadPlayers(t),
-        difficulty
-      );
-      return {
-        id: `${t.id}_${idx}`,
-        label: t.label,
-        club: t.club,
-        clubLogo: CLUB_LOGOS[t.club] || null,
-        ovr: teamStrength(Object.fromEntries(playersWithMeta.map((p, i) => [i, p]))),
-        players: playersWithMeta,
-      };
-    });
+    // club/year/nat de cada jogador são usados no hino, no áudio de gol e no elenco.
+    const opps = buildSeasonOpponents(neededAI);
 
     const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, club: clubFromLogo(myTeamLogo), ovr: userOvr, players: userPlayers };
     const allTeams = [myTeamObj, ...opps];
@@ -4382,7 +4507,7 @@ export default function App() {
       // círculo mantém o índice 0 fixo, então a POSIÇÃO no array determina em
       // que rodada cada dupla se enfrenta. Com o time do usuário sempre no
       // índice 0, o padrão de adversários saía idêntico toda temporada.
-      const rounds = generateDoubleRoundRobin(shuffle2(allTeams.map(t => t.id)));
+      const rounds = buildLeagueFixtures(allTeams.map(t => t.id));
       const table = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
       setFixtures(rounds);
       setLeagueTable(table);
@@ -4868,6 +4993,13 @@ export default function App() {
         });
         return next;
       });
+    }
+
+    // Desafio por link e duelo 1x1 são amistosos: não valem ranking,
+    // título nem conquista.
+    if (isLinkChallenge || isDuel) {
+      trackEvent('link_challenge_played', {});
+      return;
     }
 
     // Desafio do dia do Atual: é meia temporada (a partir da tabela real),
@@ -5631,11 +5763,11 @@ export default function App() {
     // sobrescreveria o save de uma carreira de verdade que já estava rolando
     // antes de abrir a Supercopa. Como o desafio nunca é retomável entre
     // sessões (1x por dia, sem "Continuar"), não custa nada não persistir.
-    if (isDailyChallenge) return;
+    if (isDailyChallenge || isLinkChallenge || linkCreate) return;
     try {
       const save = {
         phase, formationKey, customFormation, pitchSlots, pitch, usedTeamIds, skipsLeft, log, captainSlot,
-        gameMode, livreTeamIds, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo,
+        gameMode, livreTeamIds, livreTournament, myTeamName, myTeamBadge, myTeamColor, myTeamCoach, myTeamCity, myTeamLogo,
         leagueTeams, leagueTable, fixtures, currentRound, roundHistory,
         cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, cupWinnerId,
         matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, teamForm, seasonAwards,
@@ -5786,6 +5918,7 @@ export default function App() {
     // escolhidos ficavam restringindo o sorteio de TODA carreira seguinte,
     // mesmo depois de escolher Brasileirão/Copa "normal" de novo.
     setLivreTeamIds(null);
+    setLivreTournament(null);
     setIsMidWindow(false);
     setMidWindowUsedYear(null);
     setDynastyLog([]);
@@ -5902,6 +6035,7 @@ export default function App() {
   const describePhase = (p) => {
     if (!p || p === 'intro' || p === 'results') return null;
     if (isDailyChallenge) return 'a Supercopa do Brasil';
+    if (isLinkChallenge || linkCreate) return null;
     if (p === 'playing') {
       if (gameMode === 'copa') return CUP_ROUND_NAMES[cupRoundIdx] || 'Copa do Brasil';
       if (isSerieAtual) return `${activeMission ? `Desafio do dia (${activeMission.verb.toLowerCase()})` : 'Brasileirão Atual'} · Rodada ${currentRound + 1} de ${fixtures.length}`;
@@ -5966,29 +6100,32 @@ export default function App() {
   // livreTeamIds (de propósito — ver comentário lá), então quem inicia pelo
   // Modo Livre reaplica a escolha depois de zerar o save antigo.
   const startingLivreRef = useRef(null);
-  const goToFormationPicker = (livreIds = null) => {
-    startingLivreRef.current = Array.isArray(livreIds) ? livreIds : null;
+  const goToFormationPicker = (livreIds = null, tournament = null) => {
+    startingLivreRef.current = Array.isArray(livreIds) ? { ids: livreIds, tournament } : null;
     // Só pede confirmação se há algo pra retomar. Jogo que já terminou
     // (savedPhase 'results') não tem "Continuar" — o aviso saía com o nome da
     // etapa em branco ("partida salva em ."). Nesse caso zera e segue direto.
     if (savedPhase && describePhase(savedPhase)) { setShowOverwriteConfirm(true); return; }
     if (savedPhase) { restart(); setSavedPhase(null); }
-    if (startingLivreRef.current) setLivreTeamIds(startingLivreRef.current);
+    if (startingLivreRef.current) { setLivreTeamIds(startingLivreRef.current.ids); setLivreTournament(startingLivreRef.current.tournament); }
     setPhase('formation');
   };
   const confirmNewGameOverSave = () => {
     setShowOverwriteConfirm(false);
     restart();
-    if (startingLivreRef.current) setLivreTeamIds(startingLivreRef.current);
+    if (startingLivreRef.current) { setLivreTeamIds(startingLivreRef.current.ids); setLivreTournament(startingLivreRef.current.tournament); }
     setPhase('formation');
   };
   // Modo Livre: confirmar os 16 times já começa o campeonato (antes só
   // fechava o modal e voltava pra home sem iniciar nada).
-  const startLivre = (ids, format) => {
+  const startLivre = ({ ids, format, size, name }) => {
+    const tournament = { name: name || 'Modo Livre', format, size };
     setLivreTeamIds(ids);
-    setGameMode(format);
+    setLivreTournament(tournament);
+    setGameMode(format === 'mata' ? 'copa' : 'brasileirao');
     setShowLivrePicker(false);
-    goToFormationPicker(ids);
+    goToFormationPicker(ids, tournament);
+    trackEvent('livre_tournament_created', { format, size });
   };
 
   // Nova temporada com o mesmo elenco
@@ -6047,22 +6184,7 @@ export default function App() {
     setSeasonAwards([]);
 
     const neededAI = (gameMode === 'brasileirao' || gameMode === 'serieab') ? 19 : 31;
-    let pool = [];
-    while (pool.length < neededAI) pool = [...pool, ...shuffle2([...TEAMS])];
-    const opps = pool.slice(0, neededAI).map((t, idx) => {
-      const playersWithMeta = applyDifficultyToPlayers(
-        aiSquadPlayers(t),
-        difficulty
-      );
-      return {
-        id: `${t.id}_${idx}`,
-        label: t.label,
-        club: t.club,
-        clubLogo: CLUB_LOGOS[t.club] || null,
-        ovr: teamStrength(Object.fromEntries(playersWithMeta.map((p, i) => [i, p]))),
-        players: playersWithMeta,
-      };
-    });
+    const opps = buildSeasonOpponents(neededAI);
 
     const myTeamObj = { id: MY_TEAM_ID, label: myTeamName || 'Meu Time', badge: myTeamBadge, color: myTeamColor, logo: myTeamLogo, club: clubFromLogo(myTeamLogo), ovr: userOvr, players: userPlayers };
     const allTeams = [myTeamObj, ...opps];
@@ -6073,7 +6195,7 @@ export default function App() {
       // círculo mantém o índice 0 fixo, então a POSIÇÃO no array determina em
       // que rodada cada dupla se enfrenta. Com o time do usuário sempre no
       // índice 0, o padrão de adversários saía idêntico toda temporada.
-      const rounds = generateDoubleRoundRobin(shuffle2(allTeams.map(t => t.id)));
+      const rounds = buildLeagueFixtures(allTeams.map(t => t.id));
       const table = allTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 }));
       setFixtures(rounds);
       setLeagueTable(table);
@@ -6099,7 +6221,7 @@ export default function App() {
       setLeagueTable([]);
     }
     setPhase('playing');
-  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo, difficulty, divisionMove, leagueTable, seasonYear, myTeamId, myDivision, cupWinnerId, eliminationRoundName]);
+  }, [pitch, captainSlot, gameMode, myTeamName, myTeamBadge, myTeamColor, myTeamLogo, difficulty, divisionMove, leagueTable, seasonYear, myTeamId, myDivision, cupWinnerId, eliminationRoundName, livreTournament, livreTeamIds]);
 
   // Simula todas as fases restantes da Copa até o campeão (usuário eliminado)
   // ── MULTIPLAYER (PeerJS) ──────────────────────────────────────────────────
@@ -6160,7 +6282,7 @@ export default function App() {
       // Brasileirão Atual: não preenche vaga nenhuma com IA aqui — a "IA" desse
       // modo é cada um dos 20 clubes reais que ninguém escolheu, decidido só
       // depois (na fase 'simulation'), não um número fixo de vagas da sala.
-      if (prev.gameMode === 'atual2026') {
+      if (prev.gameMode === 'atual2026' || prev.gameMode === 'duelo') {
         const next = { ...prev, phase: 'team-setup' };
         leaderBroadcast({ type: 'snap', snap: next });
         return next;
@@ -6264,7 +6386,7 @@ export default function App() {
           conn._pid = msg.pid; // lembra qual jogador da sala esta conexão representa (p/ limpeza ao desconectar)
           setRoomSnap(prev => {
             if (!prev) return prev;
-            const maxP = prev.gameMode === 'copa' ? 32 : 20;
+            const maxP = prev.gameMode === 'copa' ? 32 : prev.gameMode === 'duelo' ? 2 : 20;
             if (Object.keys(prev.players).length >= maxP) { conn.send({ type: 'error', msg: 'Sala cheia!' }); return prev; }
             const next = { ...prev, players: { ...prev.players, [msg.pid]: { name: msg.name, color: msg.color, logo: msg.logo || null, coach: msg.coach || '', city: msg.city || '', ready: false, pitch: null, ovr: 0 } } };
             leaderBroadcast({ type: 'snap', snap: next });
@@ -6645,6 +6767,33 @@ export default function App() {
       return;
     }
 
+    if (gMode === 'duelo') {
+      // Duelo 1x1: só os dois humanos, jogo de ida e jogo de volta. Quem
+      // abre em casa sai da seed da sala (igual em todos os peers).
+      const duelHumans = players.filter(([, p]) => !p.isAI).slice(0, 2);
+      const sameName = duelHumans.length === 2 && (duelHumans[0][1].name || 'Jogador') === (duelHumans[1][1].name || 'Jogador');
+      const duelTeams = duelHumans.map(([pid, p]) => ({
+        // Nomes iguais (os dois com o padrão "Meu Time") ficavam impossíveis
+        // de distinguir; quem não é o líder ganha "(convidado)".
+        id: pid, label: `${p.name || 'Jogador'}${sameName && pid !== roomSnap.leaderId ? ' (convidado)' : ''}`, badge: '', color: p.color || 'var(--gold-ink)',
+        logo: p.logo || null, clubLogo: p.logo || null, club: clubFromLogo(p.logo), ovr: p.ovr || 70,
+        players: p.pitch ? partitionStartersFirst(Object.values(p.pitch)) : [], isHuman: true,
+      }));
+      const [a, b] = makePrng(roomSnap.seed + 4)() < 0.5 ? duelTeams : [...duelTeams].reverse();
+      setGameMode('brasileirao');
+      setIsDuel(true);
+      setLeagueTeams(duelTeams);
+      setFixtures([[{ homeId: a.id, awayId: b.id }], [{ homeId: b.id, awayId: a.id }]]);
+      setLeagueTable(duelTeams.map(t => ({ id: t.id, label: t.label, clubLogo: t.clubLogo || null, pts: 0, pj: 0, v: 0, e: 0, d: 0, gp: 0, gc: 0 })));
+      setCurrentRound(0);
+      setCupRounds([]);
+      setCupLeg(1);
+      setUserInCup(true);
+      setPhase('playing');
+      setMultiPhase(null);
+      return;
+    }
+    setIsDuel(false);
     const maxSlots = gMode === 'copa' ? 32 : 20;
     const humanTeams = players.map(([pid, p]) => ({
       id: pid, label: p.name || 'Jogador', badge: '', color: p.color || 'var(--gold-ink)',
@@ -6729,20 +6878,23 @@ export default function App() {
   // Fluxo de novo jogo (redesenho 2026-11-13): esquema e draft têm o próprio
   // contêiner largo (ng-wrap/ng-dwrap), então o <main> não limita a largura.
   const wideMainMaxWidth = (simulator2026Open || phase === 'formation' || phase === 'draft') ? 1440 : multiPhase ? null : (phase === 'intro' || phase === 'playing') ? 1240 : ['squad', 'transfer'].includes(phase) ? 1100 : null;
-  const classicModeLabel = multiPhase ? 'Multiplayer' : isDailyChallenge ? 'Supercopa do dia' : (isSerieAtual && activeMission) ? `Desafio do dia · ${activeMission.verb}` : (isSerieAtual || gameMode === 'atual2026') ? 'Brasileirão Atual' : (livreTeamIds?.length ? 'Modo Livre' : gameMode === 'copa' ? 'Copa do Brasil Lendária' : 'Brasileirão Lendário');
+  const classicModeLabel = multiPhase ? 'Multiplayer' : isDuel ? 'Duelo 1x1' : (isLinkChallenge || linkCreate) ? 'Desafio por link' : isDailyChallenge ? 'Supercopa do dia' : (isSerieAtual && activeMission) ? `Desafio do dia · ${activeMission.verb}` : (isSerieAtual || gameMode === 'atual2026') ? 'Brasileirão Atual' : (livreTeamIds?.length ? (livreTournament?.name || 'Modo Livre') : gameMode === 'copa' ? 'Copa do Brasil Lendária' : 'Brasileirão Lendário');
   const classicStep = { formation: 'Esquema tático', draft: 'Draft', squad: 'Capitão' }[phase] || null;
   // Liga em andamento: "{modo} › Rodada N" (a Copa tem o próprio fluxo)
   const leagueCrumb = phase === 'playing' && gameMode !== 'copa'
-    ? (isDailyChallenge ? 'Jogo único' : (gameMode === 'serieab' && promotionTie?.leg) ? 'Mata-mata de acesso' : `Rodada ${currentRound + 1}`)
+    ? ((isDailyChallenge || isLinkChallenge) ? 'Jogo único' : (gameMode === 'serieab' && promotionTie?.leg) ? 'Mata-mata de acesso' : `Rodada ${currentRound + 1}`)
     : null;
   const dailyOppName = dailyOpponent?.label || dailyChallenge?.opponent?.label || 'o adversário';
   const squadConfirmLabel = multiPhase === 'in-draft' ? 'Pronto'
+    : linkCreate ? 'Gerar o link do desafio'
+    : isLinkChallenge ? (linkOpponent?.name ? `Enfrentar ${linkOpponent.name}` : 'Enfrentar o time do seu amigo')
     : isDailyChallenge ? `Enfrentar ${dailyOppName} na Supercopa`
       : isMidWindow ? 'Voltar ao campeonato'
       : isTransferSeason ? 'Começar a nova temporada'
+        : livreTournament ? 'Disputar o torneio'
         : gameMode === 'copa' ? 'Disputar a Copa do Brasil'
           : 'Disputar o Brasileirão';
-  const newGameSteps = ['Esquema', 'Draft', 'Capitão', isDailyChallenge ? 'Supercopa' : gameMode === 'copa' ? 'Copa' : 'Temporada'];
+  const newGameSteps = ['Esquema', 'Draft', 'Capitão', (linkCreate || isLinkChallenge) ? 'Desafio' : isDailyChallenge ? 'Supercopa' : gameMode === 'copa' ? 'Copa' : 'Temporada'];
   // Tema claro (creme) agora é o padrão do app inteiro — ver src/styles/tokens.css.
 
   return (
@@ -6880,7 +7032,7 @@ export default function App() {
       {showLivrePicker && (
         <LivreTeamPickerModal
           initialSelected={livreTeamIds || []}
-          initialFormat={gameMode}
+          initialTournament={livreTournament}
           onClose={() => setShowLivrePicker(false)}
           onConfirm={startLivre}
         />
@@ -6966,6 +7118,7 @@ export default function App() {
             onBrowseRooms={() => setMultiPhase('browse')}
             connecting={multiConnecting} error={multiError}
             onBack={() => { setMultiPhase(null); setGameMode('brasileirao'); setMultiError(''); }}
+            onLinkChallenge={startLinkCreate}
           />
         )}
         {multiPhase === 'browse' && (
@@ -7013,7 +7166,7 @@ export default function App() {
             onOpenSerieAtual={() => setShowSerieAtualPicker(true)}
             onOpenSimulator2026={() => setSimulator2026Open(true)}
             livreTeamIds={livreTeamIds}
-            onClearLivre={() => setLivreTeamIds(null)}
+            onClearLivre={() => { setLivreTeamIds(null); setLivreTournament(null); }}
             onOpenLivrePicker={() => setShowLivrePicker(true)}
             onOpenCareer={openCareer}
           />
@@ -7035,7 +7188,7 @@ export default function App() {
             onPick={team => multiUpdateMyTeam({ serieAtualTeamId: team.id })}
           />
         )}
-        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onChooseCustom={chooseCustomFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge && !isSerieAtual ? setGameMode : undefined} onPlayReadyMade={!isSerieAtual && roomSnap?.gameMode !== 'atual2026' ? useReadyMadeSquad : undefined} isDailyChallenge={isDailyChallenge} myTeamColor={myTeamColor} modeLabel={classicModeLabel} difficulty={multiPhase ? null : difficulty} steps={newGameSteps} />}
+        {phase === 'formation' && <FormationPicker onChoose={chooseFormation} onChooseCustom={chooseCustomFormation} onBack={!multiPhase ? () => setPhase('intro') : undefined} gameMode={!multiPhase ? gameMode : undefined} onSetGameMode={!multiPhase && !isDailyChallenge && !isSerieAtual && !linkCreate && !isLinkChallenge ? setGameMode : undefined} onPlayReadyMade={!isSerieAtual && roomSnap?.gameMode !== 'atual2026' ? useReadyMadeSquad : undefined} isDailyChallenge={isDailyChallenge || linkCreate || isLinkChallenge} myTeamColor={myTeamColor} modeLabel={classicModeLabel} difficulty={multiPhase || linkCreate || isLinkChallenge ? null : difficulty} steps={newGameSteps} />}
         {phase === 'transfer' && (
           <TransferMarket
             midSeason={isMidWindow}
@@ -7086,7 +7239,7 @@ export default function App() {
             pitch={pitch} pitchSlots={pitchSlots}
             formationLabel={formationKey === 'custom' ? (customFormation?.label || 'Formação livre') : formationKey ? FORMATIONS[formationKey].label : ''}
             captainSlot={captainSlot} onSetCaptain={setCaptainSlot}
-            onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : isDailyChallenge ? confirmDailyChallenge : isSerieAtual ? confirmSerieAtual : isMidWindow ? finishMidWindow : (isTransferSeason ? newSeason : startSeason)}
+            onConfirm={multiPhase === 'in-draft' ? multiConfirmDraft : linkCreate ? () => shareSquadAsChallenge() : isLinkChallenge ? confirmLinkChallenge : isDailyChallenge ? confirmDailyChallenge : isSerieAtual ? confirmSerieAtual : isMidWindow ? finishMidWindow : (isTransferSeason ? newSeason : startSeason)}
             onRedo={!isTransferSeason && !isMidWindow && !isDailyChallenge && !isSerieAtual ? () => { setPhase('formation'); setCaptainSlot(null); } : undefined}
             myTeamColor={myTeamColor}
             selectedPlayer={selectedPlayer}
@@ -7163,22 +7316,25 @@ export default function App() {
             teamForm={teamForm}
             viewingTeam={viewingTeam}
             onViewTeam={setViewingTeam}
-            onSimulateAll={isDailyChallenge ? () => fastForwardBrasileirao(null, { onCalendar: false }) : gameMode === 'copa' ? fastForwardCopa : (gameMode === 'serieab' && promotionTie?.leg) ? undefined : simulateSeasonOnCalendar}
+            onSimulateAll={(isDailyChallenge || isLinkChallenge) ? () => fastForwardBrasileirao(null, { onCalendar: false }) : gameMode === 'copa' ? fastForwardCopa : (gameMode === 'serieab' && promotionTie?.leg) ? undefined : simulateSeasonOnCalendar}
             // Brasileirão Atual usa o mesmo formato de calendário/fixtures do
             // Brasileirão normal — só os confrontos são reais. No multiplayer
             // o gameMode LOCAL vira 'atual2026' (espelha roomSnap.gameMode),
             // então sem essa terceira opção o botão de calendário simplesmente
             // sumia numa sala desse modo (no solo isSerieAtual não mexe em
             // gameMode, por isso só aparecia lá).
-            onOpenCalendar={!isDailyChallenge && (gameMode === 'brasileirao' || gameMode === 'serieab' || gameMode === 'atual2026') ? openCalendar : undefined}
+            onOpenCalendar={!isDailyChallenge && !isLinkChallenge && !isDuel && (gameMode === 'brasileirao' || gameMode === 'serieab' || gameMode === 'atual2026') ? openCalendar : undefined}
             // Editor de escalação entre os jogos: Brasileirão Atual e todos os
             // modos lendários solo. Fora do multiplayer (a troca não chega aos
             // outros jogadores da sala) e da Supercopa (jogo único).
-            onOpenLineupEditor={(isSerieAtual || (!multiPhase && !isDailyChallenge)) && !isSimulating ? () => setShowLineupEditor(true) : undefined}
+            onOpenLineupEditor={(isSerieAtual || (!multiPhase && !isDailyChallenge && !isLinkChallenge)) && !isSimulating ? () => setShowLineupEditor(true) : undefined}
             myDivision={myDivision}
             otherDivision={otherDivision}
             promotionTie={promotionTie}
-            isDailyChallenge={isDailyChallenge}
+            isDailyChallenge={isDailyChallenge || isLinkChallenge}
+            competitionName={livreTournament && livreTeamIds?.length ? livreTournament.name : null}
+            singleMatchLabels={isLinkChallenge ? { eyebrow: 'Desafio por link · jogo único', title: linkOpponent?.name ? `Desafio de ${linkOpponent.name}` : 'Desafio do seu amigo' }
+              : isDuel ? { eyebrow: 'Duelo 1x1 · ida e volta', title: currentRound === 0 ? 'Jogo de ida' : 'Jogo de volta' } : null}
             // Durante a simulação pelo calendário o modal já mostra o
             // progresso — o overlay genérico "Simulando…" só atrapalharia.
             fastSimActive={fastSimActive && !calendarSimActive}
@@ -7205,7 +7361,10 @@ export default function App() {
         {phase === 'results' && isDailyChallenge && (
           <DailyChallengeResults leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} leagueTeams={leagueTeams} currentUser={currentUser} onExit={exitDailyChallenge} dailyChallenge={dailyChallenge} dailyOutcome={dailyOutcome} onOpenAccount={() => openAccountModal('signup')} />
         )}
-        {phase === 'results' && !isDailyChallenge && (
+        {phase === 'results' && isLinkChallenge && (
+          <LinkChallengeResults leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} opponentName={linkOpponent?.name} onChallengeBack={() => shareSquadAsChallenge()} onExit={() => window.location.reload()} />
+        )}
+        {phase === 'results' && !isDailyChallenge && !isLinkChallenge && (
           /* "Nova temporada" e "Mercado" reconstroem a liga em torno de
              MY_TEAM_ID, mas dentro de uma sala o time do jogador é o id do
              peer (ver `myTeamId`) — a temporada nascia sem ele em nenhum
@@ -7219,11 +7378,20 @@ export default function App() {
              save no disco, se existir, é de uma carreira solo real sem
              nada a ver com essa sala). */
           <>
+          {isDuel && (
+            <DuelResultPanel leagueTable={leagueTable} leagueTeams={leagueTeams} myTeamId={myTeamId} seed={roomSnap?.seed} mc={teamInk(myTeamColor || '#C29A45')} />
+          )}
           {activeMission && isSerieAtual && (
             <AtualMissionResultPanel mission={activeMission} outcome={missionOutcome} leagueTable={leagueTable} myTeamId={myTeamId} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} />
           )}
-          <Results leagueTable={leagueTable} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} isLeader={isLeader} onRematch={roomSnap ? multiLeaderRematch : undefined} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap || activeMission ? undefined : newSeason} onOpenTransferMarket={roomSnap || activeMission ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} cupRounds={cupRounds} statsFromRound={activeMission && isSerieAtual ? activeMission.startRound : null} dynasty={roomSnap || isSerieAtual ? null : dynastyLog} seasonYear={seasonYear} />
+          <Results leagueTable={isDuel ? (() => { const o = duelOutcome(leagueTable, leagueTeams, roomSnap?.seed); return o ? [...leagueTable].sort((x, y) => (x.id === o.winnerId ? -1 : y.id === o.winnerId ? 1 : 0)) : leagueTable; })() : leagueTable} competitionName={livreTournament && livreTeamIds?.length ? livreTournament.name : null} eyebrowOverride={isDuel ? 'Fim do duelo 1x1' : livreTournament?.name ? `Fim · ${livreTournament.name}` : null} myTeamId={myTeamId} myTeamColor={myTeamColor} myTeamBadge={myTeamBadge} myTeamLogo={myTeamLogo} gameMode={gameMode} cupWinnerId={cupWinnerId} eliminationRoundName={eliminationRoundName} leagueTeams={leagueTeams} onRestart={roomSnap ? leaveMultiplayer : restart} isLeader={isLeader} onRematch={roomSnap ? multiLeaderRematch : undefined} scorers={scorers} assisters={assisters} cleanSheets={cleanSheets} seasonRatings={seasonRatings} cardCounts={cardCounts} redCards={redCards} seasonAwards={seasonAwards} onNewSeason={roomSnap || activeMission ? undefined : newSeason} onOpenTransferMarket={roomSnap || activeMission ? undefined : openTransferMarket} matchHistory={matchHistory} onViewTeam={setViewingTeam} currentUser={currentUser} onOpenAccount={() => openAccountModal('signup')} myDivision={myDivision} divisionMove={divisionMove} promotionTie={promotionTie} otherDivision={otherDivision} cupRounds={cupRounds} statsFromRound={activeMission && isSerieAtual ? activeMission.startRound : null} dynasty={roomSnap || isSerieAtual ? null : dynastyLog} seasonYear={seasonYear} />
           </>
+        )}
+        {incomingChallenge && phase === 'intro' && !multiPhase && (
+          <IncomingChallengeModal challenge={incomingChallenge} myTeamColor={myTeamColor} onAccept={acceptIncomingChallenge} onClose={dismissIncomingChallenge} />
+        )}
+        {linkShareUrl && (
+          <LinkShareModal url={linkShareUrl} myTeamColor={myTeamColor} onClose={() => window.location.reload()} />
         )}
         {showAtualMission && (
           <AtualMissionModal
@@ -7263,7 +7431,7 @@ export default function App() {
           (() => {
             // Situação depois do jogo e impacto na tabela (só no Brasileirão,
             // quando a tabela já tem esta rodada aplicada).
-            const isLeague = gameMode !== 'copa' && !isDailyChallenge && leagueTable?.length > 2;
+            const isLeague = gameMode !== 'copa' && !isDailyChallenge && !isLinkChallenge && leagueTable?.length > 2;
             const pos = isLeague ? positionsOf(leagueTable) : null;
             const sub = (id) => {
               if (!isLeague) return null;
@@ -7283,7 +7451,7 @@ export default function App() {
                 myTeamId={myTeamId}
                 myTeamColor={myTeamColor}
                 events={liveEvents}
-                eyebrow={gameMode === 'copa' ? 'Fim de jogo · Copa do Brasil' : isDailyChallenge ? 'Fim de jogo · Supercopa' : `Fim de jogo · Rodada ${currentRound + 1}`}
+                eyebrow={gameMode === 'copa' ? 'Fim de jogo · Copa do Brasil' : isLinkChallenge ? 'Fim de jogo · Desafio por link' : isDailyChallenge ? 'Fim de jogo · Supercopa' : `Fim de jogo · Rodada ${currentRound + 1}`}
                 homeSub={sub(activeUserMatch.homeId)}
                 awaySub={sub(activeUserMatch.awayId)}
                 impact={before ? classicImpact(before, leagueTable, myTeamId, labelOf) : null}
@@ -7735,6 +7903,161 @@ function DailyChallengeModal({ opponent, myTeamColor, onPick, onClose, isBoss, s
       </div>
     </div>
     </Layer>
+  );
+}
+
+// ── Desafio por link: telas ───────────────────────────────────────────
+function squadHighlights(pitch) {
+  return Object.values(pitch || {}).filter(p => !p.isBench).sort((a, b) => (b.ovr || 0) - (a.ovr || 0)).slice(0, 3);
+}
+function IncomingChallengeModal({ challenge, myTeamColor, onAccept, onClose }) {
+  const mc = teamInk(myTeamColor || '#C29A45');
+  if (challenge?.invalid) {
+    return (
+      <Layer onClose={onClose}>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div role="dialog" aria-label="Desafio por link" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 420, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 20, padding: 20 }}>
+          <div style={{ fontWeight: 700, fontSize: 16, marginBottom: 6 }}>Link de desafio inválido</div>
+          <p style={{ fontSize: 13, color: 'var(--muted)', lineHeight: 1.5, marginBottom: 14 }}>Esse link está incompleto ou é de uma versão antiga do jogo. Peça para seu amigo gerar outro.</p>
+          <button onClick={onClose} style={{ ...styles.btnPrimary, width: '100%', background: mc, color: '#fff' }}>Ir para o início</button>
+        </div>
+      </div>
+      </Layer>
+    );
+  }
+  const starters = Object.fromEntries(Object.entries(challenge.pitch).filter(([, p]) => !p.isBench));
+  const ovr = teamStrength(starters);
+  const formationLabel = challenge.formationKey === 'custom' ? 'Formação livre' : (FORMATIONS[challenge.formationKey]?.label || '');
+  const stars = squadHighlights(challenge.pitch);
+  return (
+    <Layer onClose={onClose}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div role="dialog" aria-label="Desafio por link" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, maxHeight: 'calc(100dvh - 32px)', overflowY: 'auto', background: 'var(--surface)', boxShadow: '0 30px 60px -20px rgba(15,31,23,0.35)', border: '1px solid var(--line-strong)', borderRadius: 20, padding: 20 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Desafio por link</div>
+          <button onClick={onClose} aria-label="Fechar" className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--ink)', fontSize: 20, cursor: 'pointer', width: 32, height: 32 }}>×</button>
+        </div>
+        <div style={{ fontWeight: 700, fontSize: 20, margin: '4px 0 6px' }}>{challenge.name ? `${challenge.name} te desafiou` : 'Seu amigo te desafiou'}</div>
+        <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 14 }}>Monte o seu time no draft e enfrente o time que seu amigo montou, num jogo único.</p>
+        <div style={{ display: 'flex', gap: 10, marginBottom: 12 }}>
+          <div style={{ flex: 1, padding: '10px 12px', borderRadius: 12, background: 'var(--surface-2)' }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>OVR do time</div>
+            <div style={{ fontWeight: 700, fontSize: 20 }}>{Number(ovr).toFixed(1).replace('.', ',')}</div>
+          </div>
+          <div style={{ flex: 1, padding: '10px 12px', borderRadius: 12, background: 'var(--surface-2)' }}>
+            <div style={{ fontSize: 11, color: 'var(--muted)' }}>Esquema</div>
+            <div style={{ fontWeight: 700, fontSize: 15, marginTop: 4 }}>{formationLabel}</div>
+          </div>
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6, marginBottom: 4 }}>Destaques</div>
+        {stars.map(p => (
+          <div key={p.name} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, fontSize: 13, padding: '5px 0', borderTop: '1px solid var(--line)' }}>
+            <span style={{ minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}><b>{p.name}</b> <span style={{ color: 'var(--muted)' }}>{p.teamLabel}</span></span>
+            <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, flexShrink: 0 }}>{p.ovr}</span>
+          </div>
+        ))}
+        <button onClick={onAccept} style={{ ...styles.btnPrimary, width: '100%', marginTop: 16, background: mc, color: '#fff' }}>Aceitar o desafio →</button>
+      </div>
+    </div>
+    </Layer>
+  );
+}
+
+function LinkShareModal({ url, myTeamColor, onClose }) {
+  const mc = teamInk(myTeamColor || '#C29A45');
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try { await navigator.clipboard.writeText(url); setCopied(true); } catch { setCopied(false); }
+  };
+  const share = async () => {
+    try { await navigator.share({ title: 'Brasileirão Lendário', text: 'Te desafio: monte seu time e tente ganhar do meu.', url }); } catch { /* cancelado */ }
+  };
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function';
+  return (
+    <Layer onClose={onClose}>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'var(--overlay)', zIndex: 'var(--z-modal)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div role="dialog" aria-label="Link do desafio" onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 460, background: 'var(--surface)', border: '1px solid var(--line-strong)', borderRadius: 20, padding: 20 }}>
+        <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Desafio por link</div>
+        <div style={{ fontWeight: 700, fontSize: 19, margin: '4px 0 6px' }}>Seu desafio está pronto</div>
+        <p style={{ fontSize: 13, color: 'var(--ink-2)', lineHeight: 1.5, marginBottom: 12 }}>Mande o link para quem você quiser. Quem abrir monta o próprio time e joga contra o seu, na hora que puder. O link guarda o seu elenco.</p>
+        <input readOnly value={url} onFocus={e => e.target.select()} aria-label="Link do desafio" style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: '1px solid var(--line-strong)', background: 'var(--surface-2)', color: 'var(--ink)', fontSize: 12.5, fontFamily: 'var(--font-mono)', marginBottom: 12 }} />
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={copy} style={{ ...styles.btnPrimary, flex: '1 1 140px', background: mc, color: '#fff' }}>{copied ? 'Link copiado' : 'Copiar link'}</button>
+          {canShare && <button onClick={share} style={{ ...styles.btnPrimary, flex: '1 1 140px', background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--line-strong)' }}>Compartilhar</button>}
+        </div>
+        <button onClick={onClose} style={{ marginTop: 12, width: '100%', background: 'none', border: 'none', color: 'var(--muted)', fontSize: 13, cursor: 'pointer', padding: 8 }}>Voltar ao início</button>
+      </div>
+    </div>
+    </Layer>
+  );
+}
+
+function LinkChallengeResults({ leagueTable, myTeamId, myTeamColor, opponentName, onChallengeBack, onExit }) {
+  const mc = teamInk(myTeamColor || '#C29A45');
+  const me = leagueTable.find(t => t.id === myTeamId);
+  const opp = leagueTable.find(t => t.id !== myTeamId);
+  const gf = me?.gp ?? 0;
+  const ga = opp?.gp ?? 0;
+  const result = gf > ga ? 'win' : gf < ga ? 'loss' : 'draw';
+  const name = opponentName || 'seu amigo';
+  const ofName = opponentName ? `de ${opponentName}` : 'do seu amigo';
+  return (
+    <div style={styles.card} className="card-mob">
+      <div style={styles.eyebrow}>Desafio por link · resultado</div>
+      <h2 style={styles.h2}>{result === 'win' ? `Você venceu o desafio ${ofName}!` : result === 'loss' ? `${opponentName || 'Seu amigo'} venceu o desafio` : 'Empate no desafio'}</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 18, margin: '18px 0', fontSize: 15 }}>
+        <span style={{ fontWeight: 700, textAlign: 'right', flex: 1, minWidth: 0 }}>{me?.label || 'Meu Time'}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 30, flexShrink: 0 }}>{gf} × {ga}</span>
+        <span style={{ fontWeight: 700, flex: 1, minWidth: 0 }}>{opp?.label || name}</span>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--muted)', textAlign: 'center', lineHeight: 1.5, marginBottom: 18 }}>
+        Conte o resultado para {name} e devolva o desafio com o seu time.
+      </p>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <button onClick={onChallengeBack} style={{ ...styles.btnPrimary, flex: '1 1 200px', background: mc, color: '#fff' }}>Desafiar de volta com meu time</button>
+        <button onClick={onExit} style={{ ...styles.btnPrimary, flex: '1 1 160px', background: 'var(--surface)', color: 'var(--ink)', border: '1px solid var(--line-strong)' }}>Voltar ao início</button>
+      </div>
+    </div>
+  );
+}
+
+// Duelo 1x1 (sala de amigos): ida e volta, decide o agregado; empate vai
+// pros pênaltis, semeados pela sala (todo mundo vê o mesmo vencedor).
+function duelOutcome(leagueTable, leagueTeams, seed) {
+  const [a, b] = leagueTable;
+  if (!a || !b) return null;
+  let winnerId = a.gp > b.gp ? a.id : b.gp > a.gp ? b.id : null;
+  let pens = null;
+  if (!winnerId) {
+    const ids = [a.id, b.id].sort();
+    pens = simulatePenalties(ids[0], ids[1], leagueTeams, matchPrng(seed, 'duel-pen', ids[0], ids[1]));
+    winnerId = pens.winner;
+  }
+  return { a, b, winnerId, pens };
+}
+function DuelResultPanel({ leagueTable, leagueTeams, myTeamId, seed, mc }) {
+  const out = duelOutcome(leagueTable, leagueTeams, seed);
+  if (!out) return null;
+  const { a, b, winnerId, pens } = out;
+  const aggA = a.gp, aggB = b.gp;
+  const nameOf = (id) => leagueTeams.find(t => t.id === id)?.label || 'Jogador';
+  const iWon = winnerId === myTeamId;
+  const penLine = pens ? (() => {
+    const ids = [a.id, b.id].sort();
+    const g = { [ids[0]]: pens.goalsA, [ids[1]]: pens.goalsB };
+    return `${g[a.id]} × ${g[b.id]} nos pênaltis`;
+  })() : null;
+  return (
+    <div style={{ borderRadius: 16, padding: '16px 18px', marginBottom: 16, border: `1px solid ${iWon ? 'var(--gold-ink)' : 'var(--line-strong)'}`, background: iWon ? 'var(--gold-tint)' : 'var(--surface)' }}>
+      <div style={{ fontSize: 11, fontFamily: 'var(--font-mono)', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Duelo 1x1 · ida e volta</div>
+      <div style={{ fontWeight: 700, fontSize: 20, margin: '4px 0 8px', color: iWon ? mc : 'var(--ink)' }}>{iWon ? 'Você venceu o duelo!' : `${nameOf(winnerId)} venceu o duelo`}</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 14, fontSize: 14 }}>
+        <span style={{ flex: 1, textAlign: 'right', fontWeight: 600, minWidth: 0 }}>{nameOf(a.id)}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: 26, flexShrink: 0 }}>{aggA} × {aggB}</span>
+        <span style={{ flex: 1, fontWeight: 600, minWidth: 0 }}>{nameOf(b.id)}</span>
+      </div>
+      <div style={{ textAlign: 'center', fontSize: 12.5, color: 'var(--muted)', marginTop: 6 }}>Placar agregado{penLine ? ` · ${penLine}` : ''}</div>
+    </div>
   );
 }
 
@@ -8773,7 +9096,7 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
 // ============================================================
 // TELAS MULTIPLAYER
 // ============================================================
-function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLogo, joinInput, onJoinInput, onCreateRoom, onJoinRoom, onBrowseRooms, connecting, error, onBack }) {
+function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLogo, joinInput, onJoinInput, onCreateRoom, onJoinRoom, onBrowseRooms, connecting, error, onBack, onLinkChallenge }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   return (
     <div style={styles.card} className="card-mob">
@@ -8795,6 +9118,11 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
               // 2026 (sem repetir) — quem ninguém escolher joga com IA usando
               // o próprio elenco real. Ocupa a linha inteira (span 2).
               id: 'atual2026', label: 'Brasileirão Atual', sub: 'Até 20 jogadores · 1 time real cada · calendário oficial da CBF', trophy: '📅', span2: true,
+            },
+            {
+              // Duelo 1x1: só os 2 times da sala, ida e volta, agregado decide
+              // (empate vai pros pênaltis).
+              id: 'duelo', label: 'Duelo 1x1', sub: '2 jogadores · ida e volta · agregado decide', trophy: '1×1', span2: true,
             },
           ].map(m => (
             <button
@@ -8870,6 +9198,14 @@ function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLo
         Ver salas abertas
       </button>
       <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 6, textAlign: 'center' }}>Não conhece ninguém? Entre numa sala aberta pra estranhos</div>
+
+      {onLinkChallenge && (
+        <div style={{ marginTop: 22, padding: '14px 16px', borderRadius: 14, border: '1px solid var(--line-strong)', background: 'var(--surface-2)' }}>
+          <div style={{ fontWeight: 700, fontSize: 14 }}>Desafio por link</div>
+          <div style={{ fontSize: 12.5, color: 'var(--muted)', lineHeight: 1.5, margin: '4px 0 10px' }}>Sem sala e sem esperar ninguém: monte seu time, mande o link, e seu amigo joga contra ele quando puder.</div>
+          <button onClick={onLinkChallenge} style={{ ...styles.btnPrimary, width: '100%', margin: 0, background: mc, color: '#fff' }}>Montar time e gerar link</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -8931,7 +9267,7 @@ function PublicRoomsScreen({ onBack, onJoinRoom, myTeamColor }) {
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontWeight: 700, fontSize: 13, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{room.label}</div>
                   <div style={{ fontSize: 11, color: 'var(--muted)' }}>
-                    {room.playerCount}/{room.maxPlayers} jogadores · {room.gameMode === 'copa' ? 'Copa do Brasil' : room.gameMode === 'atual2026' ? 'Brasileirão Atual' : 'Brasileirão'}
+                    {room.playerCount}/{room.maxPlayers} jogadores · {room.gameMode === 'copa' ? 'Copa do Brasil' : room.gameMode === 'atual2026' ? 'Brasileirão Atual' : room.gameMode === 'duelo' ? 'Duelo 1x1' : 'Brasileirão'}
                   </div>
                 </div>
                 {isOpen ? (
@@ -8963,7 +9299,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
   // só sobra como guarda defensiva pro instante entre a sala virar
   // 'team-setup'/'roster-draft' e esse efeito rodar.
   const isSetupPhase = roomData.phase !== 'lobby';
-  const maxSlots = roomData.gameMode === 'copa' ? 32 : 20;
+  const maxSlots = roomData.gameMode === 'copa' ? 32 : roomData.gameMode === 'duelo' ? 2 : 20;
   const emptySlots = Math.max(0, maxSlots - players.length);
 
   // Revelação sequencial dos times fictícios sorteados ao iniciar
@@ -9032,7 +9368,7 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
 
       {/* Código da sala */}
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
-        <div style={styles.eyebrow}>{roomData.gameMode === 'copa' ? 'Copa do Brasil' : roomData.gameMode === 'atual2026' ? 'Brasileirão Atual' : 'Brasileirão'} · Sala</div>
+        <div style={styles.eyebrow}>{roomData.gameMode === 'copa' ? 'Copa do Brasil' : roomData.gameMode === 'atual2026' ? 'Brasileirão Atual' : roomData.gameMode === 'duelo' ? 'Duelo 1x1' : 'Brasileirão'} · Sala</div>
         {isLeader && roomData.leaderPeerId && (
           <>
             <div style={{ fontFamily: 'monospace', fontSize: 13, fontWeight: 700, color: mc, margin: '10px 0 6px', wordBreak: 'break-all', background: 'var(--surface-2)', borderRadius: 8, padding: '10px 14px', letterSpacing: 1 }}>
@@ -9108,6 +9444,8 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
             ? 'Aguardando mais jogadores... (mín. 2)'
             : roomData.gameMode === 'atual2026'
               ? '▶ Iniciar — escolher time e formação'
+              : roomData.gameMode === 'duelo'
+                ? '▶ Iniciar o duelo — escolher formação'
               : emptySlots > 0
                 ? `▶ Iniciar — sorteia ${emptySlots} time${emptySlots !== 1 ? 's' : ''} pras vagas restantes`
                 : '▶ Iniciar — escolher formação'}
@@ -9366,18 +9704,20 @@ function TeamPickerModal(props) {
 }
 
 // Modo Livre: o mesmo seletor do Time pronto (ReadyMadeTeamModal), em modo de
-// seleção múltipla (16 times) com a escolha do campeonato.
-function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [], initialFormat = 'serieab' }) {
+// seleção múltipla, virou o criador de torneio (formato, tamanho e nome).
+function LivreTeamPickerModal({ onClose, onConfirm, initialSelected = [], initialTournament = null }) {
   return (
     <ReadyMadeTeamModal
       onClose={onClose}
       multi={{
-        max: 16,
         initial: initialSelected,
-        initialFormat: initialFormat === 'copa' ? 'copa' : 'serieab',
+        initialFormat: initialTournament?.format || 'liga2',
+        initialSize: initialTournament?.size || 16,
+        initialName: initialTournament?.name && initialTournament.name !== 'Modo Livre' ? initialTournament.name : '',
         formats: [
-          { id: 'serieab', label: 'Brasileirão', sub: '40 times · Série A e B' },
-          { id: 'copa', label: 'Copa do Brasil', sub: '32 times · Mata-mata' },
+          { id: 'liga2', label: 'Pontos corridos', sub: 'Ida e volta · todos contra todos', sizes: [8, 12, 16, 20] },
+          { id: 'liga1', label: 'Pontos corridos · turno único', sub: 'Um jogo contra cada time', sizes: [8, 12, 16, 20] },
+          { id: 'mata', label: 'Mata-mata', sub: '32 times · ida e volta, final em jogo único', sizes: [32] },
         ],
         onConfirm,
       }}
@@ -9704,7 +10044,7 @@ export function CupBracketModal({
   cupRounds, leagueTeams, myTeamId, myTeamColor, myTeamLogo, myTeamBadge, onViewTeam, onClose,
   // Transição: `advance` é o momento em que uma fase acabou de ser decidida.
   // { intoRoundIdx, winnerIds } numa fase comum; { championId } na final.
-  advance = null, simActive = false, simStatus = '', onSimulateAll, onCancelSim,
+  advance = null, simActive = false, simStatus = '', onSimulateAll, onCancelSim, competitionName = null,
 }) {
   // Visual único do chaveamento (components/football/CupBracket, referência:
   // Copa da carreira). Os dados vêm do cupRounds/cupMatchOutcome de sempre.
@@ -9770,15 +10110,15 @@ export function CupBracketModal({
   const faseDestino = CUP_ROUND_NAMES[intoRoundIdx];
   const nomeComArtigo = faseDestino ? `${/^(16 Avos|Oitavas|Quartas)/.test(faseDestino) ? 'as' : 'a'} ${faseDestino}` : 'a fase seguinte';
   const title = isChampionMoment
-    ? `${championTeam ? nameOf(championId) : 'Campeão'}: campeão da Copa do Brasil`
+    ? `${championTeam ? nameOf(championId) : 'Campeão'}: campeão ${competitionName ? `de ${competitionName}` : 'da Copa do Brasil'}`
     : advance ? `Classificados para ${nomeComArtigo}`
-      : simActive ? (simStatus || 'Simulando a Copa…') : 'Chaveamento da Copa do Brasil';
+      : simActive ? (simStatus || 'Simulando a Copa…') : competitionName ? `Chaveamento · ${competitionName}` : 'Chaveamento da Copa do Brasil';
   const nextGames = advance && !isChampionMoment ? (cupRounds?.[intoRoundIdx]?.matches || []) : [];
 
   return (
     <Modal onClose={!simActive && !isChampionMoment ? onClose : undefined} maxWidth={1460} labelledBy="cbk-title" className="cbk-modal">
       <div className="cbk-head">
-        <span className="ui-label">Copa do Brasil Lendária</span>
+        <span className="ui-label">{competitionName || 'Copa do Brasil Lendária'}</span>
         <h2 id="cbk-title">{isChampionMoment && <Icon name="trophy" size={24} />}{title}</h2>
       </div>
       {isChampionMoment && championTeam && (
@@ -10981,6 +11321,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-duelo-link-torneio',
+    date: 'Novembro de 2026',
+    title: 'Duelo 1x1, desafio por link e criador de torneio no Modo Livre',
+    desc: 'Jogar com Amigos ganhou o Duelo 1x1: só você e um amigo na sala, jogo de ida e de volta, decide o placar agregado (empate vai para os pênaltis). E o desafio por link: monte seu time, mande o link, e seu amigo monta o dele e joga contra o seu quando puder, sem precisar estar online junto. No fim dá para desafiar de volta. O Modo Livre virou um criador de torneio: dê um nome, escolha o formato (pontos corridos de ida e volta, turno único ou mata-mata) e o tamanho (8, 12, 16, 20 ou 32 times), e os times escolhidos formam o torneio de verdade.',
+  },
+  {
     id: '2026-11-desafio-do-dia-atual',
     date: 'Novembro de 2026',
     title: 'Desafio do dia no Brasileirão Atual, janela do meio do ano e dinastia no Lendário',
@@ -11846,7 +12192,7 @@ function nextGameIn(fixtures, fromIdx, id, labelOf) {
   return null;
 }
 
-function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, manualSubs = [], bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey, modeLabel, captainName, lastRoundResults, allRoundResults }) {
+function Playing({ singleMatchLabels = null, competitionName = null, myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, leagueTable, clockMinute, isSimulating, liveEvents, liveScore, roundResults, activeUserMatch, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupRounds, cupRoundIdx, cupLeg, userInCup, eliminationRoundName, simSpeed, onSetSpeed, simMode, onSetSimMode, autoCountdown, onStartRound, onNextRound, matchHistory, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, suspensions, injuries, lastRoundDiscipline, lastMatchRatings, teamForm, viewingTeam, onViewTeam, onSimulateAll, onOpenCalendar, onOpenLineupEditor, fastSimActive, fastSimStatusMsg, onCancelFastSim, isPaused, onPause, onResume, showSubPanel, forcedSubReason, liveLineup, subSelectStarter, onSelectSubStarter, onApplySub, subbedOutNames, manualSubs = [], bracketAdvance, onDismissBracketAdvance, difficulty, myDivision, otherDivision, promotionTie, isDailyChallenge, onLiveSlotPointerDown, liveDragOverKey, modeLabel, captainName, lastRoundResults, allRoundResults }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   // Nomes (não as chaves compostas) dos jogadores do PRÓPRIO time atualmente
   // suspensos ou machucados — usado só pra filtrar o painel de troca/cobrança
@@ -11897,6 +12243,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
     return (
       <div style={styles.card} className="card-mob">
         <CupBracketModal
+          competitionName={competitionName}
           cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc}
           myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam}
           simActive simStatus={fastSimStatusMsg} onCancelSim={onCancelFastSim}
@@ -11972,6 +12319,7 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
             A transição manda, porque é ela que tem a animação e o CTA certo. */}
         {(showBracket || bracketAdvance) && (
           <CupBracketModal
+          competitionName={competitionName}
             cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc}
             myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam}
             advance={bracketAdvance}
@@ -12404,20 +12752,20 @@ function Playing({ myTeamId, pitchSlots, fixtures, currentRound, leagueTeams, le
   // Cabeçalho da liga (fase 2 do redesenho, liga-partida-mockup.html)
   const myRowIdx = (leagueTable || []).findIndex(r => r.id === myTeamId);
   const myRow = myRowIdx >= 0 ? leagueTable[myRowIdx] : null;
-  const diffKey = isDailyChallenge ? 'lendario' : difficulty;
+  const diffKey = singleMatchLabels ? null : isDailyChallenge ? 'lendario' : difficulty;
   const diffLevel = DIFFICULTY_LEVELS[diffKey];
   const diffUi = DIFFICULTY_UI[diffKey];
   const dailyOpp = isDailyChallenge ? leagueTeams.find(t => t.id !== myTeamId)?.label : null;
-  const leagueEyebrow = isDailyChallenge
+  const leagueEyebrow = singleMatchLabels ? singleMatchLabels.eyebrow : isDailyChallenge
     ? 'Supercopa do dia · jogo único'
     : `${modeLabel || 'Brasileirão Lendário'} · ${inPromotionTie ? 'Mata-mata de acesso' : `Série ${gameMode === 'serieab' ? myDivision : 'A'}`}`;
-  const leagueTitle = isDailyChallenge
+  const leagueTitle = singleMatchLabels ? singleMatchLabels.title : isDailyChallenge
     ? 'Supercopa do Brasil'
     : inPromotionTie
       ? (promotionTie.leg === 1 ? 'Jogo de ida' : 'Jogo de volta')
       : `Rodada ${currentRound + 1} de ${regularRounds}`;
   const headerTags = [];
-  if (isDailyChallenge) headerTags.push({ label: `${myLabel} × ${dailyOpp || 'time lendário de hoje'}`, tone: 'ok' });
+  if (isDailyChallenge) headerTags.push({ label: `${myLabel} × ${dailyOpp || (singleMatchLabels ? 'seu amigo' : 'time lendário de hoje')}`, tone: 'ok' });
   else if (inPromotionTie) headerTags.push({ label: `${myLabel} × ${promotionTie.opponentLabel}`, tone: 'ok' });
   else if (myRow && myRow.pj > 0) headerTags.push({ label: `${myLabel} · ${myRowIdx + 1}º · ${myRow.pts} pts`, tone: 'ok' });
   else headerTags.push({ label: myLabel, tone: 'ok' });
@@ -13040,7 +13388,7 @@ function CopaRecordPanel({ stage, teamLabel, campaignLines, currentUser, mc }) {
   );
 }
 
-function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision, cupRounds, statsFromRound = null, dynasty = null, seasonYear = null }) {
+function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, gameMode, cupWinnerId, eliminationRoundName, leagueTeams, onRestart, isLeader, onRematch, scorers, assisters, cleanSheets, seasonRatings, cardCounts, redCards, seasonAwards, onNewSeason, onOpenTransferMarket, matchHistory, onViewTeam, currentUser, onOpenAccount, myDivision, divisionMove, promotionTie, otherDivision, cupRounds, statsFromRound = null, dynasty = null, seasonYear = null, eyebrowOverride = null, competitionName = null }) {
   const dynastyCurrent = (() => {
     if (!dynasty?.length) return null;
     if (gameMode === 'copa') {
@@ -13105,7 +13453,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
     return (
       <div style={styles.card} className="card-mob">
         <SeasonEndSummary
-          eyebrow="Copa do Brasil · resultado final"
+          eyebrow={eyebrowOverride || 'Copa do Brasil · resultado final'}
           title={userWon ? 'Campeão!' : wasRunnerUp ? 'Vice-campeão' : 'Copa encerrada'}
           mine={userWon}
           crest={<ClubCrest logo={championLogo} badge={userWon ? myTeamBadge : null} name={winner?.label} color={userWon ? mc : (winner?.colors?.p || winner?.color)} size={92} frame frameClass="fb-crest-ring" scale={0.72} />}
@@ -13118,7 +13466,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         <AnthemPlayer club={champClub} />
         {!currentUser && <GuestConversionBanner myTeamColor={myTeamColor} onOpenAccount={onOpenAccount} />}
 
-        <CopaRecordPanel stage={copaStageOf({ userWon, eliminationRoundName })} teamLabel={myLabel} campaignLines={campaignLines} currentUser={currentUser} mc={mc} />
+        {!eyebrowOverride && <CopaRecordPanel stage={copaStageOf({ userWon, eliminationRoundName })} teamLabel={myLabel} campaignLines={campaignLines} currentUser={currentUser} mc={mc} />}
 
         <DynastyPanel dynasty={dynasty} current={dynastyCurrent} mc={mc} />
         {seasonAwards?.length > 0 && (
@@ -13148,6 +13496,7 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         )}
         {showBracket && (
           <CupBracketModal
+          competitionName={competitionName}
             cupRounds={cupRounds} leagueTeams={leagueTeams} myTeamId={myTeamId} myTeamColor={mc}
             myTeamLogo={myTeamLogo} myTeamBadge={myTeamBadge} onViewTeam={onViewTeam}
             onClose={() => setShowBracket(false)}
@@ -13206,8 +13555,8 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
   return (
     <div style={styles.card} className="card-mob">
       <SeasonEndSummary
-        eyebrow={gameMode === 'serieab' ? `Fim da Série ${myDivision}` : 'Fim do Brasileirão · Série A'}
-        title={isChampion ? 'Campeão!' : podium ? `${pos}º lugar: pódio!` : `${pos}º lugar`}
+        eyebrow={eyebrowOverride || (gameMode === 'serieab' ? `Fim da Série ${myDivision}` : 'Fim do Brasileirão · Série A')}
+        title={leagueTable.length === 2 ? (isChampion ? 'Venceu o duelo!' : 'Perdeu o duelo') : isChampion ? 'Campeão!' : podium ? `${pos}º lugar: pódio!` : `${pos}º lugar`}
         mine={isChampion}
         crest={<ClubCrest logo={championLogo} badge={isChampion ? myTeamBadge : null} name={champion?.label} color={isChampion ? mc : (champTeam?.colors?.p || champTeam?.color)} size={92} frame frameClass="fb-crest-ring" scale={0.72} />}
         championName={isChampion ? (champion?.label || 'Meu Time') : parseTeamLabel(champion?.label || '').baseName}
@@ -13218,7 +13567,9 @@ function Results({ leagueTable, myTeamId, myTeamColor, myTeamBadge, myTeamLogo, 
         ]}
         facts={[
           ...(gameMode === 'serieab' && divisionMove ? [{ title: divisionMove === 'promoted' ? 'Acesso!' : divisionMove === 'relegated' ? 'Rebaixado' : 'Situação', text: divisionText }] : []),
-          ...((gameMode === 'serieab' ? myDivision : 'A') === 'A' ? [
+          // Zonas (G4, rebaixados, acesso) só existem na liga de 20 — torneio
+          // do Modo Livre e duelo têm menos times.
+          ...(leagueTable.length < 20 ? [] : (gameMode === 'serieab' ? myDivision : 'A') === 'A' ? [
             { title: 'Libertadores (G4)', text: leagueTable.slice(0, 4).map(r => (r.id === myTeamId ? r.label : parseTeamLabel(r.label).baseName)).join(', ') },
             { title: 'Rebaixados', text: leagueTable.slice(-4).map(r => (r.id === myTeamId ? r.label : parseTeamLabel(r.label).baseName)).join(', ') },
           ] : [

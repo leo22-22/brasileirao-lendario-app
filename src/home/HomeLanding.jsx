@@ -243,10 +243,10 @@ export function HomeLanding({
               <div>
                 <span className="hl-tag hl-mono">Do seu jeito</span>
                 <h3>Modo Livre</h3>
-                <p>Escolha os 16 times que você quiser, de qualquer época, e monte o seu próprio campeonato.</p>
+                <p>Crie seu torneio: escolha os times de qualquer época, o formato (pontos corridos ou mata-mata) e o nome.</p>
               </div>
             </div>
-            <div className="hl-meta"><span>{livreTeamIds ? `${livreTeamIds.length} times escolhidos` : '16 times · qualquer época'}</span><ArrowIcon /></div>
+            <div className="hl-meta"><span>{livreTeamIds ? `${livreTeamIds.length + 1} times no torneio` : '8 a 32 times · qualquer época'}</span><ArrowIcon /></div>
           </button>
         </div>
 
@@ -254,7 +254,7 @@ export function HomeLanding({
           <button className="hl-mini hl-card-hover" onClick={onMultiPlayer}>
             <div className="hl-l">
               <div className="hl-ic"><ModeIcon id="amigos" size={18} /></div>
-              <div><h4>Jogar com Amigos</h4><small>Sala por código · até 32 jogadores</small></div>
+              <div><h4>Jogar com Amigos</h4><small>Sala, duelo 1x1 ou desafio por link</small></div>
             </div>
             <ArrowIcon />
           </button>

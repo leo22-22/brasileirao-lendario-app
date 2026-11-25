@@ -67,8 +67,11 @@ function sectorStrength(team) {
   return { at: avg('at'), md: avg('md'), df: avg('df'), gk: avg('gk') };
 }
 
-// multi: { max, initial: [ids], formats: [{ id, label, sub }], initialFormat, onConfirm(ids, format) }
-// — seleção de vários times (Modo Livre). Sem `multi`, seleção única (onPick).
+// multi: { initial: [ids], formats: [{ id, label, sub, sizes: [8, 12, …] }],
+//   initialFormat, initialSize, initialName, onConfirm({ ids, format, size, name }) }
+// — criador de torneio do Modo Livre: formato, tamanho (times no total,
+// contando o seu) e nome. Você escolhe size - 1 times. Sem `multi`, seleção
+// única (onPick).
 export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title, multi = null }) {
   const restricted = !!onlyIds;
   const base = useMemo(() => {
@@ -89,10 +92,22 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title, mul
   const [sheet, setSheet] = useState(false);
   const [picked, setPicked] = useState(() => new Set(multi?.initial || []));
   const [format, setFormat] = useState(() => (multi?.formats?.some(f => f.id === multi.initialFormat) ? multi.initialFormat : multi?.formats?.[0]?.id));
+  const [size, setSize] = useState(() => {
+    const sizes = multi?.formats?.find(f => f.id === format)?.sizes || [];
+    return sizes.includes(multi?.initialSize) ? multi.initialSize : sizes[sizes.length - 1] || 17;
+  });
+  const [tName, setTName] = useState(multi?.initialName || '');
+  // Trocar de formato ajusta o tamanho pra um que exista nele.
+  const chooseFormat = (id) => {
+    setFormat(id);
+    const sizes = multi?.formats?.find(f => f.id === id)?.sizes || [];
+    if (!sizes.includes(size)) setSize(sizes[sizes.length - 1]);
+  };
+  const maxPick = multi ? size - 1 : 0;
   const togglePick = (id) => setPicked(prev => {
     const next = new Set(prev);
     if (next.has(id)) next.delete(id);
-    else if (next.size < (multi?.max || Infinity)) next.add(id);
+    else if (next.size < (multi ? maxPick : Infinity)) next.add(id);
     return next;
   });
   const searchRef = useRef(null);
@@ -132,28 +147,55 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title, mul
 
   const select = (id) => { if (multi) { togglePick(id); setSelId(id); return; } setSelId(id); setSheet(true); };
   const confirm = (x) => { if (multi) return; onPick((x || sel).team); };
-  const heading = multi ? `Escolha ${multi.max} times` : title && title !== 'Escolha um time pronto' ? title : restricted ? 'Escolha seu clube' : 'Escolha um time histórico';
+  const heading = multi ? `Monte seu torneio: escolha ${maxPick} times` : title && title !== 'Escolha um time pronto' ? title : restricted ? 'Escolha seu clube' : 'Escolha um time histórico';
   const pickedList = multi ? base.filter(x => picked.has(x.team.id)) : [];
+  const fillRandom = () => setPicked(prev => {
+    const next = new Set(prev);
+    const pool = base.filter(x => !next.has(x.team.id)).map(x => x.team.id);
+    while (next.size < maxPick && pool.length) next.add(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
+    return next;
+  });
+  const excess = multi ? Math.max(0, picked.size - maxPick) : 0;
   const multiPanel = multi ? (
     <div className="rm-multi">
       <div className="rm-sec">
-        <h4>Seleção · {picked.size} de {multi.max}</h4>
-        <div className="rm-mcells" role="img" aria-label={`${picked.size} de ${multi.max} times escolhidos`}>
-          {Array.from({ length: multi.max }, (_, i) => <i key={i} className={i < picked.size ? 'rm-mc-on' : undefined} />)}
-        </div>
+        <h4>Nome do torneio</h4>
+        <input className="rm-tname" value={tName} maxLength={32} onChange={e => setTName(e.target.value)} placeholder="Ex.: Copa dos Campeões" aria-label="Nome do torneio" />
       </div>
       {multi.formats?.length > 1 && (
         <div className="rm-sec">
-          <h4>Campeonato</h4>
-          <div className="rm-fmt" role="radiogroup" aria-label="Campeonato">
+          <h4>Formato</h4>
+          <div className="rm-fmt" role="radiogroup" aria-label="Formato">
             {multi.formats.map(f => (
-              <button key={f.id} type="button" role="radio" aria-checked={format === f.id} className={`rm-fmt-b${format === f.id ? ' rm-on' : ''}`} onClick={() => setFormat(f.id)}>
+              <button key={f.id} type="button" role="radio" aria-checked={format === f.id} className={`rm-fmt-b${format === f.id ? ' rm-on' : ''}`} onClick={() => chooseFormat(f.id)}>
                 <b>{f.label}</b><small>{f.sub}</small>
               </button>
             ))}
           </div>
         </div>
       )}
+      {(multi.formats?.find(f => f.id === format)?.sizes?.length || 0) > 1 && (
+        <div className="rm-sec">
+          <h4>Times no torneio</h4>
+          <div className="rm-sizes" role="radiogroup" aria-label="Times no torneio">
+            {multi.formats.find(f => f.id === format).sizes.map(n => (
+              <button key={n} type="button" role="radio" aria-checked={size === n} className={`rm-size${size === n ? ' rm-on' : ''}`} onClick={() => setSize(n)}>{n}</button>
+            ))}
+          </div>
+          <p className="rm-small">Contando o seu time.</p>
+        </div>
+      )}
+      <div className="rm-sec">
+        <h4>Seleção · {picked.size} de {maxPick}</h4>
+        {maxPick <= 20 ? (
+          <div className="rm-mcells" role="img" aria-label={`${picked.size} de ${maxPick} times escolhidos`}>
+            {Array.from({ length: maxPick }, (_, i) => <i key={i} className={i < picked.size ? 'rm-mc-on' : undefined} />)}
+          </div>
+        ) : (
+          <div className="rm-mbar" role="img" aria-label={`${picked.size} de ${maxPick} times escolhidos`}><i style={{ width: `${Math.min(100, (picked.size / maxPick) * 100)}%` }} /></div>
+        )}
+        {picked.size < maxPick && <button type="button" className="rm-fill" onClick={fillRandom}>Completar com times sorteados</button>}
+      </div>
       <div className="rm-sec rm-msel">
         <h4>Escolhidos</h4>
         {pickedList.length === 0 && <p className="rm-small">Toque nos cards para escolher.</p>}
@@ -164,8 +206,8 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title, mul
         ))}
       </div>
       <div className="rm-pv-ft">
-        <button type="button" className="rm-go" disabled={picked.size !== multi.max} onClick={() => multi.onConfirm([...picked], format)}>
-          {picked.size === multi.max ? <>Confirmar {multi.max} times<Icon name="chevronRight" size={16} /></> : `Escolha mais ${multi.max - picked.size} (${picked.size}/${multi.max})`}
+        <button type="button" className="rm-go" disabled={picked.size !== maxPick} onClick={() => multi.onConfirm({ ids: [...picked], format, size, name: tName.trim() })}>
+          {picked.size === maxPick ? <>Criar torneio<Icon name="chevronRight" size={16} /></> : excess > 0 ? `Tire ${excess} (${picked.size}/${maxPick})` : `Escolha mais ${maxPick - picked.size} (${picked.size}/${maxPick})`}
         </button>
       </div>
     </div>
@@ -220,9 +262,9 @@ export function ReadyMadeTeamModal({ onClose, onPick, onlyIds = null, title, mul
         {onClose && <button type="button" className="rm-x" onClick={onClose} aria-label="Fechar"><Icon name="close" size={16} /></button>}
         <div className="rm-lf">
           <div className="rm-mh">
-            <span className="rm-mono">{multi ? 'Modo Livre · monte a sua liga' : restricted ? 'Brasileirão Atual · elencos reais de 2026' : 'Elenco pronto · pula o sorteio'}</span>
+            <span className="rm-mono">{multi ? 'Modo Livre · criador de torneio' : restricted ? 'Brasileirão Atual · elencos reais de 2026' : 'Elenco pronto · pula o sorteio'}</span>
             <h2 id="rm-h">{heading}</h2>
-            <p>{multi ? 'O seu elenco é montado no draft a partir destes times, que também formam a liga.' : restricted ? 'Você joga com o elenco real do clube e escolhe a formação depois.' : 'Você joga com o elenco completo do time. Dá para trocar a formação depois.'}</p>
+            <p>{multi ? 'Os times escolhidos formam o torneio, e o seu elenco sai do draft com jogadores deles.' : restricted ? 'Você joga com o elenco real do clube e escolhe a formação depois.' : 'Você joga com o elenco completo do time. Dá para trocar a formação depois.'}</p>
           </div>
           <div className="rm-flt">
             <label className="rm-search">
