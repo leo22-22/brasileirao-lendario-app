@@ -385,4 +385,8 @@ export const REAL_RESULTS_2026 = [
   { round: 36, homeId: 'botafogo2026', homeGoals: 1, awayId: 'saopaulo2026', awayGoals: 1 },
   // 25/11: fecha a rodada 36 (Kaio César 1x0, Cuello empatou aos 47 do 2º tempo).
   { round: 36, homeId: 'atleticomg2026', homeGoals: 1, awayId: 'corinthians2026', awayGoals: 1 },
+  // Rodada 37 antecipada (24/11, Palmeiras com reservas antes da final da
+  // Libertadores): Camilo, Max Alves e Miguel Carvalho. playedAt 36.5 = jogado
+  // antes do fim da 36 na ordem cronológica (forma recente).
+  { round: 37, homeId: 'chapecoense2026', homeGoals: 3, awayId: 'palmeiras2026', awayGoals: 0, playedAt: 36.5 },
 ];
