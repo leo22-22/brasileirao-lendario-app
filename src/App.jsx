@@ -11321,6 +11321,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-carreira-gestao-completa',
+    date: 'Novembro de 2026',
+    title: 'Modo Carreira: salários, contratos, lesões, bilheteria e diretoria',
+    desc: 'O Modo Carreira ficou bem mais de gestão. Todo dia 1 do mês o clube paga a folha salarial e recebe as cotas de TV e patrocínio; cada jogo em casa rende bilheteria. Os jogadores têm contrato: quem chega ao fim sai de graça, a não ser que você renove no Elenco (com luvas e aumento de salário). As lesões da partida agora contam: o jogador fica fora algumas rodadas, como o suspenso. E a diretoria cobra a meta: se a confiança despencar, você é demitido e recebe convites de outros clubes para continuar a carreira.',
+  },
+  {
     id: '2026-11-duelo-link-torneio',
     date: 'Novembro de 2026',
     title: 'Duelo 1x1, desafio por link e criador de torneio no Modo Livre',

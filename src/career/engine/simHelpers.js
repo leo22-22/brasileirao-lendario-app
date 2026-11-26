@@ -142,6 +142,21 @@ export function teamForSim(save, clubId) {
     bench = (save.myBench || [])
       .map(name => roster.find(p => p.name === name))
       .filter(p => p && !starterSet.has(p.name));
+    // Lesionado/suspenso nunca entra em campo: no jogo ao vivo a tela já
+    // bloqueia, mas no "simular temporada" o titular fora é trocado pelo
+    // melhor reserva disponível da mesma posição (ou o primeiro reserva).
+    const out = (p) => (save.injuries?.[p.name] || 0) > 0 || (save.suspensions?.[p.name] || 0) > 0;
+    if (starters.some(out)) {
+      const pool = bench.filter(p => !out(p));
+      starters = starters.map(p => {
+        if (!out(p)) return p;
+        const idx = pool.findIndex(b => b.pos?.[0] === p.pos?.[0]);
+        const pick = idx >= 0 ? pool.splice(idx, 1)[0] : pool.splice(0, 1)[0];
+        return pick || p;
+      });
+      const used = new Set(starters.map(p => p.name));
+      bench = bench.filter(p => !used.has(p.name));
+    }
   } else {
     const sorted = [...roster].sort((a, b) => b.ovr - a.ovr);
     const slots = buildPitchSlots(AI_FORMATION_KEY);

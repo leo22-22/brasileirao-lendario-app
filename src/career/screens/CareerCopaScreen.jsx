@@ -93,7 +93,7 @@ export function CareerCopaScreen({ save, onNavigate, onPlayNext }) {
   const tie = run.curTie;
   const isNextCopa = !!next && next.comp === 'Copa do Brasil';
   const blocked = (save.pendingOffers?.length || 0) > 0 ? 'market'
-    : !save.myStarters?.length || save.myStarters.some(n => (save.suspensions?.[n] || 0) > 0) ? 'formation' : null;
+    : !save.myStarters?.length || save.myStarters.some(n => ((save.suspensions?.[n] || 0) > 0 || (save.injuries?.[n] || 0) > 0)) ? 'formation' : null;
   const posLine = (id) => {
     const d = save.clubs[id]?.division;
     const tbl = d === 'B' ? save.divisionB.table : save.divisionA.table;

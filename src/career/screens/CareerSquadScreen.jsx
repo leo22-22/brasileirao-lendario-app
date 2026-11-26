@@ -6,12 +6,14 @@
 // Mesma lógica de antes (busca com normalize, filtro por setor, Lista/
 // Cards, detalhes, lista de transferências via onToggleListed, valor por
 // computePlayerValue, idade/potencial/isYouth/isStar). Só dado real: sem
-// pé preferencial, moral individual, contrato ou salário (o motor não tem).
+// pé preferencial nem moral individual. Contrato, salário e lesão vêm da
+// Fase 5 (engine/clubOps.js).
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { posOrderIndex, posSector } from '../../lib/format.js';
 import { computePlayerValue } from '../engine/pricing.js';
 import { playerSeasonStats } from '../engine/seasonStats.js';
 import { transferWindowText } from '../engine/careerMeta.js';
+import { renewalTerms } from '../engine/clubOps.js';
 import { squadDepth, DEPTH_GROUPS, VETERAN_AGE } from '../../lib/depth.js';
 import { TEAMS } from '../../data/teams.js';
 import { displayName } from '../../lib/displayName.js';
@@ -87,7 +89,9 @@ function RowMenu({ open, onToggle, onClose, items, label }) {
   );
 }
 
-function DetailPanel({ p, clubId, stats, tags, listed, loanListed, onToggleListed, onToggleLoanList, onOpenFormation, onClose, bestOvr }) {
+function DetailPanel({ p, clubId, stats, tags, listed, loanListed, onToggleListed, onToggleLoanList, onOpenFormation, onClose, bestOvr, contract, season, renewal, budget, onRenew, injuryRounds }) {
+  const [renewMsg, setRenewMsg] = useState(null);
+  useEffect(() => { setRenewMsg(null); }, [p?.name]);
   if (!p) return null;
   const value = computePlayerValue(p, clubId);
   const evo = evolutionNote(p);
@@ -121,6 +125,35 @@ function DetailPanel({ p, clubId, stats, tags, listed, loanListed, onToggleListe
         <h4>Posições</h4>
         <div className="sq-posmap">{p.pos.map(x => <PosChip key={x} pos={x} />)}</div>
       </div>
+      {injuryRounds > 0 && (
+        <div className="sq-dsec">
+          <h4>Departamento médico</h4>
+          <div style={{ fontSize: 13, color: 'var(--danger)' }}>Lesionado · fora por {injuryRounds} rodada{injuryRounds > 1 ? 's' : ''} do Brasileirão</div>
+        </div>
+      )}
+      {contract && (
+        <div className="sq-dsec">
+          <h4>Contrato</h4>
+          <div className="ch-row" style={{ fontSize: 13 }}>
+            <span>Salário <b>{formatMoneyShort(contract.wage)}</b>/mês</span>
+            <span style={{ color: contract.until <= season ? 'var(--danger)' : undefined }}>
+              {p.onLoanFrom && p.onLoanFrom !== clubId ? 'Emprestado' : contract.until <= season ? 'Termina nesta temporada' : `Até a temporada ${contract.until}`}
+            </span>
+          </div>
+          {renewal && onRenew && !(p.onLoanFrom && p.onLoanFrom !== clubId) && (
+            <div style={{ marginTop: 10 }}>
+              <button type="button" className="ui-btn ui-btn-ghost ui-btn-md ui-btn-block" disabled={budget < renewal.bonus}
+                onClick={() => { const r = onRenew(p.name); setRenewMsg(r?.ok ? `Renovado até a temporada ${r.terms.until}.` : (r?.reason || 'Não deu para renovar.')); }}>
+                <Icon name="check" size={17} />Renovar até a temporada {renewal.until}
+              </button>
+              <div className="ch-small" style={{ marginTop: 6 }}>
+                Novo salário {formatMoneyShort(renewal.wage)}/mês · luvas {formatMoneyShort(renewal.bonus)}{budget < renewal.bonus ? ' · orçamento não cobre' : ''}
+              </div>
+              {renewMsg && <div className="ch-small" role="status" style={{ marginTop: 4, color: 'var(--success)' }}>{renewMsg}</div>}
+            </div>
+          )}
+        </div>
+      )}
       {evo && (
         <div className="sq-dsec">
           <h4>Evolução</h4>
@@ -142,7 +175,7 @@ function DetailPanel({ p, clubId, stats, tags, listed, loanListed, onToggleListe
   );
 }
 
-export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOpenFormation, onOpenMarket }) {
+export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOpenFormation, onOpenMarket, onRenewContract }) {
   const isDrawer = useMediaQuery('(max-width: 1200px)'); // detalhe vira drawer (careerSquad.css)
   const clubId = save.myClubId;
   const team = TEAMS.find(t => t.id === clubId);
@@ -170,6 +203,7 @@ export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOp
     const t = [];
     if (save.myCaptain === p.name) t.push({ id: 'cap', label: 'Capitão' });
     else if (starters.has(p.name)) t.push({ id: 'tit', label: 'Titular' });
+    if ((save.injuries?.[p.name] || 0) > 0) t.push({ id: 'inj', label: 'Lesionado' });
     if ((save.suspensions?.[p.name] || 0) > 0) t.push({ id: 'susp', label: 'Suspenso' });
     else if (hanging(p.name)) t.push({ id: 'yel', label: 'Pendurado' });
     if (transferList.includes(p.name)) t.push({ id: 'lst', label: 'Na lista' });
@@ -259,6 +293,12 @@ export function CareerSquadScreen({ save, onToggleListed, onToggleLoanList, onOp
     onToggleListed: () => onToggleListed(selected.name),
     onToggleLoanList: onToggleLoanList ? () => onToggleLoanList(selected.name) : null,
     onOpenFormation,
+    contract: save.contracts?.[selected.name] || null,
+    season: save.season,
+    renewal: renewalTerms(save, selected.name),
+    budget: save.clubs[clubId].budget,
+    onRenew: onRenewContract,
+    injuryRounds: save.injuries?.[selected.name] || 0,
   } : null;
 
   return (

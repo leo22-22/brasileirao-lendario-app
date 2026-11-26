@@ -342,7 +342,7 @@ export function CareerCalendarScreen({ save, onNavigate, onPlayNext }) {
     }
     const nextOne = isNextEv(selEv);
     const blocked = (save.pendingOffers?.length || 0) > 0 ? 'market'
-      : !save.myStarters?.length || save.myStarters.some(n => (save.suspensions?.[n] || 0) > 0) ? 'formation' : null;
+      : !save.myStarters?.length || save.myStarters.some(n => ((save.suspensions?.[n] || 0) > 0 || (save.injuries?.[n] || 0) > 0)) ? 'formation' : null;
     return (
       <div className="cl-day">
         <div className="cl-ring" aria-hidden="true" />

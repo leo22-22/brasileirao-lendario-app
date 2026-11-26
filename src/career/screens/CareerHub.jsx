@@ -171,7 +171,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
   const seasonOver = division.round >= division.fixtures.length;
   const offerCount = save.pendingOffers?.length || 0;
   const noFormation = !save.myStarters?.length;
-  const suspendedStarters = noFormation ? [] : save.myStarters.filter(name => (save.suspensions?.[name] || 0) > 0);
+  const suspendedStarters = noFormation ? [] : save.myStarters.filter(name => (save.suspensions?.[name] || 0) > 0 || (save.injuries?.[name] || 0) > 0);
   const advanceBlocked = offerCount > 0 || noFormation || suspendedStarters.length > 0;
   const [preview, setPreview] = useState(null);
   const [inboxFilter, setInboxFilter] = useState('all');
@@ -221,7 +221,7 @@ export function CareerHub({ save, onNavigate, onAdvanceDay, onSimulateSeason, on
 
   const primaryLabel = offerCount > 0 ? 'Responder propostas'
     : noFormation ? 'Definir formação'
-      : suspendedStarters.length ? 'Tirar suspenso da escalação'
+      : suspendedStarters.length ? 'Tirar suspenso ou lesionado da escalação'
         : seasonOver ? (next ? 'Jogar a final da Copa' : 'Encerrar temporada')
           : next?.comp === 'Brasileirão' ? `Jogar rodada ${next.roundIdx + 1}`
             : next ? `Avançar até a Copa` : 'Avançar';

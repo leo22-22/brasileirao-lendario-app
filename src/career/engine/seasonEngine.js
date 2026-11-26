@@ -26,6 +26,7 @@ import { drawCopaBracket, playCopaRoundIda, playCopaRoundVolta, finalizeCopaUser
 import { accumulateMatchStats, playerSeasonStats } from './seasonStats.js';
 import { buildSeasonReport } from './seasonReport.js';
 import { returnDueLoans, returnSeasonLoans, generateUserLoanOffer, acceptLoanOffer, LOAN_OFFER_CHANCE } from './loans.js';
+import { applyMonthlyFinances, applyGateRevenue, applyUserInjuries, processContractExpiry, boardVerdict, ensureContracts } from './clubOps.js';
 
 export { isTransferWindowOpen } from './calendar.js';
 export { teamForSim } from './simHelpers.js';
@@ -301,6 +302,8 @@ export function advanceDay(save) {
   while (day < 365) {
     day += 1;
     current = returnDueLoans(current, day);
+    // Dia 1 do mês: folha salarial e cotas fixas (só o clube do usuário).
+    current = applyMonthlyFinances(current, day);
     const division = current[myDivisionKey];
     const nextRoundIdx = division.round;
     // Fim do Brasileirão só encerra a temporada se a Copa do Brasil não
@@ -337,8 +340,9 @@ export function advanceDay(save) {
         };
         return { save: { ...current, calendarDay: day, pendingUserMatch, lastDayEvents: events }, event: 'user-match' };
       }
-      const played = playRound(current, nextRoundIdx, null);
-      const myMatch = findMyMatchResult(played, nextRoundIdx);
+      const playedRaw = playRound(current, nextRoundIdx, null);
+      const myMatch = findMyMatchResult(playedRaw, nextRoundIdx);
+      const played = applyGateRevenue(playedRaw, myMatch, day);
       if (myMatch) events.push({ type: 'match', day, ...myMatch });
       return { save: { ...played, calendarDay: day, lastDayEvents: events }, event: 'match', roundIdx: nextRoundIdx };
     }
@@ -463,7 +467,11 @@ export function resolveUserMatch(save0) {
     homeId: pending.homeId, awayId: pending.awayId, homeGoals: sim.homeGoals, awayGoals: sim.awayGoals,
     events: sim.events, ratings: sim.ratings, homeGkName: sim.homeGkName, awayGkName: sim.awayGkName,
   };
-  const played = applyUserDiscipline(playRound(save, pending.roundIdx, userMatch), sim.events);
+  // Cartões, lesões (agora guardadas, ver clubOps.js) e bilheteria do jogo em casa.
+  const played = applyGateRevenue(
+    applyUserInjuries(applyUserDiscipline(playRound(save, pending.roundIdx, userMatch), sim.events), sim.events),
+    pending, pending.day,
+  );
   const myMatch = findMyMatchResult(played, pending.roundIdx);
   return {
     ...played,
@@ -551,6 +559,10 @@ export { finalizeCopaUserTieLeg1, finalizeCopaUserTieLeg2 } from './copaEngine.j
 // já começa aqui mesmo.
 export function endOfSeason(save) {
   const rand = makePrng(hashSeed(`${save.seed}|end-of-season|${save.season}`));
+  // Veredito da diretoria com a tabela FINAL, antes de qualquer acesso/queda
+  // mudar a divisão do clube (a demissão em si só acontece depois do
+  // relatório, em CareerApp/handleAdvanceSeason).
+  const verdict = boardVerdict(save, { final: true });
   let next = save;
 
   // 1) Premiação por posição final (independe de acesso/queda).
@@ -607,6 +619,18 @@ export function endOfSeason(save) {
     const batch = generateClubYouthBatch(makePrng, hashSeed, save.seed, clubId, save.season);
     next = addPlayersToClub(next, clubId, batch);
   }
+
+  // 2b) Contratos do clube do usuário que terminam nesta temporada.
+  next = ensureContracts(next);
+  const expiry = processContractExpiry(next);
+  next = {
+    ...expiry.save,
+    seasonEndExtras: {
+      board: { confidence: verdict.board.confidence, goal: verdict.board.text, pos: verdict.board.pos, fired: verdict.fired },
+      contractExits: expiry.departures,
+      autoRenewed: expiry.autoRenewed,
+    },
+  };
 
   // 3) Arrumação de elenco da IA (entre os OUTROS 39 clubes, nunca
   //    envolvendo o usuário) — acontece nos bastidores no fim de cada
@@ -881,6 +905,9 @@ export function advanceToNextSeason(save) {
     leaguePlayerStats: {},
     lastSeasonReport: null,
     pendingSeasonReportData: null,
+    seasonEndExtras: null,
+    // Pré-temporada: todo mundo volta recuperado.
+    injuries: {},
     screen: 'hub',
   };
 }

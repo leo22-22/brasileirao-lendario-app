@@ -51,7 +51,9 @@ export function boardGoal(save) {
   }
   if (tier === 'elite' || tier === 'grande') return { text: 'Subir direto (top 2)', short: 'acesso direto', target: 2 };
   if (tier === 'medio') return { text: 'Brigar pelo acesso (top 6)', short: 'playoff', target: 6 };
-  return { text: 'Não ser rebaixado', short: 'fora do Z4', target: 16 };
+  // A Série B do jogo não tem rebaixamento (decisão do usuário) — a meta do
+  // clube pequeno é não terminar entre os últimos.
+  return { text: 'Terminar entre os 16 primeiros', short: 'top 16', target: 16 };
 }
 
 const BANDS = [
@@ -210,6 +212,8 @@ export function assistantInsight(save, nextMatch) {
   const opp = clubName(oppId);
   const facts = [];
 
+  const injured = (save.myStarters || []).filter(n => (save.injuries?.[n] || 0) > 0);
+  if (injured.length) facts.push({ w: 11, text: `${injured.join(', ')} ${injured.length > 1 ? 'estão lesionados' : 'está lesionado'} e não pode${injured.length > 1 ? 'm' : ''} jogar — ajuste a escalação.` });
   const suspended = (save.myStarters || []).filter(n => (save.suspensions?.[n] || 0) > 0);
   if (suspended.length) facts.push({ w: 10, text: `${suspended.join(', ')} ${suspended.length > 1 ? 'estão suspensos' : 'está suspenso'} e não pode${suspended.length > 1 ? 'm' : ''} jogar — ajuste a escalação.` });
 
@@ -254,6 +258,14 @@ export function squadAlerts(save) {
     const starter = (save.myStarters || []).includes(name);
     alerts.push({ kind: 'suspended', tone: 'danger', icon: 'warning', title: `${name} suspenso`, text: `Fora por ${left} rodada${left > 1 ? 's' : ''}${starter ? ' · está na escalação titular' : ''}`, action: starter ? 'formation' : null, actionLabel: 'Trocar' });
   }
+  for (const [name, left] of Object.entries(save.injuries || {}).filter(([, l]) => l > 0)) {
+    if (!club.roster.some(p => p.name === name)) continue;
+    const starter = (save.myStarters || []).includes(name);
+    alerts.push({ kind: 'injured', tone: 'danger', icon: 'warning', title: `${name} lesionado`, text: `Fora por ${left} rodada${left > 1 ? 's' : ''}${starter ? ' · está na escalação titular' : ''}`, action: starter ? 'formation' : 'squad', actionLabel: starter ? 'Trocar' : 'Ver' });
+  }
+  // Contratos que terminam no fim desta temporada (Fase 5, clubOps.js).
+  const expiring = club.roster.filter(p => !p.inAcademy && !(p.onLoanFrom && p.onLoanFrom !== save.myClubId) && save.contracts?.[p.name] && save.contracts[p.name].until <= save.season);
+  if (expiring.length) alerts.push({ kind: 'contracts', tone: 'warning', icon: 'list', title: `${expiring.length} contrato${expiring.length > 1 ? 's terminam' : ' termina'} nesta temporada`, text: `${expiring.slice(0, 3).map(p => p.name).join(', ')}${expiring.length > 3 ? '…' : ''} · renove no Elenco ou ${expiring.length > 1 ? 'eles saem' : 'ele sai'} de graça`, action: 'squad', actionLabel: 'Ver' });
   const hanging = Object.entries(save.cardTally || {}).filter(([name, n]) => n === YELLOWS_FOR_SUSPENSION - 1 && club.roster.some(p => p.name === name));
   for (const [name] of hanging.slice(0, 3)) {
     alerts.push({ kind: 'hanging', tone: 'warning', icon: 'list', title: `${name} pendurado`, text: `${YELLOWS_FOR_SUSPENSION - 1} amarelos · suspenso se levar outro` });

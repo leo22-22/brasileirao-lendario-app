@@ -10,8 +10,11 @@ import { playerSeasonStats } from './seasonStats.js';
 
 export function buildSeasonReport(save, myClubDeltas, divisionMoves) {
   const myClubId = save.myClubId;
-  const myDivisionKey = save.clubs[myClubId].division === 'A' ? 'divisionA' : 'divisionB';
-  const row = save[myDivisionKey].table.find(r => r.id === myClubId) || null;
+  // Procura nas duas tabelas: quando o relatório é montado o acesso/queda já
+  // mudou `clubs[].division`, e o clube que subiu ou caiu não estava na
+  // tabela da divisão nova — o "Resumo do time" saía vazio pra ele.
+  const row = save.divisionA.table.find(r => r.id === myClubId)
+    || save.divisionB.table.find(r => r.id === myClubId) || null;
 
   const myKeyPrefix = `${myClubId}::`;
   const cleanSheets = Object.entries(save.seasonPlayerStats || {})
@@ -41,5 +44,9 @@ export function buildSeasonReport(save, myClubDeltas, divisionMoves) {
     playerRows,
     retired: myClubDeltas.filter(d => d.retired),
     divisionMoves: movesWithLabels,
+    // Fase 5: veredito da diretoria e quem saiu por fim de contrato.
+    board: save.seasonEndExtras?.board || null,
+    contractExits: save.seasonEndExtras?.contractExits || [],
+    autoRenewed: save.seasonEndExtras?.autoRenewed || [],
   };
 }

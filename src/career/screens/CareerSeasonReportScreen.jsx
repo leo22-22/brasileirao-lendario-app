@@ -78,7 +78,7 @@ function PlayerRow({ p }) {
 export function CareerSeasonReportScreen({ report, onAdvance, onBack }) {
   const [tab, setTab] = useState('team');
   if (!report) return null;
-  const { teamStats, playerRows, retired, divisionMoves, teamLabel, season } = report;
+  const { teamStats, playerRows, retired, divisionMoves, teamLabel, season, board, contractExits = [], autoRenewed = [] } = report;
   const promoted = divisionMoves.filter(m => m.move === 'promoted');
   const relegated = divisionMoves.filter(m => m.move === 'relegated');
 
@@ -87,6 +87,15 @@ export function CareerSeasonReportScreen({ report, onAdvance, onBack }) {
       {onBack && <button onClick={onBack} style={backButtonStyle}>← Voltar</button>}
       <h2 style={{ fontFamily: 'var(--font-serif)', fontWeight: 400, letterSpacing: '-0.02em', fontSize: 28, marginBottom: 2 }}>Fim da Temporada {season}</h2>
       <p style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 16 }}>{teamLabel} — como foi a temporada</p>
+      {board && (
+        <div role="status" style={{ padding: '12px 14px', borderRadius: 12, marginBottom: 16, border: `1px solid ${board.fired ? 'var(--danger)' : board.confidence >= 60 ? 'var(--success)' : 'var(--line-strong)'}`, background: board.fired ? 'rgba(178,59,59,0.08)' : 'var(--surface)' }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6 }}>Diretoria · meta: {String(board.goal || '').toLowerCase()}</div>
+          <div style={{ fontWeight: 700, fontSize: 15, marginTop: 2, color: board.fired ? 'var(--danger)' : 'var(--ink)' }}>
+            {board.fired ? 'A diretoria decidiu te demitir' : board.confidence >= 60 ? 'Meta cumprida: a diretoria está satisfeita' : 'A diretoria segue com você, mas cobra mais'}
+          </div>
+          <div style={{ fontSize: 12.5, color: 'var(--ink-2)', marginTop: 2 }}>Terminou em {board.pos}º · confiança final de {board.confidence}%.{board.fired ? ' Ao avançar, você recebe convites de outros clubes.' : ''}</div>
+        </div>
+      )}
 
       <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
         {TABS.map(t => (
@@ -119,6 +128,22 @@ export function CareerSeasonReportScreen({ report, onAdvance, onBack }) {
       {tab === 'squad' && (
         <div style={{ display: 'grid', gap: 6 }}>
           {playerRows.map(p => <PlayerRow key={p.name} p={p} />)}
+          {contractExits.length > 0 && (
+            <>
+              <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10, marginBottom: 2 }}>Saíram no fim do contrato</div>
+              {contractExits.map(name => (
+                <div key={name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 10, background: 'rgba(178,59,59,0.06)' }}>
+                  <span style={{ fontSize: 13, flex: 1 }}>{name}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--danger)' }}>Contrato encerrado</span>
+                </div>
+              ))}
+            </>
+          )}
+          {autoRenewed.length > 0 && (
+            <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 6 }}>
+              Renovados automaticamente por 1 temporada para o elenco não ficar abaixo de 16: {autoRenewed.join(', ')}.
+            </div>
+          )}
           {retired.length > 0 && (
             <>
               <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: 0.6, marginTop: 10, marginBottom: 2 }}>Se aposentaram</div>

@@ -88,7 +88,7 @@ function PitchField({ slots, starters, byName, selectedSlot, suspendedSet, hangi
         const isPen = !!name && penalty === name;
         const outOfPos = p && !p.pos.includes(slot.realPos);
         const label = p
-          ? `${slot.realPos}: ${p.name}, OVR ${p.ovr}${isCap ? ', capitão' : ''}${isPen ? ', cobrador de pênalti' : ''}${suspended ? ', suspenso' : hanging ? ', pendurado' : ''}${outOfPos ? ', fora de posição' : ''}`
+          ? `${slot.realPos}: ${p.name}, OVR ${p.ovr}${isCap ? ', capitão' : ''}${isPen ? ', cobrador de pênalti' : ''}${suspended ? `, ${suspendedSet.labelOf(name)}` : hanging ? ', pendurado' : ''}${outOfPos ? ', fora de posição' : ''}`
           : `${slot.realPos}: vaga vazia — escolher jogador`;
         return (
           <PlayerDot
@@ -97,7 +97,7 @@ function PitchField({ slots, starters, byName, selectedSlot, suspendedSet, hangi
             player={p}
             selected={selectedSlot === slot.key}
             badges={{ cap: isCap, pen: isPen, warn: suspended ? 'danger' : (hanging || outOfPos) ? 'warning' : null }}
-            note={suspended ? 'suspenso' : hanging ? 'pendurado' : outOfPos ? 'improvisado' : null}
+            note={suspended ? suspendedSet.labelOf(name) : hanging ? 'pendurado' : outOfPos ? 'improvisado' : null}
             dangerName={suspended}
             label={label}
             onClick={() => onSlotClick(slot.key)}
@@ -124,14 +124,14 @@ function PlayerPoolPicker({ slot, occupant, pool, benchSet, suspendedSet, hangin
         className="cf-pick"
         onClick={() => !susp && onPick(p.name)}
         disabled={susp}
-        aria-label={`${p.pos[0]}: ${p.name}, OVR ${p.ovr}${susp ? ', suspenso' : ''}`}
+        aria-label={`${p.pos[0]}: ${p.name}, OVR ${p.ovr}${susp ? `, ${suspendedSet.labelOf(p.name)}` : ''}`}
       >
         <span className="cf-o">{p.ovr}</span>
         <span style={{ minWidth: 0, flex: 1 }}>
           <b className="cf-ell">{p.name}</b>
           <small>{p.pos.join(' / ')}{benchSet.has(p.name) ? ' · no banco' : ''}{!ok ? ' · improvisado' : ''}</small>
         </span>
-        {susp && <span className="ch-tag ch-t-danger">Suspenso</span>}
+        {susp && <span className="ch-tag ch-t-danger">{suspendedSet.labelOf(p.name) === 'lesionado' ? 'Lesionado' : 'Suspenso'}</span>}
         {!susp && hangingSet.has(p.name) && <span className="ch-tag ch-t-warning">Pendurado</span>}
       </button>
     );
@@ -283,7 +283,15 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
   }, [confirmClear]);
 
   // Suspenso (applyUserDiscipline em seasonEngine.js) não entra nem no banco.
-  const suspendedSet = useMemo(() => new Set(Object.entries(save.suspensions || {}).filter(([, left]) => left > 0).map(([name]) => name)), [save.suspensions]);
+  // Suspensos e lesionados (Fase 5) — os dois ficam fora do próximo jogo.
+  // `labelOf(nome)` diz se é suspenso ou lesionado (o resto da tela só
+  // pergunta "está fora?" via .has, igual era só com suspensão).
+  const suspendedSet = useMemo(() => {
+    const injured = new Set(Object.entries(save.injuries || {}).filter(([, left]) => left > 0).map(([name]) => name));
+    const set = new Set([...Object.entries(save.suspensions || {}).filter(([, left]) => left > 0).map(([name]) => name), ...injured]);
+    set.labelOf = (name) => (injured.has(name) ? 'lesionado' : 'suspenso');
+    return set;
+  }, [save.suspensions, save.injuries]);
   // Pendurado: um amarelo da suspensão (save.cardTally, mesmo contador do motor).
   const hangingSet = useMemo(() => new Set(Object.entries(save.cardTally || {}).filter(([, n]) => n === YELLOWS_FOR_SUSPENSION - 1).map(([name]) => name)), [save.cardTally]);
   const hasSuspendedStarter = Object.values(starters).some(name => suspendedSet.has(name));
@@ -496,8 +504,8 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
   const canConfirm = filledCount === 11 && !hasSuspendedStarter && !hasSuspendedBench && !!validCaptain && !!validPenaltyTaker;
   const confirmReason = canConfirm ? null
     : filledCount < 11 ? `Escolha mais ${11 - filledCount} titular${11 - filledCount > 1 ? 'es' : ''}`
-      : hasSuspendedStarter ? 'Tire o suspenso da escalação'
-        : hasSuspendedBench ? 'Tire o suspenso do banco'
+      : hasSuspendedStarter ? 'Tire o suspenso ou lesionado da escalação'
+        : hasSuspendedBench ? 'Tire o suspenso ou lesionado do banco'
           : !validCaptain ? 'Escolha um capitão'
             : 'Escolha um cobrador de pênalti';
   const handleConfirm = () => {
@@ -528,7 +536,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
     if (!p) return;
     if (suspendedSet.has(name)) {
       const sub = bestFor(slot);
-      alerts.push({ key: `s-${slot.key}`, tone: 'danger', icon: 'warning', text: <><b>{name} está suspenso.</b> Não pode jogar a próxima rodada.</>, action: sub ? { label: `Trocar por ${sub.name}`, run: () => placeInSlot(slot.key, sub.name) } : null });
+      alerts.push({ key: `s-${slot.key}`, tone: 'danger', icon: 'warning', text: <><b>{name} está {suspendedSet.labelOf(name)}.</b> Não pode jogar a próxima rodada.</>, action: sub ? { label: `Trocar por ${sub.name}`, run: () => placeInSlot(slot.key, sub.name) } : null });
     } else if (hangingSet.has(name)) {
       const sub = bestFor(slot, hangingSet);
       alerts.push({ key: `h-${slot.key}`, tone: 'warning', icon: 'list', text: <><b>{name} está pendurado.</b> Mais um amarelo e ele cumpre suspensão.</>, action: sub ? { label: `Trocar por ${sub.name}`, run: () => placeInSlot(slot.key, sub.name) } : null });
@@ -537,7 +545,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
       alerts.push({ key: `o-${slot.key}`, tone: 'info', icon: 'swap', text: <><b>{name} está fora de posição</b> ({p.pos.join('/')} jogando de {slot.realPos}).</>, action: sub ? { label: `Trocar por ${sub.name}`, run: () => placeInSlot(slot.key, sub.name) } : null });
     }
   });
-  benchSelected.filter(n => suspendedSet.has(n)).forEach(n => alerts.push({ key: `sb-${n}`, tone: 'danger', icon: 'warning', text: <><b>{n} está suspenso</b> e não pode ficar no banco.</>, action: { label: 'Tirar do banco', run: () => setBenchSelected(prev => prev.filter(x => x !== n)) } }));
+  benchSelected.filter(n => suspendedSet.has(n)).forEach(n => alerts.push({ key: `sb-${n}`, tone: 'danger', icon: 'warning', text: <><b>{n} está {suspendedSet.labelOf(n)}</b> e não pode ficar no banco.</>, action: { label: 'Tirar do banco', run: () => setBenchSelected(prev => prev.filter(x => x !== n)) } }));
   if (filledCount > 0 && !benchSelected.some(n => byName[n]?.pos[0] === 'GOL')) {
     const gk = notPlaced.find(p => p.pos[0] === 'GOL' && !suspendedSet.has(p.name) && !benchSet.has(p.name));
     alerts.push({
@@ -737,7 +745,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
                     type="button"
                     className={`cf-bs${susp ? ' cf-bs-susp' : ''}`}
                     onClick={() => handleBenchOrPoolClick(name, 'bench')}
-                    aria-label={`${p.pos[0]}: ${name}, OVR ${p.ovr}${susp ? ', suspenso' : ''} — ${pendingSlotKey ? 'colocar na vaga selecionada' : 'tirar do banco'}`}
+                    aria-label={`${p.pos[0]}: ${name}, OVR ${p.ovr}${susp ? `, ${suspendedSet.labelOf(name)}` : ''} — ${pendingSlotKey ? 'colocar na vaga selecionada' : 'tirar do banco'}`}
                     title={pendingSlotKey ? 'Colocar na vaga selecionada' : 'Tirar do banco'}
                   >
                     <b>{p.ovr}</b><span>{name}</span><small style={{ color: posColor(p.pos[0]) }}>{p.pos[0]}{hangingSet.has(name) ? ' · !' : ''}</small>
@@ -764,7 +772,7 @@ export function CareerFormationScreen({ save, onConfirm, onSaveFormationPreset, 
                   <span className="cf-o">{p.ovr}</span>
                   <span style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
                     <b className="cf-ell">{p.name}</b>
-                    {susp && <span className="ch-tag ch-t-danger" style={{ height: 20 }}>Suspenso</span>}
+                    {susp && <span className="ch-tag ch-t-danger" style={{ height: 20 }}>{suspendedSet.labelOf(name) === 'lesionado' ? 'Lesionado' : 'Suspenso'}</span>}
                     {!susp && hangingSet.has(p.name) && <span className="ch-tag ch-t-warning" style={{ height: 20 }}>Pendurado</span>}
                   </span>
                   <span className="cf-pos">{p.pos[0]}</span>

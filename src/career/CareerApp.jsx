@@ -38,6 +38,8 @@ import { processQueuedProposals, toggleShortlist, queueProposal, cancelQueuedPro
 import { CareerShell } from './components/CareerShell.jsx';
 import { CareerInboxScreen } from './screens/CareerInboxScreen.jsx';
 import { CareerFinanceScreen } from './screens/CareerFinanceScreen.jsx';
+import { CareerFiredScreen } from './screens/CareerFiredScreen.jsx';
+import { ensureContracts, renewContract, boardVerdict, fireManager, acceptJobOffer, jobOffersAfterFiring } from './engine/clubOps.js';
 
 const SECTION_LABELS = {
   squad: 'Elenco', formation: 'Formação', market: 'Mercado', table: 'Tabela', calendar: 'Calendário',
@@ -84,7 +86,13 @@ export function CareerApp({ onExit, onHudChange }) {
     if (!save) return;
     // Dados derivados da Visão geral (histórico de saldo, caixa de entrada,
     // diretoria) — idempotente: só devolve um save novo se algo mudou.
-    const synced = syncCareerMeta(processQueuedProposals(save));
+    let synced = syncCareerMeta(ensureContracts(processQueuedProposals(save)));
+    // Diretoria (Fase 5): demissão no meio da temporada se a confiança
+    // despencar (ver boardVerdict em clubOps.js). A de fim de temporada sai
+    // do relatório, em handleAdvanceSeason.
+    if (!synced.fired && !synced.pendingUserMatch && !synced.pendingUserCopaTie && !synced.pendingUserTie && boardVerdict(synced).fired) {
+      synced = fireManager(synced, { reason: 'midseason', final: false });
+    }
     if (synced !== save) { setSave(synced); return; }
     // Abrir o Modo Carreira sem mudar nada não regrava o slot — senão o
     // `updatedAt` ("salva há X" na entrada) virava "agora" só de abrir.
@@ -359,8 +367,35 @@ export function CareerApp({ onExit, onHudChange }) {
   }, []);
 
   const handleAdvanceSeason = useCallback(() => {
-    setSave(prev => prev && advanceToNextSeason(prev));
+    setSave(prev => {
+      if (!prev) return prev;
+      const verdict = prev.lastSeasonReport?.board;
+      let next = advanceToNextSeason(prev);
+      // Demitido no fim da temporada: o veredito saiu com a tabela final
+      // (endOfSeason); os convites já consideram as divisões da temporada nova.
+      if (verdict?.fired) {
+        next = {
+          ...next,
+          fired: { season: prev.season, day: 365, final: true, reason: 'season-end', confidence: verdict.confidence, pos: verdict.pos, goal: verdict.goal, fromClubId: next.myClubId, offers: jobOffersAfterFiring(next) },
+        };
+      }
+      return next;
+    });
     setScreen('hub');
+  }, []);
+
+  // Contrato: renovar (luvas na hora, ver clubOps.js). Lê `save` direto
+  // pra devolver o resultado à tela (mensagem de sucesso/erro).
+  const handleRenewContract = useCallback((playerName) => {
+    if (!save) return { ok: false };
+    const result = renewContract(ensureContracts(save), playerName);
+    if (result.ok) setSave(result.save);
+    return result;
+  }, [save]);
+
+  const handleAcceptJob = useCallback((clubId) => {
+    setSave(prev => prev && acceptJobOffer(prev, clubId));
+    setScreen('formation');
   }, []);
 
   if (screen === 'start') {
@@ -398,6 +433,10 @@ export function CareerApp({ onExit, onHudChange }) {
         onStop={handleAdvanceStop}
       />
     );
+  }
+
+  if (save.fired) {
+    return <CareerFiredScreen save={save} onAccept={handleAcceptJob} onNewCareer={handleNewCareer} />;
   }
 
   if (screen === 'season-report' && save.lastSeasonReport) {
@@ -460,7 +499,7 @@ export function CareerApp({ onExit, onHudChange }) {
 
   const back = () => setScreen('hub');
   let body;
-  if (screen === 'squad') body = <CareerSquadScreen save={save} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onOpenFormation={() => setScreen('formation')} onOpenMarket={() => setScreen('market')} onBack={back} />;
+  if (screen === 'squad') body = <CareerSquadScreen save={save} onRenewContract={handleRenewContract} onToggleListed={handleToggleListed} onToggleLoanList={handleToggleLoanList} onOpenFormation={() => setScreen('formation')} onOpenMarket={() => setScreen('market')} onBack={back} />;
   else if (screen === 'formation') body = <CareerFormationScreen save={save} onConfirm={handleConfirmFormation} onSaveFormationPreset={handleSaveFormationPreset} onDeleteFormationPreset={handleDeleteFormationPreset} onRenameFormationPreset={handleRenameFormationPreset} onBack={back} />;
   else if (screen === 'table') body = <CareerTableScreen save={save} onNavigate={setScreen} onOpenClubInMarket={(id) => { setMarketClub(id); setScreen('market'); }} onBack={back} />;
   else if (screen === 'calendar') body = <CareerCalendarScreen save={save} onNavigate={setScreen} onPlayNext={handleAdvanceDay} onBack={back} />;
