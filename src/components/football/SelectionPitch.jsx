@@ -1,8 +1,11 @@
 // Campo da Seleção da Rodada — ÚNICA versão (card da home e WeeklyTeamModal).
 // Pílulas com escudo, nome e nota Sofascore (quando houver). O rótulo de cada
 // pílula é escolhido pelo espaço que ela tem no card (ResizeObserver no campo,
-// não na janela): nome completo → só o sobrenome/apelido → reticências com
-// largura máxima. Nunca duas pílulas da mesma altura se encostam.
+// não na janela). Ordem (pedido do usuário 2026-11-26): nome completo →
+// "Primeiro S." → reticências. Se nem assim cabe em linha (linha de 3 ou 4
+// jogadores), a pílula vira um cartão vertical — escudo e nota em cima, nome
+// embaixo — que ocupa bem menos largura. Nunca duas pílulas da mesma altura
+// se encostam.
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CLUB_LOGOS } from '../../data/club-logos.js';
 import { displayName } from '../../lib/displayName.js';
@@ -16,9 +19,10 @@ const GAP = 8; // folga mínima entre pílulas vizinhas (px)
 
 // lado no campo (visto do gol de baixo): esquerda, centro, direita
 const sideOf = (posLabel = '') => (/Esquerd/.test(posLabel) ? 0 : /Direit/.test(posLabel) ? 2 : 1);
-const shortName = (name) => {
+// "Thiago Silva" → "Thiago S."; nome de uma palavra fica como está.
+const abbrevName = (name) => {
   const parts = name.trim().split(/\s+/);
-  return parts.length > 1 ? parts[parts.length - 1] : name;
+  return parts.length > 1 ? `${parts[0]} ${parts[parts.length - 1][0]}.` : name;
 };
 
 /** players: [{ key, name, team, abbr, line, posLabel, craque, rating }]. lineTopPct: { [line]: top% } */
@@ -76,30 +80,76 @@ export function SelectionPitch({ players, lineTopPct, className = '', ariaLabel 
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el || !width) return;
+    const sample = el.querySelector('.fb-sp-n');
+    const ratingEl = el.querySelector('.fb-sp-r');
+    if (!sample) return;
+    const font = getComputedStyle(sample).font;
+    const vFont = font.replace(/\d+(\.\d+)?px/, '11.5px');
+    const rFont = ratingEl ? getComputedStyle(ratingEl).font : font;
+    const px = (pct) => (pct * width) / 100;
     const next = {};
-    placed.forEach(p => {
-      const pill = el.querySelector(`[data-sp="${CSS.escape(p.key)}"]`);
-      const nameEl = pill?.querySelector('.fb-sp-n');
-      if (!pill || !nameEl) return;
-      const font = getComputedStyle(nameEl).font;
-      const fixed = pill.offsetWidth - nameEl.offsetWidth;
-      const same = placed.filter(o => o !== p && Math.abs(o.y - p.y) < 3);
-      const nearest = same.length ? Math.min(...same.map(o => Math.abs(o.x - p.x))) * width / 100 : Infinity;
-      const full = displayName(p.name);
-      const short = displayName(shortName(p.name));
-      // Sozinho na altura dele (ex.: lateral): anda pra dentro só o
-      // necessário pra caber, sem passar de 40%/60%.
-      let x = p.x;
-      if (!same.length && x !== 50) {
-        const half = ((fixed + textWidth(full, font)) / 2 + 4) / width * 100;
-        x = x < 50 ? Math.max(x, Math.min(half, 40)) : Math.min(x, Math.max(100 - half, 60));
-      }
-      const edge = 2 * (Math.min(x, 100 - x) * width / 100 - 4);
-      const budget = Math.min(nearest - GAP, edge) - fixed;
-      if (textWidth(full, font) <= budget) next[p.key] = { text: full, x };
-      else if (textWidth(short, font) <= budget) next[p.key] = { text: short, x };
-      else next[p.key] = { text: short, x, maxW: Math.max(18, Math.floor(budget)) };
+    // Agrupa por altura (mesma linha visual) pra achar os vizinhos.
+    const rows = [];
+    [...placed].sort((a, b) => a.y - b.y || a.x - b.x).forEach(p => {
+      const row = rows.find(r => Math.abs(r[0].y - p.y) < 3);
+      if (row) row.push(p); else rows.push([p]);
     });
+    rows.forEach(row => {
+      row.sort((a, b) => a.x - b.x);
+      row.forEach((p, i) => {
+        const left = row[i - 1];
+        const right = row[i + 1];
+        // Espaço de cada lado: metade da distância até o vizinho, ou até a borda.
+        let x = p.x;
+        let lSpace = left ? px(x - left.x) / 2 - GAP / 2 : px(x) - 4;
+        let rSpace = right ? px(right.x - x) / 2 - GAP / 2 : px(100 - x) - 4;
+        // Ponta da linha com espaço sobrando pra dentro: anda pra dentro até
+        // equilibrar (mover d desloca o ponto médio com o vizinho em d/2).
+        if (!left && right && lSpace < rSpace) {
+          const d = Math.min(((rSpace - lSpace) * 2) / 3, px(40 - x));
+          if (d > 0) { x += (d / width) * 100; lSpace += d; rSpace -= d / 2; }
+        } else if (!right && left && rSpace < lSpace) {
+          const d = Math.min(((lSpace - rSpace) * 2) / 3, px(x - 60));
+          if (d > 0) { x -= (d / width) * 100; rSpace += d; lSpace -= d / 2; }
+        }
+        const avail = 2 * Math.min(lSpace, rSpace);
+        const ratingW = p.rating != null ? textWidth(fmtRating(p.rating), rFont) + 12 : 0;
+        const hFixed = 4 + 24 + 7 + (ratingW ? ratingW + 7 : 0) + 9;
+        const vTop = 24 + (ratingW ? ratingW + 5 : 0);
+        const full = displayName(p.name);
+        const abbr = displayName(abbrevName(p.name));
+        const fitsH = (t) => hFixed + textWidth(t, font) <= avail;
+        const fitsV = (t) => Math.max(vTop, textWidth(t, vFont)) + 14 <= avail;
+        const boxW = (t, v) => (v ? Math.max(vTop, textWidth(t, vFont)) + 14 : hFixed + textWidth(t, font));
+        let lab;
+        if (fitsH(full)) lab = { text: full, x };
+        else if (fitsV(full)) lab = { text: full, x, v: true };
+        else if (fitsH(abbr)) lab = { text: abbr, x };
+        else if (fitsV(abbr)) lab = { text: abbr, x, v: true };
+        else lab = { text: abbr, x, v: true, maxW: Math.max(24, Math.floor(avail - 14)) };
+        lab.w = Math.min(boxW(lab.text, lab.v), lab.maxW ? lab.maxW + 14 : Infinity);
+        lab.y = p.y;
+        next[p.key] = lab;
+      });
+    });
+    // Cartão vertical é mais alto: se encostar numa pílula de outra linha,
+    // afasta o cartão na vertical (pra longe dela), no máximo 6%.
+    const height = el.getBoundingClientRect().height || width;
+    const H = { v: 46, h: 32 };
+    const keys = Object.keys(next);
+    for (let i = 0; i < keys.length; i++) {
+      for (let j = 0; j < keys.length; j++) {
+        const a = next[keys[i]]; const b = next[keys[j]];
+        if (i === j || !a.v || Math.abs(a.y - b.y) < 3) continue;
+        const ax = px(a.x), bx = px(b.x);
+        if (Math.abs(ax - bx) >= (a.w + b.w) / 2 + 2) continue;
+        const need = (H.v + (b.v ? H.v : H.h)) / 2 + 3;
+        const dist = Math.abs(((a.y - b.y) * height) / 100);
+        if (dist >= need) continue;
+        const shift = Math.min(6, (((need - dist) / height) * 100));
+        a.y += a.y < b.y ? -shift : shift;
+      }
+    }
     setLabels(prev => (JSON.stringify(prev) === JSON.stringify(next) ? prev : next));
   }, [width, placed]);
 
@@ -108,7 +158,7 @@ export function SelectionPitch({ players, lineTopPct, className = '', ariaLabel 
       {placed.map(p => {
         const lab = labels[p.key];
         return (
-          <div key={p.key} data-sp={p.key} className={`fb-sp-pill${p.craque ? ' fb-sp-gold' : ''}`} style={{ left: `${lab?.x ?? p.x}%`, top: `${p.y}%` }} title={displayName(p.name)}>
+          <div key={p.key} data-sp={p.key} className={`fb-sp-pill${p.craque ? ' fb-sp-gold' : ''}${lab?.v ? ' fb-sp-v' : ''}`} style={{ left: `${lab?.x ?? p.x}%`, top: `${lab?.y ?? p.y}%` }} title={displayName(p.name)}>
             <span className="fb-sp-dot">
               {p.team && CLUB_LOGOS[p.team.club] ? <img src={CLUB_LOGOS[p.team.club]} alt="" /> : p.abbr}
             </span>
