@@ -318,8 +318,7 @@ const WEEKLY_TEAMS = [
     ],
   },
   {
-    // Sofascore, 3-1-4-2. Caetano Silva (Athletico-PR) não existe no elenco
-    // do jogo — aparece na seleção, mas sem bônus de OVR no draft.
+    // Sofascore, 3-1-4-2.
     round: 36,
     label: '36ª Rodada',
     sourceLabel: 'Notas Sofascore',
@@ -332,7 +331,7 @@ const WEEKLY_TEAMS = [
       { teamId: 'flamengo2026', name: 'Samuel Lino', posLabel: 'Meia-Esquerda', rating: 8.8 },
       { teamId: 'palmeiras2026', name: 'Jhon Arias', posLabel: 'Meia', rating: 8.6 },
       { teamId: 'atleticomg2026', name: 'Tomas Cuello', posLabel: 'Meia', rating: 8.6 },
-      { teamId: 'athleticopr2026', name: 'Caetano Silva', posLabel: 'Meia-Direita', rating: 8.6 },
+      { teamId: 'athleticopr2026', name: 'Leozinho', posLabel: 'Meia-Direita', rating: 8.6 },
       { teamId: 'santos2026', name: 'Neymar', posLabel: 'Atacante', rating: 8.4 },
       { teamId: 'vitoria2026', name: 'Rene', posLabel: 'Atacante', rating: 8.9 },
     ],
