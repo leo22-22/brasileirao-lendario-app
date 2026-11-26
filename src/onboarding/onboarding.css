@@ -1,0 +1,54 @@
+/* Primeiro acesso e criação de conta obrigatória (Onboarding.jsx). Usa só os
+   tokens de src/styles/tokens.css — funciona no tema claro e no escuro. */
+
+.ob-welcome { width: 100%; max-width: 620px; margin: 0 auto; padding: 40px 16px 56px; }
+.ob-eyebrow { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .08em; text-transform: uppercase; color: var(--gold-ink); }
+.ob-title { font-family: var(--font-serif); font-weight: 400; font-size: clamp(32px, 6vw, 46px); line-height: 1.08; letter-spacing: -0.02em; margin: 10px 0 12px; color: var(--ink); }
+.ob-title em { font-style: italic; color: var(--gold-ink); }
+.ob-lead { font-size: 15.5px; line-height: 1.55; color: var(--ink-2); margin: 0 0 24px; }
+.ob-steps { list-style: none; margin: 0 0 26px; padding: 0; display: grid; gap: 10px; }
+.ob-steps li { display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+.ob-steps b { display: block; font-size: 15px; color: var(--ink); }
+.ob-steps span:not(.ob-n) { font-size: 13.5px; color: var(--muted); line-height: 1.45; }
+.ob-n { flex-shrink: 0; width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: var(--green); color: #fff; font-weight: 700; font-size: 14px; }
+.ob-ctas { display: grid; grid-template-columns: 1.4fr 1fr; gap: 10px; }
+.ob-main { gap: 6px; }
+.ob-note { font-size: 12.5px; color: var(--muted); margin: 10px 0 0; }
+.ob-stats { font-size: 12.5px; color: var(--muted); margin: 6px 0 0; }
+.ob-links { display: flex; gap: 10px; align-items: center; justify-content: center; margin-top: 26px; color: var(--muted); }
+.ob-links button { background: none; border: none; padding: 8px 4px; color: var(--ink-2); font-size: 13.5px; font-weight: 600; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; font-family: var(--font-body); }
+@media (max-width: 520px) {
+  .ob-welcome { padding-top: 24px; }
+  .ob-ctas { grid-template-columns: 1fr; }
+}
+
+.ob-overlay { position: fixed; inset: 0; background: var(--overlay); z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.ob-modal { width: 100%; max-width: 460px; max-height: calc(100dvh - 32px); overflow-y: auto; background: var(--surface); border: 1px solid var(--line-strong); border-radius: 20px; padding: 22px 22px 20px; box-shadow: 0 30px 60px -20px rgba(15, 31, 23, .35); }
+.ob-modal h2 { font-family: var(--font-serif); font-weight: 500; font-size: 23px; line-height: 1.2; margin: 6px 0 6px; color: var(--ink); }
+.ob-sub { font-size: 13.5px; color: var(--ink-2); line-height: 1.5; margin: 0 0 14px; }
+.ob-prog { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-bottom: 12px; }
+.ob-prog i { height: 4px; border-radius: 4px; background: var(--surface-2); }
+.ob-prog i.ob-on { background: var(--gold); }
+.ob-headline { font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--gold-ink); }
+.ob-preview { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; margin-bottom: 14px; border: 2px solid var(--club); background: color-mix(in srgb, var(--club) 10%, var(--surface)); }
+.ob-crest { width: 46px; height: 46px; border-radius: 12px; display: grid; place-items: center; background: var(--club); color: #fff; flex-shrink: 0; overflow: hidden; }
+.ob-crest img { width: 100%; height: 100%; object-fit: contain; background: var(--surface); padding: 4px; }
+.ob-preview b { display: block; font-size: 17px; color: var(--ink); word-break: break-word; }
+.ob-preview small { font-size: 12px; color: var(--muted); }
+.ob-label { display: block; font-size: 12px; font-weight: 700; color: var(--ink-2); margin: 12px 0 6px; }
+.ob-label span { font-weight: 400; color: var(--muted); }
+.ob-input { width: 100%; height: 46px; padding: 0 14px; border-radius: 12px; border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font-size: 15px; font-family: var(--font-body); margin-bottom: 10px; }
+.ob-input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.ob-colors { display: flex; flex-wrap: wrap; gap: 10px; }
+.ob-colors button { width: 34px; height: 34px; border-radius: 50%; border: 3px solid var(--surface); box-shadow: 0 0 0 1px var(--line-strong); cursor: pointer; padding: 0; }
+.ob-colors button.ob-on { box-shadow: 0 0 0 3px var(--ink); }
+.ob-logos { display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); gap: 6px; max-height: 150px; overflow-y: auto; padding: 2px; margin-bottom: 14px; }
+.ob-logos button { aspect-ratio: 1; border-radius: 10px; border: 2px solid var(--line); background: var(--surface); padding: 5px; cursor: pointer; display: grid; place-items: center; color: var(--muted); }
+.ob-logos button.ob-on { border-color: var(--ink); background: var(--surface-2); }
+.ob-logos img { width: 100%; height: 100%; object-fit: contain; }
+.ob-colors button:focus-visible, .ob-logos button:focus-visible, .ob-back:focus-visible, .ob-switch:focus-visible, .ob-skip:focus-visible, .ob-links button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.ob-error { color: var(--danger); font-size: 13px; margin: 0 0 10px; }
+.ob-back, .ob-switch, .ob-skip { background: none; border: none; cursor: pointer; font-family: var(--font-body); }
+.ob-back { padding: 4px 0; font-size: 12.5px; color: var(--muted); }
+.ob-switch { display: block; width: 100%; margin-top: 10px; padding: 10px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.ob-skip { display: block; width: 100%; margin-top: 4px; padding: 8px; font-size: 12px; color: var(--muted); text-decoration: underline; }

@@ -49,6 +49,7 @@ import { HomeLanding } from './home/HomeLanding.jsx';
 import { displayName } from './lib/displayName.js';
 import AchievementsGallery from './components/achievements/AchievementsGallery.jsx';
 import { recordLocalDailyPlay, readLocalDailyStreak, recordLocalCopaCampaign, rememberCopaOutcome, previousDateKey, COPA_STAGE_LABELS } from './lib/localRecords.js';
+import { FirstVisitWelcome, ClubSignupModal } from './onboarding/Onboarding.jsx';
 import { encodeChallenge, decodeChallenge, challengeUrl, readChallengeFromUrl, clearChallengeFromUrl } from './lib/linkChallenge.js';
 import { getAtualMission, realResultsBefore, realTableBefore, missionSucceeded, readAtualMissionDone, markAtualMissionDone, ATUAL_MISSION_POINTS } from './lib/atualMission.js';
 import { ShareResultButton as ShareCardButton } from './components/share/ShareResultButton.jsx';
@@ -2690,7 +2691,9 @@ export default function App() {
     try { return localStorage.getItem('brl_returning') !== '1'; } catch { return false; }
   })();
 
-  const [phase, setPhase] = useState(_hasSave ? 'intro' : (_isFirstVisit ? 'formation' : 'intro'));
+  // Primeira visita (2026-11-26): tela de boas-vindas ('welcome') com o jogo
+  // em 3 passos e "Jogar agora" — antes caía direto nos 22 esquemas táticos.
+  const [phase, setPhase] = useState(_hasSave ? 'intro' : (_isFirstVisit ? 'welcome' : 'intro'));
   // Fase do jogo salvo, guardada à parte de `phase`: com save, a tela
   // inicial mostra a home (não pula direto pro jogo) com um botão
   // "Continuar" visível — em vez de reabrir sozinho sem avisar, que é
@@ -2843,6 +2846,31 @@ export default function App() {
   };
 
   const handleGuestChoice = () => setShowAccountModal(false);
+
+  // Conta obrigatória ao terminar um jogo sem conta (2026-11-26): o modal
+  // pede o clube (nome, cor, escudo) e a conta. `signupGateSkipped` só liga
+  // se o SERVIDOR falhar (ver ClubSignupModal) — fica por sessão.
+  const pendingGuestSeasonRef = useRef(null);
+  const [signupGateSkipped, setSignupGateSkipped] = useState(false);
+  const handleSignupGateDone = ({ result, mode, team }) => {
+    handleAuthSuccess(result, mode);
+    if (team) {
+      setMyTeamName(team.name);
+      setMyTeamColor(team.color);
+      setMyTeamLogo(team.logo || null);
+    }
+    trackEvent(mode === 'signup' ? 'signup_gate_signup' : 'signup_gate_login', {});
+    const payload = pendingGuestSeasonRef.current;
+    pendingGuestSeasonRef.current = null;
+    if (payload) {
+      api.submitSeasonResult(payload)
+        .then(({ user, newlyUnlocked }) => {
+          setCurrentUser(user);
+          if (newlyUnlocked?.length > 0) setNewAchievements(newlyUnlocked);
+        })
+        .catch(() => { /* ranking é bônus */ });
+    }
+  };
 
   const handleLogout = () => {
     api.clearToken();
@@ -5050,9 +5078,9 @@ export default function App() {
       }
       return;
     }
-    // Ranking global e conquistas só fazem sentido pra quem está logado (só a
-    // conta persiste entre sessões — convidado joga normal, sem entrar no ranking).
-    if (!currentUser) return;
+    // Ranking global e conquistas só valem com conta. Convidado: o resultado
+    // fica guardado (pendingGuestSeasonRef) e é enviado se ele criar a conta
+    // no modal obrigatório do fim do jogo (ClubSignupModal).
     const isCopa = gameMode === 'copa';
     const finalTable = tableOverride || leagueTable;
     const champion = isCopa ? copaChampionId === myTeamId : finalTable[0]?.id === myTeamId;
@@ -5088,7 +5116,7 @@ export default function App() {
     const teamOvr = myTeamThisSeason?.ovr ?? null;
     const squadOvrs = (myTeamThisSeason?.players || []).map(p => p.ovr || 0);
     const bestPlayerOvr = squadOvrs.length > 0 ? Math.max(...squadOvrs) : null;
-    api.submitSeasonResult({
+    const seasonPayload = {
       gameMode, champion, position, losses, wins: campaignWins, draws: campaignDraws, gotTopScorerAward,
       goalsScored, goalsConceded, assistsMade, unbeaten, multiplayer: !!roomSnap,
       teamOvr, bestPlayerOvr,
@@ -5105,7 +5133,9 @@ export default function App() {
       // da sala), então mandar o valor guardado no localStorage daria pontos
       // de Lendário numa partida que não foi de Lendário.
       difficulty: roomSnap ? 'normal' : difficulty,
-    })
+    };
+    if (!currentUser) { pendingGuestSeasonRef.current = seasonPayload; return; }
+    api.submitSeasonResult(seasonPayload)
       .then(({ user, newlyUnlocked }) => {
         setCurrentUser(user);
         if (newlyUnlocked?.length > 0) setNewAchievements(newlyUnlocked);
@@ -5756,7 +5786,7 @@ export default function App() {
     // que permite "voltar ao menu" sem perder o jogo: quem apaga de
     // propósito é só restart() (jogar de novo / confirmar um jogo novo por
     // cima de um save existente), nunca só passar pela tela inicial.
-    if (phase === 'intro') return;
+    if (phase === 'intro' || phase === 'welcome') return;
     if (multiPhase || roomSnap) return; // don't persist multiplayer sessions
     // Supercopa do Brasil usa os MESMOS estados (pitch, leagueTeams,
     // fixtures...) de uma carreira normal — gravar aqui durante o desafio
@@ -7145,6 +7175,25 @@ export default function App() {
           />
         )}
 
+        {phase === 'welcome' && !multiPhase && (
+          <FirstVisitWelcome
+            onQuickStart={() => { setGameMode('serieab'); chooseFormation('4-3-3-misto'); trackEvent('welcome_quick_start', {}); }}
+            onPickFormation={() => { setGameMode('serieab'); setPhase('formation'); }}
+            onSeeModes={() => setPhase('intro')}
+            onLogin={() => openAccountModal('login')}
+            stats={`${GAME_STATS.clubs} clubes · ${GAME_STATS.squads} elencos históricos · ${GAME_STATS.players.toLocaleString('pt-BR')} jogadores`}
+          />
+        )}
+        {phase === 'results' && !currentUser && !authToken && !roomSnap && !multiPhase && !signupGateSkipped && (
+          <ClubSignupModal
+            initialName={myTeamName}
+            initialColor={myTeamColor}
+            initialLogo={myTeamLogo}
+            headline={isLinkChallenge ? 'Desafio jogado' : isDailyChallenge ? 'Supercopa jogada' : 'Fim de jogo'}
+            onDone={handleSignupGateDone}
+            onSkip={() => setSignupGateSkipped(true)}
+          />
+        )}
         {phase === 'intro' && !multiPhase && (
           <Intro
             onNewGameCrumb={setNewGameCrumb}
@@ -11320,6 +11369,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-boas-vindas-conta',
+    date: 'Novembro de 2026',
+    title: 'Boas-vindas nova e conta ao fim do primeiro jogo',
+    desc: 'Quem entra pela primeira vez agora vê o jogo explicado em 3 passos e pode começar o draft na hora, com um clique. E ao terminar um jogo sem conta, você escolhe o nome, a cor e o escudo do seu clube e cria a conta ali mesmo: o resultado que acabou de jogar já entra no ranking.',
+  },
   {
     id: '2026-11-carreira-gestao-completa',
     date: 'Novembro de 2026',
