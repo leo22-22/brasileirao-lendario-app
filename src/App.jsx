@@ -317,6 +317,26 @@ const WEEKLY_TEAMS = [
       { teamId: 'santos2026', name: 'Gabriel Barbosa', posLabel: 'Atacante', rating: 7.7 },
     ],
   },
+  {
+    // Sofascore, 3-1-4-2. Caetano Silva (Athletico-PR) não existe no elenco
+    // do jogo — aparece na seleção, mas sem bônus de OVR no draft.
+    round: 36,
+    label: '36ª Rodada',
+    sourceLabel: 'Notas Sofascore',
+    players: [
+      { teamId: 'gremio2026', name: 'Weverton', posLabel: 'Goleiro', craque: true, rating: 9.9 },
+      { teamId: 'fluminense2026', name: 'Thiago Silva', posLabel: 'Zagueiro', rating: 7.9 },
+      { teamId: 'gremio2026', name: 'Wallace', posLabel: 'Zagueiro', rating: 8.2 },
+      { teamId: 'cruzeiro2026', name: 'Fabricio Bruno', posLabel: 'Zagueiro', rating: 8.4 },
+      { teamId: 'vitoria2026', name: 'Baralhas', posLabel: 'Volante', rating: 7.7 },
+      { teamId: 'flamengo2026', name: 'Samuel Lino', posLabel: 'Meia-Esquerda', rating: 8.8 },
+      { teamId: 'palmeiras2026', name: 'Jhon Arias', posLabel: 'Meia', rating: 8.6 },
+      { teamId: 'atleticomg2026', name: 'Tomas Cuello', posLabel: 'Meia', rating: 8.6 },
+      { teamId: 'athleticopr2026', name: 'Caetano Silva', posLabel: 'Meia-Direita', rating: 8.6 },
+      { teamId: 'santos2026', name: 'Neymar', posLabel: 'Atacante', rating: 8.4 },
+      { teamId: 'vitoria2026', name: 'Rene', posLabel: 'Atacante', rating: 8.9 },
+    ],
+  },
 ];
 const WEEKLY_TEAM_OF_THE_WEEK = WEEKLY_TEAMS[WEEKLY_TEAMS.length - 1];
 
