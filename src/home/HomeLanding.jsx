@@ -6,6 +6,7 @@
 // `Intro` em App.jsx. Nada aqui inventa dado: tudo vem de props (TEAMS/
 // CLUB_LOGOS/lib/format.js são importados direto, por serem módulos-folha
 // sem dependência de volta pro App.jsx).
+import { SIM_2026 } from '../lib/sim2026Status.js';
 import { useState, useMemo } from 'react';
 import { TEAMS } from '../data/teams.js';
 import { CLUB_LOGOS } from '../data/club-logos.js';
@@ -91,7 +92,7 @@ export function HomeLanding({
     serieABMode,
     { id: 'copa', color: '#5dade2', title: 'Copa do Brasil Lendária', sub: '32 times · Mata-mata', onConfirm: () => { onSetGameMode('copa'); onClearLivre(); onStart(); } },
     { id: 'atual2026', color: '#e8a33d', title: 'Brasileirão Atual', sub: '20 times reais · 2026', onConfirm: () => onOpenSerieAtual() },
-    { id: 'sim2026', color: '#e05050', title: 'Simulador do Brasileirão 2026', sub: 'Rodada 37 em diante · todos os jogos', skipDifficulty: true, onConfirm: () => onOpenSimulator2026() },
+    { id: 'sim2026', color: '#e05050', title: 'Simulador do Brasileirão 2026', sub: SIM_2026.finished ? 'Temporada encerrada · veja o campeão' : `Rodada ${SIM_2026.nextRound} em diante · todos os jogos`, skipDifficulty: true, onConfirm: () => onOpenSimulator2026() },
   ];
 
   const eraTeams = useMemo(() => {
@@ -230,7 +231,7 @@ export function HomeLanding({
                 <p>{m.id === 'serieab' ? 'Pontos corridos com os maiores campeões de todas as eras.'
                   : m.id === 'copa' ? 'Mata-mata sem margem para erro. Um jogo ruim e acabou.'
                   : m.id === 'atual2026' ? 'Os 20 clubes da Série A 2026 com elencos atualizados.'
-                  : 'Simule o restante do campeonato, jogo a jogo.'}</p>
+                  : SIM_2026.finished ? 'Veja como terminou o Brasileirão 2026 de verdade.' : 'Simule o restante do campeonato, jogo a jogo.'}</p>
               </div>
               <div className="hl-meta"><span>{m.sub}</span><ArrowIcon /></div>
             </button>

@@ -537,6 +537,10 @@ export function Simulator2026App({ onExit }) {
   const teamById = Object.fromEntries(teams.map(t => [t.id, t]));
   const nameOf = (id) => displayName(teamById[id]?.club || '');
   const totalMatches = REMAINING_MATCHES.length;
+  // Temporada REAL encerrada (todos os 380 placares reais cadastrados): não
+  // sobra nada pra simular — a tela vira o fechamento oficial, sem "simular
+  // de novo" nem "recomeçar" (decisão do usuário: quando acabar, bloqueia).
+  const realFinished = totalMatches === 0;
   const seasonOver = save.matchIdx >= totalMatches;
   const nextMatch = seasonOver ? null : REMAINING_MATCHES[save.matchIdx];
 
@@ -628,7 +632,7 @@ export function Simulator2026App({ onExit }) {
   const dsp = disputes(table, left, nameOf);
   const pos = (id) => table.findIndex(r => r.id === id) + 1;
   const curGroup = nextMatch ? ROUND_GROUPS.find(g => g.idxs.includes(save.matchIdx)) : ROUND_GROUPS[ROUND_GROUPS.length - 1];
-  const shownGroup = ROUND_GROUPS.find(g => g.key === viewGroup) || curGroup;
+  const shownGroup = ROUND_GROUPS.find(g => g.key === viewGroup) || curGroup || { idxs: [], round: TOTAL_ROUNDS };
   const logByIdx = (idx) => (idx < save.matchIdx ? save.log[idx] : null);
   const playedInShown = shownGroup.idxs.filter(i => i < save.matchIdx).length;
   const lastResults = [...save.log].reverse().slice(0, 3);
@@ -670,6 +674,45 @@ export function Simulator2026App({ onExit }) {
             <button type="button" className="sm-b-o" onClick={handleQuickResult}><Icon name="forward" size={16} />Só o resultado</button>
             <button type="button" className="sm-b-g" onClick={handlePlayMatch}><Icon name="play" size={16} />Jogar ao vivo</button>
           </>
+        )}
+      />
+    );
+  } else if (realFinished) {
+    const champ = table[0];
+    const rel = table.slice(-4);
+    const saldo = `${champ.gp - champ.gc > 0 ? '+' : ''}${champ.gp - champ.gc}`;
+    hero = (
+      <SeasonEndSummary
+        id="sm-end-h"
+        eyebrow="Brasileirão 2026 · temporada encerrada"
+        crest={<TeamCrest team={teamById[champ.id]} size={92} ring />}
+        championName={nameOf(champ.id)}
+        championSub={`Campeão real · ${champ.pts} pts · ${champ.v} vitórias · saldo ${saldo}`}
+        facts={[
+          { title: 'Libertadores (G4)', text: table.slice(0, 4).map(r => nameOf(r.id)).join(', ') },
+          { title: 'Rebaixados', text: rel.map(r => nameOf(r.id)).join(', ') },
+          ...(topScorer ? [{ title: 'Artilheiro', text: `${playerLabel(topScorer.name)} (${nameOf(topScorer.teamId)}) · ${topScorer.total} gols` }] : []),
+          { title: 'E agora?', text: 'O Simulador 2027 chega quando a tabela da nova temporada for divulgada.' },
+        ]}
+        actions={(
+          <ShareResultButton
+            className="sm-b-o"
+            cardData={{
+              mode: 'Brasileirão 2026',
+              title: `Campeão: ${nameOf(champ.id)}`,
+              subtitle: 'Tabela final real do Brasileirão 2026',
+              teamLabel: nameOf(champ.id), teamLogo: teamById[champ.id]?.clubLogo, teamColor: teamById[champ.id]?.color,
+              stats: [
+                { label: 'Pontos', value: champ.pts },
+                { label: 'Vitórias', value: champ.v },
+                { label: 'Saldo', value: saldo },
+              ],
+              highlights: [
+                { label: 'Libertadores (G4)', text: table.slice(0, 4).map(r => nameOf(r.id)).join(', ') },
+                { label: 'Rebaixados', text: rel.map(r => nameOf(r.id)).join(', ') },
+              ],
+            }}
+          />
         )}
       />
     );
@@ -721,13 +764,13 @@ export function Simulator2026App({ onExit }) {
       <div className="sm-top">
         <div style={{ minWidth: 0 }}>
           <button type="button" className="ng-back" style={{ marginBottom: 14 }} onClick={onExit}><Icon name="chevronLeft" size={14} />Voltar ao menu</button>
-          <span className="ng-mono" style={{ display: 'block' }}>Tabela real atualizada em {REAL_RESULTS_UPDATED_AT} · o resto é simulado jogo a jogo</span>
+          <span className="ng-mono" style={{ display: 'block' }}>{realFinished ? `Temporada encerrada · tabela final real (${REAL_RESULTS_UPDATED_AT})` : `Tabela real atualizada em ${REAL_RESULTS_UPDATED_AT} · o resto é simulado jogo a jogo`}</span>
           <h1>Simulador do <em>Brasileirão 2026</em></h1>
         </div>
-        <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" onClick={() => setConfirmReset(true)} disabled={save.matchIdx === 0}><Icon name="forward" size={16} />Recomeçar da tabela real</button>
+        {!realFinished && <button type="button" className="ui-btn ui-btn-ghost ui-btn-md" onClick={() => setConfirmReset(true)} disabled={save.matchIdx === 0}><Icon name="forward" size={16} />Recomeçar da tabela real</button>}
       </div>
 
-      <div className="ng-card sm-strip">
+      {!realFinished && <div className="ng-card sm-strip">
         <div className="sm-big">{save.matchIdx} <small>de {totalMatches} jogos</small></div>
         <div className="sm-rds-scroll">
           <div className="sm-rds" style={{ gridTemplateColumns: ROUND_GROUPS.map(g => (g.postponed ? '84px' : 'minmax(120px, 1fr)')).join(' ') }}>
@@ -744,12 +787,12 @@ export function Simulator2026App({ onExit }) {
           </div>
         </div>
         <span className="ng-small">{totalMatches - save.matchIdx} jogo{totalMatches - save.matchIdx === 1 ? '' : 's'} restante{totalMatches - save.matchIdx === 1 ? '' : 's'}</span>
-      </div>
+      </div>}
 
       <div className="sm-lay">
         <div className="sm-lc">
           {hero}
-          <div className="sm-two">
+          {!realFinished && <div className="sm-two">
             <section className="ng-card" ref={roundCardRef} aria-labelledby="sm-round-h" style={{ overflow: 'hidden', scrollMarginTop: 16 }}>
               <div className="ng-ch">
                 <h3 id="sm-round-h">{shownGroup.postponed ? 'Jogo atrasado · R21' : `Rodada ${shownGroup.round}`}</h3>
@@ -794,12 +837,12 @@ export function Simulator2026App({ onExit }) {
                 <small>{lastResults.length ? lastResults.map((r, i) => <span key={i} style={{ display: 'block' }}>{resultText(r)}</span>) : 'Nenhum jogo simulado ainda.'}</small>
               </div>
             </section>
-          </div>
+          </div>}
         </div>
 
         <div className="sm-rc">
         <section className="ng-card sm-tbl" aria-labelledby="sm-tbl-h">
-          <div className="sm-tbl-hd"><h3 id="sm-tbl-h">Classificação</h3><span className="ng-small">setas: posição em relação à tabela real</span></div>
+          <div className="sm-tbl-hd"><h3 id="sm-tbl-h">Classificação</h3><span className="ng-small">{realFinished ? 'tabela final, 38 rodadas' : 'setas: posição em relação à tabela real'}</span></div>
           <StandingsTable
             rows={table}
             zoneFor={(pos, total) => zoneFor('A', pos, total)}
@@ -808,14 +851,14 @@ export function Simulator2026App({ onExit }) {
             highlightIds={[...hl]}
             renderCrest={(id) => <TeamCrest team={teamById[id]} size={18} />}
             renderTeamName={(row) => nameOf(row.id)}
-            caption={`Classificação do Brasileirão 2026 após ${save.matchIdx} jogos simulados`}
+            caption={realFinished ? 'Classificação final real do Brasileirão 2026' : `Classificação do Brasileirão 2026 após ${save.matchIdx} jogos simulados`}
             legend={ZONE_LEGEND.A}
             legendNote={nextMatch ? 'Em destaque: os dois times do próximo jogo' : null}
           />
         </section>
 
         <section className="ng-card sm-tbl sm-art" aria-labelledby="sm-art-h">
-          <div className="sm-tbl-hd"><h3 id="sm-art-h">Artilharia</h3><span className="ng-small">gols reais até {REAL_SCORERS_UPDATED_AT} + simulados aqui</span></div>
+          <div className="sm-tbl-hd"><h3 id="sm-art-h">Artilharia</h3><span className="ng-small">{realFinished ? `gols reais da temporada (${REAL_SCORERS_UPDATED_AT})` : `gols reais até ${REAL_SCORERS_UPDATED_AT} + simulados aqui`}</span></div>
           <ol className="sm-art-list">
             {artilharia.slice(0, 10).map((r, i) => (
               <li key={r.key}>
@@ -827,7 +870,7 @@ export function Simulator2026App({ onExit }) {
               </li>
             ))}
           </ol>
-          <p className="ng-small" style={{ margin: 0 }}>Top 20 real (Placar). Nos jogos simulados, cada artilheiro marca no ritmo que tem na vida real.</p>
+          <p className="ng-small" style={{ margin: 0 }}>{realFinished ? 'Top 20 real (Placar), temporada completa.' : 'Top 20 real (Placar). Nos jogos simulados, cada artilheiro marca no ritmo que tem na vida real.'}</p>
         </section>
         </div>
       </div>
