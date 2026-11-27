@@ -254,7 +254,7 @@ export function HomeLanding({
           <button className="hl-mini hl-card-hover" onClick={onMultiPlayer}>
             <div className="hl-l">
               <div className="hl-ic"><ModeIcon id="amigos" size={18} /></div>
-              <div><h4>Jogar com Amigos</h4><small>Sala, duelo 1x1 ou desafio por link</small></div>
+              <div><h4>Jogar com Amigos</h4><small>Partida rápida, sala ou desafio por link</small></div>
             </div>
             <ArrowIcon />
           </button>

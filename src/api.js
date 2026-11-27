@@ -111,8 +111,14 @@ export function fetchPublicRooms() {
   return request('/rooms');
 }
 
-export function publishRoom(code, { label, gameMode, playerCount, phase }) {
-  return request(`/rooms/${code}`, { method: 'PUT', body: { label, gameMode, playerCount, phase } });
+export function publishRoom(code, { label, gameMode, playerCount, phase, quick = false }) {
+  return request(`/rooms/${code}`, { method: 'PUT', body: { label, gameMode, playerCount, phase, quick } });
+}
+
+// Partida rápida: a sala de duelo esperando há mais tempo (já reservada pra
+// quem pediu) ou { room: null } se ninguém estiver esperando.
+export function findQuickMatch(exclude = '') {
+  return request(`/rooms/quick${exclude ? `?exclude=${encodeURIComponent(exclude)}` : ''}`);
 }
 
 export function closeRoom(code) {

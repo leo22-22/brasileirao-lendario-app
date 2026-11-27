@@ -6376,7 +6376,9 @@ export default function App() {
     });
   };
 
-  const multiCreateRoom = async (attemptsLeft = 5) => {
+  // `opts` (Fase 6, partida rápida): { gameMode, quick } — sem isso usa o
+  // modo escolhido no lobby (multiGameMode), como sempre.
+  const multiCreateRoom = async (attemptsLeft = 5, opts = {}) => {
     if (attemptsLeft === 5) {
       if (multiConnectingRef.current) return; // evita Peer duplicado em duplo-toque antes do re-render
       multiConnectingRef.current = true;
@@ -6409,7 +6411,8 @@ export default function App() {
       setIsLeader(true);
       setRoomCode(id.toUpperCase());
       const initialSnap = {
-        gameMode: multiGameMode,
+        gameMode: opts.gameMode || multiGameMode,
+        quick: !!opts.quick,
         phase: 'lobby',
         leaderId: MY_PID,
         leaderPeerId: id,
@@ -6421,7 +6424,7 @@ export default function App() {
       setRoomSnap(initialSnap);
       setMultiPhase('room');
       setChatMessages([]);
-      trackEvent('multiplayer_room_created', { game_mode: multiGameMode });
+      trackEvent('multiplayer_room_created', { game_mode: opts.gameMode || multiGameMode, quick: !!opts.quick });
     });
 
     peer.on('connection', (conn) => {
@@ -6481,7 +6484,7 @@ export default function App() {
       if (e.type === 'unavailable-id' && attemptsLeft > 0) {
         clearTimeout(timeout);
         try { peer.destroy(); } catch { }
-        multiCreateRoom(attemptsLeft - 1);
+        multiCreateRoom(attemptsLeft - 1, opts);
         return;
       }
       clearTimeout(timeout);
@@ -6509,6 +6512,7 @@ export default function App() {
             gameMode: current.gameMode,
             playerCount: Object.keys(current.players || {}).length,
             phase: current.phase,
+            quick: !!current.quick,
           }).catch(() => { });
         }
         return current;
@@ -6518,9 +6522,103 @@ export default function App() {
     const interval = setInterval(publish, 15000);
     return () => clearInterval(interval);
   }, [isLeader, roomCode]);
+  // Fase e número de jogadores vão pro registro NA HORA (não esperam o
+  // heartbeat de 15s) — senão uma sala rápida que já começou continuava
+  // "esperando" na lista e alguém tentava entrar numa sala cheia.
+  const publishedPlayers = Object.keys(roomSnap?.players || {}).length;
+  useEffect(() => {
+    if (!isLeader || !roomCode || !roomSnap) return;
+    api.publishRoom(roomCode, {
+      label: roomSnap.players?.[MY_PID]?.name || 'Meu Time',
+      gameMode: roomSnap.gameMode,
+      playerCount: publishedPlayers,
+      phase: roomSnap.phase,
+      quick: !!roomSnap.quick,
+    }).catch(() => { });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLeader, roomCode, roomSnap?.phase, publishedPlayers]);
+  // Fechou a aba: tira a sala da lista na hora (keepalive sobrevive ao unload).
+  useEffect(() => {
+    if (!isLeader || !roomCode) return undefined;
+    const onHide = () => { try { fetch(`/api/rooms/${roomCode}`, { method: 'DELETE', keepalive: true }); } catch { /* ignore */ } };
+    window.addEventListener('pagehide', onHide);
+    return () => window.removeEventListener('pagehide', onHide);
+  }, [isLeader, roomCode]);
 
-  const multiJoinRoom = async (code) => {
+  // ── Partida rápida (Fase 6) ─────────────────────────────────────────
+  // "Encontrar adversário": pega no servidor a sala de duelo rápido esperando
+  // há mais tempo (já reservada pra mim) e entra; se não houver, cria uma e
+  // espera. Ninguém precisa clicar "iniciar": com 2 na sala começa sozinho, e
+  // quando os dois terminam o draft o duelo começa sozinho.
+  const [quickSearching, setQuickSearching] = useState(false);
+  // Entrada numa sala rápida em andamento: se falhar (sala cheia, líder
+  // fechou a aba, registro desatualizado), tenta de novo sozinha em vez de
+  // mostrar erro — a sala que falhou fica reservada no servidor por 20s, então
+  // a próxima busca já devolve outra (ou nenhuma, e aí cria a própria).
+  const quickJoinRef = useRef(false);
+  const quickRetriesRef = useRef(0);
+  const quickRetryRef = useRef(null);
+  const startQuickMatch = async (isRetry = false) => {
+    if (multiConnectingRef.current) return;
+    if (!isRetry) { if (quickSearching) return; quickRetriesRef.current = 0; trackEvent('quick_match_search', {}); }
+    setMultiError('');
+    setQuickSearching(true);
+    try {
+      const { room } = quickRetriesRef.current < 3 ? await api.findQuickMatch() : { room: null };
+      if (room?.code) { setQuickSearching(false); multiJoinRoom(room.code, { quick: true }); return; }
+    } catch { /* sem lista pública: cria a própria sala e espera */ }
+    setQuickSearching(false);
+    multiCreateRoom(5, { gameMode: 'duelo', quick: true });
+  };
+  quickRetryRef.current = () => { quickRetriesRef.current += 1; startQuickMatch(true); };
+  // Sai da sala rápida vazia SEM recarregar a página (leaveMultiplayer
+  // recarrega) — usado pra juntar duas pessoas que criaram sala ao mesmo tempo.
+  const softLeaveQuickRoom = () => {
+    if (roomCode) api.closeRoom(roomCode).catch(() => { });
+    if (peerRef.current) { try { peerRef.current.destroy(); } catch { } peerRef.current = null; }
+    connsRef.current = {};
+    leaderConnRef.current = null;
+    setRoomSnap(null);
+    setRoomCode('');
+    setIsLeader(false);
+  };
+  const quickPlayerCount = Object.keys(roomSnap?.players || {}).length;
+  // Duas salas rápidas esperando ao mesmo tempo: a de código MAIOR entra na
+  // de código menor (regra fixa, então nunca as duas trocam de lado juntas).
+  useEffect(() => {
+    if (!isLeader || !roomSnap?.quick || roomSnap.phase !== 'lobby' || quickPlayerCount !== 1 || !roomCode) return undefined;
+    const iv = setInterval(async () => {
+      try {
+        const { rooms } = await api.fetchPublicRooms();
+        const other = (rooms || []).filter(r => r.quick && r.status === 'lobby' && r.playerCount === 1 && r.code < roomCode)
+          .sort((a, b) => (a.code < b.code ? -1 : 1))[0];
+        if (other) { softLeaveQuickRoom(); multiJoinRoom(other.code, { quick: true }); }
+      } catch { /* tenta de novo no próximo ciclo */ }
+    }, 7000);
+    return () => clearInterval(iv);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLeader, roomSnap?.quick, roomSnap?.phase, quickPlayerCount, roomCode]);
+  // Adversário chegou: começa sozinho.
+  useEffect(() => {
+    if (!isLeader || !roomSnap?.quick || roomSnap.phase !== 'lobby' || quickPlayerCount < 2) return undefined;
+    trackEvent('quick_match_found', {});
+    const t = setTimeout(() => multiLeaderStart(), 1500);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLeader, roomSnap?.quick, roomSnap?.phase, quickPlayerCount]);
+  // Os dois montaram o time: o duelo começa sozinho.
+  const quickAllDrafted = !!roomSnap?.quick && quickPlayerCount >= 2
+    && Object.values(roomSnap.players || {}).every(p => p.ready && p.pitch);
+  useEffect(() => {
+    if (!isLeader || !quickAllDrafted || roomSnap?.phase === 'lobby' || roomSnap?.phase === 'simulation') return undefined;
+    const t = setTimeout(() => multiLeaderSimulate(), 1200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLeader, quickAllDrafted, roomSnap?.phase]);
+
+  const multiJoinRoom = async (code, { quick = false } = {}) => {
     if (multiConnectingRef.current) return; // já tem uma tentativa de entrada em andamento — evita Peer duplicado no duplo-toque
+    quickJoinRef.current = quick;
     const normalizedCode = code.trim().toUpperCase();
     if (!normalizedCode) return;
     multiConnectingRef.current = true;
@@ -6547,8 +6645,9 @@ export default function App() {
       clearTimeout(timeout);
       multiConnectingRef.current = false;
       setMultiConnecting(false);
-      if (msg) setMultiError(msg);
       if (msg) { try { peer.destroy(); } catch { } }
+      if (msg && quickJoinRef.current) { quickJoinRef.current = false; setTimeout(() => quickRetryRef.current?.(), 300); return; }
+      if (msg) setMultiError(msg);
     };
     const timeout = setTimeout(() => {
       // Quando não há relay disponível, "tente outra rede" é o único conselho
@@ -6578,7 +6677,13 @@ export default function App() {
       });
       conn.on('data', (msg) => {
         if (msg.type === 'snap') { setRoomSnap(msg.snap); setMultiGameMode(msg.snap.gameMode); }
-        if (msg.type === 'error') { alert(msg.msg); peer.destroy(); setMultiPhase('lobby'); }
+        if (msg.type === 'error') {
+          peer.destroy();
+          setMultiPhase('lobby');
+          // Partida rápida: sala encheu antes de eu chegar — busca outra sozinho.
+          if (quickJoinRef.current) { quickJoinRef.current = false; setRoomSnap(null); setRoomCode(''); setTimeout(() => quickRetryRef.current?.(), 300); }
+          else alert(msg.msg);
+        }
         if (msg.type === 'chat' || msg.type === 'reaction') addLocalChatMessage(msg);
       });
       // Sem isso, uma conexão que morre no meio do caminho não avisava nada —
@@ -7168,6 +7273,8 @@ export default function App() {
             connecting={multiConnecting} error={multiError}
             onBack={() => { setMultiPhase(null); setGameMode('brasileirao'); setMultiError(''); }}
             onLinkChallenge={startLinkCreate}
+            onQuickMatch={startQuickMatch}
+            quickSearching={quickSearching}
           />
         )}
         {multiPhase === 'browse' && (
@@ -9164,13 +9271,24 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
 // ============================================================
 // TELAS MULTIPLAYER
 // ============================================================
-function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLogo, joinInput, onJoinInput, onCreateRoom, onJoinRoom, onBrowseRooms, connecting, error, onBack, onLinkChallenge }) {
+function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLogo, joinInput, onJoinInput, onCreateRoom, onJoinRoom, onBrowseRooms, connecting, error, onBack, onLinkChallenge, onQuickMatch, quickSearching }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   return (
     <div style={styles.card} className="card-mob">
       <button onClick={onBack} className="tap-target-sm" style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 13, marginBottom: 12, padding: '6px 2px', marginLeft: -2, minHeight: 34 }}>← Voltar</button>
       <div style={styles.eyebrow}>Multiplayer</div>
       <h2 style={styles.h2}>Jogar com Amigos</h2>
+
+      {onQuickMatch && (
+        <div style={{ marginBottom: 20, padding: '16px 18px', borderRadius: 16, background: 'var(--green)', color: '#fff' }} className="on-dark">
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, letterSpacing: 0.6, textTransform: 'uppercase', opacity: 0.8 }}>Partida rápida · Duelo 1x1</div>
+          <div style={{ fontWeight: 700, fontSize: 17, margin: '4px 0 4px' }}>Enfrente alguém agora</div>
+          <div style={{ fontSize: 13, opacity: 0.85, lineHeight: 1.45, marginBottom: 12 }}>A gente acha um adversário online. Cada um monta o time no draft e vocês jogam ida e volta.</div>
+          <button onClick={() => onQuickMatch()} disabled={quickSearching || connecting} style={{ ...styles.btnPrimary, width: '100%', margin: 0, background: 'var(--gold)', color: '#fff', opacity: quickSearching || connecting ? 0.7 : 1 }}>
+            {quickSearching || connecting ? 'Procurando…' : 'Encontrar adversário'}
+          </button>
+        </div>
+      )}
 
       <div style={{ marginBottom: 20 }}>
         <div style={styles.teamEditLabel}>Modo de jogo</div>
@@ -9458,6 +9576,8 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
         )}
       </div>
 
+      {roomData.quick && <QuickMatchWait players={players.length} onInvite={shareInvite} />}
+
       {/* Grid de vagas — jogadores reais + vagas aguardando + times fictícios sorteados */}
       <div style={{ marginBottom: 16 }}>
         <div style={styles.sectionLabel}>Vagas ({players.length}/{maxSlots})</div>
@@ -9501,8 +9621,8 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
         </div>
       </div>
 
-      {/* Ações do líder */}
-      {isLeader && !isSetupPhase && (
+      {/* Ações do líder (na partida rápida tudo começa sozinho) */}
+      {isLeader && !isSetupPhase && !roomData.quick && (
         <button
           onClick={onStartSetup}
           disabled={players.length < 2}
@@ -9522,6 +9642,32 @@ function RoomScreen({ roomCode, roomData, myId, isLeader, myTeamName, myTeamColo
       {!isLeader && !isSetupPhase && (
         <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)', padding: 12 }}>
           Aguardando o líder iniciar a partida…
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Partida rápida: enquanto ninguém chega, mostra o tempo de busca; depois de
+// 1 minuto sugere chamar alguém pelo link (pouca gente online).
+function QuickMatchWait({ players, onInvite }) {
+  const [secs, setSecs] = useState(0);
+  useEffect(() => {
+    if (players >= 2) return undefined;
+    const iv = setInterval(() => setSecs(s => s + 1), 1000);
+    return () => clearInterval(iv);
+  }, [players]);
+  const mm = `${Math.floor(secs / 60)}:${String(secs % 60).padStart(2, '0')}`;
+  if (players >= 2) {
+    return <div role="status" style={{ textAlign: 'center', padding: '12px 14px', borderRadius: 12, background: 'var(--gold-tint)', fontWeight: 700, marginBottom: 16 }}>Adversário encontrado! Começando…</div>;
+  }
+  return (
+    <div role="status" style={{ textAlign: 'center', padding: '14px', borderRadius: 12, background: 'var(--surface-2)', marginBottom: 16 }}>
+      <div style={{ fontWeight: 700, fontSize: 15 }}>Procurando adversário… <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--muted)' }}>{mm}</span></div>
+      <div style={{ fontSize: 12.5, color: 'var(--muted)', marginTop: 4 }}>Assim que alguém entrar, o duelo começa sozinho.</div>
+      {secs >= 60 && (
+        <div style={{ fontSize: 12.5, marginTop: 8 }}>
+          Pouca gente online agora. <button onClick={onInvite} style={{ background: 'none', border: 'none', padding: 0, color: 'var(--gold-ink)', fontWeight: 700, textDecoration: 'underline', cursor: 'pointer', font: 'inherit' }}>Chamar um amigo pelo link</button>
         </div>
       )}
     </div>
@@ -9560,15 +9706,18 @@ function MultiWaitingScreen({ roomData, myId, isLeader, myTeamColor, onSimulate 
         ))}
       </div>
 
-      {isLeader && allReady && (
+      {isLeader && allReady && !roomData.quick && (
         <button onClick={onSimulate} style={{ ...styles.btnPrimary, width: '100%', background: 'var(--success)', color: '#fff' }}>
           Todos prontos — Iniciar campeonato! →
         </button>
       )}
+      {roomData.quick && allReady && (
+        <div style={{ textAlign: 'center', fontSize: 13, fontWeight: 700 }}>Os dois estão prontos. Começando o duelo…</div>
+      )}
       {isLeader && !allReady && (
         <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>Aguardando todos terminarem o draft…</div>
       )}
-      {!isLeader && (
+      {!isLeader && !roomData.quick && (
         <div style={{ textAlign: 'center', fontSize: 13, color: 'var(--muted)' }}>Aguardando o líder iniciar o campeonato…</div>
       )}
     </div>
@@ -11388,6 +11537,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // visto (guardado em localStorage). Atualize essa lista a cada leva de
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
+  {
+    id: '2026-11-partida-rapida',
+    date: 'Novembro de 2026',
+    title: 'Partida rápida: enfrente alguém agora',
+    desc: 'Em Jogar com Amigos, o botão "Encontrar adversário" acha alguém online pra um Duelo 1x1, sem precisar de código nem de amigo. Se ninguém estiver esperando, você abre a sala e o duelo começa sozinho assim que alguém entrar: cada um monta o time no draft e vocês jogam ida e volta.',
+  },
   {
     id: '2026-11-boas-vindas-conta',
     date: 'Novembro de 2026',
