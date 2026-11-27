@@ -21,7 +21,7 @@
 // CBF/Super Placar para a 36.
 // Data do último placar real incluído — aparece no topo do Simulador.
 // Atualize junto com a lista abaixo.
-export const REAL_RESULTS_UPDATED_AT = '25/11';
+export const REAL_RESULTS_UPDATED_AT = '27/11';
 
 export const REAL_RESULTS_2026 = [
   { round: 1, homeId: 'atleticomg2026', homeGoals: 2, awayId: 'palmeiras2026', awayGoals: 2 },
@@ -389,4 +389,6 @@ export const REAL_RESULTS_2026 = [
   // Libertadores): Camilo, Max Alves e Miguel Carvalho. playedAt 36.5 = jogado
   // antes do fim da 36 na ordem cronológica (forma recente).
   { round: 37, homeId: 'chapecoense2026', homeGoals: 3, awayId: 'palmeiras2026', awayGoals: 0, playedAt: 36.5 },
+  // 27/11 (informado pelo usuário).
+  { round: 37, homeId: 'saopaulo2026', homeGoals: 3, awayId: 'remo2026', awayGoals: 1 },
 ];
