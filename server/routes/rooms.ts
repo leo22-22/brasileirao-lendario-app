@@ -69,7 +69,8 @@ router.put('/:code', (req, res) => {
   const status: RoomEntry['status'] = body.phase === 'lobby' ? 'lobby' : 'in_progress';
 
   const prev = rooms.get(code);
-  const quick = gameMode === 'duelo' && body.quick === true;
+  // Partida rápida vale pra X1 (duelo), Brasileirão (serieab) e Copa.
+  const quick = body.quick === true && (gameMode === 'duelo' || gameMode === 'serieab' || gameMode === 'copa');
   rooms.set(code, {
     code, label, gameMode, playerCount, maxPlayers, status, updatedAt: Date.now(),
     createdAt: prev?.createdAt ?? Date.now(), quick, claimedAt: prev?.claimedAt,
@@ -77,16 +78,18 @@ router.put('/:code', (req, res) => {
   res.json({ ok: true });
 });
 
-// Partida rápida: devolve a sala rápida esperando há mais tempo (1 jogador,
-// ainda no lobby, não reservada nos últimos CLAIM_MS) e já a reserva pra
-// quem pediu. `exclude` = a própria sala de quem está esperando.
+// Partida rápida: devolve a sala rápida DO MODO pedido (`mode`: duelo,
+// serieab ou copa) esperando há mais tempo (com vaga, ainda no lobby, não
+// reservada nos últimos CLAIM_MS) e já a reserva pra quem pediu. `exclude` =
+// a própria sala de quem está esperando.
 const CLAIM_MS = 20_000;
 router.get('/quick', (req, res) => {
   purgeStale();
   const exclude = String(req.query.exclude || '').toUpperCase();
+  const mode = ['duelo', 'serieab', 'copa'].includes(String(req.query.mode)) ? String(req.query.mode) : 'duelo';
   const now = Date.now();
   const waiting = [...rooms.values()]
-    .filter(r => r.quick && r.status === 'lobby' && r.playerCount < r.maxPlayers && r.code !== exclude)
+    .filter(r => r.quick && r.gameMode === mode && r.status === 'lobby' && r.playerCount < r.maxPlayers && r.code !== exclude)
     .sort((a, b) => a.createdAt - b.createdAt);
   const room = waiting.find(r => !r.claimedAt || now - r.claimedAt > CLAIM_MS) || null;
   if (room) room.claimedAt = now;

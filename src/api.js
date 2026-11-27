@@ -117,8 +117,10 @@ export function publishRoom(code, { label, gameMode, playerCount, phase, quick =
 
 // Partida rápida: a sala de duelo esperando há mais tempo (já reservada pra
 // quem pediu) ou { room: null } se ninguém estiver esperando.
-export function findQuickMatch(exclude = '') {
-  return request(`/rooms/quick${exclude ? `?exclude=${encodeURIComponent(exclude)}` : ''}`);
+export function findQuickMatch(mode = 'duelo', exclude = '') {
+  const q = new URLSearchParams({ mode });
+  if (exclude) q.set('exclude', exclude);
+  return request(`/rooms/quick?${q}`);
 }
 
 export function closeRoom(code) {
