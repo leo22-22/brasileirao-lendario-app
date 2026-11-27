@@ -103,6 +103,20 @@ export async function ensureSchema() {
   // ligado pra quem já tem conta, já que é aviso do próprio produto que a
   // pessoa se cadastrou pra usar, não propaganda de terceiro.
   await ensureColumn('email_notifications_enabled TINYINT(1) NOT NULL DEFAULT 1');
+  // Avisos automáticos (Fase 8, scheduler.ts): lembrete diário (missão,
+  // Supercopa, sequência) ligado por padrão pra quem ativou push; aviso de
+  // gente na partida rápida é opt-in (desligado) e tem cooldown de 6h.
+  await ensureColumn('notify_daily TINYINT(1) NOT NULL DEFAULT 1');
+  await ensureColumn('notify_quick TINYINT(1) NOT NULL DEFAULT 0');
+  await ensureColumn('last_quick_notify_at TIMESTAMP NULL');
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS notification_runs (
+      kind VARCHAR(32) NOT NULL,
+      date_key VARCHAR(10) NOT NULL,
+      created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      PRIMARY KEY (kind, date_key)
+    )
+  `);
   try {
     await pool.query('CREATE INDEX idx_users_team_uf ON users (team_uf)');
   } catch (err) {
@@ -241,6 +255,8 @@ export interface UserRow {
   copa_best_at: string | null;
   push_subscription: string | null;
   email_notifications_enabled: number;
+  notify_daily?: number;
+  notify_quick?: number;
 }
 
 export interface PublicUser {
@@ -283,6 +299,8 @@ export interface PublicUser {
   copa_best_at: string | null;
   push_enabled: boolean;
   email_notifications_enabled: boolean;
+  notify_daily: boolean;
+  notify_quick: boolean;
 }
 
 export function toPublicUser(row: UserRow): PublicUser {
@@ -326,6 +344,8 @@ export function toPublicUser(row: UserRow): PublicUser {
     copa_best_at: row.copa_best_at ?? null,
     push_enabled: !!row.push_subscription,
     email_notifications_enabled: !!row.email_notifications_enabled,
+    notify_daily: row.notify_daily !== 0,
+    notify_quick: !!row.notify_quick,
   };
 }
 

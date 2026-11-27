@@ -13,6 +13,7 @@ import turnRoutes from './routes/turn.js';
 import notifyRoutes from './routes/notify.js';
 import adminRoutes from './routes/admin.js';
 import { ensureSchema } from './db.js';
+import { startScheduler } from './scheduler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -129,6 +130,7 @@ app.use((err: Error, req: express.Request, res: express.Response, _next: express
 // (ERR_REQUIRE_ASYNC_MODULE). Dentro de uma função normal isso não importa.
 async function main() {
   await ensureSchema();
+  startScheduler();
   app.listen(PORT, () => {
     console.log(`API rodando em http://localhost:${PORT}`);
   });

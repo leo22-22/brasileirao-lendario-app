@@ -6552,6 +6552,21 @@ export default function App() {
   // espera. Ninguém precisa clicar "iniciar": com 2 na sala começa sozinho, e
   // quando os dois terminam o draft o duelo começa sozinho.
   const [quickSearching, setQuickSearching] = useState(false);
+  // Aviso de partida rápida (push) abre /?quick=MODO: cai direto no lobby com
+  // o modo já marcado; a pessoa só aperta "Entrar na fila".
+  const [quickFromUrl] = useState(() => {
+    try {
+      const m = new URLSearchParams(window.location.search).get('quick');
+      return ['duelo', 'serieab', 'copa'].includes(m) ? m : null;
+    } catch { return null; }
+  });
+  useEffect(() => {
+    if (!quickFromUrl) return;
+    setMultiPhase('lobby');
+    try { const u = new URL(window.location.href); u.searchParams.delete('quick'); window.history.replaceState(null, '', u.pathname + u.search + u.hash); } catch { /* ignore */ }
+    trackEvent('quick_match_push_open', { game_mode: quickFromUrl });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Entrada numa sala rápida em andamento: se falhar (sala cheia, líder
   // fechou a aba, registro desatualizado), tenta de novo sozinha em vez de
   // mostrar erro — a sala que falhou fica reservada no servidor por 20s, então
@@ -7287,6 +7302,7 @@ export default function App() {
             onLinkChallenge={startLinkCreate}
             onQuickMatch={startQuickMatch}
             quickSearching={quickSearching}
+            initialQuickMode={quickFromUrl || 'duelo'}
           />
         )}
         {multiPhase === 'browse' && (
@@ -9283,8 +9299,8 @@ function ClubHistoryModal({ user, myTeamLogo, myTeamBadge, myTeamColor, onClose,
 // ============================================================
 // TELAS MULTIPLAYER
 // ============================================================
-function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLogo, joinInput, onJoinInput, onCreateRoom, onJoinRoom, onBrowseRooms, connecting, error, onBack, onLinkChallenge, onQuickMatch, quickSearching }) {
-  const [quickMode, setQuickMode] = useState('duelo');
+function MultiLobby({ gameMode, onSetGameMode, myTeamName, myTeamColor, myTeamLogo, joinInput, onJoinInput, onCreateRoom, onJoinRoom, onBrowseRooms, connecting, error, onBack, onLinkChallenge, onQuickMatch, quickSearching, initialQuickMode = 'duelo' }) {
+  const [quickMode, setQuickMode] = useState(initialQuickMode);
   const mc = teamInk(myTeamColor || '#C29A45');
   return (
     <div style={styles.card} className="card-mob">
@@ -11589,6 +11605,12 @@ function RankingPage({ onBack, myUsername, myTeamColor }) {
 // novidades relevante pro jogador (não precisa registrar todo commit interno).
 const WHATS_NEW = [
   {
+    id: '2026-11-avisos',
+    date: 'Novembro de 2026',
+    title: 'Avisos no celular: desafios do dia, sequência e partida rápida',
+    desc: 'Ative os avisos (no fim da Supercopa ou em Novidades) e a gente te lembra às 10h quando a Supercopa e a missão do dia saírem, às 19h se a sua sequência estiver em risco, e, se você quiser, quando tiver gente esperando na partida rápida (no máximo um aviso a cada 6 horas). Dá pra escolher cada tipo de aviso.',
+  },
+  {
     id: '2026-11-partida-rapida',
     date: 'Novembro de 2026',
     title: 'Partida rápida: jogue agora com quem estiver online',
@@ -12001,6 +12023,55 @@ function urlBase64ToUint8Array(base64String) {
   return Uint8Array.from([...rawData].map(c => c.charCodeAt(0)));
 }
 
+// Pede permissão e inscreve o navegador no push (mesmo fluxo do painel de
+// novidades) — reaproveitado pelo convite no fim da Supercopa. Devolve
+// { ok } ou { ok: false, error } com uma frase pronta pra mostrar.
+const pushSupported = () => typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window;
+async function enablePushNotifications() {
+  try {
+    const { publicKey } = await api.fetchVapidPublicKey();
+    if (!publicKey) return { ok: false, error: 'Os avisos ainda não estão disponíveis.' };
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') return { ok: false, error: 'Permissão de notificação negada no navegador.' };
+    const reg = await navigator.serviceWorker.ready;
+    const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
+    await api.subscribePush(sub.toJSON());
+    return { ok: true };
+  } catch {
+    return { ok: false, error: 'Não foi possível ativar os avisos agora.' };
+  }
+}
+
+// Convite no fim da Supercopa: lembrete amanhã às 10h (missão + Supercopa)
+// e às 19h se a sequência estiver em risco. Só pra quem tem conta e ainda
+// não ativou; some depois de ativar ou dispensar (guardado no aparelho).
+function PushReminderInvite({ currentUser, onEnabled }) {
+  const [state, setState] = useState(() => {
+    try { return localStorage.getItem('brl_push_invite_dismissed') === '1' ? 'dismissed' : 'idle'; } catch { return 'idle'; }
+  });
+  const [error, setError] = useState('');
+  if (!currentUser || currentUser.push_enabled || !pushSupported() || state === 'dismissed') return null;
+  if (state === 'done') return <div role="status" style={{ marginTop: 12, padding: '10px 14px', borderRadius: 12, background: 'var(--gold-tint)', fontSize: 13, fontWeight: 600 }}>Pronto: amanhã às 10h a gente avisa quando os desafios do dia saírem.</div>;
+  const enable = async () => {
+    setState('busy'); setError('');
+    const r = await enablePushNotifications();
+    if (r.ok) { setState('done'); trackEvent('push_enabled', { from: 'supercopa' }); onEnabled?.(); } else { setState('idle'); setError(r.error); }
+  };
+  const dismiss = () => { setState('dismissed'); try { localStorage.setItem('brl_push_invite_dismissed', '1'); } catch { /* ignore */ } };
+  return (
+    <div style={{ marginTop: 12, padding: '12px 14px', borderRadius: 12, border: '1px solid var(--line-strong)', background: 'var(--surface)', display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+      <div style={{ flex: '1 1 220px', fontSize: 13, lineHeight: 1.45 }}>
+        <b>Quer um lembrete amanhã?</b> A gente avisa às 10h quando a Supercopa e a missão do dia saírem, e às 19h se a sua sequência estiver em risco.
+        {error && <div style={{ color: 'var(--danger)', fontSize: 12, marginTop: 4 }}>{error}</div>}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button type="button" className="ui-btn ui-btn-ghost ui-btn-sm" onClick={dismiss}>Agora não</button>
+        <button type="button" className="ui-btn ui-btn-dark ui-btn-sm" disabled={state === 'busy'} onClick={enable}>{state === 'busy' ? 'Ativando…' : 'Ativar lembrete'}</button>
+      </div>
+    </div>
+  );
+}
+
 // Ativar/desativar aviso por push do navegador + toggle de email de
 // novidade — vive dentro do mural (💡) porque é literalmente sobre a
 // própria lista abaixo: "quer saber quando isso mudar sem abrir o jogo?".
@@ -12008,6 +12079,8 @@ function NewsNotifyPanel({ currentUser, myTeamColor }) {
   const mc = teamInk(myTeamColor || '#C29A45');
   const [pushEnabled, setPushEnabled] = useState(!!currentUser?.push_enabled);
   const [emailEnabled, setEmailEnabled] = useState(currentUser?.email_notifications_enabled !== false);
+  const [notifyDaily, setNotifyDaily] = useState(currentUser?.notify_daily !== false);
+  const [notifyQuick, setNotifyQuick] = useState(!!currentUser?.notify_quick);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const supportsPush = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
@@ -12022,13 +12095,8 @@ function NewsNotifyPanel({ currentUser, myTeamColor }) {
         await api.unsubscribePush();
         setPushEnabled(false);
       } else {
-        const { publicKey } = await api.fetchVapidPublicKey();
-        if (!publicKey) { setError('Notificação push ainda não está disponível.'); return; }
-        const permission = await Notification.requestPermission();
-        if (permission !== 'granted') { setError('Permissão de notificação negada no navegador.'); return; }
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(publicKey) });
-        await api.subscribePush(sub.toJSON());
+        const r = await enablePushNotifications();
+        if (!r.ok) { setError(r.error); return; }
         setPushEnabled(true);
       }
     } catch {
@@ -12036,6 +12104,14 @@ function NewsNotifyPanel({ currentUser, myTeamColor }) {
     } finally {
       setBusy(false);
     }
+  };
+
+  // Tipos de aviso automático (Fase 8): lembrete diário e partida rápida.
+  const togglePref = async (key, value, setter) => {
+    setError(''); setBusy(true);
+    try { await api.updateNotificationPrefs({ [key]: value }); setter(value); }
+    catch { setError('Não foi possível salvar a preferência agora.'); }
+    finally { setBusy(false); }
   };
 
   const toggleEmail = async () => {
@@ -12068,6 +12144,18 @@ function NewsNotifyPanel({ currentUser, myTeamColor }) {
             <input type="checkbox" checked={pushEnabled} disabled={busy} onChange={togglePush} style={{ accentColor: mc }} />
             Notificação push no navegador
           </label>
+        )}
+        {supportsPush && pushEnabled && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingLeft: 22 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+              <input type="checkbox" checked={notifyDaily} disabled={busy} onChange={() => togglePref('notifyDaily', !notifyDaily, setNotifyDaily)} style={{ accentColor: mc }} />
+              Lembrete diário: desafios às 10h e sequência em risco às 19h
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+              <input type="checkbox" checked={notifyQuick} disabled={busy} onChange={() => togglePref('notifyQuick', !notifyQuick, setNotifyQuick)} style={{ accentColor: mc }} />
+              Avisar quando tiver gente na partida rápida (no máximo 1 a cada 6h)
+            </label>
+          </div>
         )}
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
           <input type="checkbox" checked={emailEnabled} disabled={busy} onChange={toggleEmail} style={{ accentColor: mc }} />
@@ -13563,6 +13651,7 @@ function DailyChallengeResults({ leagueTable, myTeamId, myTeamColor, myTeamBadge
           </>
         )}
       />
+      <PushReminderInvite currentUser={currentUser} />
       {dailyChallenge && <SupercopaDayRanking dateKey={dailyChallenge.dateKey} myUsername={currentUser?.username} refreshKey={dailyOutcome?.synced ? 1 : 0} />}
       {!currentUser && onOpenAccount && (
         <button type="button" onClick={onOpenAccount} className="ui-btn ui-btn-ghost ui-btn-md" style={{ width: '100%', marginTop: 12 }}>Criar conta para entrar no ranking</button>

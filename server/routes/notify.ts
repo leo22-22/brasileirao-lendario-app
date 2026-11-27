@@ -44,10 +44,15 @@ router.post('/unsubscribe', async (req, res) => {
 // independentes (dá pra querer só um dos dois).
 router.put('/preferences', async (req, res) => {
   try {
-    if (typeof req.body?.emailNotifications !== 'boolean') {
-      return res.status(400).json({ error: 'Preferência inválida.' });
+    // Cada preferência é opcional: só atualiza o que vier (boolean).
+    const map: Record<string, string> = { emailNotifications: 'email_notifications_enabled', notifyDaily: 'notify_daily', notifyQuick: 'notify_quick' };
+    const sets: string[] = [];
+    const values: number[] = [];
+    for (const [key, col] of Object.entries(map)) {
+      if (typeof req.body?.[key] === 'boolean') { sets.push(`${col} = ?`); values.push(req.body[key] ? 1 : 0); }
     }
-    await pool.query('UPDATE users SET email_notifications_enabled = ? WHERE id = ?', [req.body.emailNotifications ? 1 : 0, req.userId]);
+    if (!sets.length) return res.status(400).json({ error: 'Preferência inválida.' });
+    await pool.query(`UPDATE users SET ${sets.join(', ')} WHERE id = ?`, [...values, req.userId]);
     res.json({ ok: true });
   } catch (err) {
     console.error('[notify/preferences]', err);

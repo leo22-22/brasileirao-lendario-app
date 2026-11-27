@@ -112,7 +112,9 @@ export function fetchPublicRooms() {
 }
 
 export function publishRoom(code, { label, gameMode, playerCount, phase, quick = false }) {
-  return request(`/rooms/${code}`, { method: 'PUT', body: { label, gameMode, playerCount, phase, quick } });
+  // Com token (se houver): o servidor não manda o aviso de "tem gente na
+  // partida rápida" pra quem abriu a própria sala.
+  return request(`/rooms/${code}`, { method: 'PUT', body: { label, gameMode, playerCount, phase, quick }, auth: true });
 }
 
 // Partida rápida: a sala de duelo esperando há mais tempo (já reservada pra

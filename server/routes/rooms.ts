@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import { optionalUserId } from '../auth.js';
+import { notifyQuickQueue } from '../scheduler.js';
 
 const router = Router();
 
@@ -71,6 +73,9 @@ router.put('/:code', (req, res) => {
   const prev = rooms.get(code);
   // Partida rápida vale pra X1 (duelo), Brasileirão (serieab) e Copa.
   const quick = body.quick === true && (gameMode === 'duelo' || gameMode === 'serieab' || gameMode === 'copa');
+  // Sala rápida NOVA esperando gente: avisa quem pediu (Fase 8). Fogo e
+  // esquece — a lista de salas nunca espera o envio de push.
+  if (quick && !prev && status === 'lobby') void notifyQuickQueue(gameMode, optionalUserId(req));
   rooms.set(code, {
     code, label, gameMode, playerCount, maxPlayers, status, updatedAt: Date.now(),
     createdAt: prev?.createdAt ?? Date.now(), quick, claimedAt: prev?.claimedAt,

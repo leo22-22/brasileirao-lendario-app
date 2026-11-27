@@ -24,6 +24,19 @@ declare global {
   }
 }
 
+// Lê o usuário do token SE vier um válido — pra rotas públicas que só querem
+// saber quem é (ex.: registro de salas, pra não avisar o próprio criador).
+export function optionalUserId(req: Request): number | null {
+  const header = req.headers.authorization;
+  if (!header || !header.startsWith('Bearer ')) return null;
+  try {
+    const decoded = jwt.verify(header.slice('Bearer '.length), JWT_SECRET);
+    return typeof decoded !== 'string' && typeof decoded.userId === 'number' ? decoded.userId : null;
+  } catch {
+    return null;
+  }
+}
+
 export function requireAuth(req: Request, res: Response, next: NextFunction) {
   const header = req.headers.authorization;
   if (!header || !header.startsWith('Bearer ')) {
